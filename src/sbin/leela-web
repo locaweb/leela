@@ -1,0 +1,115 @@
+#!/usr/bin/python
+#
+# Copyright 2012 Juliano Martinez
+# All Rights Reserved.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+# @author: Juliano Martinez
+
+import os
+import sys
+import json
+import syslog
+import pycassa
+import highcharts
+import ConfigParser
+from leela import lasergun
+from datetime import datetime
+from optparse import OptionParser
+#from authkit.permissions import RemoteUser
+#from authkit import authenticate, authorize
+from bottle import route, run, request, ServerAdapter, abort, default_app, post, delete, debug, get
+
+syslog.openlog(sys.argv[0].split('/')[-1], syslog.LOG_PID, syslog.LOG_DAEMON)
+#config = ConfigParser.RawConfigParser()
+#config.read('/etc/locaweb/cftools.conf')
+#cassandra = config.get('cfdaemons','cassandra')
+
+@get('/leela/<hostname>/<service>/<date>')
+def generate_chart(hostname, service, date):
+    try:
+        syslog.syslog("Received connection looking for leela/read")
+        if not hostname:
+            syslog.syslog("No hostname given")
+            abort(404, 'No hostname given')
+
+        pool = pycassa.ConnectionPool('leela', server_list=['127.0.0.1'])
+        client = pycassa.ColumnFamily(pool, '%s_%s_%s' % (hostname, service.capitalize(), date))
+        series = {}
+        for _, data in client.get_range(column_count=1000):
+            for name, value in data.iteritems():
+                name, ts = name.split('||')
+                if not series.has_key(name):
+                    series[name] = []
+                series[name].append([ts, value])
+
+        return """%s""" % lasergun.render_template("/usr/share/leela/templates/line-irregular.tmpl", service, hostname, series)
+
+    except Exception, e:
+        syslog.syslog("Error: %s" % e.__str__())
+        print("Error: %s" % e.__str__())
+        abort(500, json.dumps(e.__str__()))
+    abort(404, '%s not found' % hostname)
+
+@get('/json/<hostname>/<service>/<date>')
+def generate_json(hostname, service, date):
+    try:
+        syslog.syslog("Received connection looking for leela/read")
+        if not hostname:
+            syslog.syslog("No hostname given")
+            abort(404, 'No hostname given')
+
+        pool = pycassa.ConnectionPool('leela', server_list=['127.0.0.1'])
+        client = pycassa.ColumnFamily(pool, '%s_%s_%s' % (hostname, service.capitalize(), date))
+        series = {}
+        for _, data in client.get_range():
+            for name, value in data.iteritems():
+                name, ts = name.split('||')
+                if not name in series:
+                    series[name] = []
+                series[name].append([int(ts.split('.')[0]), value])
+
+        return series
+
+    except Exception, e:
+        syslog.syslog("Error: %s" % e.__str__())
+        print("Error: %s" % e.__str__())
+        abort(500, json.dumps(e.__str__()))
+    abort(404, '%s not found' % hostname)
+
+
+class GEventServerAdapter(ServerAdapter):
+    def run(self, handler):
+        from gevent import monkey
+        monkey.patch_socket()
+        from gevent.wsgi import WSGIServer
+        WSGIServer((self.host, self.port), handler).serve_forever()
+
+if __name__ == '__main__':
+
+    parser = OptionParser()
+    parser.add_option("-p", "--port", action="store", type="int", dest="port", help="port to bind leelad service", metavar="6969")
+
+    (options, args) = parser.parse_args()
+
+    if not options.port:
+        error = "You have to chose one port"
+        syslog.syslog(syslog.LOG_ERR, error)
+        print error
+        sys.exit(1)
+
+    syslog.syslog("Starting leelad service using port %s" % options.port)
+    debug(True)
+    run(host='0.0.0.0', port=options.port, server=GEventServerAdapter)
+

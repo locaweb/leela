@@ -1,0 +1,130 @@
+#!/usr/bin/python
+#
+# Copyright 2012 Juliano Martinez
+# All Rights Reserved.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+# @author: Juliano Martinez
+
+from gevent import monkey
+monkey.patch_all()
+
+import os
+import re
+import bz2
+import pwd
+import sys
+import time
+import gevent
+import getopt
+import syslog
+import pycassa
+import ConfigParser
+from supay import Daemon
+from gevent import socket
+from datetime import datetime
+from pycassa.types import LongType
+from pycassa.types import UTF8Type
+from pycassa.types import DoubleType
+from pycassa.pool import ConnectionPool
+from pycassa.types import CompositeType
+from pycassa.system_manager import SystemManager
+
+syslog.openlog(sys.argv[0].split('/')[-1], syslog.LOG_PID, syslog.LOG_DAEMON)
+
+allColumnFamilyOptions = {
+    'default_validation_class': DoubleType(),
+    'key_cache_size': 9000,
+    'row_cache_size': 1200
+}
+
+def parse_and_save_datagram(line, pool):
+    systemManager = pycassa.system_manager.SystemManager(timeout=10)
+
+    parsed = {}
+    hostname, service = line.split('||')[0].split('|')
+    service = service.capitalize()
+
+    columnFamily = "%s_%s_%s" % (hostname, service, datetime.now().strftime("%Y%m%d%H"))
+    columnFamilies = systemManager.get_keyspace_column_families('leela')
+    if columnFamily not in columnFamilies:
+        systemManager.create_column_family(
+            'leela',
+            columnFamily,
+            **allColumnFamilyOptions
+        )
+        syslog.syslog('Creating Cassandra keyspace %s' % columnFamily)
+    cf = pycassa.ColumnFamily(pool, columnFamily)
+    for data in line.split('||')[1:]:
+        name, value = data.split('|')
+        try:
+            cf.insert(service, {"%s||%s" % (name, time.time()): float(value)})
+        except Exception, e:
+            print e
+        syslog.syslog("%s - %s||%s - %s" % (service, name, time.time(), float(value)))
+
+def main(config_file, username):
+    os.setuid(pwd.getpwnam(username)[2])
+    syslog.syslog("Starting Logix")
+    config = ConfigParser.RawConfigParser()
+    config.read(config_file)
+
+    pool = pycassa.ConnectionPool(
+            keyspace=config.get('cassandra','keyspace'),
+            server_list=['127.0.0.1:9160'],
+            pool_size=20,
+            prefill=True
+    )
+
+    s = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM, proto=socket.IPPROTO_UDP)
+    s.bind(('',config.getint('server', 'port')))
+
+    while True:
+        data, peer = s.recvfrom(16384)
+        data = bz2.decompress(data)
+        syslog.syslog("New data: %s" % data)
+        gevent.spawn(parse_and_save_datagram, data, pool)
+
+if __name__ == '__main__':
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "a:c:u:", ["action=","config=","username="])
+    except getopt.GetoptError, err:
+        print str(err)
+        sys.exit(1)
+
+    action = 'start'
+    username = 'leela'
+    config_file = '/etc/leela/leela.conf'
+    for o, v in opts:
+        if o in ('-a', '--action'):
+            action = v
+        if o in ('-c', '--config'):
+            config_file = v
+        if o in ('-u', '--username'):
+            username = v
+
+    if not os.path.isfile(config_file):
+        syslog.syslog("Config file %s not found" % config_file)
+        sys.exit(1)
+
+    daemon = Daemon(name='leela-server', catch_all_log="/var/log/leela-server.log")
+    if action == 'start':
+        daemon.start()
+        main(config_file, username)
+    elif action == 'status':
+        daemon.status()
+    elif action == 'stop':
+        daemon.stop()
+    elif action == 'foreground':
+        main(config_file, username)
