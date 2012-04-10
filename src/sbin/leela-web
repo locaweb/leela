@@ -27,8 +27,6 @@ import ConfigParser
 from leela import lasergun
 from datetime import datetime
 from optparse import OptionParser
-#from authkit.permissions import RemoteUser
-#from authkit import authenticate, authorize
 from bottle import route, run, request, ServerAdapter, abort, default_app, post, delete, debug, get
 
 syslog.openlog(sys.argv[0].split('/')[-1], syslog.LOG_PID, syslog.LOG_DAEMON)
@@ -54,13 +52,19 @@ def generate_chart(hostname, service, date):
                     series[name] = []
                 series[name].append([ts, value])
 
-        return """%s""" % lasergun.render_template("/usr/share/leela/templates/line-irregular.tmpl", service, hostname, series)
+        return """%s""" % lasergun.render_template(
+            "/usr/share/leela/templates/line-irregular.tmpl",
+            service,
+            hostname,
+            series
+        )
 
     except Exception, e:
         syslog.syslog("Error: %s" % e.__str__())
         print("Error: %s" % e.__str__())
         abort(500, json.dumps(e.__str__()))
     abort(404, '%s not found' % hostname)
+
 
 @get('/json/<hostname>/<service>/<date>')
 def generate_json(hostname, service, date):

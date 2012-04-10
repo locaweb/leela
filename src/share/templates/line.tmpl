@@ -1,0 +1,29 @@
+#compiler-settings
+cheetahVarStartToken = @
+#end compiler-settings
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <title>@name - @service</title>
+
+        <script type="text/javascript" src="js/jquery.min.js"></script>
+        <script type="text/javascript">
+        $(function () {
+            var chart;
+            $(document).ready(function() {
+                chart = new Highcharts.Chart(
+                    @json
+                );
+            });
+        });
+        </script>
+    </head>
+    <body>
+<script src="js/highcharts.js"></script>
+<script src="js/modules/exporting.js"></script>
+
+<div id="container" style="min-width: 400px; height: 400px; margin: 0 auto"></div>
+
+    </body>
+</html>

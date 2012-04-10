@@ -1,0 +1,68 @@
+#compiler-settings
+cheetahVarStartToken = @
+#end compiler-settings
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <title>@hostname - @service</title>
+
+        <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+        <script type="text/javascript">
+$(function () {
+    var chart;
+    $(document).ready(function() {
+        chart = new Highcharts.Chart({
+            chart: {
+                renderTo: 'container',
+                type: 'spline'
+            },
+            title: {
+                text: '@hostname - @service'
+            },
+            subtitle: {
+                text: 'powered by locaweb'
+            },
+            xAxis: {
+                type: 'datetime',
+                tickInterval: 24 * 3600,
+                tickWidth: 0,
+                gridLineWidth: 1,
+            },
+            yAxis: {
+                title: {
+                    text: '@service'
+                },
+                min: 0
+            },
+            tooltip: {
+                enabled: true,
+                formatter: function() {
+                        return '<b>'+ this.series.name +'</b><br/>'+
+                        Highcharts.dateFormat('%H:%M:%S', this.x) +': '+ this.y;
+                }
+            },
+            series: [
+                #for @name, @data in @series.items()
+                {name: '@name',
+                data: [
+                    #for @ts, @value in @data
+                    [@ts, @value],
+                    #end for
+                ]},
+                #end for
+                ]
+        });
+    });
+
+});
+        </script>
+    </head>
+    <body>
+<script src="http://code.highcharts.com/highcharts.js"></script>
+<script src="http://code.highcharts.com/modules/exporting.js"></script>
+
+<div id="container" style="min-width: 400px; height: 400px; margin: 0 auto"></div>
+
+    </body>
+</html>
