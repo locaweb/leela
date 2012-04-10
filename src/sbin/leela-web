@@ -51,7 +51,7 @@ def generate_chart(hostname, service, date):
                 name, ts = name.split('||')
                 if not series.has_key(name):
                     series[name] = []
-                series[name].append([ts, value])
+                series[name].append([datetime.utcfromtimestamp(float(ts)), value])
 
         return """%s""" % lasergun.render_template(
             "/usr/share/leela/templates/line-irregular.tmpl",
