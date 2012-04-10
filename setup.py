@@ -9,7 +9,7 @@ setup(name='leela-server',
     url='https://github.com/ncode/leela-server',
     install_requires=[
         'gevent>=0.13.6'],
-    data_files=[('/usr/sbin', ['src/sbin/leela-server']),
+    data_files=[('/usr/sbin', ['src/sbin/leela-server', 'src/sbin/leela-web']),
                 ('/etc/leela', ['src/etc/leela.conf']),
                 ('/usr/share/leela/templates', ['src/share/templates/line-irregular.tmpl']),
         ]
