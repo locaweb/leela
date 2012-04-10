@@ -27,7 +27,8 @@ import ConfigParser
 from leela import lasergun
 from datetime import datetime
 from optparse import OptionParser
-from bottle import route, run, request, ServerAdapter, abort, default_app, post, delete, debug, get
+from bottle import route, run, request, ServerAdapter
+from bottle import abort, default_app, post, delete, debug, get, static_file
 
 syslog.openlog(sys.argv[0].split('/')[-1], syslog.LOG_PID, syslog.LOG_DAEMON)
 #config = ConfigParser.RawConfigParser()
@@ -92,6 +93,10 @@ def generate_json(hostname, service, date):
         abort(500, json.dumps(e.__str__()))
     abort(404, '%s not found' % hostname)
 
+
+@get('/static/<path:path>')
+def static(path):
+    return static_file("/usr/share/leela/%s" % path)
 
 class GEventServerAdapter(ServerAdapter):
     def run(self, handler):
