@@ -15,7 +15,5 @@ bottle => 0.10
 
 ## Usage:
 ### Running the server
-    $ python/sbin/leela-server -a foreground -c python/etc/leela.conf &
-
-
-    $ python/share/examples/cpu.py
+    $ src/sbin/leela-server -a foreground -c python/etc/leela.conf &
+    $ bash src/share/examples/cpu.sh
