@@ -18,12 +18,15 @@
 # @author: Juliano Martinez
 
 import os
+import pwd
 import sys
 import json
 import syslog
+import getopt
 import pycassa
 import highcharts
 import ConfigParser
+from supay import Daemon
 from leela import lasergun
 from datetime import datetime
 from optparse import OptionParser
@@ -31,9 +34,8 @@ from bottle import route, run, request, ServerAdapter
 from bottle import abort, default_app, post, delete, debug, get, static_file
 
 syslog.openlog(sys.argv[0].split('/')[-1], syslog.LOG_PID, syslog.LOG_DAEMON)
-#config = ConfigParser.RawConfigParser()
-#config.read('/etc/locaweb/cftools.conf')
-#cassandra = config.get('cfdaemons','cassandra')
+config = ConfigParser.RawConfigParser()
+cassandra = None
 
 @get('/leela/<hostname>/<service>/<date>')
 def generate_chart(hostname, service, date):
@@ -43,7 +45,7 @@ def generate_chart(hostname, service, date):
             syslog.syslog("No hostname given")
             abort(404, 'No hostname given')
 
-        pool = pycassa.ConnectionPool('leela', server_list=['127.0.0.1'])
+        pool = pycassa.ConnectionPool('leela', server_list=[cassandra])
         client = pycassa.ColumnFamily(pool, '%s_%s_%s' % (hostname, service.capitalize(), date))
         series = {}
         for _, data in client.get_range(column_count=1000):
@@ -75,7 +77,7 @@ def generate_json(hostname, service, date):
             syslog.syslog("No hostname given")
             abort(404, 'No hostname given')
 
-        pool = pycassa.ConnectionPool('leela', server_list=['127.0.0.1'])
+        pool = pycassa.ConnectionPool('leela', server_list=[cassandra])
         client = pycassa.ColumnFamily(pool, '%s_%s_%s' % (hostname, service.capitalize(), date))
         series = {}
         for _, data in client.get_range():
@@ -83,7 +85,7 @@ def generate_json(hostname, service, date):
                 name, ts = name.split('||')
                 if not name in series:
                     series[name] = []
-                series[name].append([int(ts.split('.')[0]), value])
+                series[name].append([float(ts), value])
 
         return series
 
@@ -105,20 +107,50 @@ class GEventServerAdapter(ServerAdapter):
         from gevent.wsgi import WSGIServer
         WSGIServer((self.host, self.port), handler).serve_forever()
 
+def main(config_file, username, port):
+    global cassandra
+    os.setuid(pwd.getpwnam(username)[2])
+    config.read(config_file)
+    cassandra = config.get('cassandra','server')
+    syslog.syslog("Starting leelad service using port %s" % port)
+    run( host = config.get('web','address'),
+         port = port or config.get('web','port'),
+         server = GEventServerAdapter)
+    debug(True)
+
 if __name__ == '__main__':
-
-    parser = OptionParser()
-    parser.add_option("-p", "--port", action="store", type="int", dest="port", help="port to bind leelad service", metavar="6969")
-
-    (options, args) = parser.parse_args()
-
-    if not options.port:
-        error = "You have to chose one port"
-        syslog.syslog(syslog.LOG_ERR, error)
-        print error
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "a:c:u:p:", ["action=","config=","username=","port="])
+    except getopt.GetoptError, err:
+        print str(err)
         sys.exit(1)
 
-    syslog.syslog("Starting leelad service using port %s" % options.port)
-    debug(True)
-    run(host='0.0.0.0', port=options.port, server=GEventServerAdapter)
+    port = None
+    action = 'start'
+    username = 'leela'
+    config_file = '/etc/leela/leela.conf'
+    for o, v in opts:
+        if o in ('-a', '--action'):
+            action = v
+        if o in ('-c', '--config'):
+            config_file = v
+        if o in ('-u', '--username'):
+            username = v
+        if o in ('-p', '--port'):
+            port = v
+
+    if not os.path.isfile(config_file):
+        syslog.syslog("Config file %s not found" % config_file)
+        sys.exit(1)
+
+    daemon = Daemon(name='leela-web', catch_all_log="/var/log/leela-web.log")
+    if action == 'start':
+        daemon.start()
+        main(config_file, username, port)
+    elif action == 'status':
+        daemon.status()
+    elif action == 'stop':
+        daemon.stop()
+    elif action == 'foreground':
+        main(config_file, username, port)
 
