@@ -14,7 +14,7 @@ or even a simple awk | bzip | nc script
 * bottle => 0.10
 
 ## Chart example:
-<img src="https://github.com/ncode/leela-server/blob/master/example.png">
+<img src="https://github.com/ncode/leela-server/raw/master/example.png">
 
 ## Usage:
 ### Running the server
