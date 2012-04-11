@@ -79,7 +79,7 @@ def parse_and_save_datagram(line, pool):
 def main(config_file, username):
     global cassandra
     os.setuid(pwd.getpwnam(username)[2])
-    syslog.syslog("Starting Logix")
+    syslog.syslog("Starting leela-server")
     config.read(config_file)
     cassandra = config.get('cassandra','server')
 
