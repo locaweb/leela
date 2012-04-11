@@ -27,7 +27,6 @@ import json
 import syslog
 import getopt
 import pycassa
-import highcharts
 import ConfigParser
 from supay import Daemon
 from leela import lasergun
