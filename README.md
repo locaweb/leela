@@ -7,11 +7,14 @@ you can easily use the python-leela or ruby-leela lib to send data
 or even a simple awk | bzip | nc script
 
 ## Depends:
-cassandra
-pycassa
-supay
-gevent => 0.13.6
-bottle => 0.10
+* cassandra
+* pycassa
+* supay
+* gevent => 0.13.6
+* bottle => 0.10
+
+## Chart example:
+<img src="https://github.com/ncode/leela-server/blob/master/example.png">
 
 ## Usage:
 ### Running the server
