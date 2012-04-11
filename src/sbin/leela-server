@@ -42,6 +42,8 @@ from pycassa.types import CompositeType
 from pycassa.system_manager import SystemManager
 
 syslog.openlog(sys.argv[0].split('/')[-1], syslog.LOG_PID, syslog.LOG_DAEMON)
+config = ConfigParser.RawConfigParser()
+cassandra = None
 
 allColumnFamilyOptions = {
     'default_validation_class': DoubleType(),
@@ -75,10 +77,11 @@ def parse_and_save_datagram(line, pool):
         syslog.syslog("%s - %s||%s - %s" % (service, name, time.time(), float(value)))
 
 def main(config_file, username):
+    global cassandra
     os.setuid(pwd.getpwnam(username)[2])
     syslog.syslog("Starting Logix")
-    config = ConfigParser.RawConfigParser()
     config.read(config_file)
+    cassandra = config.get('cassandra','server')
 
     pool = pycassa.ConnectionPool(
             keyspace=config.get('cassandra','keyspace'),
@@ -88,7 +91,7 @@ def main(config_file, username):
     )
 
     s = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM, proto=socket.IPPROTO_UDP)
-    s.bind(('',config.getint('server', 'port')))
+    s.bind((config.get('server','address'), config.getint('server', 'port')))
 
     while True:
         data, peer = s.recvfrom(16384)

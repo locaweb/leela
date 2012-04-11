@@ -17,6 +17,9 @@
 #
 # @author: Juliano Martinez
 
+from gevent import monkey
+monkey.patch_all()
+
 import os
 import pwd
 import sys
@@ -95,15 +98,13 @@ def generate_json(hostname, service, date):
         abort(500, json.dumps(e.__str__()))
     abort(404, '%s not found' % hostname)
 
-
 @get('/static/<path:path>')
 def static(path):
     return static_file(path, root='/usr/share/leela/')
 
+
 class GEventServerAdapter(ServerAdapter):
     def run(self, handler):
-        from gevent import monkey
-        monkey.patch_socket()
         from gevent.wsgi import WSGIServer
         WSGIServer((self.host, self.port), handler).serve_forever()
 
