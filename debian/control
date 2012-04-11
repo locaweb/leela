@@ -8,6 +8,6 @@ Homepage: https://github.com/ncode/leela-server
 
 Package: leela-server
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, python-gevent
+Depends: ${shlibs:Depends}, ${misc:Depends}, python-gevent, python-supay
 Description: Collect and Chart anything
  Collect and Chart anything
