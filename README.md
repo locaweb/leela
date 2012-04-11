@@ -12,6 +12,7 @@ or even a simple awk | bzip | nc script
 * supay
 * gevent => 0.13.6
 * bottle => 0.10
+* python-cheetah
 
 ## Chart example:
 <img src="https://github.com/ncode/leela-server/raw/master/example.png">
