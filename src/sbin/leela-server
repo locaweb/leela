@@ -43,7 +43,7 @@ from pycassa.system_manager import SystemManager
 
 syslog.openlog(sys.argv[0].split('/')[-1], syslog.LOG_PID, syslog.LOG_DAEMON)
 config = ConfigParser.RawConfigParser()
-cassandra = None
+cassandra = '127.0.0.1:9160'
 
 allColumnFamilyOptions = {
     'default_validation_class': DoubleType(),
@@ -52,7 +52,7 @@ allColumnFamilyOptions = {
 }
 
 def parse_and_save_datagram(line, pool):
-    systemManager = pycassa.system_manager.SystemManager(timeout=10)
+    systemManager = pycassa.system_manager.SystemManager(cassandra, timeout=10)
 
     parsed = {}
     hostname, service = line.split('||')[0].split('|')
@@ -85,7 +85,7 @@ def main(config_file, username):
 
     pool = pycassa.ConnectionPool(
             keyspace=config.get('cassandra','keyspace'),
-            server_list=['127.0.0.1:9160'],
+            server_list=[cassandra],
             pool_size=20,
             prefill=True
     )
