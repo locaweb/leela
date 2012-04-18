@@ -37,9 +37,11 @@ from bottle import abort, default_app, post, delete, debug, get, static_file
 
 syslog.openlog(sys.argv[0].split('/')[-1], syslog.LOG_PID, syslog.LOG_DAEMON)
 config = ConfigParser.RawConfigParser()
-cassandra = None
+config_file = '/etc/leela/leela.conf' if os.path.isfile('/etc/leela/leela.conf') else os.getenv('LEELA_CONF')
+config.read(config_file)
+cassandra = config.get('cassandra','server')
 
-@get('/leela/<hostname>/<service>/<date>')
+@get('/%s/<hostname>/<service>/<date>' % config.get('web','chart_endpoint'))
 def generate_chart(hostname, service, date):
     try:
         syslog.syslog("Received connection looking for leela/read")
@@ -71,7 +73,7 @@ def generate_chart(hostname, service, date):
     abort(404, '%s not found' % hostname)
 
 
-@get('/json/<hostname>/<service>/<date>')
+@get('/%s/<hostname>/<service>/<date>' % config.get('web','json_endpoint'))
 def generate_json(hostname, service, date):
     try:
         syslog.syslog("Received connection looking for leela/read")
@@ -107,20 +109,17 @@ class GEventServerAdapter(ServerAdapter):
         from gevent.wsgi import WSGIServer
         WSGIServer((self.host, self.port), handler).serve_forever()
 
-def main(config_file, username, port):
-    global cassandra
+def main(username, port):
     os.setuid(pwd.getpwnam(username)[2])
-    config.read(config_file)
-    cassandra = config.get('cassandra','server')
     syslog.syslog("Starting leelad service using port %s" % port)
-    run( host = config.get('web','address'),
-         port = port or config.get('web','port'),
-         server = GEventServerAdapter)
+    run(host = config.get('web','address'),
+        port = port or config.get('web','port'),
+        server = GEventServerAdapter)
     debug(True)
 
 if __name__ == '__main__':
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "a:c:u:p:", ["action=","config=","username=","port="])
+        opts, args = getopt.getopt(sys.argv[1:], "a:u:p:", ["action=","username=","port="])
     except getopt.GetoptError, err:
         print str(err)
         sys.exit(1)
@@ -128,12 +127,9 @@ if __name__ == '__main__':
     port = None
     action = 'start'
     username = 'leela'
-    config_file = '/etc/leela/leela.conf'
     for o, v in opts:
         if o in ('-a', '--action'):
             action = v
-        if o in ('-c', '--config'):
-            config_file = v
         if o in ('-u', '--username'):
             username = v
         if o in ('-p', '--port'):
@@ -146,11 +142,11 @@ if __name__ == '__main__':
     daemon = Daemon(name='leela-web', catch_all_log="/var/log/leela-web.log")
     if action == 'start':
         daemon.start()
-        main(config_file, username, port)
+        main(username, port)
     elif action == 'status':
         daemon.status()
     elif action == 'stop':
         daemon.stop()
     elif action == 'foreground':
-        main(config_file, username, port)
+        main(username, port)
 
