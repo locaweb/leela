@@ -101,7 +101,7 @@ def generate_json(hostname, service, date):
 
 @get('/static/<path:path>')
 def static(path):
-    return static_file(path, root='/usr/share/leela/')
+    return static_file(path, root='/usr/share/leela/static/')
 
 
 class GEventServerAdapter(ServerAdapter):
