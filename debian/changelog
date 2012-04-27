@@ -1,3 +1,12 @@
+leela-server (0.0.12) unstable; urgency=low
+
+  * commit 578d3715bcc1792ba3cb2bd3285d372fa156d5f4
+  * Author: Juliano Martinez <juliano@falaserio.org>
+  * Date:   Fri Apr 27 18:24:56 2012 -0300
+  *    usable release
+
+ -- Juliano Martinez <juliano.martinez@locaweb.com.br>  Fri, 27 Apr 2012 18:29:43 -0300
+
 leela-server (0.0.2) unstable; urgency=low
 
   * Working release
