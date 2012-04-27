@@ -15,3 +15,8 @@ if [ "$1" = "purge" ] ; then
 	update-rc.d leela-server remove >/dev/null
 fi
 # End automatically added section
+# Automatically added by dh_installinit
+if [ "$1" = "purge" ] ; then
+	update-rc.d leela-summarize remove >/dev/null
+fi
+# End automatically added section

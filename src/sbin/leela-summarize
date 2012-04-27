@@ -61,27 +61,34 @@ def summarize(data, pool):
     def prepare_cf(srtftime):
         columnFamily = "%s_%s_%s" % ( hostname,
                                       service,
-                                      datetime.fromtimestamp(timestamp).strftime(srtftime)
+                                      datetime.fromtimestamp(
+                                            timestamp
+                                      ).strftime(srtftime)
                                     )
         columnFamilies = systemManager.get_keyspace_column_families('leela')
         if columnFamily not in columnFamilies:
-            systemManager.create_column_family(
-                'leela',
-                columnFamily,
-                **allColumnFamilyOptions
-            )
-            syslog.syslog('Creating Cassandra keyspace %s' % columnFamily)
+            try:
+                systemManager.create_column_family(
+                    'leela',
+                    columnFamily,
+                    **allColumnFamilyOptions
+                )
+                syslog.syslog('Creating Cassandra keyspace %s' % columnFamily)
+            except pycassa.cassandra.ttypes.InvalidRequestException:
+                pass
         return pycassa.ColumnFamily(pool, columnFamily)
 
-    def accounting(values):
+    def accounting(values, name):
         total = 0
         count = 0
         for _, data in values:
-            for name, value in data.iteritems():
-                total = total + float(value)
-                count = count + 1
+            for key, value in data.iteritems():
+                if key.startswith('%s||' % name):
+                    total = total + float(value)
+                    count = count + 1
 
         try:
+            print name, value, count
             return total / float(count)
         except ZeroDivisionError:
             return 0
@@ -89,15 +96,12 @@ def summarize(data, pool):
     for srtftime in ["%Y%m%d%H", "%Y%m%d"]:
         cf = prepare_cf(srtftime[:-2])
         date = datetime.fromtimestamp(timestamp)
-        if srtftime == "%Y%m%d%H":
-            _ts = time.mktime(datetime(year=date.year,
-                          month=date.month,
-                          day=date.day,
-                          hour=date.hour).timetuple()))
-        elif srtftime == "%Y%m%d":
-            _ts = time.mktime(datetime(year=date.year,
-                          month=date.month,
-                          day=date.day).timetuple()))
+        _ts = time.mktime(datetime(year=date.year,
+                             month=date.month,
+                             day=date.day,
+                             hour=date.hour
+                                if srtftime == "%Y%m%d%H" else 0
+                          ).timetuple())
 
         for data in line.split('||')[1:]:
             name, _ = data.split('|')
@@ -107,11 +111,11 @@ def summarize(data, pool):
                              pool, '%s_%s_%s' % ( hostname,
                                                   service,
                                                   date.strftime(srtftime)
-                                                )
+                             )
                          )
                 values = client.get_range(column_count=1000)
-                total = accounting(values)
-                cf.insert(service, {"%s||%s" % (name, timestamp): total})
+                total = accounting(values, name)
+                cf.insert(service, {"%s||%s" % (name, _ts): total})
             except Exception, e:
                 print e
             syslog.syslog("%s - %s||%s - %s" % (
