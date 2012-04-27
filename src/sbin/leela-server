@@ -34,6 +34,7 @@ import ConfigParser
 from supay import Daemon
 from gevent import socket
 from datetime import datetime
+from hotqueue import HotQueue
 from pycassa.types import LongType
 from pycassa.types import UTF8Type
 from pycassa.types import DoubleType
@@ -60,6 +61,7 @@ def parse_and_save_datagram(line, pool):
     service = service.capitalize()
 
     now = datetime.now()
+    ts = time.time()
     columnFamily = "%s_%s_%s" % (hostname, service, now.strftime("%Y%m%d%H"))
     columnFamilies = systemManager.get_keyspace_column_families('leela')
     if columnFamily not in columnFamilies:
@@ -70,15 +72,15 @@ def parse_and_save_datagram(line, pool):
         )
         syslog.syslog('Creating Cassandra keyspace %s' % columnFamily)
 
-    queue.put((line, time.mktime(now)))
+    queue.put((line, ts))
     cf = pycassa.ColumnFamily(pool, columnFamily)
     for data in line.split('||')[1:]:
         name, value = data.split('|')
         try:
-            cf.insert(service, {"%s||%s" % (name, time.time()): float(value)})
+            cf.insert(service, {"%s||%s" % (name,ts): float(value)})
         except Exception, e:
             print e
-        syslog.syslog("%s - %s||%s - %s" % (service, name, time.time(), float(value)))
+        syslog.syslog("%s - %s||%s - %s" % (service, name, ts, float(value)))
 
 def main(username):
     global cassandra
@@ -127,8 +129,8 @@ if __name__ == '__main__':
     config.read(config_file)
     queue = HotQueue(config.get('hotqueue','queue'),
                      host=config.get('hotqueue','host'),
-                     port=config.get('hotqueue','port'),
-                     db=config.get('hotqueue','db'))
+                     port=config.getint('hotqueue','port'),
+                     db=config.getint('hotqueue','db'))
 
     daemon = Daemon(name='leela-server', catch_all_log="/var/log/leela-server.log")
     if action == 'start':

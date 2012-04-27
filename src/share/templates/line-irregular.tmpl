@@ -11,6 +11,11 @@ cheetahVarStartToken = @
 $(function () {
     var chart;
     $(document).ready(function() {
+        Highcharts.setOptions({
+            global: {
+                useUTC: false
+            }
+        });
         chart = new Highcharts.Chart({
             chart: {
                 renderTo: 'container',

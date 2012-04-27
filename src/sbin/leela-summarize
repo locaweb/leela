@@ -21,9 +21,16 @@ from gevent import monkey
 monkey.patch_all()
 
 import os
+import sys
+import pwd
+import time
+import getopt
+import gevent
+import syslog
 import pycassa
 import ConfigParser
 from supay import Daemon
+from datetime import datetime
 from hotqueue import HotQueue
 from pycassa.types import LongType
 from pycassa.types import UTF8Type
@@ -68,32 +75,49 @@ def summarize(data, pool):
 
     def accounting(values):
         total = 0
-        for _, data in :
-            for name, value in values.iteritems():
+        count = 0
+        for _, data in values:
+            for name, value in data.iteritems():
                 total = total + float(value)
-        return total / float(len(values))
+                count = count + 1
+
+        try:
+            return total / float(count)
+        except ZeroDivisionError:
+            return 0
 
     for srtftime in ["%Y%m%d%H", "%Y%m%d"]:
         cf = prepare_cf(srtftime[:-2])
+        date = datetime.fromtimestamp(timestamp)
+        if srtftime == "%Y%m%d%H":
+            _ts = time.mktime(datetime(year=date.year,
+                          month=date.month,
+                          day=date.day,
+                          hour=date.hour).timetuple()))
+        elif srtftime == "%Y%m%d":
+            _ts = time.mktime(datetime(year=date.year,
+                          month=date.month,
+                          day=date.day).timetuple()))
+
         for data in line.split('||')[1:]:
             name, _ = data.split('|')
+            total = 0
             try:
-                date = datetime.fromtimestamp(timestamp).strftime(srtftime)
                 client = pycassa.ColumnFamily(
-                             pool, '%s_%s_%s' % (hostname, service, date)
+                             pool, '%s_%s_%s' % ( hostname,
+                                                  service,
+                                                  date.strftime(srtftime)
+                                                )
                          )
-                values = client.get_range( "%s||%s" % (name, date),
-                                           column_start="%s" % name,
-                                           column_finish="%s" % name,
-                                           column_count=1000
-                                         )
+                values = client.get_range(column_count=1000)
                 total = accounting(values)
-                cf.insert(service, {"%s||%s" % (name, date): total})
+                cf.insert(service, {"%s||%s" % (name, timestamp): total})
             except Exception, e:
                 print e
-            syslog.syslog("%s - %s||%s - %s" % (service, name, date, total))
+            syslog.syslog("%s - %s||%s - %s" % (
+                service, name, date.strftime(srtftime), total)
+            )
 
-@queue.worker
 def main(username):
     global cassandra
     os.setuid(pwd.getpwnam(username)[2])
@@ -103,12 +127,16 @@ def main(username):
     pool = pycassa.ConnectionPool(
             keyspace=config.get('cassandra','keyspace'),
             server_list=[cassandra],
-            pool_size=20,
+            pool_size=4,
             prefill=True
     )
 
-    data = queue.get()
-    gevent.spawn(summarize, data, pool)
+    while True:
+        data = queue.get()
+        if data:
+            gevent.spawn(summarize, data, pool)
+        else:
+            time.sleep(0.2)
 
 if __name__ == '__main__':
     try:
@@ -135,13 +163,13 @@ if __name__ == '__main__':
     config.read(config_file)
     queue = HotQueue(config.get('hotqueue','queue'),
                      host=config.get('hotqueue','host'),
-                     port=config.get('hotqueue','port'),
-                     db=config.get('hotqueue','db'))
+                     port=config.getint('hotqueue','port'),
+                     db=config.getint('hotqueue','db'))
 
     daemon = Daemon(name='leela-summarize', catch_all_log="/var/log/leela-summarize.log")
     if action == 'start':
         daemon.start()
-        main( username)
+        main(username)
     elif action == 'status':
         daemon.status()
     elif action == 'stop':

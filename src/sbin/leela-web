@@ -57,7 +57,9 @@ def generate_chart(hostname, service, date):
                 name, ts = name.split('||')
                 if not series.has_key(name):
                     series[name] = []
-                series[name].append([datetime.utcfromtimestamp(float(ts)), value])
+                """ it is really fucking stupid but have to be used
+                    http://highslide.com/forum/viewtopic.php?f=9&t=9551&p=44143 """
+                series[name].append([float(ts) * 1000, value])
 
         return """%s""" % lasergun.render_template(
             "/usr/share/leela/templates/line-irregular.tmpl",
