@@ -21,19 +21,10 @@ from gevent import monkey
 monkey.patch_all()
 
 import os
-import re
-import bz2
-import pwd
-import sys
-import time
-import gevent
-import getopt
-import syslog
 import pycassa
 import ConfigParser
 from supay import Daemon
-from gevent import socket
-from datetime import datetime
+from hotqueue import HotQueue
 from pycassa.types import LongType
 from pycassa.types import UTF8Type
 from pycassa.types import DoubleType
@@ -52,34 +43,50 @@ allColumnFamilyOptions = {
     'row_cache_size': 1200
 }
 
-def parse_and_save_datagram(line, pool):
+def summarize(data, pool):
+    line, timestamp = data
     systemManager = pycassa.system_manager.SystemManager(cassandra, timeout=10)
 
     parsed = {}
     hostname, service = line.split('||')[0].split('|')
     service = service.capitalize()
 
-    now = datetime.now()
-    columnFamily = "%s_%s_%s" % (hostname, service, now.strftime("%Y%m%d%H"))
-    columnFamilies = systemManager.get_keyspace_column_families('leela')
-    if columnFamily not in columnFamilies:
-        systemManager.create_column_family(
-            'leela',
-            columnFamily,
-            **allColumnFamilyOptions
-        )
-        syslog.syslog('Creating Cassandra keyspace %s' % columnFamily)
+    def prepare_cf(srtftime):
+        columnFamily = "%s_%s_%s" % ( hostname,
+                                      service,
+                                      datetime.fromtimestamp(timestamp).strftime(srtftime)
+                                    )
+        columnFamilies = systemManager.get_keyspace_column_families('leela')
+        if columnFamily not in columnFamilies:
+            systemManager.create_column_family(
+                'leela',
+                columnFamily,
+                **allColumnFamilyOptions
+            )
+            syslog.syslog('Creating Cassandra keyspace %s' % columnFamily)
+        return pycassa.ColumnFamily(pool, columnFamily)
 
-    queue.put((line, time.mktime(now)))
-    cf = pycassa.ColumnFamily(pool, columnFamily)
-    for data in line.split('||')[1:]:
-        name, value = data.split('|')
-        try:
-            cf.insert(service, {"%s||%s" % (name, time.time()): float(value)})
-        except Exception, e:
-            print e
-        syslog.syslog("%s - %s||%s - %s" % (service, name, time.time(), float(value)))
+    for srtftime in ["%Y%m%d%H","%Y%m%d"]:
+        cf = prepare_cf(srtftime[:-2])
 
+            for _, data in client.get_range(column_count=1000):
+            for name, value in data.iteritems():
+                name, ts = name.split('||')
+                if not series.has_key(name):
+                    series[name] = []
+
+        for data in line.split('||')[1:]:
+            name, value = data.split('|')
+            try:
+                date = datetime.fromtimestamp(timestamp).strftime(srtftime)
+                value = cf.get("%s||%s" % (name, date))
+                cf.insert(service, {"%s||%s" % (name, date): float(value)})
+                cf.add("%s||count-%s" % (name, date)
+            except Exception, e:
+                print e
+            syslog.syslog("%s - %s||%s - %s" % (service, name, date, float(value)))
+
+@queue.worker
 def main(username):
     global cassandra
     os.setuid(pwd.getpwnam(username)[2])
@@ -93,14 +100,8 @@ def main(username):
             prefill=True
     )
 
-    s = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM, proto=socket.IPPROTO_UDP)
-    s.bind((config.get('server','address'), config.getint('server', 'port')))
-
-    while True:
-        data, peer = s.recvfrom(16384)
-        data = bz2.decompress(data)
-        syslog.syslog("New data: %s" % data)
-        gevent.spawn(parse_and_save_datagram, data, pool)
+    line = queue.get()
+    gevent.spawn(summarize, line, pool)
 
 if __name__ == '__main__':
     try:
@@ -133,7 +134,7 @@ if __name__ == '__main__':
     daemon = Daemon(name='leela-server', catch_all_log="/var/log/leela-server.log")
     if action == 'start':
         daemon.start()
-        main(username)
+        main( username)
     elif action == 'status':
         daemon.status()
     elif action == 'stop':
