@@ -74,8 +74,8 @@ def summarize(data, pool):
                     **allColumnFamilyOptions
                 )
                 syslog.syslog('Creating Cassandra keyspace %s' % columnFamily)
-            except pycassa.cassandra.ttypes.InvalidRequestException:
-                pass
+            except Exception, e:
+                syslog.syslog('Exception %s on %s' % (e, columnFamily))
         return pycassa.ColumnFamily(pool, columnFamily)
 
     def accounting(values, name):
@@ -88,7 +88,6 @@ def summarize(data, pool):
                     count = count + 1
 
         try:
-            print name, value, count
             return total / float(count)
         except ZeroDivisionError:
             return 0
