@@ -130,7 +130,7 @@ def main(username):
     pool = pycassa.ConnectionPool(
             keyspace=config.get('cassandra','keyspace'),
             server_list=[cassandra],
-            pool_size=4,
+            pool_size=50,
             prefill=True
     )
 
