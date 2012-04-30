@@ -36,7 +36,7 @@ from pycassa.types import CompositeType
 from pycassa.system_manager import SystemManager
 
 syslog.openlog(sys.argv[0].split('/')[-1], syslog.LOG_PID, syslog.LOG_DAEMON)
-cassandra = config.get('cassandra','server')
+cassandra = config.get('cassandra','server').split()
 
 queue = HotQueue(
     config.get('hotqueue','queue'),
@@ -53,7 +53,7 @@ allColumnFamilyOptions = {
 
 pool = pycassa.ConnectionPool(
     keyspace=config.get('cassandra','keyspace'),
-    server_list=[cassandra],
+    server_list=cassandra,
     pool_size=config.getint('cassandra', 'pool_size'),
     prefill=False
 )
