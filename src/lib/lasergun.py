@@ -140,7 +140,7 @@ def summarize(data):
                         pool_timeout=60)
                     break
                 except Exception, e:
-                    syslog.syslog('Exception %s on %s' % (e, columnFamily))
+                    syslog.syslog('Exception %s' % (e))
                     time.sleep(0.2)
             syslog.syslog("%s -> %s - %s||%s - %s" % (
                 hostname, service, name, date.strftime(srtftime), total)
