@@ -54,8 +54,8 @@ allColumnFamilyOptions = {
 pool = pycassa.ConnectionPool(
     keyspace=config.get('cassandra','keyspace'),
     server_list=[cassandra],
-    pool_size=20,
-    prefill=True
+    pool_size=config.getint('cassandra', 'pool_size'),
+    prefill=False
 )
 
 def prepare_cf(srtftime, hostname, service, timestamp):
