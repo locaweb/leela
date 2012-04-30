@@ -17,83 +17,24 @@
 #
 # @author: Juliano Martinez
 
-from gevent import monkey
-monkey.patch_all()
-
 import os
-import re
 import bz2
-import pwd
 import sys
-import time
-import gevent
+import pwd
 import getopt
+import gevent
 import syslog
-import pycassa
-import ConfigParser
+from leela import config
 from supay import Daemon
 from gevent import socket
-from datetime import datetime
-from hotqueue import HotQueue
-from pycassa.types import LongType
-from pycassa.types import UTF8Type
-from pycassa.types import DoubleType
-from pycassa.pool import ConnectionPool
-from pycassa.types import CompositeType
-from pycassa.system_manager import SystemManager
+from leela import lasergun
 
-syslog.openlog(sys.argv[0].split('/')[-1], syslog.LOG_PID, syslog.LOG_DAEMON)
-config = ConfigParser.RawConfigParser()
-cassandra = '127.0.0.1:9160'
-queue = None
-
-allColumnFamilyOptions = {
-    'default_validation_class': DoubleType(),
-    'key_cache_size': 9000,
-    'row_cache_size': 1200
-}
-
-def parse_and_save_datagram(line, pool):
-    systemManager = pycassa.system_manager.SystemManager(cassandra, timeout=10)
-
-    parsed = {}
-    hostname, service = line.split('||')[0].split('|')
-    service = service.capitalize()
-
-    now = datetime.now()
-    ts = time.time()
-    columnFamily = "%s_%s_%s" % (hostname, service, now.strftime("%Y%m%d%H"))
-    columnFamilies = systemManager.get_keyspace_column_families('leela')
-    if columnFamily not in columnFamilies:
-        systemManager.create_column_family(
-            'leela',
-            columnFamily,
-            **allColumnFamilyOptions
-        )
-        syslog.syslog('Creating Cassandra keyspace %s' % columnFamily)
-
-    queue.put((line, ts))
-    cf = pycassa.ColumnFamily(pool, columnFamily)
-    for data in line.split('||')[1:]:
-        name, value = data.split('|')
-        try:
-            cf.insert(service, {"%s||%s" % (name,ts): float(value)})
-        except Exception, e:
-            print e
-        syslog.syslog("%s - %s||%s - %s" % (service, name, ts, float(value)))
+myname = sys.argv[0].split('/')[-1]
+syslog.openlog(myname, syslog.LOG_PID, syslog.LOG_DAEMON)
 
 def main(username):
-    global cassandra
     os.setuid(pwd.getpwnam(username)[2])
-    syslog.syslog("Starting leela-server")
-    cassandra = config.get('cassandra','server')
-
-    pool = pycassa.ConnectionPool(
-            keyspace=config.get('cassandra','keyspace'),
-            server_list=[cassandra],
-            pool_size=20,
-            prefill=True
-    )
+    syslog.syslog("Starting...")
 
     s = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM, proto=socket.IPPROTO_UDP)
     s.bind((config.get('server','address'), config.getint('server', 'port')))
@@ -102,35 +43,22 @@ def main(username):
         data, peer = s.recvfrom(16384)
         data = bz2.decompress(data)
         syslog.syslog("New data: %s" % data)
-        gevent.spawn(parse_and_save_datagram, data, pool)
+        gevent.spawn(lasergun.parse_and_save_datagram, data)
 
 if __name__ == '__main__':
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "a:c:u:", ["action=","config=","username="])
+        opts, args = getopt.getopt(sys.argv[1:], "a:u:", ["action=","username="])
     except getopt.GetoptError, err:
         print str(err)
         sys.exit(1)
 
     action = 'start'
     username = 'leela'
-    config_file = '/etc/leela/leela.conf'
     for o, v in opts:
         if o in ('-a', '--action'):
             action = v
-        if o in ('-c', '--config'):
-            config_file = v
         if o in ('-u', '--username'):
             username = v
-
-    if not os.path.isfile(config_file):
-        syslog.syslog("Config file %s not found" % config_file)
-        sys.exit(1)
-
-    config.read(config_file)
-    queue = HotQueue(config.get('hotqueue','queue'),
-                     host=config.get('hotqueue','host'),
-                     port=config.getint('hotqueue','port'),
-                     db=config.getint('hotqueue','db'))
 
     daemon = Daemon(name='leela-server', catch_all_log="/var/log/leela-server.log")
     if action == 'start':

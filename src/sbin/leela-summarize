@@ -17,9 +17,6 @@
 #
 # @author: Juliano Martinez
 
-from gevent import monkey
-monkey.patch_all()
-
 import os
 import sys
 import pwd
@@ -27,147 +24,38 @@ import time
 import getopt
 import gevent
 import syslog
-import pycassa
-import ConfigParser
 from supay import Daemon
-from datetime import datetime
-from hotqueue import HotQueue
-from pycassa.types import LongType
-from pycassa.types import UTF8Type
-from pycassa.types import DoubleType
-from pycassa.pool import ConnectionPool
-from pycassa.types import CompositeType
-from pycassa.system_manager import SystemManager
+from gevent import socket
+from leela import lasergun
 
-syslog.openlog(sys.argv[0].split('/')[-1], syslog.LOG_PID, syslog.LOG_DAEMON)
-config = ConfigParser.RawConfigParser()
-cassandra = '127.0.0.1:9160'
-queue = None
-
-allColumnFamilyOptions = {
-    'default_validation_class': DoubleType(),
-    'key_cache_size': 9000,
-    'row_cache_size': 1200
-}
-
-def summarize(data, pool):
-    line, timestamp = data
-    systemManager = pycassa.system_manager.SystemManager(cassandra, timeout=10)
-
-    parsed = {}
-    hostname, service = line.split('||')[0].split('|')
-    service = service.capitalize()
-
-    def prepare_cf(srtftime):
-        columnFamily = "%s_%s_%s" % ( hostname,
-                                      service,
-                                      datetime.fromtimestamp(
-                                            timestamp
-                                      ).strftime(srtftime)
-                                    )
-        columnFamilies = systemManager.get_keyspace_column_families('leela')
-        if columnFamily not in columnFamilies:
-            try:
-                systemManager.create_column_family(
-                    'leela',
-                    columnFamily,
-                    **allColumnFamilyOptions
-                )
-                syslog.syslog('Creating Cassandra keyspace %s' % columnFamily)
-            except Exception, e:
-                syslog.syslog('Exception %s on %s' % (e, columnFamily))
-        return pycassa.ColumnFamily(pool, columnFamily)
-
-    def accounting(values, name):
-        total = 0
-        count = 0
-        for _, data in values:
-            for key, value in data.iteritems():
-                if key.startswith('%s||' % name):
-                    total = total + float(value)
-                    count = count + 1
-
-        try:
-            return total / float(count)
-        except ZeroDivisionError:
-            return 0
-
-    for srtftime in ["%Y%m%d%H", "%Y%m%d"]:
-        cf = prepare_cf(srtftime[:-2])
-        date = datetime.fromtimestamp(timestamp)
-        _ts = time.mktime(datetime(year=date.year,
-                             month=date.month,
-                             day=date.day,
-                             hour=date.hour
-                                if srtftime == "%Y%m%d%H" else 0
-                          ).timetuple())
-
-        for data in line.split('||')[1:]:
-            name, _ = data.split('|')
-            total = 0
-            try:
-                client = pycassa.ColumnFamily(
-                             pool, '%s_%s_%s' % ( hostname,
-                                                  service,
-                                                  date.strftime(srtftime)
-                             )
-                         )
-                values = client.get_range(column_count=1000)
-                total = accounting(values, name)
-                cf.insert(service, {"%s||%s" % (name, _ts): total})
-            except Exception, e:
-                print e
-            syslog.syslog("%s - %s||%s - %s" % (
-                service, name, date.strftime(srtftime), total)
-            )
+myname = sys.argv[0].split('/')[-1]
+syslog.openlog(myname, syslog.LOG_PID, syslog.LOG_DAEMON)
 
 def main(username):
-    global cassandra
     os.setuid(pwd.getpwnam(username)[2])
-    syslog.syslog("Starting leela-summarize")
-    cassandra = config.get('cassandra','server')
-
-    pool = pycassa.ConnectionPool(
-            keyspace=config.get('cassandra','keyspace'),
-            server_list=[cassandra],
-            pool_size=50,
-            prefill=True
-    )
+    syslog.syslog("Starting...")
 
     while True:
-        data = queue.get()
+        data = lasergun.queue.get()
         if data:
-            gevent.spawn(summarize, data, pool)
+            gevent.spawn(lasergun.summarize, data)
         else:
             time.sleep(0.2)
 
 if __name__ == '__main__':
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "a:c:u:", ["action=","config=","username="])
+        opts, args = getopt.getopt(sys.argv[1:], "a:u:", ["action=","username="])
     except getopt.GetoptError, err:
         print str(err)
         sys.exit(1)
 
     action = 'start'
     username = 'leela'
-    config_file = '/etc/leela/leela.conf'
     for o, v in opts:
         if o in ('-a', '--action'):
             action = v
-        if o in ('-c', '--config'):
-            config_file = v
         if o in ('-u', '--username'):
             username = v
-
-    if not os.path.isfile(config_file):
-        syslog.syslog("Config file %s not found" % config_file)
-        sys.exit(1)
-
-    config.read(config_file)
-    queue = HotQueue(config.get('hotqueue','queue'),
-                     host=config.get('hotqueue','host'),
-                     port=config.getint('hotqueue','port'),
-                     db=config.getint('hotqueue','db'))
 
     daemon = Daemon(name='leela-summarize', catch_all_log="/var/log/leela-summarize.log")
     if action == 'start':

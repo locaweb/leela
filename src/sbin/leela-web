@@ -30,15 +30,13 @@ import pycassa
 import ConfigParser
 from supay import Daemon
 from leela import lasergun
+from leela import config
 from datetime import datetime
 from optparse import OptionParser
 from bottle import route, run, request, ServerAdapter
 from bottle import abort, default_app, post, delete, debug, get, static_file
 
 syslog.openlog(sys.argv[0].split('/')[-1], syslog.LOG_PID, syslog.LOG_DAEMON)
-config = ConfigParser.RawConfigParser()
-config_file = '/etc/leela/leela.conf' if os.path.isfile('/etc/leela/leela.conf') else os.getenv('LEELA_CONF')
-config.read(config_file)
 cassandra = config.get('cassandra','server')
 
 @get('/%s/<hostname>/<service>/<date>' % config.get('web','chart_endpoint'))
@@ -84,7 +82,9 @@ def generate_json(hostname, service, date):
             abort(404, 'No hostname given')
 
         pool = pycassa.ConnectionPool('leela', server_list=[cassandra])
-        client = pycassa.ColumnFamily(pool, '%s_%s_%s' % (hostname, service.capitalize(), date))
+        client = pycassa.ColumnFamily(
+            pool, '%s_%s_%s' % (hostname, service.capitalize(), date)
+        )
         series = {}
         for _, data in client.get_range():
             for name, value in data.iteritems():
@@ -104,7 +104,6 @@ def generate_json(hostname, service, date):
 @get('/static/<path:path>')
 def static(path):
     return static_file(path, root='/usr/share/leela/static/')
-
 
 class GEventServerAdapter(ServerAdapter):
     def run(self, handler):
@@ -136,10 +135,6 @@ if __name__ == '__main__':
             username = v
         if o in ('-p', '--port'):
             port = v
-
-    if not os.path.isfile(config_file):
-        syslog.syslog("Config file %s not found" % config_file)
-        sys.exit(1)
 
     daemon = Daemon(name='leela-web', catch_all_log="/var/log/leela-web.log")
     if action == 'start':
