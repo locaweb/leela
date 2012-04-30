@@ -166,7 +166,7 @@ def parse_and_save_datagram(line):
                     pool_timeout=60)
                 break
             except Exception, e:
-                syslog.syslog(e)
+                syslog.syslog('Exception %s' % (e))
                 time.sleep(0.2)
         syslog.syslog("%s -> %s - %s||%s - %s" % (hostname, service, name, timestamp, float(value)))
 
