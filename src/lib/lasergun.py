@@ -138,7 +138,6 @@ def summarize(data):
                     values = client.get_range(column_count=1000)
                     total = accounting(values, name)
                     cf.insert(service, {"%s||%s" % (name, _ts): total},
-                        max_retries=config.getint('cassandra','retries'),
                         pool_timeout=60)
                     break
                 except Exception, e:
@@ -162,7 +161,6 @@ def parse_and_save_datagram(line):
         for count in range(config.getint('cassandra','retries')):
             try:
                 cf.insert(service, {"%s||%s" % (name, timestamp): float(value)},
-                    max_retries=config.getint('cassandra','retries'),
                     pool_timeout=60)
                 break
             except Exception, e:
