@@ -114,7 +114,7 @@ def main(username, port):
     os.setuid(pwd.getpwnam(username)[2])
     syslog.syslog("Starting leelad service using port %s" % port)
     run(host = config.get('web','address'),
-        port = port or config.get('web','port'),
+        port = port or config.getint('web','port'),
         server = GEventServerAdapter)
     debug(True)
 
