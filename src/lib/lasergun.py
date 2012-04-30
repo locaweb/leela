@@ -59,7 +59,9 @@ pool = pycassa.ConnectionPool(
 )
 
 def prepare_cf(srtftime, hostname, service, timestamp):
-    systemManager = pycassa.system_manager.SystemManager(cassandra, timeout=10)
+    systemManager = pycassa.system_manager.SystemManager(
+        config.get('cassandra','system_manager'), timeout=10
+    )
     columnFamily = "%s_%s_%s" % (
             hostname,
             service,
@@ -147,8 +149,6 @@ def summarize(data):
             )
 
 def parse_and_save_datagram(line):
-    systemManager = pycassa.system_manager.SystemManager(cassandra, timeout=10)
-
     parsed = {}
     hostname, service = line.split('||')[0].split('|')
     service = service.capitalize()
