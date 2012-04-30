@@ -138,7 +138,7 @@ def summarize(data):
                     cf.insert(service, {"%s||%s" % (name, _ts): total})
                     break
                 except Exception, e:
-                    syslog.syslog(e)
+                    syslog.syslog('Exception %s on %s' % (e, columnFamily))
                     time.sleep(0.2)
             syslog.syslog("%s -> %s - %s||%s - %s" % (
                 hostname, service, name, date.strftime(srtftime), total)
