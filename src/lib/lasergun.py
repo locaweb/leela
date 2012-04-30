@@ -138,7 +138,7 @@ def summarize(data):
                     values = client.get_range(column_count=1000)
                     total = accounting(values, name)
                     cf.insert(service, {"%s||%s" % (name, _ts): total},
-                        max_retries=config.getint('cassandra','retries')
+                        max_retries=config.getint('cassandra','retries'),
                         pool_timeout=60)
                     break
                 except Exception, e:
