@@ -55,6 +55,8 @@ pool = pycassa.ConnectionPool(
     keyspace=config.get('cassandra','keyspace'),
     server_list=cassandra,
     pool_size=config.getint('cassandra', 'pool_size'),
+    max_retries=config.getint('cassandra', 'retries'),
+    max_overflow=-1,
     prefill=False
 )
 
@@ -62,6 +64,7 @@ def prepare_cf(srtftime, hostname, service, timestamp):
     systemManager = pycassa.system_manager.SystemManager(
         config.get('cassandra','system_manager'), timeout=10
     )
+
     columnFamily = "%s_%s_%s" % (
             hostname,
             service,
