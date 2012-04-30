@@ -79,7 +79,7 @@ def prepare_cf(srtftime, hostname, service, timestamp):
                 break
             except pycassa.cassandra.ttypes.SchemaDisagreementException:
                 syslog.syslog('Problem creating %s, retrying' % (columnFamily))
-                time.sleep(1)
+                time.sleep(0.5)
             except pycassa.cassandra.ttypes.InvalidRequestException:
                 syslog.syslog('Column Family %s, already existis' % (columnFamily))
                 break
@@ -124,21 +124,24 @@ def summarize(data):
         for data in line.split('||')[1:]:
             name, _ = data.split('|')
             total = 0
-            try:
-                client = pycassa.ColumnFamily(
-                    pool, '%s_%s_%s' % (
-                        hostname,
-                        service,
-                        date.strftime(srtftime)
+            for count in range(config.getint('cassandra','retries')):
+                try:
+                    client = pycassa.ColumnFamily(
+                        pool, '%s_%s_%s' % (
+                            hostname,
+                            service,
+                            date.strftime(srtftime)
+                        )
                     )
-                )
-                values = client.get_range(column_count=1000)
-                total = accounting(values, name)
-                cf.insert(service, {"%s||%s" % (name, _ts): total})
-            except Exception, e:
-                print e
-            syslog.syslog("%s - %s||%s - %s" % (
-                service, name, date.strftime(srtftime), total)
+                    values = client.get_range(column_count=1000)
+                    total = accounting(values, name)
+                    cf.insert(service, {"%s||%s" % (name, _ts): total})
+                    break
+                except Exception, e:
+                    syslog.syslog(e)
+                    time.sleep(0.2)
+            syslog.syslog("%s -> %s - %s||%s - %s" % (
+                hostname, service, name, date.strftime(srtftime), total)
             )
 
 def parse_and_save_datagram(line):
@@ -154,11 +157,14 @@ def parse_and_save_datagram(line):
     cf = prepare_cf("%Y%m%d%H", hostname, service, timestamp)
     for data in line.split('||')[1:]:
         name, value = data.split('|')
-        try:
-            cf.insert(service, {"%s||%s" % (name, timestamp): float(value)})
-        except Exception, e:
-            print e
-        syslog.syslog("%s - %s||%s - %s" % (service, name, timestamp, float(value)))
+        for count in range(config.getint('cassandra','retries')):
+            try:
+                cf.insert(service, {"%s||%s" % (name, timestamp): float(value)})
+                break
+            except Exception, e:
+                syslog.syslog(e)
+                time.sleep(0.2)
+        syslog.syslog("%s -> %s - %s||%s - %s" % (hostname, service, name, timestamp, float(value)))
 
 def render_template(template, service, hostname, series):
     render = Template(file = template,
