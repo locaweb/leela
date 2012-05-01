@@ -34,10 +34,11 @@ syslog.openlog(myname, syslog.LOG_PID, syslog.LOG_DAEMON)
 def main(username):
     os.setuid(pwd.getpwnam(username)[2])
     syslog.syslog("Starting...")
-    try:
-        lasergun.parse_and_save_datagram()
-    except Exception, e:
-        syslog.syslog("Exception %s on leela-write")
+    while True:
+        try:
+            lasergun.parse_and_save_datagram()
+        except Exception, e:
+            syslog.syslog("Exception %s on leela-write" % e)
 
 if __name__ == '__main__':
     try:
