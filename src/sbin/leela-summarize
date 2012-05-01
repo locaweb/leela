@@ -36,7 +36,7 @@ def main(username):
     syslog.syslog("Starting...")
 
     while True:
-        data = lasergun.queue.get()
+        data = lasergun.queue_sum.get()
         if data:
             gevent.spawn(lasergun.summarize, data)
         else:
