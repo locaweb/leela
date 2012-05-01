@@ -15,4 +15,5 @@
 override_dh_installinit:
 	dh_installinit --name=leela-summarize
 	dh_installinit --name=leela-server
+	dh_installinit --name=leela-write
 	dh_installinit --name=leela-web
