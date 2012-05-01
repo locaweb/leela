@@ -46,7 +46,7 @@ queue_sum = HotQueue(
 )
 
 queue_wrt = HotQueue(
-    config.get('hotqueue','queue_wri'),
+    config.get('hotqueue','queue_wrt'),
     host=config.get('hotqueue','host'),
     port=config.getint('hotqueue','port'),
     db=config.getint('hotqueue','db')
