@@ -68,35 +68,35 @@ pool = pycassa.ConnectionPool(
 )
 
 def prepare_cf(srtftime, hostname, service, timestamp):
-    systemManager = pycassa.system_manager.SystemManager(
-        config.get('cassandra','system_manager'), timeout=10
-    )
-
     columnFamily = "%s_%s_%s" % (
-            hostname,
-            service,
-            datetime.fromtimestamp(timestamp).strftime(srtftime)
+        hostname,
+        service,
+        datetime.fromtimestamp(timestamp).strftime(srtftime)
     )
 
     for count in range(config.getint('cassandra','retries')):
-        columnFamilies = systemManager.get_keyspace_column_families('leela')
-        if columnFamily not in columnFamilies:
-            try:
-                systemManager.create_column_family(
-                    'leela',
-                    columnFamily,
-                    **allColumnFamilyOptions
-                )
-                syslog.syslog('Creating Cassandra keyspace %s' % columnFamily)
-                break
-            except pycassa.cassandra.ttypes.SchemaDisagreementException:
-                syslog.syslog('Problem creating %s, retrying' % (columnFamily))
-                time.sleep(0.5)
-            except pycassa.cassandra.ttypes.InvalidRequestException:
-                syslog.syslog('Column Family %s, already existis' % (columnFamily))
-                break
-            except Exception, e:
-                syslog.syslog('Exception %s on %s' % (e, columnFamily))
+        try:
+            systemManager = pycassa.system_manager.SystemManager(
+                config.get('cassandra','system_manager'), timeout=30
+            )
+
+            columnFamilies = systemManager.get_keyspace_column_families('leela')
+            if columnFamily not in columnFamilies:
+                    systemManager.create_column_family(
+                        'leela',
+                        columnFamily,
+                        **allColumnFamilyOptions
+                    )
+                    syslog.syslog('Creating Cassandra keyspace %s' % columnFamily)
+                    break
+        except pycassa.cassandra.ttypes.SchemaDisagreementException:
+            syslog.syslog('Problem creating %s, retrying' % (columnFamily))
+            time.sleep(0.5)
+        except pycassa.cassandra.ttypes.InvalidRequestException:
+            syslog.syslog('Column Family %s, already existis' % (columnFamily))
+            break
+        except Exception, e:
+            syslog.syslog('Exception %s on %s' % (e, columnFamily))
     return pycassa.ColumnFamily(pool, columnFamily)
 
 def summarize(data):

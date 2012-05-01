@@ -1,3 +1,9 @@
+leela-server (0.0.40) stable; urgency=low
+
+  * commit fa401dc9fb18f94bfbd022d1f01055b79a232001
+
+ -- Juliano Martinez <juliano.martinez@locaweb.com.br>  Tue, 01 May 2012 01:19:36 -0300
+
 leela-server (0.0.39) stable; urgency=low
 
   * commit fb06acc0a73e895ffc21226435013c08eddc771e
