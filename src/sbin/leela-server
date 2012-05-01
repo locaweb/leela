@@ -43,7 +43,7 @@ def main(username):
     while True:
         data, peer = s.recvfrom(16384)
         line = bz2.decompress(data)
-        syslog.syslog("New data: %s" % data)
+        syslog.syslog("New data: %s" % line)
         timestamp = time.time()
         lasergun.queue_wrt.put((line, timestamp))
         #gevent.spawn(lasergun.parse_and_save_datagram, data)
