@@ -120,41 +120,41 @@ def summarize(data):
         except ZeroDivisionError:
             return 0
 
-    for srtftime in ["%Y%m%d%H", "%Y%m%d"]:
-        cf = prepare_cf(srtftime[:-2], hostname, service, timestamp)
-        date = datetime.fromtimestamp(timestamp)
-        _ts = time.mktime(
-            datetime(
-                year=date.year,
-                month=date.month,
-                day=date.day,
-                hour=date.hour
-                    if srtftime == "%Y%m%d%H" else 0
-            ).timetuple()
-        )
+    srtftime = "%Y%m%d%H"
+    cf = prepare_cf(srtftime[:-2], hostname, service, timestamp)
+    date = datetime.fromtimestamp(timestamp)
+    _ts = time.mktime(
+        datetime(
+            year=date.year,
+            month=date.month,
+            day=date.day,
+            hour=date.hour
+                if srtftime == "%Y%m%d%H" else 0
+        ).timetuple()
+    )
 
-        for data in line.split('||')[1:]:
-            name, _ = data.split('|')
-            total = 0
-            for count in range(config.getint('cassandra','retries')):
-                try:
-                    client = pycassa.ColumnFamily(
-                        pool, '%s_%s_%s' % (
-                            hostname,
-                            service,
-                            date.strftime(srtftime)
-                        )
+    for data in line.split('||')[1:]:
+        name, _ = data.split('|')
+        total = 0
+        for count in range(config.getint('cassandra','retries')):
+            try:
+                client = pycassa.ColumnFamily(
+                    pool, '%s_%s_%s' % (
+                        hostname,
+                        service,
+                        date.strftime(srtftime)
                     )
-                    values = client.get_range(column_count=1000)
-                    total = accounting(values, name)
-                    cf.insert(service, {"%s||%s" % (name, _ts): total})
-                    break
-                except Exception, e:
-                    syslog.syslog('Exception %s' % (e))
-                    time.sleep(0.2)
-            syslog.syslog("%s -> %s - %s||%s - %s" % (
-                hostname, service, name, date.strftime(srtftime), total)
-            )
+                )
+                values = client.get_range(column_count=1000)
+                total = accounting(values, name)
+                cf.insert(service, {"%s||%s" % (name, _ts): total})
+                break
+            except Exception, e:
+                syslog.syslog('Exception %s' % (e))
+                time.sleep(0.2)
+        syslog.syslog("%s -> %s - %s||%s - %s" % (
+            hostname, service, name, date.strftime(srtftime), total)
+        )
 
 @queue_wrt.worker
 def parse_and_save_datagram(data):
