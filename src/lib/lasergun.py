@@ -91,10 +91,10 @@ def prepare_cf(srtftime, hostname, service, timestamp):
                     break
         except pycassa.cassandra.ttypes.SchemaDisagreementException:
             syslog.syslog('Problem creating %s, retrying' % (columnFamily))
-            time.sleep(0.5)
+            time.sleep(1)
         except Exception, e:
-            syslog.syslog('Exception %s on %s' % (e, columnFamily))
-            time.sleep(0.5)
+            syslog.syslog('Exception %s on %s, retrying' % (e, columnFamily))
+            time.sleep(1)
     return pycassa.ColumnFamily(pool, columnFamily)
 
 def summarize(data):
@@ -150,7 +150,7 @@ def summarize(data):
                 break
             except Exception, e:
                 syslog.syslog('Exception %s' % (e))
-                time.sleep(0.2)
+                time.sleep(0.7)
         syslog.syslog("%s -> %s - %s||%s - %s" % (
             hostname, service, name, date.strftime(srtftime), total)
         )
@@ -175,7 +175,7 @@ def parse_and_save_datagram(data):
                 break
             except Exception, e:
                 syslog.syslog('Exception %s' % (e))
-                time.sleep(0.2)
+                time.sleep(0.7)
         syslog.syslog("%s -> %s - %s||%s - %s" % (hostname, service, name, timestamp, float(value)))
     queue_sum.put((line, timestamp))
 
