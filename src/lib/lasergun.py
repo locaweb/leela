@@ -166,7 +166,6 @@ def parse_and_save_datagram(data):
 
     now = datetime.now()
     timestamp = time.time()
-    queue_sum.put((line, timestamp))
     cf = prepare_cf("%Y%m%d%H", hostname, service, timestamp)
     for data in line.split('||')[1:]:
         name, value = data.split('|')
@@ -178,6 +177,7 @@ def parse_and_save_datagram(data):
                 syslog.syslog('Exception %s' % (e))
                 time.sleep(0.2)
         syslog.syslog("%s -> %s - %s||%s - %s" % (hostname, service, name, timestamp, float(value)))
+    queue_sum.put((line, timestamp))
 
 def render_template(template, service, hostname, series):
     render = Template(file = template,
