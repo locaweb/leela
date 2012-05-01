@@ -92,11 +92,9 @@ def prepare_cf(srtftime, hostname, service, timestamp):
         except pycassa.cassandra.ttypes.SchemaDisagreementException:
             syslog.syslog('Problem creating %s, retrying' % (columnFamily))
             time.sleep(0.5)
-        except pycassa.cassandra.ttypes.InvalidRequestException:
-            syslog.syslog('Column Family %s, already existis' % (columnFamily))
-            break
         except Exception, e:
             syslog.syslog('Exception %s on %s' % (e, columnFamily))
+            time.sleep(0.5)
     return pycassa.ColumnFamily(pool, columnFamily)
 
 def summarize(data):
