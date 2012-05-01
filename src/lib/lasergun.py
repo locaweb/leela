@@ -38,8 +38,15 @@ from pycassa.system_manager import SystemManager
 syslog.openlog(sys.argv[0].split('/')[-1], syslog.LOG_PID, syslog.LOG_DAEMON)
 cassandra = config.get('cassandra','server').split()
 
-queue = HotQueue(
-    config.get('hotqueue','queue'),
+queue_sum = HotQueue(
+    config.get('hotqueue','queue_sum'),
+    host=config.get('hotqueue','host'),
+    port=config.getint('hotqueue','port'),
+    db=config.getint('hotqueue','db')
+)
+
+queue_wrt = HotQueue(
+    config.get('hotqueue','queue_wri'),
     host=config.get('hotqueue','host'),
     port=config.getint('hotqueue','port'),
     db=config.getint('hotqueue','db')
@@ -149,14 +156,17 @@ def summarize(data):
                 hostname, service, name, date.strftime(srtftime), total)
             )
 
-def parse_and_save_datagram(line):
+@queue_wrt.worker
+def parse_and_save_datagram(data):
+    line, timestamp = data
+
     parsed = {}
     hostname, service = line.split('||')[0].split('|')
     service = service.capitalize()
 
     now = datetime.now()
     timestamp = time.time()
-    queue.put((line, timestamp))
+    queue_sum.put((line, timestamp))
     cf = prepare_cf("%Y%m%d%H", hostname, service, timestamp)
     for data in line.split('||')[1:]:
         name, value = data.split('|')

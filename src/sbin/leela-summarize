@@ -57,7 +57,7 @@ if __name__ == '__main__':
         if o in ('-u', '--username'):
             username = v
 
-    daemon = Daemon(name='leela-summarize', catch_all_log="/var/log/leela-summarize.log")
+    daemon = Daemon(name=myname, catch_all_log="/var/log/%s.log" % myname)
     if action == 'start':
         daemon.start()
         main(username)

@@ -18,13 +18,12 @@
 # @author: Juliano Martinez
 
 import os
-import bz2
 import sys
 import pwd
+import time
 import getopt
 import gevent
 import syslog
-from leela import config
 from supay import Daemon
 from gevent import socket
 from leela import lasergun
@@ -35,17 +34,7 @@ syslog.openlog(myname, syslog.LOG_PID, syslog.LOG_DAEMON)
 def main(username):
     os.setuid(pwd.getpwnam(username)[2])
     syslog.syslog("Starting...")
-
-    s = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM, proto=socket.IPPROTO_UDP)
-    s.bind((config.get('server','address'), config.getint('server', 'port')))
-
-    while True:
-        data, peer = s.recvfrom(16384)
-        data = bz2.decompress(data)
-        syslog.syslog("New data: %s" % data)
-        timestamp = time.time()
-        lasergun.queue_wrt.put((line, timestamp))
-        #gevent.spawn(lasergun.parse_and_save_datagram, data)
+    lasergun.parse_and_save_datagram()
 
 if __name__ == '__main__':
     try:
