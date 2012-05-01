@@ -48,7 +48,9 @@ def generate_chart(hostname, service, date):
             abort(404, 'No hostname given')
 
         pool = pycassa.ConnectionPool('leela', server_list=[cassandra])
-        client = pycassa.ColumnFamily(pool, '%s_%s_%s' % (hostname, service.capitalize(), date))
+        client = pycassa.ColumnFamily(
+            pool, '%s_%s_%s' % (hostname.replace('-','_'), service.capitalize(), date)
+        )
         series = {}
         for _, data in client.get_range(column_count=1000):
             for name, value in data.iteritems():
@@ -83,7 +85,7 @@ def generate_json(hostname, service, date):
 
         pool = pycassa.ConnectionPool('leela', server_list=[cassandra])
         client = pycassa.ColumnFamily(
-            pool, '%s_%s_%s' % (hostname, service.capitalize(), date)
+            pool, '%s_%s_%s' % (hostname.replace('-','_'), service.capitalize(), date)
         )
         series = {}
         for _, data in client.get_range():

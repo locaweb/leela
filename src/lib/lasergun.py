@@ -102,6 +102,7 @@ def summarize(data):
 
     parsed = {}
     hostname, service = line.split('||')[0].split('|')
+    hostname = hostname.replace('-','_')
     service = service.capitalize()
 
     def accounting(values, name):
@@ -160,6 +161,7 @@ def parse_and_save_datagram(data):
 
     parsed = {}
     hostname, service = line.split('||')[0].split('|')
+    hostname = hostname.replace('-','_')
     service = service.capitalize()
 
     now = datetime.now()
