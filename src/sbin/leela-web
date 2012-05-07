@@ -20,6 +20,7 @@
 from gevent import monkey
 monkey.patch_all()
 
+import re
 import os
 import pwd
 import sys
@@ -33,11 +34,23 @@ from leela import lasergun
 from leela import config
 from datetime import datetime
 from optparse import OptionParser
-from bottle import route, run, request, ServerAdapter
+from bottle import route, run, request, response, ServerAdapter
 from bottle import abort, default_app, post, delete, debug, get, static_file
 
 syslog.openlog(sys.argv[0].split('/')[-1], syslog.LOG_PID, syslog.LOG_DAEMON)
 cassandra = config.get('cassandra','server')
+
+def reply_json(f):
+    def call(*args, **kwargs):
+        data = f(*args, **kwargs)
+        cc   = request.GET.get("callback") or ""
+        if (re.match("^[a-zA-Z0-9_\.]+$", cc)):
+            response.content_type = "application/javascript; charset=utf-8"
+            return("%s(%s);" % (cc, json.dumps(data)))
+        else:
+            response.content_type = "application/json; charset=utf-8"
+            return(json.dumps(data))
+    return(call)
 
 @get('/%s/<hostname>/<service>/<date>' % config.get('web','chart_endpoint'))
 def generate_chart(hostname, service, date):
@@ -51,7 +64,7 @@ def generate_chart(hostname, service, date):
         client = pycassa.ColumnFamily(
             pool, '%s_%s_%s' % (hostname.replace('-','_'), service.capitalize(), date)
         )
-        series = {}
+        series = {"source": {"hostname": hostname, "service": service, "date": date}}
         for _, data in client.get_range(column_count=1000):
             for name, value in data.iteritems():
                 name, ts = name.split('||')
@@ -76,6 +89,7 @@ def generate_chart(hostname, service, date):
 
 
 @get('/%s/<hostname>/<service>/<date>' % config.get('web','json_endpoint'))
+@reply_json
 def generate_json(hostname, service, date):
     try:
         syslog.syslog("Received connection looking for leela/read")
@@ -87,7 +101,7 @@ def generate_json(hostname, service, date):
         client = pycassa.ColumnFamily(
             pool, '%s_%s_%s' % (hostname.replace('-','_'), service.capitalize(), date)
         )
-        series = {}
+        series = {"source": {"hostname": hostname, "service": service, "date": date}}
         for _, data in client.get_range():
             for name, value in data.iteritems():
                 name, ts = name.split('||')
