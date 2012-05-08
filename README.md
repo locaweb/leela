@@ -21,3 +21,12 @@ or even a simple awk | bzip | nc script
 ### Running the server
     $ src/sbin/leela-server -a foreground -c python/etc/leela.conf &
     $ bash src/share/examples/cpu.sh
+
+## Javascript widget (requires jquery)
+    <div id="canvas" />
+    <script src="<endpoint>/static/js/leelaserver-bundle.js" type="text/javascript" />
+    <script type="text/javascript">
+      jQuery.ajax("<endpoint>/json/:hostname/:service/:time", { dataType: "jsonp",
+                                                                success: LEELA.widget("canvas").install
+                                                              });
+    </script>
