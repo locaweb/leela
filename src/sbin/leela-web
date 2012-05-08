@@ -42,24 +42,30 @@ cassandra = config.get('cassandra','server')
 @get('/%s/<hostname>/<service>/<date>' % config.get('web','chart_endpoint'))
 def generate_chart(hostname, service, date):
     try:
-        syslog.syslog("Received connection looking for leela/read")
+        syslog.syslog("Received connection looking for leela chart")
         if not hostname:
             syslog.syslog("No hostname given")
             abort(404, 'No hostname given')
 
+        ColumnFamily = 'hour'
+        if len(date) == 8:
+            ColumnFamily = 'day'
+        elif len(date) == 6:
+            ColumnFamily = 'month'
+        elif len(date) == 4:
+            ColumnFamily = 'year'
+
         pool = pycassa.ConnectionPool('leela', server_list=[cassandra])
-        client = pycassa.ColumnFamily(
-            pool, '%s_%s_%s' % (hostname.replace('-','_'), service.capitalize(), date)
-        )
+        client = pycassa.ColumnFamily(pool, ColumnFamily)
         series = {}
-        for _, data in client.get_range(column_count=1000):
-            for name, value in data.iteritems():
-                name, ts = name.split('||')
-                if not series.has_key(name):
-                    series[name] = []
-                """ it is really fucking stupid but have to be used
-                    http://highslide.com/forum/viewtopic.php?f=9&t=9551&p=44143 """
-                series[name].append([float(ts) * 1000, value])
+        skey = "%s:%s:%s" % (hostname, service.capitalize(), date)
+        for key, value in client.get(skey).iteritems():
+            name, ts = key.split('||')
+            if not series.has_key(name):
+                series[name] = []
+            """ it is really fucking stupid but have to be used
+                http://highslide.com/forum/viewtopic.php?f=9&t=9551&p=44143 """
+            series[name].append([float(ts) * 1000, value])
 
         return """%s""" % lasergun.render_template(
             "/usr/share/leela/templates/line-irregular.tmpl",
@@ -74,26 +80,31 @@ def generate_chart(hostname, service, date):
         abort(500, json.dumps(e.__str__()))
     abort(404, '%s not found' % hostname)
 
-
 @get('/%s/<hostname>/<service>/<date>' % config.get('web','json_endpoint'))
 def generate_json(hostname, service, date):
     try:
-        syslog.syslog("Received connection looking for leela/read")
+        syslog.syslog("Received connection looking for leela json")
         if not hostname:
             syslog.syslog("No hostname given")
             abort(404, 'No hostname given')
 
+        ColumnFamily = 'hour'
+        if len(date) == 8:
+            ColumnFamily = 'day'
+        elif len(date) == 6:
+            ColumnFamily = 'month'
+        elif len(date) == 4:
+            ColumnFamily = 'year'
+
         pool = pycassa.ConnectionPool('leela', server_list=[cassandra])
-        client = pycassa.ColumnFamily(
-            pool, '%s_%s_%s' % (hostname.replace('-','_'), service.capitalize(), date)
-        )
+        client = pycassa.ColumnFamily(pool, ColumnFamily)
         series = {}
-        for _, data in client.get_range():
-            for name, value in data.iteritems():
-                name, ts = name.split('||')
-                if not name in series:
-                    series[name] = []
-                series[name].append([float(ts), value])
+        skey = "%s:%s:%s" % (hostname, service.capitalize(), date)
+        for key, value in client.get(skey).iteritems():
+            name, ts = key.split('||')
+            if not series.has_key(name):
+                series[name] = []
+            series[name].append([float(ts), value])
 
         return series
 

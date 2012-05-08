@@ -34,6 +34,7 @@ myname = sys.argv[0].split('/')[-1]
 syslog.openlog(myname, syslog.LOG_PID, syslog.LOG_DAEMON)
 
 def main(username):
+    lasergun.prepare_cfs()
     os.setuid(pwd.getpwnam(username)[2])
     syslog.syslog("Starting...")
 
@@ -46,7 +47,6 @@ def main(username):
         syslog.syslog("New data: %s" % line)
         timestamp = time.time()
         lasergun.queue_wrt.put((line, timestamp))
-        #gevent.spawn(lasergun.parse_and_save_datagram, data)
 
 if __name__ == '__main__':
     try:

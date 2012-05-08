@@ -53,7 +53,7 @@ queue_wrt = HotQueue(
 )
 
 allColumnFamilyOptions = {
-    'default_validation_class': DoubleType(),
+    'default_validation_class': LongType(reversed=True),
     'key_cache_size': 9000,
     'row_cache_size': 1200
 }
@@ -67,14 +67,8 @@ pool = pycassa.ConnectionPool(
     prefill=False
 )
 
-def prepare_cf(srtftime, hostname, service, timestamp):
-    columnFamily = "%s_%s_%s" % (
-        hostname,
-        service,
-        datetime.fromtimestamp(timestamp).strftime(srtftime)
-    )
-
-    for count in range(config.getint('cassandra','retries')):
+def prepare_cfs():
+    for columnFamily in ['hour', 'day', 'month', 'year']:
         try:
             systemManager = pycassa.system_manager.SystemManager(
                 config.get('cassandra','system_manager'), timeout=30
@@ -82,77 +76,71 @@ def prepare_cf(srtftime, hostname, service, timestamp):
 
             columnFamilies = systemManager.get_keyspace_column_families('leela')
             if columnFamily not in columnFamilies:
-                    systemManager.create_column_family(
-                        'leela',
-                        columnFamily,
-                        **allColumnFamilyOptions
-                    )
-                    syslog.syslog('Creating Cassandra keyspace %s' % columnFamily)
-                    break
+                systemManager.create_column_family(
+                    'leela',
+                    columnFamily,
+                    **allColumnFamilyOptions
+                )
+                syslog.syslog('Creating Cassandra keyspace %s' % columnFamily)
         except pycassa.cassandra.ttypes.SchemaDisagreementException:
             syslog.syslog('Problem creating %s, retrying' % (columnFamily))
             time.sleep(1)
         except Exception, e:
             syslog.syslog('Exception %s on %s, retrying' % (e, columnFamily))
             time.sleep(1)
-    return pycassa.ColumnFamily(pool, columnFamily)
 
 def summarize(data):
     line, timestamp = data
 
     parsed = {}
     hostname, service = line.split('||')[0].split('|')
+    date = datetime.fromtimestamp(timestamp)
     hostname = hostname.replace('-','_')
     service = service.capitalize()
 
     def accounting(values, name):
         total = 0
         count = 0
-        for _, data in values:
-            for key, value in data.iteritems():
-                if key.startswith('%s||' % name):
-                    total = total + float(value)
-                    count = count + 1
+        for key, value in values.iteritems():
+            if key.startswith('%s||' % name):
+                total = total + float(value)
+                count = count + 1
 
         try:
             return total / float(count)
         except ZeroDivisionError:
             return 0
 
-    srtftime = "%Y%m%d%H"
-    cf = prepare_cf(srtftime[:-2], hostname, service, timestamp)
-    date = datetime.fromtimestamp(timestamp)
+    cf = pycassa.ColumnFamily(pool, 'day')
     _ts = time.mktime(
         datetime(
             year=date.year,
             month=date.month,
             day=date.day,
             hour=date.hour
-                if srtftime == "%Y%m%d%H" else 0
         ).timetuple()
     )
 
     for data in line.split('||')[1:]:
-        name, _ = data.split('|')
         total = 0
-        for count in range(config.getint('cassandra','retries')):
-            try:
-                client = pycassa.ColumnFamily(
-                    pool, '%s_%s_%s' % (
-                        hostname,
-                        service,
-                        date.strftime(srtftime)
-                    )
-                )
-                values = client.get_range(column_count=1000)
-                total = accounting(values, name)
-                cf.insert(service, {"%s||%s" % (name, _ts): total})
-                break
-            except Exception, e:
-                syslog.syslog('Exception %s' % (e))
-                time.sleep(0.7)
+        name, _ = data.split('|')
+        dkey = "%s:%s:%s" % (hostname, service, date.strftime('%Y%m%d'))
+        try:
+            client = pycassa.ColumnFamily(pool, 'hour')
+            hkey = "%s:%s:%s" % (hostname, service, date.strftime('%Y%m%d%H'))
+            values = client.get(hkey)
+            total = accounting(values, name)
+            cf.insert(dkey, {
+                 "%s||%s" % (name, _ts): total
+            })
+        except pycassa.cassandra.ttypes.NotFoundException:
+            syslog.syslog('Data not found on %s' % (e, dkey))
+            time.sleep(0.7)
+        except Exception, e:
+            syslog.syslog('Exception %s working on %s' % (e, dkey))
+            time.sleep(0.7)
         syslog.syslog("%s -> %s - %s||%s - %s" % (
-            hostname, service, name, date.strftime(srtftime), total)
+            hostname, service, name, date.strftime('%Y%m%d'), total)
         )
 
 @queue_wrt.worker
@@ -161,21 +149,21 @@ def parse_and_save_datagram(data):
 
     parsed = {}
     hostname, service = line.split('||')[0].split('|')
+    date = datetime.fromtimestamp(timestamp)
     hostname = hostname.replace('-','_')
     service = service.capitalize()
 
-    now = datetime.now()
-    timestamp = time.time()
-    cf = prepare_cf("%Y%m%d%H", hostname, service, timestamp)
+    cf = pycassa.ColumnFamily(pool, 'hour')
     for data in line.split('||')[1:]:
         name, value = data.split('|')
-        for count in range(config.getint('cassandra','retries')):
-            try:
-                cf.insert(service, {"%s||%s" % (name, timestamp): float(value)})
-                break
-            except Exception, e:
-                syslog.syslog('Exception %s' % (e))
-                time.sleep(0.7)
+        try:
+            hkey = "%s:%s:%s" % (hostname, service, date.strftime('%Y%m%d%H'))
+            cf.insert("%s:%s:%s" % (hkey), {
+                "%s||%s" % (name, timestamp): float(value)
+            })
+        except Exception, e:
+            syslog.syslog('Exception %s' % (e))
+            time.sleep(0.7)
         syslog.syslog("%s -> %s - %s||%s - %s" % (hostname, service, name, timestamp, float(value)))
     queue_sum.put((line, timestamp))
 
