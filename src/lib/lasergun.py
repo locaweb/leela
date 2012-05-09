@@ -167,7 +167,7 @@ def parse_and_save_datagram(data):
                 "%s||%s" % (name, timestamp): float(value)
             })
         except Exception, e:
-            queue_wrt.put((line, timestamp))
+            queue_wrt.put(data)
             syslog.syslog('Exception %s on %s, data requeued' % (e, hkey))
             time.sleep(0.7)
         syslog.syslog("%s -> %s - %s||%s - %s" % (hostname, service, name, timestamp, float(value)))
