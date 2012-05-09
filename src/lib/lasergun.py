@@ -134,7 +134,7 @@ def summarize(data):
                  "%s||%s" % (name, _ts): total
             })
         except pycassa.cassandra.ttypes.NotFoundException:
-            syslog.syslog('Data not found on %s' % (e, dkey))
+            syslog.syslog('Data not found on %s' % (dkey))
             time.sleep(0.7)
         except Exception, e:
             syslog.syslog('Exception %s working on %s' % (e, dkey))
