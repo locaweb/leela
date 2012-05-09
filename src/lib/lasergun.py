@@ -122,15 +122,14 @@ def summarize(data):
         ).timetuple()
     )
 
+    client = pycassa.ColumnFamily(pool, 'hour')
     for data in line.split('||')[1:]:
         total = 0
         name, _ = data.split('|')
         dkey = "%s:%s:%s" % (hostname, service, date.strftime('%Y%m%d'))
         try:
-            client = pycassa.ColumnFamily(pool, 'hour')
             hkey = "%s:%s:%s" % (hostname, service, date.strftime('%Y%m%d%H'))
-            values = client.get(hkey)
-            total = accounting(values, name)
+            total = accounting(client.get(hkey), name)
             cf.insert(dkey, {
                  "%s||%s" % (name, _ts): total
             })
@@ -143,6 +142,10 @@ def summarize(data):
         syslog.syslog("%s -> %s - %s||%s - %s" % (
             hostname, service, name, date.strftime('%Y%m%d'), total)
         )
+    pool.put(client)
+    del client
+    pool.put(cf)
+    del cf
 
 @queue_wrt.worker
 def parse_and_save_datagram(data):
@@ -166,6 +169,8 @@ def parse_and_save_datagram(data):
             syslog.syslog('Exception %s' % (e))
             time.sleep(0.7)
         syslog.syslog("%s -> %s - %s||%s - %s" % (hostname, service, name, timestamp, float(value)))
+    pool.put(cf)
+    del cf
     queue_sum.put((line, timestamp))
 
 def render_template(template, service, hostname, series):
