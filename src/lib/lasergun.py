@@ -158,7 +158,7 @@ def parse_and_save_datagram(data):
         name, value = data.split('|')
         try:
             hkey = "%s:%s:%s" % (hostname, service, date.strftime('%Y%m%d%H'))
-            cf.insert("%s:%s:%s" % (hkey), {
+            cf.insert(hkey, {
                 "%s||%s" % (name, timestamp): float(value)
             })
         except Exception, e:
