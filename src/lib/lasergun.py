@@ -90,6 +90,7 @@ def prepare_cfs():
             syslog.syslog('Exception %s on %s, retrying' % (e, columnFamily))
             time.sleep(1)
 
+@queue_sum.worker
 def summarize(data):
     line, timestamp = data
 
@@ -123,9 +124,9 @@ def summarize(data):
     )
 
     client = pycassa.ColumnFamily(pool, 'hour')
-    for data in line.split('||')[1:]:
+    for _data in line.split('||')[1:]:
         total = 0
-        name, _ = data.split('|')
+        name, _ = _data.split('|')
         dkey = "%s:%s:%s" % (hostname, service, date.strftime('%Y%m%d'))
         try:
             hkey = "%s:%s:%s" % (hostname, service, date.strftime('%Y%m%d%H'))
@@ -134,14 +135,17 @@ def summarize(data):
                  "%s||%s" % (name, _ts): total
             })
         except pycassa.cassandra.ttypes.NotFoundException:
+            queue_sum.put(data)
             syslog.syslog('Data not found on %s' % (dkey))
             time.sleep(0.7)
         except Exception, e:
+            queue_sum.put(data)
             syslog.syslog('Exception %s working on %s' % (e, dkey))
             time.sleep(0.7)
         syslog.syslog("%s -> %s - %s||%s - %s" % (
             hostname, service, name, date.strftime('%Y%m%d'), total)
         )
+
     pool.put(client)
     del client
     pool.put(cf)
@@ -158,20 +162,22 @@ def parse_and_save_datagram(data):
     service = service.capitalize()
 
     cf = pycassa.ColumnFamily(pool, 'hour')
-    for data in line.split('||')[1:]:
-        name, value = data.split('|')
+    for _data in line.split('||')[1:]:
+        name, value = _data.split('|')
         try:
             hkey = "%s:%s:%s" % (hostname, service, date.strftime('%Y%m%d%H'))
             cf.insert(hkey, {
                 "%s||%s" % (name, timestamp): float(value)
             })
         except Exception, e:
+            queue_wrt.put((line, timestamp))
             syslog.syslog('Exception %s' % (e))
             time.sleep(0.7)
         syslog.syslog("%s -> %s - %s||%s - %s" % (hostname, service, name, timestamp, float(value)))
+
+    queue_sum.put(data)
     pool.put(cf)
     del cf
-    queue_sum.put((line, timestamp))
 
 def render_template(template, service, hostname, series):
     render = Template(file = template,

@@ -34,13 +34,11 @@ syslog.openlog(myname, syslog.LOG_PID, syslog.LOG_DAEMON)
 def main(username):
     os.setuid(pwd.getpwnam(username)[2])
     syslog.syslog("Starting...")
-
     while True:
-        data = lasergun.queue_sum.get()
-        if data:
-            gevent.spawn(lasergun.summarize, data)
-        else:
-            time.sleep(0.2)
+        try:
+            lasergun.lasergun.summarize()
+        except Exception, e:
+            syslog.syslog("Exception %s on leela-summarize" % e)
 
 if __name__ == '__main__':
     try:
