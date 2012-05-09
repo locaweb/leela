@@ -22,10 +22,8 @@ import sys
 import pwd
 import time
 import getopt
-import gevent
 import syslog
 from supay import Daemon
-from gevent import socket
 from leela import lasergun
 
 myname = sys.argv[0].split('/')[-1]

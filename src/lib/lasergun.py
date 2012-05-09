@@ -15,9 +15,6 @@
 #
 # @author: Juliano Martinez
 
-from gevent import monkey
-monkey.patch_all()
-
 import re
 import sys
 import time
@@ -136,11 +133,11 @@ def summarize(data):
             })
         except pycassa.cassandra.ttypes.NotFoundException:
             queue_sum.put(data)
-            syslog.syslog('Data not found on %s' % (dkey))
+            syslog.syslog('Data not found on %s, data requeued' % (dkey))
             time.sleep(0.7)
         except Exception, e:
             queue_sum.put(data)
-            syslog.syslog('Exception %s working on %s' % (e, dkey))
+            syslog.syslog('Exception %s working on %s, data requeued' % (e, dkey))
             time.sleep(0.7)
         syslog.syslog("%s -> %s - %s||%s - %s" % (
             hostname, service, name, date.strftime('%Y%m%d'), total)
@@ -164,14 +161,14 @@ def parse_and_save_datagram(data):
     cf = pycassa.ColumnFamily(pool, 'hour')
     for _data in line.split('||')[1:]:
         name, value = _data.split('|')
+        hkey = "%s:%s:%s" % (hostname, service, date.strftime('%Y%m%d%H'))
         try:
-            hkey = "%s:%s:%s" % (hostname, service, date.strftime('%Y%m%d%H'))
             cf.insert(hkey, {
                 "%s||%s" % (name, timestamp): float(value)
             })
         except Exception, e:
             queue_wrt.put((line, timestamp))
-            syslog.syslog('Exception %s' % (e))
+            syslog.syslog('Exception %s on %s, data requeued' % (e, hkey))
             time.sleep(0.7)
         syslog.syslog("%s -> %s - %s||%s - %s" % (hostname, service, name, timestamp, float(value)))
 

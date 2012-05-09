@@ -29,9 +29,9 @@ import syslog
 import getopt
 import pycassa
 import ConfigParser
+from leela import config
 from supay import Daemon
 from leela import lasergun
-from leela import config
 from datetime import datetime
 from optparse import OptionParser
 from bottle import route, run, request, response, ServerAdapter
