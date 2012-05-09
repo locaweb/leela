@@ -36,7 +36,7 @@ def main(username):
     syslog.syslog("Starting...")
     while True:
         try:
-            lasergun.lasergun.summarize()
+            lasergun.summarize()
         except Exception, e:
             syslog.syslog("Exception %s on leela-summarize" % e)
 
