@@ -1,3 +1,9 @@
+leela-server (0.0.55) stable; urgency=low
+
+  * commit f7726423a16283ab2d7b7d4195945f18a4d0e87a
+
+ -- Juliano Martinez <juliano.martinez@locaweb.com.br>  Tue, 08 May 2012 23:28:19 -0300
+
 leela-server (0.0.54) stable; urgency=low
 
   * commit 8299573eaf330d723af491b2eb23324756c327ef
@@ -109,12 +115,6 @@ leela-server (0.0.12) unstable; urgency=low
   *    usable release
 
  -- Juliano Martinez <juliano.martinez@locaweb.com.br>  Fri, 27 Apr 2012 18:29:43 -0300
-
-leela-server (0.0.2) unstable; urgency=low
-
-  * Working release
-
- -- Juliano Martinez <juliano.martinez@locaweb.com.br>  Wed, 11 Apr 2012 09:15:05 -0300
 
 leela-server (0.0.1) unstable; urgency=low
 
