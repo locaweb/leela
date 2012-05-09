@@ -27,9 +27,8 @@ import ConfigParser
 from leela import config
 from datetime import datetime
 from hotqueue import HotQueue
-from pycassa.types import LongType
 from pycassa.types import UTF8Type
-from pycassa.types import DoubleType
+from pycassa.types import FloatType
 from Cheetah.Template import Template
 from pycassa.pool import ConnectionPool
 from pycassa.types import CompositeType
@@ -53,7 +52,7 @@ queue_wrt = HotQueue(
 )
 
 allColumnFamilyOptions = {
-    'default_validation_class': LongType(reversed=True),
+    'default_validation_class': FloatType(reversed=True),
     'key_cache_size': 9000,
     'row_cache_size': 1200
 }
