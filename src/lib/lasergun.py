@@ -62,9 +62,11 @@ pool = pycassa.ConnectionPool(
     keyspace=config.get('cassandra','keyspace'),
     server_list=cassandra,
     pool_size=config.getint('cassandra', 'pool_size'),
+    use_threadlocal=True,
+    pool_timeout=-1,
     max_retries=config.getint('cassandra', 'retries'),
     max_overflow=-1,
-    prefill=False
+    prefill=config.get('cassandra','prefill')
 )
 
 def prepare_cfs():
