@@ -21,6 +21,7 @@ import time
 import syslog
 import pycassa
 import ConfigParser
+from socket import socket
 from leela import config
 from datetime import datetime
 from hotqueue import HotQueue
@@ -148,6 +149,13 @@ def summarize(data):
     pool.put(cf)
     del cf
 
+def write_to_carbon(data):
+    if config.has_section('graphite-carbon'):
+        sock = socket()
+        sock.connect((config.get('graphite-carbon', 'server'), int(config.get('graphite-carbon', 'port'))))
+        sock.send("%s\n" % data)
+        sock.close()
+
 @queue_wrt.worker
 def parse_and_save_datagram(data):
     line, timestamp = data
@@ -166,9 +174,10 @@ def parse_and_save_datagram(data):
             cf.insert(hkey, {
                 "%s||%s" % (name, timestamp): float(value)
             })
+            write_to_carbon("%s.%s.%s %s %s" % (hostname, service.lower(), name, value, int(timestamp)))
         except Exception, e:
             queue_wrt.put(data)
-            syslog.syslog('Exception %s on %s, data requeued' % (e, hkey))
+            syslog.syslog('Exception %s on %s - %f, data requeued' % (e, hkey, float(value)))
             time.sleep(0.7)
         syslog.syslog("%s -> %s - %s||%s - %s" % (hostname, service, name, timestamp, float(value)))
 

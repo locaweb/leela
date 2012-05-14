@@ -112,14 +112,13 @@ def generate_json(hostname, service, date):
 
         pool = pycassa.ConnectionPool('leela', server_list=[cassandra])
         client = pycassa.ColumnFamily(pool, ColumnFamily)
-        series = {}
+        series = {"source": {"hostname": hostname, "service": service, "date": date}}
         skey = "%s:%s:%s" % (hostname, service.capitalize(), date)
         for key, value in client.get(skey, column_count=1000).iteritems():
             name, ts = key.split('||')
             if not series.has_key(name):
                 series[name] = []
             series[name].append([float(ts), value])
-
         return series
 
     except Exception, e:
