@@ -72,7 +72,7 @@ def generate_chart(hostname, service, date):
         client = pycassa.ColumnFamily(pool, ColumnFamily)
         series = {}
         skey = "%s:%s:%s" % (hostname, service.capitalize(), date)
-        for key, value in client.get(skey).iteritems():
+        for key, value in client.get(skey, column_count=1000).iteritems():
             name, ts = key.split('||')
             if not series.has_key(name):
                 series[name] = []
@@ -114,7 +114,7 @@ def generate_json(hostname, service, date):
         client = pycassa.ColumnFamily(pool, ColumnFamily)
         series = {}
         skey = "%s:%s:%s" % (hostname, service.capitalize(), date)
-        for key, value in client.get(skey).iteritems():
+        for key, value in client.get(skey, column_count=1000).iteritems():
             name, ts = key.split('||')
             if not series.has_key(name):
                 series[name] = []

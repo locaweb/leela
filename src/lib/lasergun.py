@@ -127,7 +127,7 @@ def summarize(data):
         dkey = "%s:%s:%s" % (hostname, service, date.strftime('%Y%m%d'))
         try:
             hkey = "%s:%s:%s" % (hostname, service, date.strftime('%Y%m%d%H'))
-            total = accounting(client.get(hkey), name)
+            total = accounting(client.get(hkey, column_count=1000), name)
             cf.insert(dkey, {
                  "%s||%s" % (name, _ts): total
             })
