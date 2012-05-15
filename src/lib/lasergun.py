@@ -21,7 +21,7 @@ import time
 import syslog
 import pycassa
 import ConfigParser
-from socket import socket
+from gevent.socket import socket
 from leela import config
 from datetime import datetime
 from hotqueue import HotQueue
