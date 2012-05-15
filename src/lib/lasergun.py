@@ -150,11 +150,10 @@ def summarize(data):
     del cf
 
 def write_to_carbon(data):
-    if config.has_section('graphite-carbon'):
-        sock = socket()
-        sock.connect((config.get('graphite-carbon', 'server'), int(config.get('graphite-carbon', 'port'))))
-        sock.send("%s\n" % data)
-        sock.close()
+    sock = socket()
+    sock.connect((config.get('graphite-carbon', 'server'), int(config.get('graphite-carbon', 'port'))))
+    sock.send("%s\n" % data)
+    sock.close()
 
 @queue_wrt.worker
 def parse_and_save_datagram(data):
