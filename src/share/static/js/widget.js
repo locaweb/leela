@@ -10,12 +10,20 @@ LEELA.widget = function (root) {
     }
   });
 
+  var to_milliseconds = function (data) {
+    var k;
+    for (k=0; k<data.length; k+=1) {
+      data[k][0] = data[k][0] * 1000;
+    }
+    return(data);
+  };
+
   var getseries = function (json) {
     var series = [];
     for (var k in json) {
       if (json.hasOwnProperty(k) && k !== "source") {
         series.push({ name: k,
-                      data: json[k]
+                      data: to_milliseconds(json[k])
                     });
       }
     }
