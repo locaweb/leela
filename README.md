@@ -8,6 +8,7 @@ or even a simple awk | bzip | nc script
 
 ## Simple Protocol
 about_who|chart_name||field|value||field|value
+karoly|memory||virtmem_usage|128||phymem_usage|998
 
 ## Depends:
 * cassandra
