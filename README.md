@@ -15,7 +15,7 @@ or even a simple awk | bzip | nc script
 * python-cheetah
 
 ## Chart example:
-<img src="https://github.com/ncode/leela-server/raw/master/example.png">
+<img src="https://github.com/locaweb/leela-server/raw/master/example.png">
 
 ## Usage:
 ### Running the server

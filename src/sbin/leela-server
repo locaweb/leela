@@ -43,10 +43,13 @@ def main(username):
 
     while True:
         data, peer = s.recvfrom(16384)
-        line = bz2.decompress(data)
-        syslog.syslog("New data: %s" % line)
-        timestamp = time.time()
-        lasergun.queue_wrt.put((line, timestamp))
+        try:
+            line = bz2.decompress(data)
+            syslog.syslog("New data: %s" % line)
+            timestamp = time.time()
+            lasergun.queue_wrt.put((line, timestamp))
+        except IOError:
+            syslog.syslog(syslog.LOG_ERR, "Invalid received data %s" % data)
 
 if __name__ == '__main__':
     try:
