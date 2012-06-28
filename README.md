@@ -7,8 +7,8 @@ you can easily use the python-leela or ruby-leela lib to send data
 or even a simple awk | bzip | nc script
 
 ## Simple Protocol
-about_who|chart_name||field|value||field|value
-karoly|memory||virtmem_usage|128||phymem_usage|998
+    <b>about_who<b/>|<b>chart_name</b>||<b>field</b>|<b>value</b>||<b>field</b>|<b>value</b>
+    <b>karoly</b>|<b>memory</b>||<b>virtmem_usage</b>|<b>128</b>||<b>phymem_usage</b>|<b>998</b>
 
 ## Depends:
 * cassandra
