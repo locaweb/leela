@@ -49,7 +49,7 @@ def main(username):
             timestamp = time.time()
             lasergun.queue_wrt.put((line, timestamp))
         except IOError:
-            syslog.syslog(syslog.LOG_ERR, "Invalid received data %s" % data)
+            syslog.syslog(syslog.LOG_ERR, "Invalid data %s from %s" % (data, peer[0]))
 
 if __name__ == '__main__':
     try:
