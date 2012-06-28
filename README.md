@@ -6,6 +6,9 @@ it uses a pretty simple protocol encapsulated on bzip compression,
 you can easily use the python-leela or ruby-leela lib to send data
 or even a simple awk | bzip | nc script
 
+## Simple Protocol
+about_who|chart_name||field|value||field|value
+
 ## Depends:
 * cassandra
 * pycassa
