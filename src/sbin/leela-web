@@ -32,27 +32,18 @@ import ConfigParser
 from leela import config
 from supay import Daemon
 from leela import lasergun
+from leela import reply_json
 from datetime import datetime
 from optparse import OptionParser
 from bottle import route, run, request, response, ServerAdapter
 from bottle import abort, default_app, post, delete, debug, get, static_file
 
 syslog.openlog(sys.argv[0].split('/')[-1], syslog.LOG_PID, syslog.LOG_DAEMON)
-cassandra = config.get('cassandra','server')
+cassandra = config.get('cassandra', 'server')
 
-def reply_json(f):
-    def call(*args, **kwargs):
-        data = f(*args, **kwargs)
-        cc   = request.GET.get("callback") or ""
-        if (re.match("^[a-zA-Z0-9_\.]+$", cc)):
-            response.content_type = "application/javascript; charset=utf-8"
-            return("%s(%s);" % (cc, json.dumps(data)))
-        else:
-            response.content_type = "application/json; charset=utf-8"
-            return(json.dumps(data))
-    return(call)
 
-@get('/%s/<hostname>/<service>/<date>' % config.get('web','chart_endpoint'))
+@get('/%s/<hostname>/<service>/<date>' %
+     config.get('web', 'chart_endpoint'))
 def generate_chart(hostname, service, date):
     try:
         syslog.syslog("Received connection looking for leela chart")
@@ -74,10 +65,8 @@ def generate_chart(hostname, service, date):
         skey = "%s:%s:%s" % (hostname, service.capitalize(), date)
         for key, value in client.get(skey, column_count=1000).iteritems():
             name, ts = key.split('||')
-            if not series.has_key(name):
+            if name not in series:
                 series[name] = []
-            """ it is really fucking stupid but have to be used
-                http://highslide.com/forum/viewtopic.php?f=9&t=9551&p=44143 """
             series[name].append([float(ts) * 1000, value])
 
         return """%s""" % lasergun.render_template(
@@ -93,7 +82,9 @@ def generate_chart(hostname, service, date):
         abort(500, json.dumps(e.__str__()))
     abort(404, '%s not found' % hostname)
 
-@get('/%s/<hostname>/<service>/<date>' % config.get('web','json_endpoint'))
+
+@get('/%s/<hostname>/<service>/<date>' %
+     config.get('web', 'json_endpoint'))
 @reply_json
 def generate_json(hostname, service, date):
     try:
@@ -112,11 +103,12 @@ def generate_json(hostname, service, date):
 
         pool = pycassa.ConnectionPool('leela', server_list=[cassandra])
         client = pycassa.ColumnFamily(pool, ColumnFamily)
-        series = {"source": {"hostname": hostname, "service": service, "date": date}}
+        series = {"source": {"hostname": hostname,
+                             "service": service, "date": date}}
         skey = "%s:%s:%s" % (hostname, service.capitalize(), date)
         for key, value in client.get(skey, column_count=1000).iteritems():
             name, ts = key.split('||')
-            if not series.has_key(name):
+            if name not in series:
                 series[name] = []
             series[name].append([float(ts), value])
         return series
@@ -127,26 +119,30 @@ def generate_json(hostname, service, date):
         abort(500, json.dumps(e.__str__()))
     abort(404, '%s not found' % hostname)
 
+
 @get('/static/<path:path>')
 def static(path):
     return static_file(path, root='/usr/share/leela/static/')
+
 
 class GEventServerAdapter(ServerAdapter):
     def run(self, handler):
         from gevent.wsgi import WSGIServer
         WSGIServer((self.host, self.port), handler).serve_forever()
 
+
 def main(username, port):
     os.setuid(pwd.getpwnam(username)[2])
     syslog.syslog("Starting...")
-    run(host = config.get('web','address'),
-        port = port or config.getint('web','port'),
-        server = GEventServerAdapter)
+    run(host=config.get('web', 'address'),
+        port=port or config.getint('web', 'port'),
+        server=GEventServerAdapter)
     debug(True)
 
 if __name__ == '__main__':
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "a:u:p:", ["action=","username=","port="])
+        opts, args = getopt.getopt(sys.argv[1:], "a:u:p:",
+                                   ["action=", "username=", "port="])
     except getopt.GetoptError, err:
         print str(err)
         sys.exit(1)
@@ -172,4 +168,3 @@ if __name__ == '__main__':
         daemon.stop()
     elif action == 'foreground':
         main(username, port)
-

@@ -25,6 +25,7 @@ import time
 import getopt
 import gevent
 import syslog
+import calendar
 from leela import config
 from supay import Daemon
 from gevent import socket
@@ -33,27 +34,31 @@ from leela import lasergun
 myname = sys.argv[0].split('/')[-1]
 syslog.openlog(myname, syslog.LOG_PID, syslog.LOG_DAEMON)
 
+
 def main(username):
     lasergun.prepare_cfs()
     os.setuid(pwd.getpwnam(username)[2])
     syslog.syslog("Starting...")
 
-    s = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM, proto=socket.IPPROTO_UDP)
-    s.bind((config.get('server','address'), config.getint('server', 'port')))
+    s = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM,
+                      proto=socket.IPPROTO_UDP)
+    s.bind((config.get('server', 'address'), config.getint('server', 'port')))
 
     while True:
         data, peer = s.recvfrom(16384)
         try:
             line = bz2.decompress(data)
             syslog.syslog("New data: %s" % line)
-            timestamp = time.time()
+            calendar.timegm(datetime.datetime.now().utctimetuple())
             lasergun.queue_wrt.put((line, timestamp))
         except IOError:
-            syslog.syslog(syslog.LOG_ERR, "Invalid data %s from %s" % (data, peer[0]))
+            syslog.syslog(syslog.LOG_ERR, "Invalid data %s from %s" %
+                          (data, peer[0]))
 
 if __name__ == '__main__':
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "a:u:", ["action=","username="])
+        opts, args = getopt.getopt(sys.argv[1:], "a:u:",
+                                   ["action=", "username="])
     except getopt.GetoptError, err:
         print str(err)
         sys.exit(1)

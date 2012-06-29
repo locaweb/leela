@@ -7,8 +7,10 @@ if ("LEELA_CFG" in os.environ):
 else:
     config.read("/etc/leela/leela.conf")
 
+
 def get(*args, **kwargs):
     return(config.get(*args, **kwargs))
+
 
 def getint(*args, **kwargs):
     return(config.getint(*args, **kwargs))

@@ -29,6 +29,7 @@ from leela import lasergun
 myname = sys.argv[0].split('/')[-1]
 syslog.openlog(myname, syslog.LOG_PID, syslog.LOG_DAEMON)
 
+
 def main(username):
     os.setuid(pwd.getpwnam(username)[2])
     syslog.syslog("Starting...")
@@ -40,7 +41,8 @@ def main(username):
 
 if __name__ == '__main__':
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "a:u:", ["action=","username="])
+        opts, args = getopt.getopt(sys.argv[1:], "a:u:",
+                                   ["action=", "username="])
     except getopt.GetoptError, err:
         print str(err)
         sys.exit(1)
