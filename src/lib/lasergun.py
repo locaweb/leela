@@ -20,11 +20,12 @@ import sys
 import time
 import syslog
 import pycassa
+import calendar
 import ConfigParser
-from gevent.socket import socket
 from leela import config
 from datetime import datetime
 from hotqueue import HotQueue
+from gevent.socket import socket
 from pycassa.types import UTF8Type
 from pycassa.types import FloatType
 from Cheetah.Template import Template
@@ -115,13 +116,13 @@ def summarize(data):
             return 0
 
     cf = pycassa.ColumnFamily(pool, 'day')
-    _ts = time.mktime(
+    _ts = calendar.timegm((
         datetime(
             year=date.year,
             month=date.month,
             day=date.day,
             hour=date.hour
-        ).timetuple()
+        ).utctimetuple()
     )
 
     client = pycassa.ColumnFamily(pool, 'hour')
