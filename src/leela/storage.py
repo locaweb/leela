@@ -50,7 +50,7 @@ class Storage(object):
         schema         = systemManager.get_keyspace_column_families(self.config.get("cassandra", "keyspace"))
         colfamilies    = [("day_scf", True), ("month_cf", False), ("year_cf", False)]
         while (len(colfamilies) > 0):
-            (cf, supercol, retries) = colfamilies.pop()
+            (cf, supercol) = colfamilies.pop()
             if (cf not in schema):
                 create_f = funcs.retry_on_fail(systemManager.create_column_family, retries)
                 create_f(keyspace,
