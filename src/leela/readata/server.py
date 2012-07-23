@@ -59,6 +59,16 @@ def reply_json(f):
     call.__name__ = f.__name__
     return(call)
 
+def currying_plugin(*gparams, **gkparams):
+    def proxy_f(f):
+        def call(*params, **kparams):
+            args   = gparams + params
+            kwargs = dict(gkparams)
+            kwargs.update(kparams)
+            return(f(*args, **kwargs))
+        return(call)
+    return(proxy_f)
+
 def decorate_with_source(result, hostname, service, date):
     result["source"] = {"date": date,
                         "hostname": data.norm_hostname(hostname),
@@ -73,17 +83,17 @@ def service_to_sorted_list(result):
 
 @bottle.get("/v1/<hostname>/<service>/<year>/<month>/past_24h")
 @reply_json
-def past24_json(cfg, csd, hostname, service, year, month):
-    result = service_to_sorted_list(dumper.dump_last24(cfg, csd, hostname, service))
+def past24_json(hostname, service, year, month, cfg, cassandra):
+    result = service_to_sorted_list(dumper.dump_last24(cfg, cassandra, hostname, service))
     decorate_with_source(result, hostname, service, "past_24h")
     return(result)
 
 @bottle.get("/v1/<hostname>/<service>/<year>/<month>/<day>")
 @reply_json
-def day_json(cfg, csd, hostname, service, year, month, day):
+def day_json(hostname, service, year, month, day, cfg, cassandra):
     date    = datetime(int(year), int(month), int(day))
     datestr = funcs.datetime_date(date)
-    result  = service_to_sorted_list(dumper.dump_day3(cfg, csd, hostname, service, date))
+    result  = service_to_sorted_list(dumper.dump_day3(cfg, cassandra, hostname, service, date))
     decorate_with_source(result, hostname, service, datestr)
     return(result)
 
@@ -93,20 +103,19 @@ def static(_, __, path):
 
 # legacy
 @bottle.get("/json/<hostname>/<service>/<date>")
-def legacy_json(cfg, csd, hostname, service, date):
+def legacy_json(hostname, service, date, **kwargs):
     datelen = len(date)
     if (datelen == 8):
-        return(day_json(cfg, cds, hostname, service, date[:4], date[4:6], date[6:]))
+        return(day_json(hostname, service, date[:4], date[4:6], date[6:], **kwargs))
     else:
         raise(RuntimeError("unsupported operation"))
 
 class GEventServerAdapter(bottle.ServerAdapter):
 
     @classmethod
-    def start(self, cfg, cds):
-        host = cfg.get("readata", "address")
-        port = cfg.getint("readata", "port")
-        bottle.run(host=host, port=port, server=self)
+    def start(self, cfg, cassandra):
+        bottle.install(currying_plugin(cassandra=cassandra, cfg=config))
+        bottle.run(host=cfg.get("readata", "address"), port=cfg.getint("readata", "port"), server=self)
 
     def run(self, handler):
         WSGIServer((self.host, self.port), handler).serve_forever()
@@ -147,11 +156,10 @@ def cli_parser():
 
 def main_start(opts):
     cfg = config.read_config(opts.config)
-
     funcs.drop_privileges(opts.user, opts.gid)
-
+    cassandra = storage.Storage(cfg)
     logger.debug("starting server")
-    GEventServerAdapter.start(cfg, None)
+    GEventServerAdapter.start(cfg, cassandra)
 
 def main():
     opts   = cli_parser().parse_args()
