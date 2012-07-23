@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8; -*-
-
+#
 # Copyright 2012 Juliano Martinez
 # Copyright 2012 Diego Souza
 # All Rights Reserved.

@@ -1,7 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8; -*-
-
+#
 # Copyright 2012 Juliano Martinez
+# Copyright 2012 Diego Souza
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +18,7 @@
 #    limitations under the License.
 #
 # @author: Juliano Martinez
+# @author: Diego Souza
 
 import os.path
 import sys
