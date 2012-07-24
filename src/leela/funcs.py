@@ -23,6 +23,7 @@
 import os
 import time
 import pwd
+from multiprocessing import Process
 from datetime import datetime
 from leela import logger
 
@@ -47,6 +48,13 @@ def suppress_e(p):
         return(g)
     return(suppress_f)
 
+def start_process(target, *args):
+    cont = lambda: os.getppid() != 1
+    args = [cont] + list(args)
+    proc = Process(target=target, args=args)
+    proc.daemon = True
+    proc.start()
+    return(proc)
 
 def retry_on_fail(f, retries=3, wait=0.3):
     def g(*args, **kwargs):

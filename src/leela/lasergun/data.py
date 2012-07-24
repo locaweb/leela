@@ -28,6 +28,7 @@ from datetime import datetime
 from leela import config
 from leela import funcs
 from leela import logger
+from leela import storage
 
 def norm_hostname(hostname):
     return(hostname.lower())
@@ -52,16 +53,27 @@ def read_data_points(line):
 
 class Lasergun(object):
 
-    def __init__(self, config):
-        self.config = config
+    def __init__(self, config, cassandra, carbon):
+        self.config    = config
+        self.cassandra = cassandra
+        self.carbon    = carbon
 
-    def retrieve(self, cassandra, hostname, service, timestamp):
+    def retrieve(self, hostname, service, timestamp):
         date = datetime.fromtimestamp(timestamp)
         row  = "%s:%s:%s" % (norm_hostname(hostname), norm_service(service), funcs.datetime_date(date))
-        with cassandra.day_scf() as cf:
+        with self.cassandra.day_scf() as cf:
             return(funcs.service_map_slot(lambda s: int(s), cf.get(row, column_count=1440)))
 
-    def store(self, cassandra, line, timestamp):
+    def send2carbon(self, line, timestamp):
+        message = ""
+        (hostname, service) = read_hostsrv_tuple(line)
+        for (name, value) in read_data_points(line):
+            message += "%s.%s.%s %s %d\n" % (hostname, service, name, value, int(timestamp))
+        timer0 = funcs.timer_start()
+        self.carbon.write(message)
+        logger.debug("finishing writing data carbon: (time=%.6f)" % (funcs.timer_stop(timer0)))
+
+    def store(self, line, timestamp):
         (hostname, service) = read_hostsrv_tuple(line)
         logger.debug("processing event: %s,%s" % (hostname, service))
         date   = datetime.fromtimestamp(timestamp)
@@ -69,15 +81,10 @@ class Lasergun(object):
         t_date = funcs.datetime_date(date)
         row    = "%s:%s" % (hostname, service)
         timer0 = funcs.timer_start()
-        with cassandra.day_scf() as cf:
+        with self.cassandra.day_scf() as cf:
             for (name, value) in read_data_points(line):
                 krow = "%s:%s" % (row, t_date)
                 timer1 = funcs.timer_start()
                 cf.insert(krow, {name: {slot: value}}, write_consistency_level=pycassa.ConsistencyLevel.ONE)
                 logger.debug("writing data point day_scf[%s:%s:%s] = %.2f (time=%.6f)" % (krow, name, slot, value, funcs.timer_stop(timer1)))
         logger.debug("finishing writing data onto day_scf[%s]: (time=%.6f)" % (row, funcs.timer_stop(timer0)))
-                # TODO: fixme
-                # queue_sum.put(data)
-                # write_to_carbon("%s.%s.%s %s %s" %
-                #                 (hostname, service.lower(),
-                #                  name, value, int(timestamp)))

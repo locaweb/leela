@@ -47,7 +47,7 @@ def use_syslog(address="/dev/log"):
 
 def use_console(device=sys.stderr):
     handler = logging.StreamHandler(device)
-    handler.setFormatter(logging.Formatter("%(asctime)s %(name)s %(filename)s:%(lineno)d: %(message)s", "%b %d %H:%M:%S"))
+    handler.setFormatter(logging.Formatter("%(asctime)s %(name)s: %(message)s", "%b %d %H:%M:%S"))
     logger().addHandler(handler)
 
 def debug(*args, **kwargs):

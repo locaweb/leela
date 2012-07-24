@@ -22,11 +22,26 @@
 
 import time
 import pycassa
+import socket
 from contextlib import contextmanager
-from leela import logger
 from pycassa.pool import ConnectionPool
 from pycassa.types import FloatType
 from pycassa.system_manager import SystemManager
+from leela import logger
+from leela import funcs
+
+class Carbon(object):
+
+    def __init__(self, config):
+        self.config = config
+
+    def write(self, message):
+        s = socket.socket()
+        try:
+            s.connect((self.config.get("graphite-carbon", "server"), config.getint("graphite-carbon", "port")))
+            s.send(message)
+        finally:
+            funcs.suppress(s.close)()
 
 class Storage(object):
 

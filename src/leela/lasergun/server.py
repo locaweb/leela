@@ -31,30 +31,71 @@ import select
 import errno
 import argparse
 import supay
+import threading
+import signal
+from multiprocessing import Process
+from multiprocessing import Pipe
 from leela import funcs
-from leela import storage
 from leela import config
+from leela import storage
 from leela.lasergun.data import Lasergun
 from leela import logger
 
+def cassandra_consumer(cont, cfg, opts, pipe):
+    funcs.drop_privileges(opts.user, opts.gid)
+
+    logger.debug("connecting to cassandra and [possibly] creating schema")
+    cassandra = storage.Storage(cfg)
+    cassandra.create_schema()
+    lasergun = Lasergun(cfg, cassandra=cassandra, carbon=None)
+    while (cont()):
+        try:
+            if (not pipe.poll(1)):
+                continue
+            (data, now) = pipe.recv()
+            text = bz2.decompress(data)
+            logger.debug("metrics: bzip=%d, text=%d" % (len(data), len(text)))
+            lasergun.store(text, now)
+        except:
+            logger.exception("cassandra_consumer: error writing data, keeping calm and carrying on")
+
+def carbon_consumer(cont, cfg, opts, pipe):
+    funcs.drop_privileges(opts.user, opts.gid)
+
+    carbon   = storage.Carbon(cfg)
+    lasergun = Lasergun(cfg, cassandra=None, carbon=carbon)
+    while (cont()):
+        try:
+            (data, now) = pipe.recv()
+            text = bz2.decompress(data)
+            lasergun.send2carbon(text, now)
+        except:
+            logger.exception("carbon_consumer: error writing data, keeping calm and carrying on")
+
 @funcs.suppress_e(lambda e: type(e) == socket.error and e.errno == errno.EBADF)
-def start(cfg, sock, cassandra):
-    while True:
+def server_consumer(cont, cfg, opts, pipes):
+    host = cfg.get("lasergun", "address")
+    port = cfg.getint("lasergun", "port")
+    logger.debug("binding socket [addr=%s, port=%d]" % (host, port))
+    sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM, proto=socket.IPPROTO_UDP)
+    sock.bind((host, port))
+
+    funcs.drop_privileges(opts.user, opts.gid)
+    while (cont()):
         (rlist, _, __) = select.select([sock], [], [], 1)
         if (len(rlist) == 0):
             continue
         data, peer = rlist[0].recvfrom(16*1024)
         text       = "<undefined>"
-        try:
-            text = bz2.decompress(data)
-            logger.debug("metrics: bzip=%d, text=%d" % (len(data), len(text)))
-            now    = time.time()
-            lasers = Lasergun(cfg)
-            lasers.store(cassandra, text, now)
-            funcs.suppress(sock.sendto)(str(now), peer)
-        except:
-            funcs.suppress(sock.sendto)("error", peer)
-            logger.exception("invalid data %s from %s" % (text, str(peer)))
+        now        = time.time()
+        map(lambda p: p.send((data, now)), pipes)
+
+def sighandler(*procs):
+    def f(signum, frame):
+        logger.debug("signum: %d. terminating all daemons" % signum)
+        map(lambda p: p.terminate(), procs)
+        return(0)
+    return(f)
 
 def cli_parser():
     parser = argparse.ArgumentParser("lasergun: receive and save metrics")
@@ -92,21 +133,22 @@ def cli_parser():
 
 def main_start(opts):
     cfg  = config.read_config(opts.config)
-    host = cfg.get("lasergun", "address")
-    port = cfg.getint("lasergun", "port")
-    logger.debug("binding socket [addr=%s, port=%d]" % (host, port))
-    sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM, proto=socket.IPPROTO_UDP)
-    sock.bind((host, port))
+    p0in, p0out = Pipe()
+    p1in, p1out = Pipe()
 
-    funcs.drop_privileges(opts.user, opts.gid)
+    logger.debug("starting server...")
+    p0 = funcs.start_process(server_consumer, cfg, opts, [p0out, p1out])
 
-    logger.debug("connecting to cassandra")
-    cassandra = storage.Storage(cfg)
-    logger.debug("creating schema")
-    cassandra.create_schema()
+    logger.debug("starting cassandra consumer...")
+    p1 = funcs.start_process(cassandra_consumer, cfg, opts, p0in)
 
-    logger.debug("starting server")
-    start(cfg, sock, cassandra)
+    logger.debug("starting carbon consumer...")
+    p2 = funcs.start_process(carbon_consumer, cfg, opts, p1in)
+
+    p0.join()
+    p1.terminate()
+    p2.terminate()
+    logger.debug("bye!")
 
 def main():
     opts   = cli_parser().parse_args()
