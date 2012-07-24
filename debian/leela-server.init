@@ -14,7 +14,7 @@ DESC="Collect and chart anything"
 NAME=leela-server
 
 DAEMON=leela-server
-DAEMON_BIN=/usr/sbin/leela-server
+DAEMON_BIN=/usr/bin/leela-server
 DAEMON_PIDFILE=/var/run/leela-server.pid
 SCRIPTNAME=/etc/init.d/$NAME
 
