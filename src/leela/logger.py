@@ -27,21 +27,42 @@ from logging import DEBUG
 from logging import INFO
 from logging import WARNING
 from logging import ERROR
+from logging.handlers import SysLogHandler
+
+def logger():
+    if (logging.getLevelName(DEBUG) != "debug"):
+        logging.addLevelName(DEBUG, "debug")
+        logging.addLevelName(INFO, "info")
+        logging.addLevelName(WARNING, "warning")
+        logging.addLevelName(ERROR, "critical")
+    return(logging.getLogger("futurama(leela)"))
 
 def set_level(level):
-    logging.getLogger().setLevel(level)
+    logger().setLevel(level)
+
+def use_syslog(address="/dev/log"):
+    handler = SysLogHandler(address=address, facility="daemon")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(name)s %(filename)s:%(lineno)d: %(message)s", "%b %d %H:%M:%S"))
+    logger().addHandler(handler)
+
+def use_console(device=sys.stderr):
+    handler = logging.StreamHandler(device)
+    handler.setFormatter(logging.Formatter("%(asctime)s %(name)s %(filename)s:%(lineno)d: %(message)s", "%b %d %H:%M:%S"))
+    logger().addHandler(handler)
 
 def debug(*args, **kwargs):
-    logging.debug(*args, **kwargs)
+    logger().debug(*args, **kwargs)
 
 def info(*args, **kwargs):
-    logging.info(*args, **kwargs)
+    logger().info(*args, **kwargs)
 
 def warn(*args, **kwargs):
-    logging.warn(*args, **kwargs)
+    logger().warn(*args, **kwargs)
 
 def error(*args, **kwargs):
-    logging.error(*args, **kwargs)
+    logger().error(*args, **kwargs)
 
 def exception(*args, **kwargs):
-    logging.exception(*args, **kwargs)
+    logger().exception(*args, **kwargs)
+
+

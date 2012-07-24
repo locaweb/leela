@@ -116,6 +116,9 @@ def main():
     if (opts.action == "start"):
         if (opts.daemonize):
             daemon.start()
+            logger.use_syslog()
+        else:
+            logger.use_console()
         main_start(opts)
     elif (opts.action == "stop"):
         daemon.stop()
