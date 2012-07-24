@@ -137,11 +137,11 @@ def cli_parser():
                         type=str,
                         default="start",
                         choices=["start", "stop", "status"])
-    parser.add_argument("-b", "--background",
+    parser.add_argument("-f", "--foreground",
                         dest="daemonize",
-                        action="store_true",
-                        default=False,
-                        help="daemonize the process")
+                        action="store_false",
+                        default=True,
+                        help="do not daemonize the process")
     parser.add_argument("-d", "--debug",
                         dest="debug",
                         action="store_true",

@@ -51,7 +51,7 @@ case "$1" in
   start)
     log_daemon_msg "Starting $DESC" "$DAEMON"
     create_xconsole
-    $DAEMON -a start
+    $DAEMON -a start $DAEMON_ARGS
     case "$?" in
         0) sendsigs_omit
            log_end_msg 0 ;;
@@ -74,7 +74,7 @@ case "$1" in
     ;;
   restart)
     $DAEMON -a stop
-    $DAEMON -a start
+    $DAEMON -a start $DAEMON_ARGS
     ;;
   status)
     status_of_proc -p $DAEMON_PIDFILE $DAEMON_BIN $DAEMON && exit 0 || exit $?
