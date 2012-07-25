@@ -20,6 +20,7 @@
       </label><br />
       <input type="submit" />
     </form>
+    <span id="uri"></span></br>
     <div id="canvas" style=""></div>
     <script type="text/javascript" src="http://code.jquery.com/jquery-1.7.2.js"></script>
     <script type="text/javascript" src="https://raw.github.com/locaweb/leela-server/master/usr/share/leela/static/js/leelaserver-bundle.js"></script>
@@ -36,10 +37,12 @@
       var hostname = qparam("hostname");
       var service  = qparam("service");
       if (endpoint !== undefined && hostname !== undefined && service !== undefined) {
+        var uri = endpoint + "/v1/"+ hostname +"/"+ service  +"/past24";
+        jQuery("#uri").html("<a href='" + uri + "'>data url: "+ uri +"</a>");
         jQuery("#endpoint").val(endpoint);
         jQuery("#service").val(service);
         jQuery("#hostname").val(hostname);
-        jQuery.ajax(endpoint + "/v1/"+ hostname +"/"+ service  +"/past24",
+        jQuery.ajax(uri,
           { dataType: "jsonp",
             success: LEELA.widget("canvas").install
           });
