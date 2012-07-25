@@ -98,8 +98,8 @@ def day_json(hostname, service, year, month, day, cfg, cassandra):
     return(result)
 
 @bottle.get("/static/<path:path>")
-def static(_, __, path):
-    return static_file(path, root="/usr/share/leela/static/")
+def static(path, cfg, **kwargs):
+    return(bottle.static_file(path, root=cfg.get("readata", "docroot")))
 
 # legacy
 @bottle.get("/json/<hostname>/<service>/<date>")
@@ -114,7 +114,7 @@ class GEventServerAdapter(bottle.ServerAdapter):
 
     @classmethod
     def start(self, cfg, cassandra):
-        bottle.install(currying_plugin(cassandra=cassandra, cfg=config))
+        bottle.install(currying_plugin(cassandra=cassandra, cfg=cfg))
         bottle.run(host=cfg.get("readata", "address"), port=cfg.getint("readata", "port"), server=self)
 
     def run(self, handler):
