@@ -28,7 +28,7 @@ from leela import config
 from leela.lasergun.data import Lasergun
 
 def dump_day3(config, cassandra, hostname, service, date):
-    laser = Lasergun(config, cassandra)
+    laser = Lasergun(config, cassandra=cassandra, carbon=None)
     data  = laser.retrieve(hostname, service, funcs.datetime_timestamp(date))
     f     = lambda slot: funcs.slot_to_timestamp(date.year, date.month, date.day, slot)
     return(funcs.service_map_slot(f, data))
