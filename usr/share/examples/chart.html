@@ -36,6 +36,9 @@
       var hostname = qparam("hostname");
       var service  = qparam("service");
       if (endpoint !== undefined && hostname !== undefined && service !== undefined) {
+        jQuery("#endpoint").val(endpoint);
+        jQuery("#service").val(service);
+        jQuery("#hostname").val(hostname);
         jQuery.ajax(endpoint + "/v1/"+ hostname +"/"+ service  +"/past24",
           { dataType: "jsonp",
             success: LEELA.widget("canvas").install
