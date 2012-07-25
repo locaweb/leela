@@ -99,9 +99,7 @@ def datetime_time(date):
     return(h + m)
 
 def datetime_timestamp(date):
-    zero = datetime.fromtimestamp(0)
-    diff = (date - zero).total_seconds()
-    return(int(diff))
+    return(time.mktime(date.timetuple()))
 
 def time_to_slot(hour, minute):
     if (hour > 23 or hour < 0):
