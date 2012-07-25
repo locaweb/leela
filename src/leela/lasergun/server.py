@@ -72,7 +72,6 @@ def carbon_consumer(cont, cfg, opts, pipe):
         except:
             logger.exception("carbon_consumer: error writing data, keeping calm and carrying on")
 
-@funcs.suppress_e(lambda e: type(e) == socket.error and e.errno == errno.EBADF)
 def server_consumer(cont, cfg, opts, pipes):
     host = cfg.get("lasergun", "address")
     port = cfg.getint("lasergun", "port")

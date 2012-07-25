@@ -23,6 +23,7 @@
 import os
 import time
 import pwd
+import pycassa
 from multiprocessing import Process
 from datetime import datetime
 from leela import logger
@@ -36,13 +37,19 @@ def suppress(f):
     g.__name__ = f.__name__
     return(g)
 
-def suppress_e(p):
+def suppress_notfound(f, default):
+    g = lambda e: isinstance(e, pycassa.NotFoundException)
+    return(suppress_e(g, default)(f))
+
+def suppress_e(p, default):
     def suppress_f(f):
         def g(*args, **kwargs):
             try:
-                f(*args, **kwargs)
+                return(f(*args, **kwargs))
             except Exception as e:
-                if (not p(e)):
+                if (p(e)):
+                    return(default)
+                else:
                     raise
         g.__name__ = f.__name__
         return(g)
