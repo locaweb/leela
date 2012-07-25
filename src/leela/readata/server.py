@@ -92,7 +92,7 @@ def fields_f(fields):
 @bottle.get("/v1/<hostname>/<service>/<fields>/past24")
 @reply_json
 def past24_json(hostname, service, fields, cfg, cassandra):
-    result = service_to_sorted_list(dumper.dump_last24(cfg, cassandra, hostname, fields_f(fields), service))
+    result = service_to_sorted_list(dumper.dump_last24(cfg, cassandra, hostname, service, fields_f(fields)))
     decorate_with_source(result, hostname, service, fields, "past24")
     return(result)
 
