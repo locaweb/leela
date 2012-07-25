@@ -32,6 +32,9 @@ LEELA.widget = function (root, options) {
 
   var install = function (json) {
     var res = options.resolution || 1;
+    var sub = options.subtitle || "Powered by locaweb";
+    var title  = options.title || (json.source.hostname + " - " + json.source.service);
+    var ylabel = options.ylabel || json.source.service;
     new Highcharts.Chart({
       chart: {
         renderTo: root,
@@ -40,11 +43,11 @@ LEELA.widget = function (root, options) {
       },
 
       title: {
-        text: json.source.hostname + " - " + json.source.service
+        text: title
       },
 
       subtitle: {
-        text: "Powered by locaweb"
+        text: sub
       },
 
       xAxis: {
@@ -55,7 +58,7 @@ LEELA.widget = function (root, options) {
 
       yAxis: {
         title: {
-          text: json.source.service
+          text: ylabel
         },
         min: 0
       },
