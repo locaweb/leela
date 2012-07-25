@@ -22,6 +22,10 @@
         fields:
         <input id="fields" type="text" name="fields" value="_" /> *(format: field[, field, ...]; _ (underscore) is special and means all fields)
       </label><br />
+      <label for="resolution">
+        resolution (min):
+        <input id="resolution" type="text" name="resolution" value="30" />
+      </label>
       <input type="submit" />
     </form>
     <span id="uri"></span></br>
@@ -41,16 +45,18 @@
       var hostname = qparam("hostname");
       var service  = qparam("service");
       var fields   = qparam("fields");
-      if (endpoint !== undefined && hostname !== undefined && service !== undefined) {
+      var res      = parseInt(qparam("resolution"));
+      if (endpoint !== undefined && hostname !== undefined && service !== undefined && fields !== undefined) {
         var uri = endpoint + "/v1/"+ hostname +"/"+ service +"/"+ fields +"/past24";
         jQuery("#uri").html("<a href='" + uri + "'>data url: "+ uri +"</a>");
         jQuery("#endpoint").val(endpoint);
         jQuery("#service").val(service);
         jQuery("#hostname").val(hostname);
         jQuery("#fields").val(fields);
+        jQuery("#resolution").val(res);
         jQuery.ajax(uri,
           { dataType: "jsonp",
-            success: LEELA.widget("canvas").install
+            success: LEELA.f.dot(LEELA.widget("canvas", {resolution: res}).install, LEELA.f.average(res, 0))
           });
       }
     </script>

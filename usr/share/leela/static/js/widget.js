@@ -3,7 +3,7 @@ if (LEELA === undefined) {
   LEELA = {};
 }
 
-LEELA.widget = function (root) {
+LEELA.widget = function (root, options) {
   Highcharts.setOptions({
     global: {
       useUTC: false
@@ -31,6 +31,7 @@ LEELA.widget = function (root) {
   };
 
   var install = function (json) {
+    var res = options.resolution || 1;
     new Highcharts.Chart({
       chart: {
         renderTo: root,
@@ -48,8 +49,8 @@ LEELA.widget = function (root) {
 
       xAxis: {
         type: "datetime",
-        tickInterval: 24 * 60 * 60 * 1000,
-        minInterval: 60 * 1000,
+        tickInterval: (24 * 60 * 60 * 1000) / res,
+        minInterval: (60 / res) * 1000,
       },
 
       yAxis: {
@@ -62,7 +63,7 @@ LEELA.widget = function (root) {
       tooltip: {
         enabled: true,
         formatter: function() {
-          var date = Highcharts.dateFormat("%H:%M", this.x);
+          var date = Highcharts.dateFormat("%d %b %H:%M", this.x);
           var fmt  = "<b>"            +
                      this.series.name +
                      "</b><br />"     +
@@ -77,5 +78,6 @@ LEELA.widget = function (root) {
     });
   };
 
-  return({"install": install});
+  return({"install": install
+         });
 }

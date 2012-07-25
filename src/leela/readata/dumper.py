@@ -39,7 +39,7 @@ def dump_day(config, cassandra, hostname, service, fields):
 
 def dump_last24(config, cassandra, hostname, service, fields):
     today          = datetime.today()
-    yesterday      = today - timedelta(days=20)
+    yesterday      = today - timedelta(days=1)
     today_data     = dump_day3(config, cassandra, hostname, service, fields, today)
     yesterday_data = funcs.suppress_notfound(dump_day3, {})(config, cassandra, hostname, service, fields, yesterday)
     mintime        = time.time() - (24.0 * 60 * 60)
