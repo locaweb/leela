@@ -1,0 +1,46 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <title>leela chart</title>
+    </head>
+    <body>
+    <form name="chart-it" method="get">
+      <label for="endpoint">
+        endpoint:
+        <input id="endpoint" type="text" name="endpoint" />
+      </label><br />
+      <label for="hostname">
+        hostname:
+        <input id="hostname" type="text" name="hostname" />
+      </label><br />
+      <label for="service">
+        service:
+        <input id="service" type="text" name="service" />
+      </label><br />
+      <input type="submit" />
+    </form>
+    <div id="canvas" style=""></div>
+    <script type="text/javascript" src="http://code.jquery.com/jquery-1.7.2.js"></script>
+    <script type="text/javascript" src="https://raw.github.com/locaweb/leela-server/master/usr/share/leela/static/js/leelaserver-bundle.js"></script>
+    <script type="text/javascript">
+      var qparam = function (name, defval) {
+        var r = new RegExp("[\\?&]"+ name + "=([^#&]*)");
+        var m = r.exec(window.location.search);
+        if(m === null)
+          return(defval);
+        else
+          return(decodeURIComponent(m[1].replace(/\+/g, " ")));
+      };
+      var endpoint = qparam("endpoint");
+      var hostname = qparam("hostname");
+      var service  = qparam("service");
+      if (endpoint !== undefined && hostname !== undefined && service !== undefined) {
+        jQuery.ajax(endpoint + "/v1/"+ hostname +"/"+ service  +"/past24",
+          { dataType: "jsonp",
+            success: LEELA.widget("canvas").install
+          });
+      }
+    </script>
+    </body>
+</html>
