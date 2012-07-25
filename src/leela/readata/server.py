@@ -29,6 +29,7 @@ import re
 import pycassa
 import argparse
 import supay
+import time
 from gevent.wsgi import WSGIServer
 from datetime import datetime
 from leela import logger
@@ -85,7 +86,7 @@ def service_to_sorted_list(result):
 @reply_json
 def past24_json(hostname, service, cfg, cassandra):
     result = service_to_sorted_list(dumper.dump_last24(cfg, cassandra, hostname, service))
-    decorate_with_source(result, hostname, service, "past_24h")
+    decorate_with_source(result, hostname, service, "past24")
     return(result)
 
 @bottle.get("/v1/<hostname>/<service>/<year>/<month>/<day>")
@@ -93,7 +94,14 @@ def past24_json(hostname, service, cfg, cassandra):
 def day_json(hostname, service, year, month, day, cfg, cassandra):
     date    = datetime(int(year), int(month), int(day))
     datestr = funcs.datetime_date(date)
-    result  = service_to_sorted_list(dumper.dump_day3(cfg, cassandra, hostname, service, date))
+    result  = dumper.dump_day3(cfg, cassandra, hostname, service, date)
+    past    = bottle.request.GET.get("past")
+    if (past is not None):
+        today  = datetime.today()
+        dlimit = datetime(date.year, date.month, date.day, today.hour, today.minute)
+        tlimit = funcs.datetime_timestamp(dlimit) - (int(past) * 60)
+        result = funcs.service_filter(lambda k: k>=tlimit, result)
+    result = service_to_sorted_list(result)
     decorate_with_source(result, hostname, service, datestr)
     return(result)
 

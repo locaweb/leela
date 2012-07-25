@@ -127,6 +127,11 @@ def service_map_slot(h, data):
     g = lambda kv: dict([(h(k), v) for (k, v) in kv.iteritems()])
     return(service_reduce(f, g, data, {}))
 
+def service_filter(h, data):
+    f = lambda k, v, acc: dict_set(acc, k, v)
+    g = lambda kv: dict([(k, v) for (k, v) in kv.iteritems() if (h(k))])
+    return(service_reduce(f, g, data, {}))
+
 def timer_start():
     return(time.time())
 
