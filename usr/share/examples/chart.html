@@ -18,6 +18,10 @@
         service:
         <input id="service" type="text" name="service" />
       </label><br />
+      <label for="fields">
+        fields:
+        <input id="fields" type="text" name="fields" value="_" /> *(format: field[, field, ...]; _ (underscore) is special and means all fields)
+      </label><br />
       <input type="submit" />
     </form>
     <span id="uri"></span></br>
@@ -36,12 +40,14 @@
       var endpoint = qparam("endpoint");
       var hostname = qparam("hostname");
       var service  = qparam("service");
+      var fields   = qparam("fields");
       if (endpoint !== undefined && hostname !== undefined && service !== undefined) {
-        var uri = endpoint + "/v1/"+ hostname +"/"+ service  +"/past24";
+        var uri = endpoint + "/v1/"+ hostname +"/"+ service +"/"+ fields +"/past24";
         jQuery("#uri").html("<a href='" + uri + "'>data url: "+ uri +"</a>");
         jQuery("#endpoint").val(endpoint);
         jQuery("#service").val(service);
         jQuery("#hostname").val(hostname);
+        jQuery("#fields").val(fields);
         jQuery.ajax(uri,
           { dataType: "jsonp",
             success: LEELA.widget("canvas").install

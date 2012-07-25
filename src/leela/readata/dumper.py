@@ -27,20 +27,21 @@ from leela import funcs
 from leela import config
 from leela.lasergun.data import Lasergun
 
-def dump_day3(config, cassandra, hostname, service, date):
-    laser = Lasergun(config, cassandra=cassandra, carbon=None)
-    data  = laser.retrieve(hostname, service, funcs.datetime_timestamp(date))
+def dump_day3(config, cassandra, hostname, service, field_f, date):
+    laser   = Lasergun(config, cassandra=cassandra, carbon=None)
+    rawdata = laser.retrieve(hostname, service, funcs.datetime_timestamp(date))
+    data    = dict([(k,v) for (k,v) in rawdata.iteritems() if (field_f(k))])
     f     = lambda slot: funcs.slot_to_timestamp(date.year, date.month, date.day, slot)
     return(funcs.service_map_slot(f, data))
 
-def dump_day(config, cassandra, hostname, service):
-    return(dump_day3(config, cassandra, hostname, service, datetime.today()))
+def dump_day(config, cassandra, hostname, service, fields):
+    return(dump_day3(config, cassandra, hostname, service, fields, datetime.today()))
 
-def dump_last24(config, cassandra, hostname, service):
+def dump_last24(config, cassandra, hostname, service, fields):
     today          = datetime.today()
     yesterday      = today - timedelta(days=1)
-    today_data     = dump_day3(config, cassandra, hostname, service, today)
-    yesterday_data = dump_day3(config, cassandra, hostname, service, yesterday)
+    today_data     = dump_day3(config, cassandra, hostname, service, fields, today)
+    yesterday_data = dump_day3(config, cassandra, hostname, service, fields, yesterday)
     mintime        = time.time() - (24.0 * 60 * 60)
     f = lambda k, v, acc: funcs.dict_update(funcs.dict_merge, acc, k, v)
     g = lambda kv: dict([(k,v) for (k,v) in kv.iteritems() if (k > mintime)])

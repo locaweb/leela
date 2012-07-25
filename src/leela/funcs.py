@@ -146,3 +146,13 @@ def drop_privileges(uid, gid):
         os.setuid(user.pw_uid)
     else:
         logger.debug("ignoring user/group altogether")
+
+def norm_hostname(hostname):
+    return(hostname.lower())
+
+def norm_service(service):
+    return(service.lower())
+
+def norm_field(field):
+    return(field.lower())
+

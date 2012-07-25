@@ -30,25 +30,19 @@ from leela import funcs
 from leela import logger
 from leela import storage
 
-def norm_hostname(hostname):
-    return(hostname.lower())
-
-def norm_service(service):
-    return(service.lower())
-
 def read_hostsrv_tuple(line):
     """
     line format: hostname|service||field|value||field|value
     """
     hostname, service = line.split('||')[0].split('|')
     hostname = hostname.replace('-', '_')
-    return(norm_hostname(hostname), norm_service(service))
+    return(funcs.norm_hostname(hostname), funcs.norm_service(service))
 
 def read_data_points(line):
     """
     line format: hostname|service||field|value||field|value
     """
-    to_data = lambda (x,y): (x.lower(), float(y))
+    to_data = lambda (x,y): (funcs.norm_field(x), float(y))
     return(map(lambda x: to_data(x.split("|")), line.split("||")[1:]))
 
 class Lasergun(object):
@@ -60,7 +54,7 @@ class Lasergun(object):
 
     def retrieve(self, hostname, service, timestamp):
         date = datetime.fromtimestamp(timestamp)
-        row  = "%s:%s:%s" % (norm_hostname(hostname), norm_service(service), funcs.datetime_date(date))
+        row  = "%s:%s:%s" % (funcs.norm_hostname(hostname), funcs.norm_service(service), funcs.datetime_date(date))
         with self.cassandra.day_scf() as cf:
             return(funcs.service_map_slot(lambda s: int(s), cf.get(row, column_count=1440)))
 

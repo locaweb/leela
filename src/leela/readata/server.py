@@ -37,7 +37,6 @@ from leela import funcs
 from leela import config
 from leela import storage
 from leela.readata import dumper
-from leela.lasergun import data
 
 def reply_json(f):
     def call(*args, **kwargs):
@@ -70,10 +69,11 @@ def currying_plugin(*gparams, **gkparams):
         return(call)
     return(proxy_f)
 
-def decorate_with_source(result, hostname, service, date):
+def decorate_with_source(result, hostname, service, field, date):
     result["source"] = {"date": date,
-                        "hostname": data.norm_hostname(hostname),
-                        "service": data.norm_service(service)
+                        "hostname": funcs.norm_hostname(hostname),
+                        "service": funcs.norm_service(service),
+                        "fields": funcs.norm_field(field)
                        }
     return(result)
 
@@ -82,19 +82,26 @@ def service_to_sorted_list(result):
     g = lambda kv: sorted([(k, v) for (k, v) in kv.iteritems()], key=lambda kv: kv[0])
     return(funcs.service_reduce(f, g, result, {}))
 
-@bottle.get("/v1/<hostname>/<service>/past24")
+def fields_f(fields):
+    if (fields == "_"):
+        return(lambda _: True)
+    else:
+        field_list = set(map(funcs.norm_field, fields.split(",")))
+        return(lambda f: f in field_list)
+
+@bottle.get("/v1/<hostname>/<service>/<fields>/past24")
 @reply_json
-def past24_json(hostname, service, cfg, cassandra):
-    result = service_to_sorted_list(dumper.dump_last24(cfg, cassandra, hostname, service))
-    decorate_with_source(result, hostname, service, "past24")
+def past24_json(hostname, service, fields, cfg, cassandra):
+    result = service_to_sorted_list(dumper.dump_last24(cfg, cassandra, hostname, fields_f(fields), service))
+    decorate_with_source(result, hostname, service, fields, "past24")
     return(result)
 
-@bottle.get("/v1/<hostname>/<service>/<year>/<month>/<day>")
+@bottle.get("/v1/<hostname>/<service>/<fields>/<year>/<month>/<day>")
 @reply_json
-def day_json(hostname, service, year, month, day, cfg, cassandra):
+def day_json(hostname, service, fields, year, month, day, cfg, cassandra):
     date    = datetime(int(year), int(month), int(day))
     datestr = funcs.datetime_date(date)
-    result  = dumper.dump_day3(cfg, cassandra, hostname, service, date)
+    result  = dumper.dump_day3(cfg, cassandra, hostname, service, fields_f(fields), date)
     past    = bottle.request.GET.get("past")
     if (past is not None):
         today  = datetime.today()
@@ -102,7 +109,7 @@ def day_json(hostname, service, year, month, day, cfg, cassandra):
         tlimit = funcs.datetime_timestamp(dlimit) - (int(past) * 60)
         result = funcs.service_filter(lambda k: k>=tlimit, result)
     result = service_to_sorted_list(result)
-    decorate_with_source(result, hostname, service, datestr)
+    decorate_with_source(result, hostname, service, fields, datestr)
     return(result)
 
 @bottle.get("/static/<path:path>")
@@ -114,7 +121,7 @@ def static(path, cfg, **kwargs):
 def legacy_json(hostname, service, date, **kwargs):
     datelen = len(date)
     if (datelen == 8):
-        return(day_json(hostname, service, date[:4], date[4:6], date[6:], **kwargs))
+        return(day_json(hostname, service, "_", date[:4], date[4:6], date[6:], **kwargs))
     else:
         raise(RuntimeError("unsupported operation"))
 
