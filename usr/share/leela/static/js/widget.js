@@ -34,7 +34,8 @@ LEELA.widget = function (root) {
     new Highcharts.Chart({
       chart: {
         renderTo: root,
-        type: "spline"
+        type: "spline",
+        zoomType: "x"
       },
 
       title: {
@@ -47,9 +48,8 @@ LEELA.widget = function (root) {
 
       xAxis: {
         type: "datetime",
-        tickInterval: 2 * 3600 * 1000,
-        tickWidth: 0,
-        gridLineWidth: 1
+        tickInterval: 24 * 60 * 60 * 1000,
+        minInterval: 60 * 1000,
       },
 
       yAxis: {
@@ -62,7 +62,7 @@ LEELA.widget = function (root) {
       tooltip: {
         enabled: true,
         formatter: function() {
-          var date = Highcharts.dateFormat("%A %B %e %Y %H:%M:%S", this.x);
+          var date = Highcharts.dateFormat("%H:%M", this.x);
           var fmt  = "<b>"            +
                      this.series.name +
                      "</b><br />"     +
