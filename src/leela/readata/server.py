@@ -81,9 +81,9 @@ def service_to_sorted_list(result):
     g = lambda kv: sorted([(k, v) for (k, v) in kv.iteritems()], key=lambda kv: kv[0])
     return(funcs.service_reduce(f, g, result, {}))
 
-@bottle.get("/v1/<hostname>/<service>/<year>/<month>/past_24h")
+@bottle.get("/v1/<hostname>/<service>/past24")
 @reply_json
-def past24_json(hostname, service, year, month, cfg, cassandra):
+def past24_json(hostname, service, cfg, cassandra):
     result = service_to_sorted_list(dumper.dump_last24(cfg, cassandra, hostname, service))
     decorate_with_source(result, hostname, service, "past_24h")
     return(result)
