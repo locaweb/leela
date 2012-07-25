@@ -38,7 +38,7 @@ class Carbon(object):
     def write(self, message):
         s = socket.socket()
         try:
-            s.connect((self.config.get("graphite-carbon", "server"), config.getint("graphite-carbon", "port")))
+            s.connect((self.config.get("graphite-carbon", "server"), self.config.getint("graphite-carbon", "port")))
             s.send(message)
         finally:
             funcs.suppress(s.close)()
