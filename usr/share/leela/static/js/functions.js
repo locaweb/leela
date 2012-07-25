@@ -83,7 +83,8 @@ LEELA.f = (function () {
         process([t, v]);
       }
     }
-    console.log(r.length);
+    if (g.length > 0)
+      r.push([datapoint_timestamp(g[0]), (sum(map(g, snd)) / resolution)]);
 
     return(r);
   };
