@@ -3,7 +3,8 @@ if (LEELA === undefined) {
   LEELA = {};
 }
 
-LEELA.widget = function (root, options) {
+LEELA.widget = function (root, opts) {
+  var options = opts || {};
   Highcharts.setOptions({
     global: {
       useUTC: false

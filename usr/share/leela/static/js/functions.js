@@ -103,7 +103,7 @@ LEELA.f = (function () {
 
   var dot = function (f, g) {
     var h = function () {
-      var to_a = Array.prototype.slice
+      var to_a = Array.prototype.slice;
       return(f(g.apply(null, to_a.call(arguments))));
     };
     return(h);
