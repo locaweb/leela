@@ -63,7 +63,7 @@ class Storage(object):
         manager        = self.config.get("cassandra", "system_manager")
         systemManager  = pycassa.system_manager.SystemManager(manager, timeout=self.config.getint("cassandra", "timeout"))
         schema         = systemManager.get_keyspace_column_families(self.config.get("cassandra", "keyspace"))
-        colfamilies    = [("day_scf", True), ("month_cf", False), ("year_cf", False)]
+        colfamilies    = [("day_scf", True)]
         while (len(colfamilies) > 0):
             (cf, supercol) = colfamilies.pop()
             if (cf not in schema):
