@@ -48,6 +48,7 @@ def cassandra_consumer(cont, cfg, opts, pipe):
     cassandra = storage.Storage(cfg)
     cassandra.create_schema()
     lasergun = Lasergun(cfg, cassandra=cassandra, carbon=None)
+    text     = "undefined"
     while (cont()):
         try:
             if (not pipe.poll(1)):
@@ -57,7 +58,7 @@ def cassandra_consumer(cont, cfg, opts, pipe):
             logger.debug("metrics: bzip=%d, text=%d" % (len(data), len(text)))
             lasergun.store(text, now)
         except:
-            logger.exception("cassandra_consumer: error writing data, keeping calm and carrying on")
+            logger.exception("cassandra_consumer: error writing data, keeping calm and carrying on [text: %s]" % str(text))
 
 def carbon_consumer(cont, cfg, opts, pipe):
     funcs.drop_privileges(opts.user, opts.gid)
