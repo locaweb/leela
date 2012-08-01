@@ -20,18 +20,41 @@ perspective. On the other hand, the developer guides are an overview
 focusing on the architectural aspects rather than going deep in the
 implementation details.
 
-Contents:
+Introduction
+============
+
+The following documents provides an overview of the *LEELA*
+project. At glance, it provides an introduction about to system to
+both technical and non technical audience.
+
+* :doc:`About the project <intro/overview>`
+* :doc:`Roadmap & Features <intro/roadmap>`
 
 .. toctree::
-   :maxdepth: 2
+  :hidden:
 
-   usr_guide
-   dev_guide
+  intro/overview
+  intro/roadmap
 
-Indices and tables
-==================
+Users guide
+===========
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+How to retrieve information, using the plugins or publishing your own
+metrics.
 
+* TODO:fixme
+
+Development guide
+=================
+
+Helpful if you need to fork for whenever reason and are planning to
+submit patches or just want to understand the architecture.
+
+* TODO:fixme
+
+Help
+====
+
+Having problems, questions or suggestions? Don't hesitate to reach us!
+
+* TODO:fixme
