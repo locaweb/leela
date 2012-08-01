@@ -17,8 +17,6 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 #
-# @author: Juliano Martinez
-# @author: Diego Souza
 
 from gevent import monkey
 monkey.patch_all()
