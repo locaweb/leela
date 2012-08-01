@@ -1,6 +1,6 @@
 #!/bin/sh
 
-leela_root=${LEELA_ROOT:-$(pwd)}
+leela_root=${leela_root:-$(pwd)}
 leela_pypath="$leela_root/src"
 leela_cfg="$LEELA_ROOT/etc/leela.conf"
 

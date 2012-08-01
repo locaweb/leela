@@ -2,8 +2,9 @@
 LEELA
 =====
 
-Leela is a server that allows you to collect any kind of metrics,
-following loosely the statsd protocol.
+Leela is a project that allows you to collect and plot any kind of
+metrics, following loosely the statsd protocol, actually similar to
+the statsd project.
 
 It is also enables you to perform some basic monitoring on the
 metrics, to notify when something unexpected has happened.
@@ -11,8 +12,8 @@ metrics, to notify when something unexpected has happened.
 It is written in python and uses cassandra as the default storage
 backend.
 
-For more information about the usage and architecture please refer to
-the documentation.
+For more information about the usage and architecture, comparison to
+similar projects, please refer to the documentation.
 
 Documentation
 =============
@@ -29,6 +30,11 @@ API Stability
        * stable: production ready;
        * testing: somehow ready, but not yet ready for production;
        * unstable: do not use, untested, API changing very often;
+
+Version
+=======
+
+* $version 0.0.1$
 
 License
 =======
