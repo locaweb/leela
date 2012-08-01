@@ -8,18 +8,17 @@
 ===============
 
 Leela is a project that allows you to collect and plot any kind of
-metrics, following loosely the statsd [1]_ protocol.
+metrics.
 
-Although it is inspired in statsd project, and as such is following
-loosely its protocol, it has deep architectural differences that, we
-believe, justify the creation of another project.
+Although it is inspired in `statsd <https://github.com/etsy/statsd/>`_
+project [as such is following its protocol, loosely though], it has
+deep architectural differences that we truly believe justify the
+creation of another project.
 
-This documentation is meant to be a comprehensive from the user
-perspective. On the other hand, the developer section is an overview
-focusing on architectural aspects rather than going deep on
-implementation aspects.
-
-.. [1] https://github.com/etsy/statsd/ (Wed, 01 Aug 2012)
+This documentation is meant to be comprehensive from the user end
+perspective. On the other hand, the developer guides are an overview
+focusing on the architectural aspects rather than going deep in the
+implementation details.
 
 Contents:
 
