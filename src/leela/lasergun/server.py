@@ -132,20 +132,20 @@ def cli_parser():
 def main_start(opts):
     cfg  = config.read_config(opts.config)
     p0in, p0out = Pipe()
-    p1in, p1out = Pipe()
+    # p1in, p1out = Pipe()
 
     logger.debug("starting server...")
-    p0 = funcs.start_process(server_consumer, cfg, opts, [p0out, p1out])
+    p0 = funcs.start_process(server_consumer, cfg, opts, [p0out])
 
     logger.debug("starting cassandra consumer...")
     p1 = funcs.start_process(cassandra_consumer, cfg, opts, p0in)
 
-    logger.debug("starting carbon consumer...")
-    p2 = funcs.start_process(carbon_consumer, cfg, opts, p1in)
+    # logger.debug("starting carbon consumer...")
+    # p2 = funcs.start_process(carbon_consumer, cfg, opts, p1in)
 
     p0.join()
     p1.terminate()
-    p2.terminate()
+    # p2.terminate()
     logger.debug("bye!")
 
 def main():
