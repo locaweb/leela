@@ -131,7 +131,7 @@ def cli_parser():
 
 def main_start(opts):
     cfg  = config.read_config(opts.config)
-    p0in, p0out = Pipe()
+    p0in, p0out = Pipe(duplex=False)
     # p1in, p1out = Pipe()
 
     logger.debug("starting server...")
