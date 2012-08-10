@@ -90,6 +90,13 @@ def past24_json(key, cfg, connection):
     events  = Event.load_past24(storage, key)
     return(wrap_results(events))
 
+@bottle.get("/v1/<key>/pastweek")
+@reply_json
+def pastweek_json(key, cfg, connection):
+    storage = cassandra.EventsStorage(connection)
+    events  = Event.load_pastweek(storage, key)
+    return(wrap_results(events))
+
 @bottle.get("/v1/<key>/<year>/<month>/<day>")
 @reply_json
 def day_json(key, year, month, day, cfg, connection):

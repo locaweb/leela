@@ -59,6 +59,16 @@ class Event(object):
         lowlim = now - (24 * 60 * 60)
         return(filter(lambda e: e.timestamp()>=lowlim, storage.load(k, start, finish, 48*60*60)))
 
+    @classmethod
+    def load_pastweek(self, storage, k):
+        now      = time.time()
+        currtime = funcs.datetime_fromtimestamp(time.time())
+        pasttime = currtime - timedelta(days=7)
+        start  = Timestamp._make((pasttime.year, pasttime.month, pasttime.day, 0, 0, 0))
+        finish = Timestamp._make((currtime.year, currtime.month, currtime.day, 24, 60, 60))
+        lowlim = now - (7 * 24 * 60 * 60)
+        return(filter(lambda e: e.timestamp()>=lowlim, storage.load(k, start, finish, 48*60*60)))
+
     def __init__(self, name, value, timestamp):
         d = funcs.datetime_fromtimestamp(timestamp)
         self.n = funcs.norm_key(name)
