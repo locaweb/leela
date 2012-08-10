@@ -1,8 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8; -*-
 #
-# Copyright 2012 Juliano Martinez
-# Copyright 2012 Diego Souza
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,11 +28,11 @@ import supay
 import time
 from gevent.wsgi import WSGIServer
 from datetime import datetime
-from leela import logger
-from leela import funcs
-from leela import config
-from leela import storage
-from leela.readata import dumper
+from leela.server import logger
+from leela.server import funcs
+from leela.server import config
+from leela.server.data.event import Event
+from leela.server.storage import cassandra
 
 def reply_json(f):
     def call(*args, **kwargs):
@@ -67,67 +65,60 @@ def currying_plugin(*gparams, **gkparams):
         return(call)
     return(proxy_f)
 
-def decorate_with_source(result, hostname, service, field, date):
-    result["source"] = {"date": date,
-                        "hostname": funcs.norm_hostname(hostname),
-                        "service": funcs.norm_service(service),
-                        "fields": funcs.norm_field(field)
-                       }
+def events_to_json(events):
+    result = {}
+    for e in events:
+        k = e.name()
+        if (k not in result):
+            result[k] = []
+        result[k].append((e.unixtimestamp(), e.value()))
     return(result)
 
-def service_to_sorted_list(result):
-    f = lambda k, v, acc: funcs.dict_set(acc, k, v)
-    g = lambda kv: sorted([(k, v) for (k, v) in kv.iteritems()], key=lambda kv: kv[0])
-    return(funcs.service_reduce(f, g, result, {}))
+def wrap_results(events):
+    data = events_to_json(events)
+    uri  = bottle.request.path
+    if (bottle.request.query_string):
+        uri += "?" + bottle.request.query_string
+    return({"results": data,
+            "request.uri": uri
+           })
 
-def fields_f(fields):
-    if (fields == "_"):
-        return(lambda _: True)
-    else:
-        field_list = set(map(funcs.norm_field, fields.split(",")))
-        return(lambda f: f in field_list)
-
-@bottle.get("/v1/<hostname>/<service>/<fields>/past24")
+@bottle.get("/v1/<key>/past24")
 @reply_json
-def past24_json(hostname, service, fields, cfg, cassandra):
-    result = service_to_sorted_list(dumper.dump_last24(cfg, cassandra, hostname, service, fields_f(fields)))
-    decorate_with_source(result, hostname, service, fields, "past24")
-    return(result)
+def past24_json(key, cfg, connection):
+    storage = cassandra.EventsStorage(connection)
+    events  = Event.load_past24(storage, key)
+    return(wrap_results(events))
 
-@bottle.get("/v1/<hostname>/<service>/<fields>/<year>/<month>/<day>")
+@bottle.get("/v1/<key>/<year>/<month>/<day>")
 @reply_json
-def day_json(hostname, service, fields, year, month, day, cfg, cassandra):
-    date    = datetime(int(year), int(month), int(day))
-    datestr = funcs.datetime_date(date)
-    result  = dumper.dump_day3(cfg, cassandra, hostname, service, fields_f(fields), date)
+def day_json(key, year, month, day, cfg, connection):
+    storage = cassandra.EventsStorage(connection)
     past    = bottle.request.GET.get("past")
-    if (past is not None):
-        today  = datetime.today()
-        dlimit = datetime(date.year, date.month, date.day, today.hour, today.minute)
-        tlimit = funcs.datetime_timestamp(dlimit) - (int(past) * 60)
-        result = funcs.service_filter(lambda k: k>=tlimit, result)
-    result = service_to_sorted_list(result)
-    decorate_with_source(result, hostname, service, fields, datestr)
-    return(result)
+    if (past is None):
+        events = Event.load_day(storage, key, int(year, 10), int(month, 10), int(day, 10))
+    else:
+        hour   = datetime.today().hour - int(past, 10)
+        events = Event.load_time(storage, key, int(year, 10), int(month, 10), int(day, 10), hour)
+    return(wrap_results(events))
+
+@bottle.get("/v1/<key>/<year>/<month>")
+@reply_json
+def month_json(key, year, month, cfg, connection):
+    storage = cassandra.EventsStorage(connection)
+    past    = bottle.request.GET.get("past")
+    events  = Event.load_month(storage, key, int(year, 10), int(month, 10))
+    return(wrap_results(events))
 
 @bottle.get("/static/<path:path>")
 def static(path, cfg, **kwargs):
     return(bottle.static_file(path, root=cfg.get("readata", "docroot")))
 
-# legacy
-@bottle.get("/json/<hostname>/<service>/<date>")
-def legacy_json(hostname, service, date, **kwargs):
-    datelen = len(date)
-    if (datelen == 8):
-        return(day_json(hostname, service, "_", date[:4], date[4:6], date[6:], **kwargs))
-    else:
-        raise(RuntimeError("unsupported operation"))
-
 class GEventServerAdapter(bottle.ServerAdapter):
 
     @classmethod
-    def start(self, cfg, cassandra):
-        bottle.install(currying_plugin(cassandra=cassandra, cfg=cfg))
+    def start(self, cfg, connection):
+        bottle.install(currying_plugin(cfg=cfg, connection=connection))
         bottle.run(host=cfg.get("readata", "address"), port=cfg.getint("readata", "port"), server=self)
 
     def run(self, handler):
@@ -170,9 +161,9 @@ def cli_parser():
 def main_start(opts):
     cfg = config.read_config(opts.config)
     funcs.drop_privileges(opts.user, opts.gid)
-    cassandra = storage.Storage(cfg)
+    connection = cassandra.connect(cfg)
     logger.debug("starting server")
-    GEventServerAdapter.start(cfg, cassandra)
+    GEventServerAdapter.start(cfg, connection)
 
 def main():
     opts   = cli_parser().parse_args()

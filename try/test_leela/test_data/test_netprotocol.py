@@ -18,27 +18,21 @@
 #    limitations under the License.
 #
 
-import math
-import funcs as f
-import copycats
-from datetime import datetime
 from nose.tools import *
-from leela import config
-from leela import funcs
+from leela.server.data import netprotocol
 
-def test_lasergun_replies_timestamp_when_everything_goes_fine():
-    prefix    = "%s|timestamp||" % f.rand_hostname()
-    service   = "timestamp"
-    metrics   = [("pi", str(math.pi))]
-    cassandra = copycats.Storage()
-    with f.lasergun_ctx(cassandra) as (send,recv):
-        send(prefix + "||".join(map("|".join, metrics)))
-        ok_(float(recv()[0]) > 0)
+def test_parse1_should_create_an_event_with_the_correct_name():
+    e = netprotocol.parse1("foobar: 1")
+    eq_("foobar", e.name())
 
+def test_parse1_should_create_an_event_with_the_correct_value():
+    e = netprotocol.parse1("foobar: 0.123456789")
+    eq_(float("0.123456789"), e.value())
 
-def test_lasergun_replies_error_when_something_fails():
-    hostname  = f.rand_hostname()
-    cassandra = copycats.Storage()
-    with f.lasergun_ctx(cassandra) as (send,recv):
-        send("noise")
-        eq_("error", recv()[0])
+def test_parse1_should_create_an_event_with_the_correct_timestamp():
+    e = netprotocol.parse1("foobar: 1 60")
+    eq_(60, e.unixtimestamp())
+
+def test_parse_should_read_multiple_events():
+    es = netprotocol.parse("foobar: 0\nfoobar: 1\nfoobar: 2")
+    eq_(3, len(es))

@@ -16,3 +16,18 @@
 #    limitations under the License.
 #
 
+from leela.server import funcs
+from leela.server.data.event import Event
+import time
+
+def parse1(string):
+    (name, value) = string.split(": ", 2)
+    if (" " in value):
+        (lval, tval) = value.split(" ", 2)
+    else:
+        lval = value
+        tval = time.time()
+    return(Event(name[:50], float(lval), long(tval)))
+
+def parse(string):
+    return(map(parse1, string.splitlines()))

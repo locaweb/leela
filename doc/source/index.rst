@@ -7,50 +7,59 @@
  Leela project
 ===============
 
-Leela is a project that allows you to collect and plot any kind of
-metrics.
+Collects anything, monitors anything and analyzes anything.
 
-Although it is inspired in `statsd <https://github.com/etsy/statsd/>`_
-project [as such is following its protocol, loosely though], it has
-deep architectural differences that we truly believe justify the
-creation of another project.
+  * simple network protocol;
+  * pluggable storage backend;
+  * auto discovery;
+  * monitors real time events;
+  * analyzes historical data;
 
-This documentation is meant to be comprehensive from the user end
-perspective. On the other hand, the developer guides are an overview
-focusing on the architectural aspects rather than going deep in the
-implementation details.
+Learn
+=====
 
-Introduction
-============
-
-The following documents provides an overview of the *LEELA*
-project. At glance, it provides an introduction about to system to
-both technical and non technical audience.
 
 * :doc:`About the project <intro/overview>`
-* :doc:`Roadmap & Features <intro/roadmap>`
 
 .. toctree::
   :hidden:
 
   intro/overview
-  intro/roadmap
 
-Users guide
-===========
+Users manual
+============
 
-How to retrieve information, using the plugins or publishing your own
-metrics.
+Storing data
+------------
 
-* TODO:fixme
+* :doc:`The event protocol <user/protocol>`
+* :doc:`Network interfaces <user/netinterfaces>`
 
-Development guide
-=================
+.. toctree::
+  :hidden:
 
-Helpful if you need to fork for whenever reason and are planning to
-submit patches or just want to understand the architecture.
+  user/protocol
+  user/netinterfaces
 
-* TODO:fixme
+Retrieving data
+---------------
+
+* :doc:`The webapi <user/webapi>`
+
+.. toctree::
+  :hidden:
+
+  user/webapi
+
+Contribute
+==========
+
+* :doc:`Architecture <devel/architecture>`
+
+.. toctree::
+  :hidden:
+
+  devel/architecture
 
 Help
 ====

@@ -1,8 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8; -*-
 #
-# Copyright 2012 Juliano Martinez
-# Copyright 2012 Diego Souza
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,9 +20,11 @@ import os
 import time
 import pwd
 import pycassa
+import pytz
+import calendar
 from multiprocessing import Process
 from datetime import datetime
-from leela import logger
+from leela.server import logger
 
 def suppress(f):
     def g(*args, **kwargs):
@@ -103,8 +103,14 @@ def datetime_time(date):
     m = str(date.minute).zfill(2)
     return(h + m)
 
+def timetuple_timestamp(ttuple):
+    return(calendar.timegm(ttuple))
+
 def datetime_timestamp(date):
-    return(time.mktime(date.timetuple()))
+    return(timetuple_timestamp(date.timetuple()))
+
+def datetime_fromtimestamp(timestamp):
+    return(datetime.fromtimestamp(timestamp, pytz.UTC))
 
 def time_to_slot(hour, minute):
     if (hour > 23 or hour < 0):
@@ -122,21 +128,6 @@ def slot_to_timestamp(year, month, day, slot):
     (hour, minute) = slot_to_time(slot)
     return(datetime_timestamp(datetime(year, month, day, hour, minute)))
 
-def service_reduce(f, g, data, acc):
-    for (k, v) in data.iteritems():
-        acc = f(k, g(v), acc)
-    return(acc)
-
-def service_map_slot(h, data):
-    f = lambda k, v, acc: dict_set(acc, k, v)
-    g = lambda kv: dict([(h(k), v) for (k, v) in kv.iteritems()])
-    return(service_reduce(f, g, data, {}))
-
-def service_filter(h, data):
-    f = lambda k, v, acc: dict_set(acc, k, v)
-    g = lambda kv: dict([(k, v) for (k, v) in kv.iteritems() if (h(k))])
-    return(service_reduce(f, g, data, {}))
-
 def timer_start():
     return(time.time())
 
@@ -152,12 +143,5 @@ def drop_privileges(uid, gid):
     else:
         logger.debug("ignoring user/group altogether")
 
-def norm_hostname(hostname):
-    return(hostname.lower())
-
-def norm_service(service):
-    return(service.lower())
-
-def norm_field(field):
-    return(field.lower())
-
+def norm_key(k):
+    return(k.lower())

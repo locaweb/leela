@@ -46,7 +46,7 @@ check_environ() {
 update_version() {
   echo " updating file: $1"
   $bin_sed -i -r 's/\$version[^\$]*\$/\$version '"$version"'$/' "$1"
-  $bin_sed -i -r 's/^version\s*=\s*["'\''][0-9]+\.[0-9]+\.[0-9]+.*$/version = "'"$version"'"/' $1
+  $bin_sed -i -r 's/^(\s*)version(\s*)=(\s*)["'\''][0-9]+\.[0-9]+\.[0-9]+["'\'']/\1version\2=\3"'"$version"'"/' $1
 }
 
 write_pyversion() {
@@ -55,8 +55,6 @@ write_pyversion() {
 #!/usr/bin/python
 # -*- coding: utf-8; -*-
 #
-# Copyright 2012 Juliano Martinez
-# Copyright 2012 Diego Souza
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
@@ -86,5 +84,6 @@ check_environ
 echo "version: $version"
 update_version "$leela_root/README.rst"
 update_version "$leela_root/doc/source/conf.py"
-write_pyversion "$leela_root/src/leela/version.py"
+update_version "$leela_root/setup.py"
+write_pyversion "$leela_root/src/leela/server/version.py"
 

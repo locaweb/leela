@@ -1,8 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8; -*-
 #
-# Copyright 2012 Juliano Martinez
-# Copyright 2012 Diego Souza
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,8 +17,8 @@
 
 # DO NOT EDIT, AUTOMATICALLY GENERATED
 
-major   = "0"
+major   = "1"
 minor   = "0"
-build   = "1"
-version = "0.0.1"
+build   = "0"
+version = "1.0.0"
 

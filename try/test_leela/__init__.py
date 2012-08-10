@@ -18,7 +18,7 @@
 #    limitations under the License.
 #
 
-from leela import logger
+from leela.server import logger
 
 def setup():
     logger.set_level(logger.DEBUG)

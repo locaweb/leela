@@ -2,7 +2,7 @@
 LEELA
 =====
 
-Collect and chart anythihng!
+Collects anything, monitors anything and analyzes anything.
 
 For information on the usage, architecture and much more please refer
 to the documentation.
@@ -10,12 +10,12 @@ to the documentation.
 Documentation
 =============
 
-* http://leela-server.readthedocs.org/
+* http://leela.readthedocs.org/
 
 API Stability
 =============
 
-* testing [2]_
+* unstable [2]_
 
 .. [2] Possible values:
 
@@ -26,7 +26,7 @@ API Stability
 Version
 =======
 
-* $version 0.0.1$
+* $version 1.0.0$
 
 License
 =======

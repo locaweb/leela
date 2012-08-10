@@ -1,8 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8; -*-
 #
-# Copyright 2012 Juliano Martinez
-# Copyright 2012 Diego Souza
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +17,6 @@
 #
 
 import os
-import bz2
 import sys
 import time
 import getopt
@@ -33,43 +30,40 @@ import threading
 import signal
 from multiprocessing import Process
 from multiprocessing import Pipe
-from leela import funcs
-from leela import config
-from leela import storage
-from leela.lasergun.data import Lasergun
-from leela import logger
+from leela.server import funcs
+from leela.server import config
+from leela.server.data import event
+from leela.server.data import netprotocol
+from leela.server.storage import cassandra
+from leela.server import logger
+
+def scale(e):
+    """
+    Store events
+    """
+    e.set_time()
 
 def cassandra_consumer(cont, cfg, opts, pipe):
     funcs.drop_privileges(opts.user, opts.gid)
 
     logger.debug("connecting to cassandra and [possibly] creating schema")
-    cassandra = storage.Storage(cfg)
-    cassandra.create_schema()
-    lasergun = Lasergun(cfg, cassandra=cassandra, carbon=None)
+    # cassandra.create_schema(cfg)
+    storage  = cassandra.EventsStorage(cassandra.connect(cfg))
     text     = "undefined"
     while (cont()):
         try:
-            if (not pipe.poll(1)):
-                continue
-            (data, now) = pipe.recv()
-            text = bz2.decompress(data)
-            logger.debug("metrics: bzip=%d, text=%d" % (len(data), len(text)))
-            lasergun.store(text, now)
+            text = pipe.recv()
+            t = funcs.timer_start()
+            for e in netprotocol.parse(text):
+                t1 = funcs.timer_start()
+                e.set_time((e.year(), e.month(), e.day(), e.hour(), e.minute(), 0))
+                e.store(storage)
+                tmp = funcs.timer_stop(t1)
+                logger.debug("store event: %s [walltime: %f]" % (str(e), t1))
+            tmp = funcs.timer_stop(t)
+            logger.debug("store done [walltime: %f]" % (tmp,))
         except:
-            logger.exception("cassandra_consumer: error writing data, keeping calm and carrying on [text: %s]" % str(text))
-
-def carbon_consumer(cont, cfg, opts, pipe):
-    funcs.drop_privileges(opts.user, opts.gid)
-
-    carbon   = storage.Carbon(cfg)
-    lasergun = Lasergun(cfg, cassandra=None, carbon=carbon)
-    while (cont()):
-        try:
-            (data, now) = pipe.recv()
-            text = bz2.decompress(data)
-            lasergun.send2carbon(text, now)
-        except:
-            logger.exception("carbon_consumer: error writing data, keeping calm and carrying on")
+            logger.exception("cassandra_consumer: error writing data [text: %s]" % str(text))
 
 def server_consumer(cont, cfg, opts, pipes):
     host = cfg.get("lasergun", "address")
@@ -85,8 +79,7 @@ def server_consumer(cont, cfg, opts, pipes):
             continue
         data, peer = rlist[0].recvfrom(16*1024)
         text       = "<undefined>"
-        now        = time.time()
-        map(lambda p: p.send((data, now)), pipes)
+        map(lambda p: p.send(data), pipes)
 
 def sighandler(*procs):
     def f(signum, frame):
@@ -132,20 +125,19 @@ def cli_parser():
 def main_start(opts):
     cfg  = config.read_config(opts.config)
     p0in, p0out = Pipe(duplex=False)
-    # p1in, p1out = Pipe()
 
     logger.debug("starting server...")
     p0 = funcs.start_process(server_consumer, cfg, opts, [p0out])
 
     logger.debug("starting cassandra consumer...")
-    p1 = funcs.start_process(cassandra_consumer, cfg, opts, p0in)
-
-    # logger.debug("starting carbon consumer...")
-    # p2 = funcs.start_process(carbon_consumer, cfg, opts, p1in)
+    ps = []
+    for _ in range(cfg.getint("lasergun", "consumers")):
+        ps.append(funcs.start_process(cassandra_consumer, cfg, opts, p0in))
 
     p0.join()
-    p1.terminate()
-    # p2.terminate()
+    p0out.close()
+    p0in.close()
+    map(lambda p: p.join(), ps)
     logger.debug("bye!")
 
 def main():

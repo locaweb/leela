@@ -1,8 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8; -*-
 #
-# Copyright 2012 Juliano Martinez
-# Copyright 2012 Diego Souza
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,17 +16,3 @@
 #    limitations under the License.
 #
 
-import os
-import ConfigParser
-
-def default_config_file():
-    config = ConfigParser.ConfigParser()
-    if ("LEELA_CFG" in os.environ):
-        return(os.environ["LEELA_CFG"])
-    else:
-        return("/etc/leela/leela.conf")
-
-def read_config(f=default_config_file()):
-    cfg = ConfigParser.ConfigParser()
-    cfg.read(f)
-    return(cfg)
