@@ -10,7 +10,7 @@ to the documentation.
 Documentation
 =============
 
-* http://leela.readthedocs.org/
+* http://leela-server.readthedocs.org/
 
 API Stability
 =============
