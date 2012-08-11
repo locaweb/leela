@@ -17,32 +17,30 @@ LEELA.widget = function (root, opts) {
 
         options.xaxis.showMinorLabels = true;
         options.xaxis.timeUnit = 'hour';
-        //options.xaxis.noTicks = 10;
+
         options.xaxis.tickFormatter = function(n) {
             var d = new Date(n*1000);
-            return d.getHours() + ":" + d.getMinutes();
+            return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
         };
+
+        function resetZoom () {
+            delete options.xaxis.min; delete options.xaxis.max;
+            delete options.yaxis.min; delete options.yaxis.max;
+        }
 
         options.yaxis.min = 0;
 
         var container = document.getElementById(root);
 
-        function drawGraph (opts) {
-            // Clone the options, so the 'options' variable always keeps intact.
-            var o = Flotr._.extend(Flotr._.clone(options), opts);
-            return Flotr.draw(container, json, o);
-        }
-
-        drawGraph();
+        Flotr.draw(container, json, options);
 
         Flotr.EventAdapter.observe(container, 'flotr:select', function (area) {
-            graph = drawGraph({
-                xaxis: {min:area.x1, max:area.x2},
-                yaxis: {min:area.y1, max:area.y2}
-            });
+            options.xaxis.min = area.x1; options.xaxis.max = area.x2;
+            options.yaxis.min = area.y1; options.yaxis.max = area.y2;
+            Flotr.draw(container, json, options);
         });
 
-        Flotr.EventAdapter.observe(container, 'flotr:click', function () { drawGraph(); });
+        Flotr.EventAdapter.observe(container, 'flotr:click', function () { resetZoom(); Flotr.draw(container, json, options); });
     };
 
     return({"install": install});
