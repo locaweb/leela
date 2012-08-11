@@ -15,10 +15,7 @@ LEELA.widget = function (root, opts) {
         options.xaxis = options.xaxis || {};
         options.yaxis = options.yaxis || {};
 
-        options.xaxis.showMinorLabels = true;
-        options.xaxis.timeUnit = 'hour';
-
-        options.xaxis.tickFormatter = function(n) {
+        options.xaxis.tickFormatter = options.xaxis.tickFormatter || function(n) {
             var d = new Date(n*1000);
             return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
         };
@@ -27,8 +24,6 @@ LEELA.widget = function (root, opts) {
             delete options.xaxis.min; delete options.xaxis.max;
             delete options.yaxis.min; delete options.yaxis.max;
         }
-
-        options.yaxis.min = 0;
 
         var container = document.getElementById(root);
 
