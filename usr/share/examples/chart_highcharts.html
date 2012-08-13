@@ -29,11 +29,11 @@
       <input type="submit" />
     </form>
     <span id="uri"></span></br>
-    <div id="canvas"></div>
-    <script type="text/javascript" src="http://code.jquery.com/jquery-1.7.2.js"></script> <script type="text/javascript" src="file:///home/pothix/repos/leela-server/usr/share/leela/static/js/highcharts.js"></script>
-    <script type="text/javascript" src="file:///home/pothix/repos/leela-server/usr/share/leela/static/js/functions.js"></script>
-    <script type="text/javascript" src="file:///home/pothix/repos/leela-server/usr/share/leela/static/js/highcharts.js"></script>
-    <script type="text/javascript" src="file:///home/pothix/repos/leela-server/usr/share/leela/static/js/widget_highcharts.js"></script>
+    <div id="placeholder"></div>
+    <script type="text/javascript" src="http://code.jquery.com/jquery-1.7.2.js"></script>
+    <script type="text/javascript" src="../leela/static/js/functions.js"></script>
+    <script type="text/javascript" src="../leela/static/js/highcharts.js"></script>
+    <script type="text/javascript" src="../leela/static/js/widget_highcharts.js"></script>
 
     <script type="text/javascript">
       var qparam = function (name, defval) {
@@ -59,7 +59,7 @@
         jQuery("#resolution").val(res);
         jQuery.ajax(uri,
           { dataType: "jsonp",
-            success: LEELA.f.dot(LEELA.widget("canvas", {resolution: res}).install, LEELA.f.average(res, 0))
+            success: LEELA.f.dot(LEELA.widget("placeholder", {resolution: res}).install, LEELA.f.average(res, 0))
           });
       }
     </script>
