@@ -20,11 +20,11 @@ import os
 import time
 import pwd
 import pycassa
-import pytz
 import calendar
 from multiprocessing import Process
 from datetime import datetime
 from leela.server import logger
+from leela.server import tzutil
 
 def suppress(f):
     def g(*args, **kwargs):
@@ -110,7 +110,7 @@ def datetime_timestamp(date):
     return(timetuple_timestamp(date.timetuple()))
 
 def datetime_fromtimestamp(timestamp):
-    return(datetime.fromtimestamp(timestamp, pytz.UTC))
+    return(datetime.fromtimestamp(timestamp, tzutil.UTC))
 
 def time_to_slot(hour, minute):
     if (hour > 23 or hour < 0):

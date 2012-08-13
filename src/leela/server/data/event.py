@@ -16,7 +16,6 @@
 #    limitations under the License.
 #
 
-import pytz
 import collections
 import time
 from datetime import datetime

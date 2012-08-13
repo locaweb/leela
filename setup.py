@@ -21,7 +21,7 @@ setup(
     author           = "Juliano Martinez, Diego Souza",
     author_email     = "juliano@martinez.io",
     url              = "http://leela.readthedocs.org",
-    install_requires = ["gevent>=0.13.6", "pycassa", "pytz", "bottle", "supay", "argparse"],
+    install_requires = ["gevent>=0.13.6", "pycassa", "bottle", "supay", "argparse"],
     packages         = find_packages("src"),
     package_dir      = {"": "src"},
     data_files       = find_datafiles(".", path_f),
