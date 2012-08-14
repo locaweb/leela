@@ -29,7 +29,7 @@ setup(
     author           = "Juliano Martinez, Diego Souza",
     author_email     = "juliano@martinez.io",
     url              = "http://leela.readthedocs.org",
-    install_requires = install_deps(),
+    # install_requires = install_deps(),
     packages         = find_packages("src"),
     package_dir      = {"": "src"},
     data_files       = find_datafiles(".", path_f),
