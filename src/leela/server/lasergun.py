@@ -59,7 +59,7 @@ def cassandra_consumer(cont, cfg, opts, pipe):
                 e.set_time((e.year(), e.month(), e.day(), e.hour(), e.minute(), 0))
                 e.store(storage)
                 tmp = funcs.timer_stop(t1)
-                logger.debug("store event: %s [walltime: %f]" % (str(e), t1))
+                logger.debug("store event: %s [walltime: %f]" % (str(e), tmp))
             tmp = funcs.timer_stop(t)
             logger.debug("store done [walltime: %f]" % (tmp,))
         except:
