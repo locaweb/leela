@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import os
+import sys
 from setuptools import find_packages
 from setuptools import setup
 
@@ -12,6 +13,13 @@ def find_datafiles(root, path_f):
             result.append((tr_root, map(lambda f: os.path.join(root, f), files)))
     return(result)
 
+def install_deps():
+    ver  = sys.version_info
+    deps = ["gevent>=0.13.6", "pycassa", "bottle", "supay"]
+    if (ver.major == 2 and ver.minor < 7):
+        deps.append("argparse")
+    return(deps)
+
 accept_f = lambda f: reduce(lambda acc, p: acc or f.startswith(p), ("./etc", "./usr"), False)
 path_f   = lambda f: accept_f(f) and f[1:] or False
 setup(
@@ -21,7 +29,7 @@ setup(
     author           = "Juliano Martinez, Diego Souza",
     author_email     = "juliano@martinez.io",
     url              = "http://leela.readthedocs.org",
-    install_requires = ["gevent>=0.13.6", "pycassa", "bottle", "supay", "argparse"],
+    install_requires = install_deps(),
     packages         = find_packages("src"),
     package_dir      = {"": "src"},
     data_files       = find_datafiles(".", path_f),
