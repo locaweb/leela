@@ -27,7 +27,7 @@ def parse1(string):
     else:
         lval = value
         tval = time.time()
-    return(Event(name[:50], float(lval), long(tval)))
+    return(Event(name[:255], float(lval), long(tval)))
 
 def parse(string):
     return(map(parse1, string.splitlines()))
