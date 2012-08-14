@@ -10,7 +10,7 @@
 #export DH_VERBOSE=1
 
 %:
-	dh $@
+	dh --with pydeb --with python2 --namespace leela $@
 
 override_dh_installinit:
 	dh_installinit --name=leela-server
