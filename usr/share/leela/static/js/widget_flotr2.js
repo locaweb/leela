@@ -17,7 +17,8 @@ LEELA.widget = function (root, opts) {
       var h11 = t3 - t2;
       var m0  = (yk1-yk)/(2*(xk1 - xk)) + (yk-yk_1)/(2*(xk-xk_1));
       var m1  = (yk2-yk1)/(2*(xk2 - xk1)) + (yk1-yk)/(2*(xk1-xk));
-      return([x, h00*yk + h10*(xk1-xk)*m0 + h01*yk1 + h11*(xk1-xk)*m1]);
+      var y   = h00*yk + h10*(xk1-xk)*m0 + h01*yk1 + h11*(xk1-xk)*m1;
+      return([x, y]);
     };
 
     var cspline = function (data) {
