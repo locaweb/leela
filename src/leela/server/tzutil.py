@@ -22,7 +22,7 @@ from datetime import tzinfo
 class UTC(tzinfo):
 
     def utcoffset(self, _):
-        return(0)
+        return(timedelta(0))
 
     def dst(self, _):
         return(timedelta(0))
