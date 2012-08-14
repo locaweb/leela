@@ -110,7 +110,8 @@ LEELA.f = (function () {
   };
 
   return({ average: average,
-           dot: dot
+           dot: dot,
+           map: map
          });
 
 })();
