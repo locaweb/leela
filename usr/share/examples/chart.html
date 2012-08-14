@@ -10,17 +10,9 @@
         endpoint:
         <input id="endpoint" type="text" name="endpoint" />
       </label><br />
-      <label for="hostname">
-        hostname:
-        <input id="hostname" type="text" name="hostname" />
-      </label><br />
-      <label for="service">
-        service:
-        <input id="service" type="text" name="service" />
-      </label><br />
-      <label for="fields">
-        fields:
-        <input id="fields" type="text" name="fields" value="_" /> *(format: field[, field, ...]; _ (underscore) is special and means all fields)
+      <label for="key">
+        key:
+        <input id="key" type="text" name="key" />
       </label><br />
       <label for="resolution">
         resolution (min):
@@ -29,7 +21,7 @@
       <input type="submit" />
     </form>
     <span id="uri"></span></br>
-    <div id="placeholder" style="height:600px; width: 800px"></div>
+    <div id="placeholder" style="height:600px; width: 800px; margin: 8px auto;"></div>
     <script type="text/javascript" src="http://code.jquery.com/jquery-1.7.2.js"></script>
     <script type="text/javascript" src="../leela/static/js/functions.js"></script>
     <script type="text/javascript" src="../leela/static/js/widget_flotr2.js"></script>
@@ -45,17 +37,13 @@
           return(decodeURIComponent(m[1].replace(/\+/g, " ")));
       };
       var endpoint = qparam("endpoint");
-      var hostname = qparam("hostname");
-      var service  = qparam("service");
-      var fields   = qparam("fields");
+      var key      = qparam("key");
       var res      = parseInt(qparam("resolution"));
-      if (endpoint !== undefined && hostname !== undefined && service !== undefined && fields !== undefined) {
-        var uri = endpoint + "/v1/"+ hostname +"/"+ service +"/"+ fields +"/past24";
+      if (endpoint !== undefined && key !== undefined) {
+        var uri = endpoint + "/v1/past24/"+ encodeURIComponent(key);
         jQuery("#uri").html("<a href='" + uri + "'>data url: "+ uri +"</a>");
         jQuery("#endpoint").val(endpoint);
-        jQuery("#service").val(service);
-        jQuery("#hostname").val(hostname);
-        jQuery("#fields").val(fields);
+        jQuery("#key").val(key);
         jQuery("#resolution").val(res);
         jQuery.ajax(uri,
           { dataType: "jsonp",

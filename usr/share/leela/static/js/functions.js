@@ -5,10 +5,6 @@ if (LEELA === undefined) {
 
 LEELA.f = (function () {
 
-  var metric_p = function (name) {
-    return(name !== "source");
-  };
-
   var fst = function (xs) {
     return(xs[0]);
   };
@@ -91,9 +87,9 @@ LEELA.f = (function () {
 
   var average = function (resolution, zero) {
     var f = function (json) {
-      for (var m in json) {
-        if (json.hasOwnProperty(m) && metric_p(m)) {
-          json[m] = _group(resolution, zero, json[m]);
+      for (var m in json.results) {
+        if (json.results.hasOwnProperty(m)) {
+          json.results[m].series = _group(resolution, zero, json.results[m].series);
         }
       }
       return(json);

@@ -70,52 +70,58 @@ def events_to_json(events):
     for e in events:
         k = e.name()
         if (k not in result):
-            result[k] = []
-        result[k].append((e.unixtimestamp(), e.value()))
+            result[k] = {"series": []}
+        result[k]["series"].append((e.unixtimestamp(), e.value()))
     return(result)
 
-def wrap_results(events):
+def wrap_results(reqtime, events):
     data = events_to_json(events)
     uri  = bottle.request.path
     if (bottle.request.query_string):
         uri += "?" + bottle.request.query_string
     return({"results": data,
-            "request.uri": uri
+            "debug": {"request_uri": uri,
+                      "request_time": reqtime
+                     }
            })
 
-@bottle.get("/v1/<key>/past24")
+@bottle.get("/v1/past24/:key#.+#")
 @reply_json
 def past24_json(key, cfg, connection):
+    t       = funcs.timer_start()
     storage = cassandra.EventsStorage(connection)
     events  = Event.load_past24(storage, key)
-    return(wrap_results(events))
+    return(wrap_results(funcs.timer_stop(t), events))
 
-@bottle.get("/v1/<key>/pastweek")
+@bottle.get("/v1/pastweek/:key#.+#")
 @reply_json
 def pastweek_json(key, cfg, connection):
+    t       = funcs.timer_start()
     storage = cassandra.EventsStorage(connection)
     events  = Event.load_pastweek(storage, key)
-    return(wrap_results(events))
+    return(wrap_results(funcs.timer_stop(t), events))
 
-@bottle.get("/v1/<key>/<year>/<month>/<day>")
+@bottle.get("/v1/<year:int>/<month:int>/<day:int>/:key#.+#")
 @reply_json
-def day_json(key, year, month, day, cfg, connection):
+def day_json(year, month, day, key, cfg, connection):
+    t       = funcs.timer_start()
     storage = cassandra.EventsStorage(connection)
     past    = bottle.request.GET.get("past")
     if (past is None):
-        events = Event.load_day(storage, key, int(year, 10), int(month, 10), int(day, 10))
+        events = Event.load_day(storage, key, year, month, day)
     else:
         hour   = datetime.today().hour - int(past, 10)
-        events = Event.load_time(storage, key, int(year, 10), int(month, 10), int(day, 10), hour)
-    return(wrap_results(events))
+        events = Event.load_time(storage, key, year, month, day, hour)
+    return(wrap_results(funcs.timer_stop(t), events))
 
-@bottle.get("/v1/<key>/<year>/<month>")
+@bottle.get("/v1/<year:int>/<month:int>/:key#.+#")
 @reply_json
-def month_json(key, year, month, cfg, connection):
+def month_json(year, month, key, cfg, connection):
+    t       = funcs.timer_start()
     storage = cassandra.EventsStorage(connection)
     past    = bottle.request.GET.get("past")
-    events  = Event.load_month(storage, key, int(year, 10), int(month, 10))
-    return(wrap_results(events))
+    events  = Event.load_month(storage, key, year, month)
+    return(wrap_results(funcs.timer_stop(t), events))
 
 @bottle.get("/static/<path:path>")
 def static(path, cfg, **kwargs):

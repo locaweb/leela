@@ -46,14 +46,12 @@ LEELA.widget = function (root, opts) {
       return(ndata);
     };
 
-    var format = function (json) {
+    var format_s = function (json) {
       var series = [];
-      for (var k in json) {
-        if (k!=="source" && json.hasOwnProperty(k)) {
+      for (var k in json.results) {
+        if (json.results.hasOwnProperty(k)) {
           series.push({ label: k,
-                        data: cspline(json[k]),
-                        // lines: {show: false},
-                        // points: {show: true}
+                        data: cspline(json.results[k].series),
                       });
         }
       }
@@ -61,15 +59,16 @@ LEELA.widget = function (root, opts) {
     };
 
     var install = function (json) {
-        var series    = format(json);
+        var series    = format_s(json);
         var container = document.getElementById(root);
         var myopts    = { xaxis: { mode: "time",
                                    timeUnit: "second",
-                                   timeFormat: "%d %b %H:%M"
+                                   timeFormat: "%d %b %H:%M",
                                  },
-                          yaxis: { min: 0
+                          yaxis: { min: 0,
+                                   autoscale: true
                                  },
-                          title: options.title || (json.source.hostname + " - " + json.source.service),
+                          title: options.title || (json.debug.request_uri),
                           subtitle: options.subtitle || "Powered by locaweb",
                           selection: { mode: "x"
                                      },
