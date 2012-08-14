@@ -23,20 +23,22 @@ LEELA.widget = function (root, opts) {
     var cspline = function (data) {
       var ndata = [];
       var len   = data.length;
-      var res   = 50;
+      var res   = 25;
 
       for (var k=0; k<len-1; k+=1) {
+        var x    = data[k][0];
+        var xk_1 = (data[k-1] || [0])[0];
+        var yk_1 = (data[k-1] || [0,0])[1];
+        var xk   = data[k][0];
+        var yk   = data[k][1];
+        var xk1  = data[k+1][0];
+        var yk1  = data[k+1][1];
+        var xk2  = (data[k+2] || [0])[0];
+        var yk2  = (data[k+2] || [0,0])[1];
+        var s    = (xk1 - xk)/res;
         for (var u=1; u<res; u+=1) {
-          var x = k + u/res;
-          ndata.push(cspline_i(x,
-                               k-1,
-                               (data[k-1] || [0,0])[1],
-                               k,
-                               data[k][1],
-                               k+1,
-                               data[k+1][1],
-                               k+2,
-                               (data[k+2] || [0,0])[1]));
+          x += s;
+          ndata.push(cspline_i(x, xk_1, yk_1, xk, yk, xk1, yk1, xk2, yk2));
         }
       }
 
@@ -52,29 +54,35 @@ LEELA.widget = function (root, opts) {
                       });
         }
       }
-      console.log(series);
       return(series);
     };
 
     var install = function (json) {
         var series    = format(json);
         var container = document.getElementById(root);
-        var myopts    = { xaxis: {mode: "normal"},
-                          yaxis: {},
+        var myopts    = { xaxis: { mode: "time",
+                                   timeUnit: "second",
+                                   timeFormat: "%d %b %H:%M",
+                                   minorTickFreq: 18,
+                                   noTicks: 10
+                                 },
+                          yaxis: { min: 0
+                                 },
                           title: options.title || (json.source.hostname + " - " + json.source.service),
                           subtitle: options.subtitle || "Powered by locaweb",
-                          selection: {mode: "x"}
+                          selection: { mode: "x"
+                                     },
+                          legend: { position: "ne"
+                                  },
                         };
         var resetZoom = function () {
             delete myopts.xaxis.min; delete myopts.xaxis.max;
-            delete myopts.yaxis.min; delete myopts.yaxis.max;
         };
 
         Flotr.draw(container, series, myopts);
 
         Flotr.EventAdapter.observe(container, 'flotr:select', function (area) {
           myopts.xaxis.min = area.x1; myopts.xaxis.max = area.x2;
-          myopts.yaxis.min = area.y1; myopts.yaxis.max = area.y2;
           Flotr.draw(container, series, myopts);
         });
 
