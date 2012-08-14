@@ -46,7 +46,7 @@ def scale(e):
 def cassandra_consumer(cont, cfg, opts, pipe):
     funcs.drop_privileges(opts.user, opts.gid)
 
-    logger.debug("connecting to cassandra and [possibly] creating schema")
+    logger.debug("connecting to cassandra...")
     # cassandra.create_schema(cfg)
     storage  = cassandra.EventsStorage(cassandra.connect(cfg))
     text     = "undefined"
