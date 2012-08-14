@@ -16,8 +16,8 @@ def find_datafiles(root, path_f):
 def install_deps():
     ver  = sys.version_info
     deps = ["gevent>=0.13.6", "pycassa", "bottle", "supay"]
-    if (ver[0] == 2 and ver[1] < 7):
-        deps.append("argparse")
+    # if (ver[0] == 2 and ver[1] < 7):
+    #     deps.append("argparse")
     return(deps)
 
 accept_f = lambda f: reduce(lambda acc, p: acc or f.startswith(p), ("./etc", "./usr"), False)
