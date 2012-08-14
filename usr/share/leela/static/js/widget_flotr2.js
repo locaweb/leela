@@ -21,6 +21,7 @@ LEELA.widget = function (root, opts) {
     };
 
     var cspline = function (data) {
+      // http://en.wikipedia.org/wiki/Cubic_Hermite_spline
       var ndata = [];
       var len   = data.length;
       var res   = 25;
@@ -36,7 +37,7 @@ LEELA.widget = function (root, opts) {
         var xk2  = (data[k+2] || [0])[0];
         var yk2  = (data[k+2] || [0,0])[1];
         var s    = (xk1 - xk)/res;
-        for (var u=1; u<res; u+=1) {
+        for (var u=0; u<res; u+=1) {
           x += s;
           ndata.push(cspline_i(x, xk_1, yk_1, xk, yk, xk1, yk1, xk2, yk2));
         }
@@ -50,7 +51,9 @@ LEELA.widget = function (root, opts) {
       for (var k in json) {
         if (k!=="source" && json.hasOwnProperty(k)) {
           series.push({ label: k,
-                        data: cspline(json[k])
+                        data: cspline(json[k]),
+                        // lines: {show: false},
+                        // points: {show: true}
                       });
         }
       }
@@ -62,9 +65,7 @@ LEELA.widget = function (root, opts) {
         var container = document.getElementById(root);
         var myopts    = { xaxis: { mode: "time",
                                    timeUnit: "second",
-                                   timeFormat: "%d %b %H:%M",
-                                   minorTickFreq: 18,
-                                   noTicks: 10
+                                   timeFormat: "%d %b %H:%M"
                                  },
                           yaxis: { min: 0
                                  },
