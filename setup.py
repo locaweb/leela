@@ -30,6 +30,7 @@ setup(
     author_email     = "juliano@martinez.io",
     url              = "http://leela.readthedocs.org",
     # install_requires = install_deps(),
+    namespaces_packages = ["leela"],
     packages         = find_packages("src"),
     package_dir      = {"": "src"},
     data_files       = find_datafiles(".", path_f),
