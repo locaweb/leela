@@ -59,24 +59,26 @@ LEELA.widget = function (root, opts) {
     var install = function (json) {
         var series    = format(json);
         var container = document.getElementById(root);
+        var myopts    = { xaxis: {mode: "normal"},
+                          yaxis: {},
+                          title: options.title || (json.source.hostname + " - " + json.source.service),
+                          subtitle: options.subtitle || "Powered by locaweb",
+                          selection: {mode: "x"}
+                        };
         var resetZoom = function () {
-            // delete options.xaxis.min; delete options.xaxis.max;
-            // delete options.yaxis.min; delete options.yaxis.max;
+            delete myopts.xaxis.min; delete myopts.xaxis.max;
+            delete myopts.yaxis.min; delete myopts.yaxis.max;
         };
 
-        Flotr.draw(container, series, {xaxis: { mode: "normal",
-                                              },
-                                       title: options.title || (json.source.hostname + " - " + json.source.service),
-                                       subtitle: options.subtitle || "Powered by locaweb"
-                                      });
+        Flotr.draw(container, series, myopts);
 
-        // Flotr.EventAdapter.observe(container, 'flotr:select', function (area) {
-        //     options.xaxis.min = area.x1; options.xaxis.max = area.x2;
-        //     options.yaxis.min = area.y1; options.yaxis.max = area.y2;
-        //     Flotr.draw(container, series, options);
-        // });
+        Flotr.EventAdapter.observe(container, 'flotr:select', function (area) {
+          myopts.xaxis.min = area.x1; myopts.xaxis.max = area.x2;
+          myopts.yaxis.min = area.y1; myopts.yaxis.max = area.y2;
+          Flotr.draw(container, series, myopts);
+        });
 
-        // Flotr.EventAdapter.observe(container, 'flotr:click', function () { resetZoom(); Flotr.draw(container, series, options); });
+        Flotr.EventAdapter.observe(container, 'flotr:click', function () { resetZoom(); Flotr.draw(container, series, myopts); });
     };
 
     return({"install": install});
