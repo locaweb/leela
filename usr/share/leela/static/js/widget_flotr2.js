@@ -7,7 +7,7 @@ if (LEELA === undefined) {
 LEELA.widget = function (root, opts) {
     var options = opts || {};
 
-    var cspline_p = function (x, xk_1, yk_1, xk, yk, xk1, yk1, xk2, yk2) {
+    var cspline_i = function (x, xk_1, yk_1, xk, yk, xk1, yk1, xk2, yk2) {
       var t   = (x-xk) / (xk1 - xk);
       var t2  = t*t;
       var t3  = t2*t;
@@ -23,12 +23,12 @@ LEELA.widget = function (root, opts) {
     var cspline = function (data) {
       var ndata = [];
       var len   = data.length;
-      var res   = 100;
+      var res   = 50;
 
       for (var k=0; k<len-1; k+=1) {
         for (var u=1; u<res; u+=1) {
           var x = k + u/res;
-          ndata.push(cspline_p(x,
+          ndata.push(cspline_i(x,
                                k-1,
                                (data[k-1] || [0,0])[1],
                                k,
@@ -52,6 +52,7 @@ LEELA.widget = function (root, opts) {
                       });
         }
       }
+      console.log(series);
       return(series);
     };
 
@@ -59,29 +60,23 @@ LEELA.widget = function (root, opts) {
         var series    = format(json);
         var container = document.getElementById(root);
         var resetZoom = function () {
-            delete options.xaxis.min; delete options.xaxis.max;
-            delete options.yaxis.min; delete options.yaxis.max;
+            // delete options.xaxis.min; delete options.xaxis.max;
+            // delete options.yaxis.min; delete options.yaxis.max;
         };
 
-        options.selection = { mode : 'x', fps : 30 };
-        options.title = options.title || (json.source.hostname + " - " + json.source.service);
-        options.subtitle = options.subtitle || "Powered by locaweb";
+        Flotr.draw(container, series, {xaxis: { mode: "normal",
+                                              },
+                                       title: options.title || (json.source.hostname + " - " + json.source.service),
+                                       subtitle: options.subtitle || "Powered by locaweb"
+                                      });
 
-        options.xaxis             = options.xaxis || {};
-        options.xaxis.mode        = "normal";
-        // options.xaxis.labelsAngle = 45;
-        // options.xaxis.timeFormat  = "%H:%M";
-        // options.xaxis.timeUnit    = "second";
+        // Flotr.EventAdapter.observe(container, 'flotr:select', function (area) {
+        //     options.xaxis.min = area.x1; options.xaxis.max = area.x2;
+        //     options.yaxis.min = area.y1; options.yaxis.max = area.y2;
+        //     Flotr.draw(container, series, options);
+        // });
 
-        Flotr.draw(container, series, options);
-
-        Flotr.EventAdapter.observe(container, 'flotr:select', function (area) {
-            options.xaxis.min = area.x1; options.xaxis.max = area.x2;
-            options.yaxis.min = area.y1; options.yaxis.max = area.y2;
-            Flotr.draw(container, series, options);
-        });
-
-        Flotr.EventAdapter.observe(container, 'flotr:click', function () { resetZoom(); Flotr.draw(container, series, options); });
+        // Flotr.EventAdapter.observe(container, 'flotr:click', function () { resetZoom(); Flotr.draw(container, series, options); });
     };
 
     return({"install": install});
