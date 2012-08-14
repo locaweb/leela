@@ -110,7 +110,7 @@ def datetime_timestamp(date):
     return(timetuple_timestamp(date.timetuple()))
 
 def datetime_fromtimestamp(timestamp):
-    return(datetime.fromtimestamp(timestamp, tzutil.UTC))
+    return(datetime.fromtimestamp(timestamp, tzutil.UTC()))
 
 def time_to_slot(hour, minute):
     if (hour > 23 or hour < 0):
