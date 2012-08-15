@@ -62,7 +62,8 @@ def cassandra_consumer(cont, cfg, opts, pipe):
             tmp = funcs.timer_stop(t)
             logger.debug("store done [walltime: %f]" % (tmp,))
         except:
-            logger.exception("cassandra_consumer: error writing data [text: %s]" % str(text))
+            if (opts.debug):
+                logger.exception("cassandra_consumer: error writing data [text: %s]" % str(text))
 
 def server_consumer(cont, cfg, opts, pipes):
     host = cfg.get("lasergun", "address")
