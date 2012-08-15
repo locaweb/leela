@@ -45,10 +45,13 @@ def create_schema(config):
     keyspace       = config.get("cassandra", "keyspace")
     manager        = config.get("cassandra", "system_manager")
     sysmgr         = pycassa.system_manager.SystemManager(manager, timeout=config.getint("cassandra", "timeout"))
-    schema         = sysmgr.get_keyspace_column_families(config.get("cassandra", "keyspace"))
-    events         = EventsStorage(None)
-    if (events.name() not in schema):
-        events.create(sysmgr, keyspace)
+    try:
+        schema         = sysmgr.get_keyspace_column_families(config.get("cassandra", "keyspace"))
+        events         = EventsStorage(None)
+        if (events.name() not in schema):
+            events.create(sysmgr, keyspace)
+    finally:
+        sysmgr.close()
 
 def serialize_key(y, mo, d, h, mi, s, epoch):
     y  = ((y-epoch) << 26) & 0xfc000000

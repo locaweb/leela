@@ -47,7 +47,6 @@ def cassandra_consumer(cont, cfg, opts, pipe):
     funcs.drop_privileges(opts.user, opts.gid)
 
     logger.debug("connecting to cassandra...")
-    # cassandra.create_schema(cfg)
     storage  = cassandra.EventsStorage(cassandra.connect(cfg))
     text     = "undefined"
     while (cont()):
@@ -120,11 +119,19 @@ def cli_parser():
                         type=str,
                         default=config.default_config_file(),
                         help="the config file to use [%(default)s]")
+    parser.add_argument("--create-schema",
+                        dest="create_schema",
+                        action="store_false",
+                        default=True,
+                        help="Create the schema (column families) on cassandra")
     return(parser)
 
 def main_start(opts):
     cfg  = config.read_config(opts.config)
     p0in, p0out = Pipe(duplex=False)
+
+    if (opts.create_schema):
+        cassandra.create_schema(cfg)
 
     logger.debug("starting server...")
     p0 = funcs.start_process(server_consumer, cfg, opts, [p0out])
