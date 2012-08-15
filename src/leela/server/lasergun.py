@@ -51,6 +51,8 @@ def cassandra_consumer(cont, cfg, opts, pipe):
     text     = "undefined"
     while (cont()):
         try:
+            if (not pipe.poll(1)):
+                continue
             text = pipe.recv()
             t = funcs.timer_start()
             for e in netprotocol.parse(text):
