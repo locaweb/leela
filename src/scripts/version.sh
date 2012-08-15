@@ -83,7 +83,6 @@ read_version
 check_environ
 echo "version: $version"
 update_version "$leela_root/README.rst"
-update_version "$leela_root/doc/source/conf.py"
 update_version "$leela_root/setup.py"
 write_pyversion "$leela_root/src/leela/server/version.py"
 
