@@ -24,10 +24,11 @@ def parse1(string):
     (name, value) = string.split(": ", 2)
     if (" " in value):
         (lval, tval) = value.split(" ", 2)
+        tval = long(tval, 10)
     else:
         lval = value
-        tval = time.time()
-    return(Event(name[:255], float(lval), long(tval)))
+        tval = long(time.time())
+    return(Event(name[:255], float(lval), tval))
 
 def parse(string):
     return(map(parse1, string.splitlines()))
