@@ -1,1 +1,0 @@
-widget_highcharts.js

@@ -123,10 +123,6 @@ def month_json(year, month, key, cfg, connection):
     events  = Event.load_month(storage, key, year, month)
     return(wrap_results(funcs.timer_stop(t), events))
 
-@bottle.get("/static/<path:path>")
-def static(path, cfg, **kwargs):
-    return(bottle.static_file(path, root=cfg.get("readata", "docroot")))
-
 class GEventServerAdapter(bottle.ServerAdapter):
 
     @classmethod
