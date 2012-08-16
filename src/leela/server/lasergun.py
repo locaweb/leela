@@ -38,11 +38,9 @@ from leela.server.storage import cassandra
 from leela.server import logger
 
 def scale(e):
-    """
-    Store events
-    """
-    e.set_time()
+    e.set_time((e.year(), e.month(), e.day(), e.hour(), e.minute(), 0))
 
+@funcs.logerrors(logger)
 def cassandra_consumer(cont, cfg, opts, pipe):
     funcs.drop_privileges(opts.user, opts.gid)
 
@@ -57,7 +55,7 @@ def cassandra_consumer(cont, cfg, opts, pipe):
             t = funcs.timer_start()
             for e in netprotocol.parse(text):
                 t1 = funcs.timer_start()
-                e.set_time((e.year(), e.month(), e.day(), e.hour(), e.minute(), 0))
+                scale(e)
                 e.store(storage)
                 tmp = funcs.timer_stop(t1)
                 logger.debug("store event: %s [walltime: %f]" % (str(e), tmp))
@@ -67,6 +65,7 @@ def cassandra_consumer(cont, cfg, opts, pipe):
             if (opts.debug):
                 logger.exception("cassandra_consumer: error writing data [text: %s]" % str(text))
 
+@funcs.logerrors(logger)
 def server_consumer(cont, cfg, opts, pipes):
     host = cfg.get("lasergun", "address")
     port = cfg.getint("lasergun", "port")

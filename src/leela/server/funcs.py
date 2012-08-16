@@ -53,6 +53,17 @@ def suppress_e(p, default):
         return(g)
     return(suppress_f)
 
+def logerrors(logger):
+    def proxy_f(f):
+        def g(*args, **kwargs):
+            try:
+                f(*args, **kwargs)
+            except:
+                logger.exception("exception caught")
+        g.__name__ = f.__name__
+        return(g)
+    return(proxy_f)
+
 def start_process(target, *args):
     cont = lambda: os.getppid() != 1
     args = [cont] + list(args)
