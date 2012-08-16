@@ -8,9 +8,7 @@
 # Short-Description: Collect and chart anything
 ### END INIT INFO
 
-# Author: Juliano Martinez <juliano.martinez@locaweb.com.br>
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
-DESC="Collect and chart anything"
 NAME=leela-web
 
 DAEMON=leela-web
@@ -49,7 +47,7 @@ sendsigs_omit() {
 
 case "$1" in
   start)
-    log_daemon_msg "Starting $DESC" "$DAEMON"
+    log_daemon_msg "Starting $DAEMON" "$DAEMON"
     create_xconsole
     $DAEMON -a start $DAEMON_ARGS
     case "$?" in
@@ -62,7 +60,7 @@ case "$1" in
 
     ;;
   stop)
-    log_daemon_msg "Stopping $DESC" "$DAEMON"
+    log_daemon_msg "Stopping $DAEMON" "$DAEMON"
     $DAEMON -a stop
     case "$?" in
         0) log_end_msg 0 ;;

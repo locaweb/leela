@@ -3,12 +3,6 @@
 chgrp leela /etc/leela/leela.conf 2>/dev/null || addgroup --system leela
 chown leela /etc/leela/leela.conf 2>/dev/null || adduser --system --disabled-login --home /var/run/leela --no-create-home --disabled-password --ingroup leela leela
 
-# Automatically added by dh_pysupport
-if which update-python-modules >/dev/null 2>&1; then
-	update-python-modules  leela-server.public
-fi
-# End automatically added section
-# Automatically added by dh_installinit
 if [ -x "/etc/init.d/leela-server" ]; then
 	update-rc.d leela-server defaults >/dev/null
 	if [ -x "`which invoke-rc.d 2>/dev/null`" ]; then
@@ -17,8 +11,7 @@ if [ -x "/etc/init.d/leela-server" ]; then
 		/etc/init.d/leela-server start || exit $?
 	fi
 fi
-# End automatically added section
-# Automatically added by dh_installinit
+
 if [ -x "/etc/init.d/leela-web" ]; then
 	update-rc.d leela-web defaults >/dev/null
 	if [ -x "`which invoke-rc.d 2>/dev/null`" ]; then
@@ -27,4 +20,3 @@ if [ -x "/etc/init.d/leela-web" ]; then
 		/etc/init.d/leela-web start || exit $?
 	fi
 fi
-# End automatically added section
