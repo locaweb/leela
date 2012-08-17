@@ -66,6 +66,7 @@ def cassandra_consumer(cont, cfg, opts, pipe):
         except:
             if (opts.debug):
                 logger.exception("cassandra_consumer: error writing data [text: %s]" % str(text))
+    logger.debug("cassandra_consumer: /bye")
 
 @funcs.logerrors(logger)
 def server_consumer(cont, cfg, opts, pipes):
@@ -90,6 +91,7 @@ def server_consumer(cont, cfg, opts, pipes):
         except:
             if (opts.debug):
                 logger.exception("server_consumer: error reading data")
+    logger.debug("server_consumer: /bye")
 
 def sighandler(*procs):
     def f(signum, frame):
@@ -155,7 +157,6 @@ def main_start(opts):
     p0.join()
     q.close()
     q.cancel_join_thread()
-    map(lambda p: p.join(), ps)
     logger.debug("bye!")
 
 def main():
