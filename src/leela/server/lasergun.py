@@ -28,8 +28,10 @@ import argparse
 import supay
 import threading
 import signal
+from Queue import Empty
+from Queue import Full
 from multiprocessing import Process
-from multiprocessing import Pipe
+from multiprocessing import Queue
 from leela.server import funcs
 from leela.server import config
 from leela.server.data import event
@@ -49,9 +51,7 @@ def cassandra_consumer(cont, cfg, opts, pipe):
     text     = "undefined"
     while (cont()):
         try:
-            if (not pipe.poll(1)):
-                continue
-            text = pipe.recv()
+            text = pipe.get(timeout=1)
             t = funcs.timer_start()
             for e in netprotocol.parse(text):
                 t1 = funcs.timer_start()
@@ -61,6 +61,8 @@ def cassandra_consumer(cont, cfg, opts, pipe):
                 logger.debug("store event: %s [walltime: %f]" % (str(e), tmp))
             tmp = funcs.timer_stop(t)
             logger.debug("store done [walltime: %f]" % (tmp,))
+        except Empty:
+            pass
         except:
             if (opts.debug):
                 logger.exception("cassandra_consumer: error writing data [text: %s]" % str(text))
@@ -75,12 +77,18 @@ def server_consumer(cont, cfg, opts, pipes):
 
     funcs.drop_privileges(opts.user, opts.gid)
     while (cont()):
-        (rlist, _, __) = select.select([sock], [], [], 1)
-        if (len(rlist) == 0):
-            continue
-        data, peer = rlist[0].recvfrom(16*1024)
-        text       = "<undefined>"
-        map(lambda p: p.send(data), pipes)
+        try:
+            (rlist, _, __) = select.select([sock], [], [], 1)
+            if (len(rlist) == 0):
+                continue
+            data, peer = rlist[0].recvfrom(16*1024)
+            text       = "<undefined>"
+            map(lambda p: p.put_nowait(data), pipes)
+        except Full:
+            logger.warn("queue is full, dropping packages")
+        except:
+            if (opts.debug):
+                logger.exception("server_consumer: error reading data")
 
 def sighandler(*procs):
     def f(signum, frame):
@@ -130,22 +138,22 @@ def cli_parser():
 
 def main_start(opts):
     cfg  = config.read_config(opts.config)
-    p0in, p0out = Pipe(duplex=False)
+    q = Queue(10000)
 
     if (opts.create_schema):
         cassandra.create_schema(cfg)
 
     logger.debug("starting server...")
-    p0 = funcs.start_process(server_consumer, cfg, opts, [p0out])
+    p0 = funcs.start_process(server_consumer, cfg, opts, [q])
 
     logger.debug("starting cassandra consumer...")
     ps = []
     for _ in range(cfg.getint("lasergun", "consumers")):
-        ps.append(funcs.start_process(cassandra_consumer, cfg, opts, p0in))
+        ps.append(funcs.start_process(cassandra_consumer, cfg, opts, q))
 
     p0.join()
-    p0out.close()
-    p0in.close()
+    q.close()
+    q.cancel_join_thread()
     map(lambda p: p.join(), ps)
     logger.debug("bye!")
 
