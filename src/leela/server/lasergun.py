@@ -73,6 +73,7 @@ def server_consumer(cont, cfg, opts, pipes):
     port = cfg.getint("lasergun", "port")
     logger.debug("binding socket [addr=%s, port=%d]" % (host, port))
     sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM, proto=socket.IPPROTO_UDP)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind((host, port))
 
     funcs.drop_privileges(opts.user, opts.gid)
