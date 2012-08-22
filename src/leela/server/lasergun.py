@@ -28,6 +28,7 @@ import argparse
 import supay
 import threading
 import signal
+import json
 from Queue import Empty
 from Queue import Full
 from multiprocessing import Process
@@ -37,10 +38,43 @@ from leela.server import config
 from leela.server.data import event
 from leela.server.data import netprotocol
 from leela.server.storage import cassandra
+from leela.server.storage import xmpp
 from leela.server import logger
+from leela.server.data import mavg
+from leela.server.data import ratelimit
 
 def scale(e):
     e.set_time((e.year(), e.month(), e.day(), e.hour(), e.minute(), 0))
+
+@funcs.logerrors(logger)
+def monit_consumer(cont, cfg, opts, pipe):
+    funcs.drop_privileges(opts.user, opts.gid)
+
+    logger.debug("starting monitoring cpu.idle")
+    avg = mavg.MAvg(samples=30)
+    rl  = ratelimit.RateLimit(300)
+    s   = xmpp.XmppStorage(cfg)
+    s.connect()
+
+    while (cont()):
+        try:
+            text = pipe.get(timeout=1)
+            for e in netprotocol.parse(text):
+                n = e.name()
+                if (n.endswith(".cpu.cpu.idle")):
+                    k = n[:-13]
+                    scale(e)
+                    val = avg.compute(k, e)
+                    if (rl.should_emit(k)):
+                        logger.debug("monito_consumer: sending message to xmpp peer")
+                        s.store(event.Event(e.name(), val, long(time.time())))
+        except Empty:
+            pass
+        except:
+            if (opts.debug):
+                logger.exception("monit_consumer: exceptiong caught")
+    s.disconnect()
+    logger.debug("monit_consumer: /bye")
 
 @funcs.logerrors(logger)
 def cassandra_consumer(cont, cfg, opts, pipe):
@@ -84,7 +118,6 @@ def server_consumer(cont, cfg, opts, pipes):
             if (len(rlist) == 0):
                 continue
             data, peer = rlist[0].recvfrom(16*1024)
-            text       = "<undefined>"
             map(lambda p: p.put_nowait(data), pipes)
         except Full:
             logger.warn("queue is full, dropping packages")
@@ -140,23 +173,26 @@ def cli_parser():
     return(parser)
 
 def main_start(opts):
-    cfg  = config.read_config(opts.config)
-    q = Queue(10000)
+    cfg = config.read_config(opts.config)
+    q0  = Queue(10000)
+    q1  = Queue(10000)
 
     if (opts.create_schema):
         cassandra.create_schema(cfg)
 
     logger.debug("starting server...")
-    p0 = funcs.start_process(server_consumer, cfg, opts, [q])
+    p0 = funcs.start_process(server_consumer, cfg, opts, [q0, q1])
+
+    logger.debug("starting monitoring consumer...")
+    funcs.start_process(monit_consumer, cfg, opts, q1)
 
     logger.debug("starting cassandra consumer...")
-    ps = []
     for _ in range(cfg.getint("lasergun", "consumers")):
-        ps.append(funcs.start_process(cassandra_consumer, cfg, opts, q))
+        funcs.start_process(cassandra_consumer, cfg, opts, q0)
 
     p0.join()
-    q.close()
-    q.cancel_join_thread()
+    q0.close()
+    q0.cancel_join_thread()
     logger.debug("bye!")
 
 def main():

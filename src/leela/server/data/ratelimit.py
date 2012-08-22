@@ -14,28 +14,22 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-#
 
-import json
 import time
-from leela.server import funcs
-from leela.server.data.event import Event
 
-def parse1(string):
-    (name, value) = string.split(": ", 2)
-    if (" " in value):
-        (lval, tval) = value.split(" ", 2)
-        tval = long(tval, 10)
-    else:
-        lval = value
-        tval = long(time.time())
-    return(Event(name[:255], float(lval), tval))
+class RateLimit(object):
 
-def parse(string):
-    return(map(parse1, string.splitlines()))
+    def __init__(self, timeout):
+        self.timeout = timeout
+        self.memory  = {}
 
-def serialize_json(event):
-    return(json.dumps({"name": event.name(),
-                       "value": event.value(),
-                       "timestamp": event.unixtimestamp()
-                      }))
+    def should_emit(self, k):
+        if (k not in self.memory):
+            self.memory[k] = 0
+        elapsed = time.time() - self.memory[k]
+        if (elapsed > self.timeout):
+            self.memory[k] = time.time()
+            return(True)
+        else:
+            return(False)
+        

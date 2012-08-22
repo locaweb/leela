@@ -39,12 +39,16 @@ def set_level(level):
 def use_syslog(address="/dev/log"):
     handler = SysLogHandler(address=address, facility="daemon")
     handler.setFormatter(logging.Formatter("%(asctime)s %(name)s %(filename)s:%(lineno)d: %(message)s", "%b %d %H:%M:%S"))
-    logger().addHandler(handler)
+    logger().addHandler(handler=handler)
+    for k in ["sleekxmpp.xmlstream.cert", "sleekxmpp.xmlstream.xmlstream"]:
+        logging.getLogger(k).addHandler(handler)
 
 def use_console(device=sys.stderr):
     handler = logging.StreamHandler(device)
     handler.setFormatter(logging.Formatter("%(asctime)s %(name)s: %(message)s", "%b %d %H:%M:%S"))
     logger().addHandler(handler)
+    for k in ["sleekxmpp.xmlstream.cert", "sleekxmpp.xmlstream.xmlstream"]:
+        logging.getLogger(k).addHandler(handler)
 
 def debug(*args, **kwargs):
     logger().debug(*args, **kwargs)
@@ -60,5 +64,3 @@ def error(*args, **kwargs):
 
 def exception(*args, **kwargs):
     logger().exception(*args, **kwargs)
-
-
