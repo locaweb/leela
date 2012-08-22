@@ -39,7 +39,7 @@ def set_level(level):
 def use_syslog(address="/dev/log"):
     handler = SysLogHandler(address=address, facility="daemon")
     handler.setFormatter(logging.Formatter("%(asctime)s %(name)s %(filename)s:%(lineno)d: %(message)s", "%b %d %H:%M:%S"))
-    logger().addHandler(handler=handler)
+    logger().addHandler(handler)
     for k in ["sleekxmpp.xmlstream.cert", "sleekxmpp.xmlstream.xmlstream"]:
         logging.getLogger(k).addHandler(handler)
 

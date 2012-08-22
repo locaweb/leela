@@ -165,11 +165,11 @@ def cli_parser():
                         type=str,
                         default=config.default_config_file(),
                         help="the config file to use [%(default)s]")
-    parser.add_argument("--enabled-xmpp",
+    parser.add_argument("--enable-xmpp",
                         dest="xmpp_enabled",
                         action="store_true",
                         default=False,
-                        help="enable the experimental xmpp integration")
+                        help="enable the [experimental] xmpp integration")
     parser.add_argument("--create-schema",
                         dest="create_schema",
                         action="store_false",
