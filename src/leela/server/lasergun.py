@@ -165,6 +165,11 @@ def cli_parser():
                         type=str,
                         default=config.default_config_file(),
                         help="the config file to use [%(default)s]")
+    parser.add_argument("--enabled-xmpp",
+                        dest="xmpp_enabled",
+                        action="store_true",
+                        default=False,
+                        help="enable the experimental xmpp integration")
     parser.add_argument("--create-schema",
                         dest="create_schema",
                         action="store_false",
@@ -183,8 +188,9 @@ def main_start(opts):
     logger.debug("starting server...")
     p0 = funcs.start_process(server_consumer, cfg, opts, [q0, q1])
 
-    logger.debug("starting monitoring consumer...")
-    funcs.start_process(monit_consumer, cfg, opts, q1)
+    if (opts.xmpp_enabled):
+        logger.debug("starting monitoring consumer...")
+        funcs.start_process(monit_consumer, cfg, opts, q1)
 
     logger.debug("starting cassandra consumer...")
     for _ in range(cfg.getint("lasergun", "consumers")):
@@ -192,7 +198,9 @@ def main_start(opts):
 
     p0.join()
     q0.close()
+    q1.close()
     q0.cancel_join_thread()
+    q1.cancel_join_thread()
     logger.debug("bye!")
 
 def main():
