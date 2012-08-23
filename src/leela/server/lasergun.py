@@ -61,13 +61,13 @@ def monit_consumer(cont, cfg, opts, pipe):
             text = pipe.get(timeout=1)
             for e in netprotocol.parse(text):
                 n = e.name()
-                if (n.endswith(".cpu.cpu.idle")):
-                    k = n[:-13]
+                if (n.startswith("xenserver.") and n.endswith(".cpu.cpu.idle")):
+                    k = n[10:-13]
                     scale(e)
                     val = avg.compute(k, e)
                     if (rl.should_emit(k)):
                         logger.debug("monito_consumer: sending message to xmpp peer")
-                        s.store(event.Event(e.name(), val, long(time.time())))
+                        s.store(event.Event(e.name(), round(val*100), long(time.time())))
         except Empty:
             pass
         except:
