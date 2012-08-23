@@ -29,6 +29,7 @@ import supay
 import threading
 import signal
 import json
+import math
 from Queue import Empty
 from Queue import Full
 from multiprocessing import Process
@@ -65,9 +66,9 @@ def monit_consumer(cont, cfg, opts, pipe):
                     k = n[10:-13]
                     scale(e)
                     val = avg.compute(k, e)
-                    if (rl.should_emit(k)):
+                    if (rl.should_emit(k) and not math.isnan(val)):
                         logger.debug("monito_consumer: sending message to xmpp peer")
-                        s.store(event.Event(e.name(), round(val*100), long(time.time())))
+                        s.store(event.Event(e.name(), round((1-val)*100), long(time.time())))
         except Empty:
             pass
         except:
