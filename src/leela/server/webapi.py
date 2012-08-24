@@ -38,14 +38,19 @@ def reply_json(f):
     def call(*args, **kwargs):
         cc = bottle.request.GET.get("callback") or ""
         try:
-            data = f(*args, **kwargs)
+            cache = int(bottle.request.GET.get("max-cache", "300"))
+            data  = f(*args, **kwargs)
         except pycassa.NotFoundException, e:
+            cache = 0
             bottle.response.status = 404
             data = {"error": 404, "message": "not found"}
         except Exception, e:
+            cache = 0
             logger.exception("internal server error")
             bottle.response.status = 500
             data = {"error": 500, "message": "internal server error: %s" % str(e)}
+        if (cache > 0):
+            bottle.response.set_header("Cache-control", "max-age=%d" % cache)
         if (re.match("^[a-zA-Z0-9_\.]+$", cc)):
             bottle.response.content_type = "application/javascript; charset=utf-8"
             return("%s(%s);" % (cc, json.dumps(data)))
