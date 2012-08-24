@@ -82,7 +82,7 @@ def cassandra_consumer(cont, cfg, opts, pipe):
     funcs.drop_privileges(opts.user, opts.gid)
 
     logger.debug("connecting to cassandra...")
-    storage  = cassandra.EventsStorage(cassandra.connect(cfg))
+    storage  = cassandra.EventsStorage(cassandra.connect(cfg, 1))
     text     = "undefined"
     while (cont()):
         try:
