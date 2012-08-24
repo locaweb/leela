@@ -68,7 +68,7 @@ def monit_consumer(cont, cfg, opts, pipe):
                     val = avg.compute(k, e)
                     if (rl.should_emit(k) and not math.isnan(val)):
                         logger.debug("monito_consumer: sending message to xmpp peer")
-                        s.store(event.Event(e.name(), round((1-val)*100), long(time.time())))
+                        s.store(event.Event(e.name(), round(val*100), long(time.time())))
         except Empty:
             pass
         except:
