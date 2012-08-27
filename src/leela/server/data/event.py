@@ -21,7 +21,7 @@ from datetime import datetime
 from datetime import timedelta
 from leela.server import funcs
 
-TFF       = 1*60*60 # 1 hour
+TFF       = 30*60 # 1/2 hour
 Timestamp = collections.namedtuple("Timestamp", ("year", "month", "day", "hour", "minute", "second"))
 
 class Event(object):
@@ -46,18 +46,18 @@ class Event(object):
 
     @classmethod
     def load_past24(self, storage, k):
-        now      = time.time() + TFF
-        currtime = funcs.datetime_fromtimestamp(now)
-        pasttime = currtime - timedelta(days=1)
+        now      = time.time()
+        pasttime = funcs.datetime_fromtimestamp(now) - timedelta(days=1, seconds=TFF)
+        currtime = funcs.datetime_fromtimestamp(now) + timedelta(seconds=TFF)
         start    = Timestamp._make((pasttime.year, pasttime.month, pasttime.day, pasttime.hour, pasttime.minute, pasttime.second))
         finish   = Timestamp._make((currtime.year, currtime.month, currtime.day, currtime.hour, currtime.minute, currtime.second))
         return(storage.load(k, start, finish, 2*24*60*60))
 
     @classmethod
     def load_pastweek(self, storage, k):
-        now      = time.time() + TFF
-        currtime = funcs.datetime_fromtimestamp(now)
-        pasttime = currtime - timedelta(days=7)
+        now      = time.time()
+        pasttime = funcs.datetime_fromtimestamp(now) - timedelta(days=7, seconds=TFF)
+        currtime = funcs.datetime_fromtimestamp(now) + timedelta(seconds=TFF)
         start    = Timestamp._make((pasttime.year, pasttime.month, pasttime.day, pasttime.hour, pasttime.minute, pasttime.second))
         finish   = Timestamp._make((currtime.year, currtime.month, currtime.day, currtime.hour, currtime.minute, currtime.second))
         return(storage.load(k, start, finish, 7*24*60*60))
