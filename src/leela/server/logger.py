@@ -30,7 +30,7 @@ def logger():
         logging.addLevelName(DEBUG, "debug")
         logging.addLevelName(INFO, "info")
         logging.addLevelName(WARNING, "warning")
-        logging.addLevelName(ERROR, "critical")
+        logging.addLevelName(ERROR, "error")
     return(logging.getLogger("futurama(leela)"))
 
 def set_level(level):

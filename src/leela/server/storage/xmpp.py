@@ -31,8 +31,11 @@ class XmppStorage(object):
         self.conn.add_event_handler("session_start", self._session_start)
 
     def connect(self):
-        addr = (self.cfg.get("xmpp-tmp", "host"), self.cfg.getint("xmpp-tmp", "port"))
-        self.conn.connect(addr)
+        if (self.cfg.has_option("xmpp-tmp", "host") and self.cfg.has_option("xmpp-tmp", "port")):
+            addr = (self.cfg.get("xmpp-tmp", "host"), self.cfg.getint("xmpp-tmp", "port"))
+            self.conn.connect(addr)
+        else:
+            self.conn.connect()
         self.conn.process(block=False)
 
     def disconnect(self):
