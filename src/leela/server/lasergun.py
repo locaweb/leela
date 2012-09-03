@@ -52,9 +52,10 @@ def monit_consumer(cont, cfg, opts, pipe):
     funcs.drop_privileges(opts.user, opts.gid)
 
     logger.debug("starting monitoring cpu.idle")
-    avg = mavg.MAvg(samples=30)
-    rl  = ratelimit.RateLimit(300)
-    s   = xmpp.XmppStorage(cfg)
+    avg0 = mavg.MAvg(samples=30)
+    avg1 = mavg.MAvg(samples=30)
+    rl   = ratelimit.RateLimit(300)
+    s    = xmpp.XmppStorage(cfg)
     s.connect()
 
     while (cont()):
@@ -63,12 +64,20 @@ def monit_consumer(cont, cfg, opts, pipe):
             for e in netprotocol.parse(text):
                 n = e.name()
                 if (n.startswith("xenserver.") and n.endswith(".cpu.cpu.idle")):
-                    k = n[10:-13]
+                    k = "0%s" % n[10:-13]
                     scale(e)
-                    val = avg.compute(k, e)
+                    val = avg0.compute(k, e)
                     if (rl.should_emit(k) and not math.isnan(val)):
-                        logger.debug("monito_consumer: sending message to xmpp peer")
+                        logger.debug("monit_consumer: sending message to xmpp peer")
                         s.store(event.Event(e.name(), round(val*100), long(time.time())))
+                elif (n.startswith("xenserver.") and n.endswith(".memory.main.used(%)")):
+                    k = "1%s" % n[10:-20]
+                    scale(e)
+                    val = avg1.compute(k, e)
+                    if (rl.should_emit(k) and not math.isnan(val)):
+                        logger.debug("monit_consumer: sending message to xmpp peer")
+                        s.store(event.Event(e.name(), val, long(time.time())))
+
         except Empty:
             pass
         except:
