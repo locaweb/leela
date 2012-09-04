@@ -19,6 +19,7 @@
 from gevent import monkey
 monkey.patch_all()
 
+import math
 import json
 import bottle
 import re
@@ -76,7 +77,8 @@ def events_to_json(events):
         k = e.name()
         if (k not in result):
             result[k] = {"series": []}
-        result[k]["series"].append((e.unixtimestamp(), e.value()))
+        if (not math.isnan(e.value())):
+            result[k]["series"].append((e.unixtimestamp(), e.value()))
     return(result)
 
 def wrap_results(reqtime, events):
