@@ -16,6 +16,7 @@
 -- | A very simple asynchronous pure process.
 module LeCore.Data.Proc
        ( Proc ()
+       , Chunk (..)
        -- ^ Combinators
        , done
        , await
@@ -111,7 +112,7 @@ pure f = await (done . f)
 
 -- | Same as pure but works with Chunk.
 pureC :: (i -> o) -> Proc (Chunk i) o
-pureC f = await (done . f . val)
+pureC f = pure (f . val)
 
 -- | Apply a function of a group of n items. This is not enforced, as
 -- an EOF value may force it to use less than n elements.
