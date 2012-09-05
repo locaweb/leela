@@ -22,13 +22,15 @@ module LeCore.Data.Proc
        , apply
        -- ^ Evaluators
        , run
+       , runC
        , eval
        -- ^ Connectors
        , pipe
        -- ^ Utility procs
        , pure
-       , swindow
-       , hwindow
+       , window
+       , pureC
+       , windowC
        -- ^ Chunk related
        , fromList
        , toList
@@ -64,13 +66,18 @@ toList = map val
 -- | Feed everything into the proc until no more input is
 -- available. Notice the output may not be a 1:1 correspondence in
 -- to the input.
-run :: Proc (Chunk i) o -> [i] -> [o]
-run f = go f f . fromList
+run :: Proc i o -> [i] -> [o]
+run f = go f f
   where go _ _ []     = []
         go z g (x:xs) = case (eval g x)
                         of Right (o, Nothing) -> o : go z z xs
                            Right (o, Just l)  -> o : go z z (l:xs)
                            Left h             -> go z h xs
+
+-- | Same as run, but transforms the input into chunks so the proc
+-- knows when it is EOF.
+runC :: Proc (Chunk i) o -> [i] -> [o]
+runC f = run f . fromList
 
 -- | Evaluates a single input. Right is used when the process has
 -- produced a value, with a possibly leftover. Left is returned when
@@ -102,12 +109,16 @@ pipe (Get f) g0@(Get g) = await (\i -> case (f i)
 pure :: (i -> o) -> Proc i o
 pure f = await (done . f)
 
+-- | Same as pure but works with Chunk.
+pureC :: (i -> o) -> Proc (Chunk i) o
+pureC f = await (done . f . val)
+
 -- | Apply a function of a group of n items. This is not enforced, as
 -- an EOF value may force it to use less than n elements.
-swindow :: Int         -- ^ How many items to group
+windowC :: Int         -- ^ How many items to group
        -> ([i] -> o)   -- ^ The function to use to produce a value
        -> Proc (Chunk i) o
-swindow n f = go []
+windowC n f = go []
   where go !acc
           | length acc == n = done (f acc)
           | otherwise       = await (\i -> let v = val i
@@ -115,14 +126,14 @@ swindow n f = go []
                                               then done (f $ v : acc)
                                               else go (v:acc))
 
--- | Same as swindow, but enforce always n elements.
-hwindow :: Int         -- ^ How many items to group
+-- | Same as window, but always enforce n elements.
+window :: Int         -- ^ How many items to group
         -> ([i] -> o)  -- ^ The function to use to produce a value
-        -> Proc (Chunk i) o
-hwindow n f = go []
+        -> Proc i o
+window n f = go []
   where go !acc
           | length acc == n = done (f acc)
-          | otherwise       = await (\i -> go (val i:acc))
+          | otherwise       = await (\i -> go (i:acc))
 
 instance Functor (Proc i) where
 
