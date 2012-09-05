@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- All Rights Reserved.
 --
 --    Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,4 +37,32 @@ module LeCore.Data.Asm
        (
        ) where
 
-import LeCore.Data.Proc
+import           Data.Attoparsec.ByteString.Char8 as P
+import qualified Data.ByteString.Char8 as B
+import           Data.Word
+import           LeCore.Data.Proc
+
+data Event = Event B.ByteString Word32 Double
+
+data Asm = Store Event
+
+parseKey :: Parser B.ByteString
+parseKey = do { char '"'
+              ; key <- takeWhile1 (/='"')
+              ; char '"'
+              ; return key
+              }
+
+parseCol :: Parser Word32
+parseCol = fmap fromIntegral decimal
+
+parseVal :: Parser Double
+parseVal = double
+
+parseStore :: Parser Asm
+parseStore = do { string "store"
+                ; key <- parseKey
+                ; col <- parseCol
+                ; val <- parseVal
+                ; return (Store $ Event key col val)
+                }

@@ -103,7 +103,7 @@ pipe _ (Put a)          = done a
 pipe (Put a) (Get f)    = f a
 pipe (Get f) g0@(Get g) = await (\i -> case (f i)
                                          of Put a -> g a
-                                            h      -> h `pipe` g0)
+                                            h     -> h `pipe` g0)
 
 -- | Uses a pure function as a proc.
 pure :: (i -> o) -> Proc i o
