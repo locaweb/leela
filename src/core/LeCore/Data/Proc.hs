@@ -27,7 +27,8 @@ module LeCore.Data.Proc
        , pipe
        -- ^ Utility procs
        , pure
-       , window
+       , swindow
+       , hwindow
        -- ^ Chunk related
        , fromList
        , toList
@@ -101,17 +102,27 @@ pipe (Get f) g0@(Get g) = await (\i -> case (f i)
 pure :: (i -> o) -> Proc i o
 pure f = await (done . f)
 
--- | Groups n items together and use a function to produce a value.
-window :: Int          -- ^ How many items to group
+-- | Apply a function of a group of n items. This is not enforced, as
+-- an EOF value may force it to use less than n elements.
+swindow :: Int         -- ^ How many items to group
        -> ([i] -> o)   -- ^ The function to use to produce a value
        -> Proc (Chunk i) o
-window n f = go []
+swindow n f = go []
   where go !acc
           | length acc == n = done (f acc)
           | otherwise       = await (\i -> let v = val i
                                            in if (eof i)
                                               then done (f $ v : acc)
                                               else go (v:acc))
+
+-- | Same as swindow, but enforce always n elements.
+hwindow :: Int         -- ^ How many items to group
+        -> ([i] -> o)  -- ^ The function to use to produce a value
+        -> Proc (Chunk i) o
+hwindow n f = go []
+  where go !acc
+          | length acc == n = done (f acc)
+          | otherwise       = await (\i -> go (val i:acc))
 
 instance Functor (Proc i) where
 
