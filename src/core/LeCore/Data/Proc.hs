@@ -58,9 +58,11 @@ suffixR :: (a -> [a] -> b) -> [a] -> [b]
 suffixR _ []     = []
 suffixR f (x:xs) = f x xs : suffixR f xs
 
+-- | Creates a list of chunks, marking the last one as EOF
 fromList :: [a] -> [Chunk a]
 fromList = suffixR (\c -> Chunk c . null)
 
+-- | Unpack the value inside each chunk
 toList :: [Chunk a] -> [a]
 toList = map val
 
@@ -69,23 +71,22 @@ toList = map val
 -- input.
 run :: Proc i o -> [i] -> [o]
 run f = go f
-  where go _ []     = []
-        go g (x:xs) = case (eval g x)
-                      of Right o  -> o : go f xs
-                         Left h   -> go h xs
+  where go g xs = case (eval g)
+                  of Right o -> o : go f xs
+                     Left h  -> case (xs)
+                                of (y:ys) -> go (h y) ys
+                                   []     -> []
 
 -- | Same as run, but transforms the input into chunks so the proc
 -- knows when it is EOF.
 runC :: Proc (Chunk i) o -> [i] -> [o]
 runC f = run f . fromList
 
--- | Evaluates a single input. Right is used when the proc has
--- produced a result. Left when it is requesting more data.
-eval :: Proc i o -> i -> Either (Proc i o) o
-eval (Put o) _ = Right o
-eval (Get f) i = case f i
-                  of Put o -> Right o
-                     h     -> Left h
+-- | Evaluates the process. Right is used when the proc has produced a
+-- result. Left when it is requesting more data.
+eval :: Proc i o -> Either (i -> Proc i o) o
+eval (Put o) = Right o
+eval (Get f) = Left f
 
 -- | Apply a pure function over the proc.
 apply :: (a -> b) -> Proc i a -> Proc i b
