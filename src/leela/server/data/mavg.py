@@ -38,7 +38,7 @@ class MAvg(object):
                 if (e.unixtimestamp() > vs[k][0]):
                     vs.insert(k, (e.unixtimestamp(), e.value()))
                     break
-            del(vs[30:])
+            del(vs[self.samples:])
         return(vs)
 
         
