@@ -71,9 +71,8 @@ run :: Proc i o -> [i] -> [o]
 run f = go f f
   where go _ _ []     = []
         go z g (x:xs) = case (eval g x)
-                        of Right (o, Nothing) -> o : go z z xs
-                           Right (o, Just l)  -> o : go z z (l:xs)
-                           Left h             -> go z h xs
+                        of Right o  -> o : go z z xs
+                           Left h   -> go z h xs
 
 -- | Same as run, but transforms the input into chunks so the proc
 -- knows when it is EOF.
@@ -83,11 +82,11 @@ runC f = run f . fromList
 -- | Evaluates a single input. Right is used when the process has
 -- produced a value, with a possibly leftover. Left is returned when
 -- the process is requesting more input.
-eval :: Proc i o -> i -> Either (Proc i o) (o, Maybe i)
-eval (Put o) i = Right (o, Just i)
+eval :: Proc i o -> i -> Either (Proc i o) o
+eval (Put o) _ = Right o
 eval (Get f) i = case f i
-                  of Put o -> Right (o, Nothing)
-                     h      -> Left h
+                  of Put o -> Right o
+                     h     -> Left h
 
 -- | Apply a pure function over the proc.
 apply :: (a -> b) -> Proc i a -> Proc i b
