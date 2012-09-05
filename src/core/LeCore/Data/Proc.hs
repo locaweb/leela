@@ -65,8 +65,8 @@ toList :: [Chunk a] -> [a]
 toList = map val
 
 -- | Feed everything into the proc until no more input is
--- available. Notice the output may not be a 1:1 correspondence in
--- to the input.
+-- available. Notice the output may not be a 1:1 correspondence to the
+-- input.
 run :: Proc i o -> [i] -> [o]
 run f = go f f
   where go _ _ []     = []
@@ -79,9 +79,8 @@ run f = go f f
 runC :: Proc (Chunk i) o -> [i] -> [o]
 runC f = run f . fromList
 
--- | Evaluates a single input. Right is used when the process has
--- produced a value, with a possibly leftover. Left is returned when
--- the process is requesting more input.
+-- | Evaluates a single input. Right is used when the proc has
+-- produced a result. Left when it is requesting more data.
 eval :: Proc i o -> i -> Either (Proc i o) o
 eval (Put o) _ = Right o
 eval (Get f) i = case f i
@@ -109,7 +108,7 @@ pipe (Get f) g0@(Get g) = await (\i -> case (f i)
 pure :: (i -> o) -> Proc i o
 pure f = await (done . f)
 
--- | Same as pure but works with Chunk.
+-- | Same as pure but works with Chunk types.
 pureC :: (i -> o) -> Proc (Chunk i) o
 pureC f = pure (f . val)
 
@@ -126,7 +125,7 @@ windowC n f = go []
                                               then done (f $ v : acc)
                                               else go (v:acc))
 
--- | Same as window, but always enforce n elements.
+-- | Same as windowC, but always enforce n elements.
 window :: Int         -- ^ How many items to group
         -> ([i] -> o)  -- ^ The function to use to produce a value
         -> Proc i o
