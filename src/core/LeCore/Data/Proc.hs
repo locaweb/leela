@@ -68,11 +68,11 @@ toList = map val
 -- available. Notice the output may not be a 1:1 correspondence to the
 -- input.
 run :: Proc i o -> [i] -> [o]
-run f = go f f
-  where go _ _ []     = []
-        go z g (x:xs) = case (eval g x)
-                        of Right o  -> o : go z z xs
-                           Left h   -> go z h xs
+run f = go f
+  where go _ []     = []
+        go g (x:xs) = case (eval g x)
+                      of Right o  -> o : go f xs
+                         Left h   -> go h xs
 
 -- | Same as run, but transforms the input into chunks so the proc
 -- knows when it is EOF.
