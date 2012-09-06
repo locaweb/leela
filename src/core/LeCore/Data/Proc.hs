@@ -16,134 +16,130 @@
 -- | A very simple asynchronous pure process.
 module LeCore.Data.Proc
        ( Proc ()
-       , Chunk (..)
+       , Chunk(..)
        -- ^ Combinators
        , done
+       , doneR
        , await
        , apply
-       -- ^ Evaluators
-       , run
-       , runC
-       , eval
-       -- ^ Connectors
-       , pipe
-       -- ^ Utility procs
        , pure
+       , pipe
        , window
-       , pureC
-       , windowC
-       -- ^ Chunk related
-       , fromList
-       , toList
+       -- ^ Evaluators
+       , feed
+       , run
+       , eval
        ) where
 
-import Data.Monoid
+import           Prelude hiding (null, take, drop)
+import qualified Data.List as L
+import           Data.Monoid
 
-data Proc i o = Put o
+data Proc i o = Put o i
               | Get (i -> Proc i o)
 
-data Chunk i = Chunk { val :: i
-                     , eof :: Bool
-                     }
-
 -- | Produces a value, usually meaning the proc is done
-done :: o -> Proc i o
-done = Put
+done :: (Monoid i) => o -> Proc i o
+done = flip doneR mempty
+
+-- | Produces a value with a leftover
+doneR :: o -> i -> Proc i o
+doneR = Put
 
 -- | Requests more input
 await :: (i -> Proc i o) -> Proc i o
 await = Get
 
-suffixR :: (a -> [a] -> b) -> [a] -> [b]
-suffixR _ []     = []
-suffixR f (x:xs) = f x xs : suffixR f xs
-
--- | Creates a list of chunks, marking the last one as EOF
-fromList :: [a] -> [Chunk a]
-fromList = suffixR (\c -> Chunk c . null)
-
--- | Unpack the value inside each chunk
-toList :: [Chunk a] -> [a]
-toList = map val
+-- | Feeds a single input effectively moving the proc to its next
+-- state.
+feed :: (Monoid i) => Proc i o -> i -> Proc i o
+feed (Get f) i    = f i
+feed (Put a i0) i = Put a (i0 `mappend` i)
 
 -- | Feed everything into the proc until no more input is
 -- available. Notice the output may not be a 1:1 correspondence to the
 -- input.
-run :: Proc i o -> [i] -> [o]
+run :: (Monoid i, Chunk i) => Proc i o -> [i] -> [o]
 run f = go f
-  where go g xs = case (eval g)
-                  of Right o -> o : go f xs
-                     Left h  -> case (xs)
-                                of (y:ys) -> go (h y) ys
-                                   []     -> []
-
--- | Same as run, but transforms the input into chunks so the proc
--- knows when it is EOF.
-runC :: Proc (Chunk i) o -> [i] -> [o]
-runC f = run f . fromList
+  where go (Put o _) [] = [o]
+        go _ []         = []
+        go g (x:xs)     = case (feed g x)
+                          of Put o i
+                               | null i    -> o : go f xs
+                               | otherwise -> o : go f (i:xs)
+                             h             -> go h xs
 
 -- | Evaluates the process. Right is used when the proc has produced a
 -- result. Left when it is requesting more data.
-eval :: Proc i o -> Either (i -> Proc i o) o
-eval (Put o) = Right o
-eval (Get f) = Left f
+eval :: Proc i o -> Either (i -> Proc i o) (o, i)
+eval (Put o i) = Right (o, i)
+eval (Get f)   = Left f
 
 -- | Apply a pure function over the proc.
 apply :: (a -> b) -> Proc i a -> Proc i b
-apply f (Put a) = done (f a)
-apply f (Get g) = await (\i -> apply f (g i))
+apply f (Put a i) = doneR (f a) i
+apply f (Get g)   = await (\i -> apply f (g i))
 
 -- | Connects two procs. It fully evaluatates the first proc and its
 -- result is fed up into the second proc. Notice that if the second
 -- proc does not requests input, the first one is completely ignored.
-pipe :: Proc a a  -- ^ The first proc
-     -> Proc a a  -- ^ The second proc
-     -> Proc a a
-pipe _ (Put a)          = done a
-pipe (Put a) (Get f)    = f a
-pipe (Get f) g0@(Get g) = await (\i -> case (f i)
-                                         of Put a -> g a
-                                            h     -> h `pipe` g0)
+pipe :: (Monoid a, Chunk a) => Proc a a  -- ^ The first proc
+                            -> Proc a a  -- ^ The second proc
+                            -> Proc a a
+pipe (Put _ i0) (Put a i1) = Put a (i0 `mappend` i1)
+pipe (Put a i0) (Get f)
+  | null i0                = f a
+  | otherwise              = addResidue i0 $ f a
+pipe (Get f) g
+  | isPut g                = g
+  | otherwise              = await (\i -> f i `pipe` g)
 
 -- | Uses a pure function as a proc.
-pure :: (i -> o) -> Proc i o
+pure :: (Monoid i) => (i -> o) -> Proc i o
 pure f = await (done . f)
 
--- | Same as pure but works with Chunk types.
-pureC :: (i -> o) -> Proc (Chunk i) o
-pureC f = pure (f . val)
-
--- | Apply a function of a group of n items. This is not enforced, as
--- an EOF value may force it to use less than n elements.
-windowC :: Int         -- ^ How many items to group
-       -> ([i] -> o)   -- ^ The function to use to produce a value
-       -> Proc (Chunk i) o
-windowC n f = go []
+-- | TODO:fixme
+window :: (Monoid i, Chunk i, ChunkListLike i) => Int -> Int -> Proc i i
+window n m = go mempty
   where go !acc
-          | length acc == n = done (f acc)
-          | otherwise       = await (\i -> let v = val i
-                                           in if (eof i)
-                                              then done (f $ v : acc)
-                                              else go (v:acc))
+          | size acc >= n = doneR (take n acc) (drop m acc)
+          | otherwise     = await (\i -> go (acc `mappend` i))
 
--- | Same as windowC, but always enforce n elements.
-window :: Int         -- ^ How many items to group
-        -> ([i] -> o)  -- ^ The function to use to produce a value
-        -> Proc i o
-window n f = go []
-  where go !acc
-          | length acc == n = done (f acc)
-          | otherwise       = await (\i -> go (i:acc))
+-- mapR :: (a -> [a] -> b) -> [a] -> [b]
+-- mapR _ []     = []
+-- mapR f (x:xs) = f x xs : mapR f xs
+
+addResidue :: (Monoid i) => i -> Proc i o -> Proc i o
+addResidue i (Put a i1) = Put a (i `mappend` i1)
+addResidue i (Get f)    = Get (\i1 -> addResidue i $ f i1)
+
+isPut :: Proc i o -> Bool
+isPut (Put _ _) = True
+isPut _         = False
+
+class Chunk i where
+  
+  null :: i -> Bool
+
+class ChunkListLike i where
+
+  size  :: i -> Int
+  take  :: Int -> i -> i
+  drop  :: Int -> i -> i
 
 instance Functor (Proc i) where
 
   fmap = apply
 
-instance Functor Chunk where
+instance Chunk [a] where
+  
+  null (_:_) = False
+  null _     = True
 
-  fmap f c = c { val = f (val c) }
+instance ChunkListLike [a] where
 
-instance (Monoid i) => Monoid (Chunk i) where
+  size  = L.length
 
-  mempty      = Chunk mempty False
-  mappend a b = Chunk (val a `mappend` val b) (eof a || eof b)
+  take  = L.take
+
+  drop  = L.drop
