@@ -71,9 +71,9 @@ run f = go f
 
 -- | Evaluates the process. Right is used when the proc has produced a
 -- result. Left when it is requesting more data.
-eval :: Proc i o -> Either (i -> Proc i o) (o, i)
+eval :: Proc i o -> Either (Proc i o) (o, i)
 eval (Put o i) = Right (o, i)
-eval (Get f)   = Left f
+eval f         = Left f
 
 -- | Apply a pure function over the proc.
 apply :: (a -> b) -> Proc i a -> Proc i b
@@ -102,7 +102,9 @@ pure f = await (done . f)
 window :: (Monoid i, Chunk i, ChunkListLike i) => Int -> Int -> Proc i i
 window n m = go mempty
   where go !acc
-          | size acc >= n = doneR (take n acc) (drop m acc)
+          | size acc >= n = if (n == m)
+                            then uncurry doneR (split n acc)
+                            else doneR (take n acc) (drop m acc)
           | otherwise     = await (\i -> go (acc `mappend` i))
 
 -- mapR :: (a -> [a] -> b) -> [a] -> [b]
@@ -124,8 +126,15 @@ class Chunk i where
 class ChunkListLike i where
 
   size  :: i -> Int
+
   take  :: Int -> i -> i
+  take n = fst . split n
+
   drop  :: Int -> i -> i
+  drop n = snd . split n
+
+  split :: Int -> i -> (i, i)
+  split n i = (take n i, drop n i)
 
 instance Functor (Proc i) where
 
@@ -143,3 +152,5 @@ instance ChunkListLike [a] where
   take  = L.take
 
   drop  = L.drop
+
+  split = L.splitAt
