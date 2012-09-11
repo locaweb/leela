@@ -35,12 +35,16 @@ DEFAULT_EPOCH = 2000
 def connect(config, poolsize=None):
     if (poolsize is None):
         poolsize = config.getint("cassandra", "pool_size")
+    server_list = config.get("cassandra", "server").split()
     return(pycassa.ConnectionPool(keyspace        = config.get("cassandra", "keyspace"),
-                                  server_list     = config.get("cassandra", "server").split(),
-                                  pool_size       = poolsize,
+                                  server_list     = server_list,
+                                  pool_size       = len(server_list)*2,
+                                  max_overflow    = len(server_list)*10,
+                                  timeout         = 5,
+                                  recycle         = 1000,
                                   pool_timeout    = config.getint("cassandra", "timeout"),
                                   max_retries     = config.getint("cassandra", "retries"),
-                                  prefill         = config.get("cassandra", "prefill"),
+                                  prefill         = False,
                                   use_threadlocal = True))
 
 def create_schema(config):
@@ -92,11 +96,7 @@ class CassandraCF(object):
 
     @contextmanager
     def with_column(self, name):
-        cf = pycassa.ColumnFamily(self.pool, name)
-        try:
-            yield(cf)
-        finally:
-            self.pool.put(cf)
+        yield(pycassa.ColumnFamily(self.pool, name))
 
 class EventsStorage(CassandraCF):
 
