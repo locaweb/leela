@@ -33,7 +33,7 @@ from leela.server.data import event
 DEFAULT_EPOCH = 2000
 
 def connect(config):
-    server_list = config.get("cassandra", "server").split()
+    server_list = map(lambda s: s.strip(), config.get("cassandra", "server").split(","))
     return(pycassa.ConnectionPool(keyspace        = config.get("cassandra", "keyspace"),
                                   server_list     = server_list,
                                   pool_size       = len(server_list)*2,
