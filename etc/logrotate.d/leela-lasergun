@@ -1,0 +1,8 @@
+/var/log/leela-lasergun.log {
+        missingok
+        daily
+        rotate 7
+        notifempty
+        compress
+        copytruncate
+}
