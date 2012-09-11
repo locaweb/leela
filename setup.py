@@ -20,7 +20,7 @@ def install_deps():
     #     deps.append("argparse")
     return(deps)
 
-accept_f = lambda f: reduce(lambda acc, p: acc or f.startswith(p), ("./etc"), False)
+accept_f = lambda f: reduce(lambda acc, p: acc or f.startswith(p), ("./etc", ), False)
 path_f   = lambda f: accept_f(f) and f[1:] or False
 setup(
     name             = "leela-server",
