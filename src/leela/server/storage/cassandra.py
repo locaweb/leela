@@ -32,14 +32,12 @@ from leela.server.data import event
 
 DEFAULT_EPOCH = 2000
 
-def connect(config, poolsize=None):
-    if (poolsize is None):
-        poolsize = config.getint("cassandra", "pool_size")
+def connect(config):
     server_list = config.get("cassandra", "server").split()
     return(pycassa.ConnectionPool(keyspace        = config.get("cassandra", "keyspace"),
                                   server_list     = server_list,
                                   pool_size       = len(server_list)*2,
-                                  max_overflow    = len(server_list)*10,
+                                  max_overflow    = len(server_list),
                                   timeout         = 5,
                                   recycle         = 1000,
                                   pool_timeout    = config.getint("cassandra", "timeout"),

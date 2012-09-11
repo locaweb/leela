@@ -24,15 +24,15 @@ class XmppStorage(object):
 
     def __init__(self, cfg):
         self.cfg  = cfg
-        self.conn = ClientXMPP(cfg.get("xmpp-tmp", "user"), cfg.get("xmpp-tmp", "pwrd"))
+        self.conn = ClientXMPP(cfg.get("xmpp", "user"), cfg.get("xmpp", "pwrd"))
         self.conn.auto_reconnect = True
         self.conn.auto_subscribe = False
         self.conn.auto_authorize = False
         self.conn.add_event_handler("session_start", self._session_start)
 
     def connect(self):
-        if (self.cfg.has_option("xmpp-tmp", "host") and self.cfg.has_option("xmpp-tmp", "port")):
-            addr = (self.cfg.get("xmpp-tmp", "host"), self.cfg.getint("xmpp-tmp", "port"))
+        if (self.cfg.has_option("xmpp", "host") and self.cfg.has_option("xmpp", "port")):
+            addr = (self.cfg.get("xmpp", "host"), self.cfg.getint("xmpp", "port"))
             self.conn.connect(addr)
         else:
             self.conn.connect()
