@@ -85,6 +85,7 @@ def monit_consumer(cont, cfg, opts, pipe):
                 logger.exception("monit_consumer: exceptiong caught")
     s.disconnect()
     logger.debug("monit_consumer: /bye")
+    sys.exit(0)
 
 @funcs.logerrors(logger)
 def cassandra_consumer(cont, cfg, opts, pipe):
@@ -111,6 +112,7 @@ def cassandra_consumer(cont, cfg, opts, pipe):
             if (opts.debug):
                 logger.exception("cassandra_consumer: error writing data [text: %s]" % str(text))
     logger.debug("cassandra_consumer: /bye")
+    sys.exit(0)
 
 @funcs.logerrors(logger)
 def server_consumer(cont, cfg, opts, pipes):
