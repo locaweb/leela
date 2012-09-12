@@ -1,6 +1,6 @@
-/var/log/leela-lasergun.log {
+/var/log/leela*.log {
         missingok
-        daily
+        size 25M
         rotate 7
         notifempty
         compress

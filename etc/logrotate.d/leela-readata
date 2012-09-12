@@ -1,8 +1,0 @@
-/var/log/leela-readata.log {
-        missingok
-        daily
-        rotate 7
-        notifempty
-        compress
-        copytruncate
-}
