@@ -118,6 +118,10 @@ class EventsStorage(CassandraCF):
         with self.with_column(self.name()) as cf:
             cf.insert(e.name(), {k: v})
 
+    def remove(self, k):
+        with self.with_column(self.name()) as cf:
+            cf.remove(k)
+
     def load(self, name, start, finish, count):
         k_start  = serialize_key(*start, epoch=DEFAULT_EPOCH)
         k_finish = serialize_key(*finish, epoch=DEFAULT_EPOCH)
@@ -125,3 +129,4 @@ class EventsStorage(CassandraCF):
         with self.with_column(self.name()) as cf:
             cols = cf.get(name, column_start=k_start, column_finish=k_finish, column_reversed=True, column_count=count, include_timestamp=False)
             return(map(f, cols.iteritems()))
+
