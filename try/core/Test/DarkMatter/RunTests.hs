@@ -16,9 +16,8 @@ module Main
        ( main
        ) where
 
-import Test.Hspec
+import           Test.Hspec
 import qualified Test.DarkMatter.Data.Asm.Parser as S1
 
 main :: IO ()
-main = mapM_ hspec [ S1.spec
-                   ]
+main = hspec S1.specs

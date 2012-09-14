@@ -20,16 +20,15 @@
 --            / STORE
 --            / PURGE
 --            / WATCH
---   FETCH  = "fetch" KEY COL COL 1*XLIST
+--   FETCH  = "fetch" KEY COL COL *("|" PROC)
 --   STORE  = "store" KEY COL VAL
 --   THROW  = "throw" KEY VAL
 --   PURGE  = "purge" KEY COL COL
---   WATCH  = "watch" KEY 1*XLIST
+--   WATCH  = "watch" KEY *("|" PROC)
 --   KEY    = DQUOTE 1*UTF8-CHAR DQUOTE
 --   COL    = 1*DIGIT
---   XLIST  = "exec" PROC *("|" PROC)
 --   VAL    = 1*DIGIT "." 1*DIGIT
---   PROC   = PURE 
+--   PROC   = PURE
 --          / WINDOW
 --          / "count"
 --          / "mean"
@@ -63,14 +62,14 @@ import           DarkMatter.Data.Asm.Types
 
 compile :: T.Text -> Either String Asm
 compile = parseOnly asmParser
-  where asmParser = do { c <- peekChar
-                       ; case c
-                         of Just 's' -> parseStore
-                            Just 't' -> parseThrow
-                            Just 'f' -> parseFetch
-                            Just 'w' -> parseWatch
-                            Just 'p' -> parsePurge
-                            _        -> fail "unknown instruction"
+  where asmParser = do { r <- choice [ parseStore
+                                     , parseThrow
+                                     , parseFetch
+                                     , parseWatch
+                                     , parsePurge
+                                     ]
+                       ; endOfInput
+                       ; return r
                        }
 
 parseKey :: Parser T.Text
@@ -79,6 +78,9 @@ parseKey = do { _   <- char '"'
               ; _   <- char '"'
               ; return key
               }
+
+parseInt :: Parser Int
+parseInt = decimal
 
 parseCol :: Parser Word32
 parseCol = decimal
@@ -118,19 +120,44 @@ parseThrow = do { _     <- string "throw"
                 }
 
 parseWatch :: Parser Asm
-parseWatch = do { _     <- string "watch"
+parseWatch = do { _         <- string "watch"
                 ; skipSpace
-                ; _     <- parseKey
-                ; return (Watch (const False) Nop)
+                ; k         <- parseKey
+                ; skipSpace
+                ; pipeline  <- parsePipeline
+                ; return (Watch k pipeline)
                 }
 
+parsePipeline :: Parser [Function]
+parsePipeline = option [] (pipeSep >> parseFunction `sepBy1` pipeSep)
+  where pipeSep = skipSpace >> char '|' >> skipSpace
+
+parseFunction :: Parser Function
+parseFunction = choice [ "mean"   .*> return Mean
+                       , "median" .*> return Median
+                       , "min"    .*> return Min
+                       , "max"    .*> return Max
+                       , parseWindow
+                       ]
+
+parseWindow :: Parser Function
+parseWindow = do { _ <- string "window"
+                 ; skipSpace
+                 ; n <- parseInt
+                 ; skipSpace
+                 ; m <- parseInt
+                 ; return (Window n m)
+                 }
+
 parseFetch :: Parser Asm
-parseFetch = do { _    <- string "fetch"
+parseFetch = do { _        <- string "fetch"
                 ; skipSpace
-                ; key  <- parseKey
+                ; key      <- parseKey
                 ; skipSpace
-                ; cola <- parseCol
+                ; cola     <- parseCol
                 ; skipSpace
-                ; colb <- parseCol
-                ; return (Fetch key (cola,colb) Nop)
+                ; colb     <- parseCol
+                ; skipSpace
+                ; pipeline <- parsePipeline
+                ; return (Fetch key (cola,colb) pipeline)
                 }

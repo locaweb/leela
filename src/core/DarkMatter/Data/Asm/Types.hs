@@ -15,7 +15,7 @@
 
 module DarkMatter.Data.Asm.Types
        ( Asm(..)
-       , Pipeline(..)
+       , Function(..)
        , Range
        , isStore
        , isThrow
@@ -26,26 +26,23 @@ module DarkMatter.Data.Asm.Types
 
 import qualified Data.Text as T
 import           Data.Word
-import           DarkMatter.Data.Event
 
 type Range = (Word32, Word32)
 
 -- | The functions available to users
-data Pipeline = Window Int Int
+data Function = Window Int Int
               | Mean
               | Median
               | Min
               | Max
-              | Nop
-              | Pure (Double -> Double)
-              | Pipe Pipeline Pipeline
+              -- | Pure (Double -> Double)
 
 -- | The available instructions to execute
 data Asm = Store T.Text Word32 Double
            -- ^ Tells the engine to store this event
-         | Fetch T.Text Range Pipeline
+         | Fetch T.Text Range [Function]
            -- ^ Tells the engine to fetch this event
-         | Watch (Event -> Bool) Pipeline
+         | Watch T.Text [Function]
            -- ^ Monitors real time events with a set of functions
          | Purge T.Text Range
            -- ^ Removes an event from the storage backend
