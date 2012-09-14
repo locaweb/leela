@@ -1,4 +1,4 @@
-/var/log/leela*.log {
+/var/log/leela-readata.log {
         missingok
         size 25M
         rotate 7
