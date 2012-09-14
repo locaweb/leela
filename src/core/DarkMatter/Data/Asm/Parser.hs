@@ -119,14 +119,18 @@ parseThrow = do { _     <- string "throw"
 
 parseWatch :: Parser Asm
 parseWatch = do { _     <- string "watch"
+                ; skipSpace
                 ; _     <- parseKey
                 ; return (Watch (const False) Nop)
                 }
 
 parseFetch :: Parser Asm
 parseFetch = do { _    <- string "fetch"
+                ; skipSpace
                 ; key  <- parseKey
+                ; skipSpace
                 ; cola <- parseCol
+                ; skipSpace
                 ; colb <- parseCol
                 ; return (Fetch key (cola,colb) Nop)
                 }
