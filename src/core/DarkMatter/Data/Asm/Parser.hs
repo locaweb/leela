@@ -144,8 +144,8 @@ parseFunction = choice [ "mean"    .*> return Mean
 
 parseArithF :: Parser ArithF
 parseArithF = choice [ parseLeft
-                          , parseRight
-                          ]
+                     , parseRight
+                     ]
   where parseLeft = choice [ "* " .*> fmap (Mul . Left) parseVal
                            , "/ " .*> fmap (Div . Left) parseVal
                            , "+ " .*> fmap (Add . Left) parseVal
