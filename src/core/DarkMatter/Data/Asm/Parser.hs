@@ -133,12 +133,29 @@ parsePipeline = option [] (pipeSep >> parseFunction `sepBy1` pipeSep)
   where pipeSep = skipSpace >> char '|' >> skipSpace
 
 parseFunction :: Parser Function
-parseFunction = choice [ "mean"   .*> return Mean
-                       , "median" .*> return Median
-                       , "min"    .*> return Min
-                       , "max"    .*> return Max
+parseFunction = choice [ "mean"    .*> return Mean
+                       , "median"  .*> return Median
+                       , "minimum" .*> return Minimum
+                       , "maximum" .*> return Maximum
+                       , "abs"     .*> return Abs
                        , parseWindow
+                       , parseArithmetic
                        ]
+
+parseArithmeticF :: Parser ArithmeticF
+parseArithmeticF = choice [ parseLeft
+                          , parseRight
+                          ]
+  where parseLeft = choice [ "* " .*> fmap (Mul . Left) parseVal
+                           , "/ " .*> fmap (Div . Left) parseVal
+                           , "+ " .*> fmap (Add . Left) parseVal
+                           , "- " .*> fmap (Sub . Left) parseVal
+                           ]
+        parseRight = fmap Right parseVal >>= \n -> choice [ " *" .*> return (Mul n)
+                                                          , " /" .*> return (Div n)
+                                                          , " +" .*> return (Add n)
+                                                          , " -" .*> return (Sub n)
+                                                          ]
 
 parseWindow :: Parser Function
 parseWindow = do { _ <- string "window"
@@ -148,6 +165,13 @@ parseWindow = do { _ <- string "window"
                  ; m <- parseInt
                  ; return (Window n m)
                  }
+
+parseArithmetic :: Parser Function
+parseArithmetic = do { _ <- char '('
+                     ; f <- parseArithmeticF
+                     ; _ <- char ')'
+                     ; return (Arithmetic f)
+                     }
 
 parseFetch :: Parser Asm
 parseFetch = do { _        <- string "fetch"

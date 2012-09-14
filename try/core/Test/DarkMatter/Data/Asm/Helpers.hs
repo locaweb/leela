@@ -70,7 +70,14 @@ instance Arbitrary Function where
   
   arbitrary = do { n <- fmap abs arbitrary
                  ; m <- fmap abs arbitrary
-                 ; elements [Window n m, Mean, Median, Min, Max]
+                 ; f <- arbitrary
+                 ; elements [Window n m, Mean, Median, Minimum, Maximum, Abs, Arithmetic f]
+                 }
+
+instance Arbitrary ArithmeticF where
+
+  arbitrary = do { n <- arbitrary
+                 ; elements [Mul n, Add n, Div n, Sub n]
                  }
 
 instance Show Asm where

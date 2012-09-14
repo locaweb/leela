@@ -16,6 +16,7 @@
 module DarkMatter.Data.Asm.Types
        ( Asm(..)
        , Function(..)
+       , ArithmeticF(..)
        , Range
        , isStore
        , isThrow
@@ -33,9 +34,15 @@ type Range = (Word32, Word32)
 data Function = Window Int Int
               | Mean
               | Median
-              | Min
-              | Max
-              -- | Pure (Double -> Double)
+              | Minimum
+              | Maximum
+              | Abs
+              | Arithmetic ArithmeticF
+
+data ArithmeticF = Mul (Either Double Double)
+                 | Add (Either Double Double)
+                 | Div (Either Double Double)
+                 | Sub (Either Double Double)
 
 -- | The available instructions to execute
 data Asm = Store T.Text Word32 Double

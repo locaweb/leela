@@ -25,16 +25,30 @@ renderPipeline :: [Function] -> T.Text
 renderPipeline [] = ""
 renderPipeline xs = " | " `T.append` (T.intercalate " | " (map renderFunction xs))
 
+renderArithmeticF :: ArithmeticF -> T.Text
+renderArithmeticF f = case (f)
+                      of Mul v -> myRender "*" v
+                         Div v -> myRender "/" v
+                         Add v -> myRender "+" v
+                         Sub v -> myRender "-" v
+  where myRender op (Left n)  = T.concat [T.pack $ show n, " ", op]
+        myRender op (Right n) = T.concat [op, " ", T.pack $ show n]
+
 renderFunction :: Function -> T.Text
-renderFunction Mean         = "mean"
-renderFunction Median       = "median"
-renderFunction Max          = "max"
-renderFunction Min          = "min"
-renderFunction (Window n m) = T.concat [ "window "
-                                       , T.pack $ show n
-                                       , " "
-                                       , T.pack $ show m
-                                       ]
+renderFunction Mean           = "mean"
+renderFunction Median         = "median"
+renderFunction Maximum        = "maximum"
+renderFunction Minimum        = "minimum"
+renderFunction Abs            = "abs"
+renderFunction (Arithmetic f) = T.concat [ "("
+                                         , renderArithmeticF f
+                                         , ")"
+                                         ]
+renderFunction (Window n m)   = T.concat [ "window "
+                                         , T.pack $ show n
+                                         , " "
+                                         , T.pack $ show m
+                                         ]
 
 render :: Asm -> T.Text
 render (Store k c v)     = T.concat [ "store \""
