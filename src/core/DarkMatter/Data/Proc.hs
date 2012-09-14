@@ -14,7 +14,7 @@
 --    limitations under the License.
 
 -- | A very simple asynchronous pure process.
-module LeCore.Data.Proc
+module DarkMatter.Data.Proc
        ( Proc ()
        , Chunk(..)
        -- ^ Combinators
