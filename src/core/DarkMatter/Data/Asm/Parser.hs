@@ -142,8 +142,8 @@ parseFunction = choice [ "mean"    .*> return Mean
                        , parseArithmetic
                        ]
 
-parseArithmeticF :: Parser ArithmeticF
-parseArithmeticF = choice [ parseLeft
+parseArithF :: Parser ArithF
+parseArithF = choice [ parseLeft
                           , parseRight
                           ]
   where parseLeft = choice [ "* " .*> fmap (Mul . Left) parseVal
@@ -168,7 +168,7 @@ parseWindow = do { _ <- string "window"
 
 parseArithmetic :: Parser Function
 parseArithmetic = do { _ <- char '('
-                     ; f <- parseArithmeticF
+                     ; f <- parseArithF
                      ; _ <- char ')'
                      ; return (Arithmetic f)
                      }

@@ -25,8 +25,8 @@ renderPipeline :: [Function] -> T.Text
 renderPipeline [] = ""
 renderPipeline xs = " | " `T.append` (T.intercalate " | " (map renderFunction xs))
 
-renderArithmeticF :: ArithmeticF -> T.Text
-renderArithmeticF f = case (f)
+renderArithF :: ArithF -> T.Text
+renderArithF f = case (f)
                       of Mul v -> myRender "*" v
                          Div v -> myRender "/" v
                          Add v -> myRender "+" v
@@ -41,7 +41,7 @@ renderFunction Maximum        = "maximum"
 renderFunction Minimum        = "minimum"
 renderFunction Abs            = "abs"
 renderFunction (Arithmetic f) = T.concat [ "("
-                                         , renderArithmeticF f
+                                         , renderArithF f
                                          , ")"
                                          ]
 renderFunction (Window n m)   = T.concat [ "window "

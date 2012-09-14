@@ -74,7 +74,7 @@ instance Arbitrary Function where
                  ; elements [Window n m, Mean, Median, Minimum, Maximum, Abs, Arithmetic f]
                  }
 
-instance Arbitrary ArithmeticF where
+instance Arbitrary ArithF where
 
   arbitrary = do { n <- arbitrary
                  ; elements [Mul n, Add n, Div n, Sub n]
