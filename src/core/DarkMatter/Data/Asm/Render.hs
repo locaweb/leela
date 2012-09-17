@@ -38,6 +38,12 @@ renderArithF f = case (f)
   where myRender op (Left n)  = T.concat [T.pack $ show n, " ", op]
         myRender op (Right n) = T.concat [op, " ", T.pack $ show n]
 
+renderTime :: Time -> T.Text
+renderTime t = T.concat [ T.pack $ show $ seconds t
+                        , "."
+                        , T.pack $ show $ nseconds t
+                        ]
+
 renderFunction :: Function -> T.Text
 renderFunction Mean           = "mean"
 renderFunction Median         = "median"
@@ -53,6 +59,9 @@ renderFunction (Arithmetic f) = T.concat [ "("
                                          , renderArithF f
                                          , ")"
                                          ]
+renderFunction (TimeWindow t) = T.concat [ "time_window "
+                                         , renderTime t
+                                         ]
 renderFunction (Window n m)   = T.concat [ "window "
                                          , T.pack $ show n
                                          , " "
@@ -66,9 +75,7 @@ render (Purge k)         = T.concat [ "purge "
 render (Throw k c v)     = T.concat [ "throw "
                                     , T.pack $ show k
                                     , " "
-                                    , T.pack $ show $ seconds c
-                                    , "."
-                                    , T.pack $ show $ nseconds c
+                                    , renderTime c
                                     , " "
                                     , T.pack $ show v
                                     ]

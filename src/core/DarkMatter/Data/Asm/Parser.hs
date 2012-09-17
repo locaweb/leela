@@ -118,6 +118,7 @@ parseFunction = choice [ "mean"     .*> return Mean
                        , "round"    .*> return Round
                        , "abs"      .*> return Abs
                        , parseWindow
+                       , parseTimeWindow
                        , parseArithmetic
                        ]
 
@@ -144,6 +145,12 @@ parseWindow = do { _ <- string "window"
                  ; m <- parseInt
                  ; return (Window n m)
                  }
+
+parseTimeWindow :: Parser Function
+parseTimeWindow = do { _ <- string "time_window"
+                     ; skipSpace
+                     ; fmap TimeWindow parseTime
+                     }
 
 parseArithmetic :: Parser Function
 parseArithmetic = do { _ <- char '('

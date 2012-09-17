@@ -21,6 +21,7 @@ import Data.Function (on)
 import Data.List (sortBy, maximumBy, minimumBy)
 import DarkMatter.Data.Proc
 import DarkMatter.Data.Event
+-- import DarkMatter.Data.Time
 import DarkMatter.Data.Asm.Types
 
 procFoldEvent :: ([Event] -> Event) -> Proc [Event] [Event]
@@ -58,6 +59,7 @@ rightOp f o = flip f o
 
 proc :: Function -> Proc [Event] [Event]
 proc (Window n m)         = window n m
+-- proc (TimeWindow _)       = error "todo:fixme"
 proc Count                = procFoldEvent countE
 proc Abs                  = procMapEvent abs
 proc Ceil                 = procMapEvent (fromInteger . ceiling)

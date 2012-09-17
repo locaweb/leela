@@ -26,6 +26,7 @@ import DarkMatter.Data.Time
 
 -- | The functions available to users
 data Function = Window Int Int
+              | TimeWindow Time
               | Count
               | Mean
               | Median

@@ -14,20 +14,29 @@
 
 -- | The sole datatype that the core deals with.
 module DarkMatter.Data.Time
-       ( Time()
+       ( Time
        , seconds
        , nseconds
        , mktime
+       , diff
        ) where
 
-newtype Time = Time (Int, Int)
-             deriving (Ord, Eq)
+newtype Time = Time { unTime ::  (Int, Int) }
+             deriving (Eq, Ord)
 
 seconds :: Time -> Int
-seconds (Time p) = fst p
+seconds = fst . unTime
 
 nseconds :: Time -> Int
-nseconds (Time p) = snd p
+nseconds = snd . unTime
 
 mktime :: Int -> Int -> Time
 mktime = curry Time
+
+nmax :: Int
+nmax = 10 ^ (9 :: Int)
+
+diff :: Time -> Time -> Time
+diff t0 t1 = let s      = seconds t1 - seconds t0
+                 (r, n) = (nseconds t1 - nseconds t0) `divMod` nmax
+             in mktime (s - r) n

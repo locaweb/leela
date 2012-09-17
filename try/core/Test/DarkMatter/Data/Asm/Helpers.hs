@@ -15,7 +15,7 @@
 
 module Test.DarkMatter.Data.Asm.Helpers where
 
-import Data.Text (Text, pack, unpack)
+import Data.Text (unpack)
 import Test.QuickCheck
 import DarkMatter.Data.Time
 import DarkMatter.Data.Asm.Types
@@ -50,8 +50,9 @@ instance Arbitrary Function where
   
   arbitrary = do { n <- fmap abs arbitrary
                  ; m <- fmap abs arbitrary
+                 ; t <- arbitrary
                  ; f <- arbitrary
-                 ; elements [Window n m, Count, Truncate, Floor, Ceil, Round, Mean, Median, Minimum, Maximum, Abs, Arithmetic f]
+                 ; elements [Window n m, TimeWindow t, Count, Truncate, Floor, Ceil, Round, Mean, Median, Minimum, Maximum, Abs, Arithmetic f]
                  }
 
 instance Arbitrary Time where

@@ -98,7 +98,6 @@ pipe (Get f) g
 pureF :: (Monoid i) => (i -> o) -> Proc i o
 pureF f = await (done . f)
 
--- | TODO:fixme
 window :: (Monoid i, Chunk i, ChunkListLike i) => Int -> Int -> Proc i i
 window n m = go mempty
   where go !acc
