@@ -32,27 +32,27 @@ isRight _         = False
 store_spec :: Spec
 store_spec = do
     it "should be able to parse any \"store\" instructions"
-      (forAll (arbitrary `suchThat` isStore) $ isRight . compile . render)
+      (forAll (arbitrary `suchThat` isStore) $ isRight . parse . render)
 
 throw_spec :: Spec
 throw_spec = do
     it "should be able to parse any \"throw\" instructions"
-      (forAll (arbitrary `suchThat` isThrow) $ isRight . compile . render)
+      (forAll (arbitrary `suchThat` isThrow) $ isRight . parse . render)
 
 purge_spec :: Spec
 purge_spec = do
     it "shoulbe be able to parse any \"purge\" instructions"
-      (forAll (arbitrary `suchThat` isPurge) $ isRight . compile . render)
+      (forAll (arbitrary `suchThat` isPurge) $ isRight . parse . render)
 
 fetch_spec :: Spec
 fetch_spec = do
     it "should be able to parse any \"fetch\" instructions"
-      (forAll (arbitrary `suchThat` isFetch) $ isRight . compile . render)
+      (forAll (arbitrary `suchThat` isFetch) $ isRight . parse . render)
 
 watch_spec :: Spec
 watch_spec = do
     it "should be able to parse any \"watch\" instructions"
-      (forAll (arbitrary `suchThat` isWatch) $ isRight . compile . render)
+      (forAll (arbitrary `suchThat` isWatch) $ isRight . parse . render)
 
 specs :: Spec
 specs = describe "Parser" $ do

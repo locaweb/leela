@@ -13,6 +13,9 @@
 --    See the License for the specific language governing permissions and
 --    limitations under the License.
 
+-- | The sole purpose of this module is to provide a string
+-- represetation [mostly for testing/debug purposes/ of the Asm type
+-- such as `parse . render == id`.
 module DarkMatter.Data.Asm.Render
        ( render
        , renderFunction
@@ -39,6 +42,11 @@ renderFunction Mean           = "mean"
 renderFunction Median         = "median"
 renderFunction Maximum        = "maximum"
 renderFunction Minimum        = "minimum"
+renderFunction Count          = "count"
+renderFunction Floor          = "floor"
+renderFunction Ceil           = "ceil"
+renderFunction Round          = "round"
+renderFunction Truncate       = "truncate"
 renderFunction Abs            = "abs"
 renderFunction (Arithmetic f) = T.concat [ "("
                                          , renderArithF f

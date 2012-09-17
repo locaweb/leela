@@ -28,40 +28,37 @@
 --   KEY    = DQUOTE 1*UTF8-CHAR DQUOTE
 --   COL    = 1*DIGIT
 --   VAL    = 1*DIGIT "." 1*DIGIT
---   PROC   = PURE
+--   PROC   = BINF
 --          / WINDOW
 --          / "count"
---          / "mean"
---          / "median"
---          / "max"
---          / "min"
---   PURE   = "pure (" F ")"
---   WINDOW = "window" 1*DIGIT 1*DIGIT
---   F      = 1*DIGIT OP
---          / OP 1*DIGIT
+--          / "truncate"
 --          / "ceil"
 --          / "floor"
 --          / "round"
---          / "truncate"
 --          / "abs"
---          / "max" 1*DIGIT
---          / "min" 1*DIGIT
+--          / "mean"
+--          / "median"
+--          / "maximum"
+--          / "mininmum"
+--   BINF   = (" F ")"
+--   WINDOW = "window" 1*DIGIT 1*DIGIT
+--   F      = 1*DIGIT OP
+--          / OP 1*DIGIT
 --   OP     = "*"
 --          / "/"
 --          / "+"
 --          / "-"
-
 module DarkMatter.Data.Asm.Parser
-       ( compile
+       ( parse
        ) where
 
-import           Data.Attoparsec.Text as P
+import           Data.Attoparsec.Text hiding (parse)
 import qualified Data.Text as T
 import           Data.Word
 import           DarkMatter.Data.Asm.Types
 
-compile :: T.Text -> Either String Asm
-compile = parseOnly asmParser
+parse :: T.Text -> Either String Asm
+parse = parseOnly asmParser
   where asmParser = do { r <- choice [ parseStore
                                      , parseThrow
                                      , parseFetch
@@ -133,11 +130,16 @@ parsePipeline = option [] (pipeSep >> parseFunction `sepBy1` pipeSep)
   where pipeSep = skipSpace >> char '|' >> skipSpace
 
 parseFunction :: Parser Function
-parseFunction = choice [ "mean"    .*> return Mean
-                       , "median"  .*> return Median
-                       , "minimum" .*> return Minimum
-                       , "maximum" .*> return Maximum
-                       , "abs"     .*> return Abs
+parseFunction = choice [ "mean"     .*> return Mean
+                       , "median"   .*> return Median
+                       , "minimum"  .*> return Minimum
+                       , "maximum"  .*> return Maximum
+                       , "count"    .*> return Count
+                       , "truncate" .*> return Truncate
+                       , "floor"    .*> return Floor
+                       , "ceil"     .*> return Ceil
+                       , "round"    .*> return Round
+                       , "abs"      .*> return Abs
                        , parseWindow
                        , parseArithmetic
                        ]

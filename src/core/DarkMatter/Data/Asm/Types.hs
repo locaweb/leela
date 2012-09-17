@@ -32,11 +32,16 @@ type Range = (Word32, Word32)
 
 -- | The functions available to users
 data Function = Window Int Int
+              | Count
               | Mean
               | Median
               | Minimum
               | Maximum
               | Abs
+              | Floor
+              | Ceil
+              | Round
+              | Truncate
               | Arithmetic ArithF
 
 data ArithF = Mul (Either Double Double)
