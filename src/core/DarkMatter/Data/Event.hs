@@ -14,7 +14,7 @@
 
 -- | The sole datatype that the core deals with.
 module DarkMatter.Data.Event
-       ( Event(key, time, val)
+       ( Event(time, val)
        , temporal
        -- , atemporal
        , update
@@ -22,20 +22,15 @@ module DarkMatter.Data.Event
        -- , timeOf
        ) where
 
-import qualified Data.Text as T
-import           DarkMatter.Data.Time
+import DarkMatter.Data.Time
 
 -- | The event, the sole datatype [from user perspective] that the
 -- core deals with.
-data Event = Temporal { key  :: T.Text
-                      , time :: Time
+data Event = Temporal { time :: Time
                       , val  :: Double
                       }
-           -- | ATemporal { key :: T.Text
-           --             , val :: Double
-           --             }
 
-temporal :: T.Text -> Time -> Double -> Event
+temporal :: Time -> Double -> Event
 temporal = Temporal
 
 -- atemporal :: T.Text -> Double -> Event
@@ -50,4 +45,6 @@ temporal = Temporal
 -- isTemporal _                = False
 
 update :: (Time -> Time) -> (Double -> Double) -> Event -> Event
-update f g (Temporal k t v) = Temporal k (f t) (g v)
+update f g e = e { time = f (time e)
+                 , val  = g (val e)
+                 }

@@ -15,18 +15,13 @@
 module DarkMatter.Data.Asm.VM
        ( pipeline
        , proc
-       , glob
        ) where
 
-import qualified Data.Text as T
-import           Data.Function (on)
-import           Data.List (sortBy, maximumBy, minimumBy)
-import           DarkMatter.Data.Proc
-import           DarkMatter.Data.Event
-import           DarkMatter.Data.Asm.Types
-
-glob :: T.Text -> (T.Text -> Bool)
-glob _ = const False
+import Data.Function (on)
+import Data.List (sortBy, maximumBy, minimumBy)
+import DarkMatter.Data.Proc
+import DarkMatter.Data.Event
+import DarkMatter.Data.Asm.Types
 
 procFoldEvent :: ([Event] -> Event) -> Proc [Event] [Event]
 procFoldEvent f = pureF ((:[]) . f)
@@ -41,12 +36,11 @@ meanE xs = fixE $ foldl1 plus xs
         fixE       = update id (/ (fromIntegral size))
         
         plus e0 e1 = let t  = min (time e0) (time e1)
-                         k  = key e0
                          v  = val e0 + val e1
-                     in temporal k t v
+                     in temporal t v
 
 countE :: [Event] -> Event
-countE xs = temporal (key (head xs)) (minimum (map time xs)) (sum (map val xs))
+countE xs = temporal (minimum (map time xs)) (sum (map val xs))
 
 medianE :: [Event] -> Event
 medianE xs

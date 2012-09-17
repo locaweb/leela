@@ -19,8 +19,9 @@
 --   S        = THROW
 --            / WATCH
 --   THROW  = "throw" KEY TIME VAL
---   WATCH  = "watch" KEY *("|" PROC)
---   KEY    = DQUOTE 1*UTF8-CHAR DQUOTE
+--   WATCH  = "watch" KEY PROC *("|" PROC)
+--   PURGE  = "purge" KEY
+--   KEY    = 1*DIGIT
 --   TIME   = 1*DIGIT
 --   VAL    = 1*DIGIT "." 1*DIGIT
 --   PROC   = BINF
@@ -49,7 +50,6 @@ module DarkMatter.Data.Asm.Parser
 
 import           Data.Attoparsec.Text hiding (parse)
 import qualified Data.Text as T
-import           Data.Word
 import           DarkMatter.Data.Asm.Types
 import           DarkMatter.Data.Time
 
@@ -57,17 +57,11 @@ parse :: T.Text -> Either String Asm
 parse = parseOnly asmParser
   where asmParser = do { r <- choice [ parseWatch
                                      , parseThrow
+                                     , parsePurge
                                      ]
                        ; endOfInput
                        ; return r
                        }
-
-parseKey :: Parser T.Text
-parseKey = do { _   <- char '"'
-              ; key <- takeWhile1 (/='"')
-              ; _   <- char '"'
-              ; return key
-              }
 
 parseInt :: Parser Int
 parseInt = decimal
@@ -75,16 +69,23 @@ parseInt = decimal
 parseTime :: Parser Time
 parseTime = do { s <- decimal
                ; n <- option 0 (char '.' >> decimal)
-               ; return (fromTime s n)
+               ; return (mktime s n)
                }
 
 parseVal :: Parser Double
 parseVal = double
 
+parsePurge :: Parser Asm
+parsePurge = do { _ <- string "purge"
+                ; skipSpace
+                ; key <- parseInt
+                ; return (Purge key)
+                }
+
 parseThrow :: Parser Asm
 parseThrow = do { _   <- string "throw"
                 ; skipSpace
-                ; key <- parseKey
+                ; key <- parseInt
                 ; skipSpace
                 ; col <- parseTime
                 ; skipSpace
@@ -95,7 +96,7 @@ parseThrow = do { _   <- string "throw"
 parseWatch :: Parser Asm
 parseWatch = do { _         <- string "watch"
                 ; skipSpace
-                ; k         <- parseKey
+                ; k         <- parseInt
                 ; skipSpace
                 ; pipeline  <- parsePipeline
                 ; return (Watch k pipeline)

@@ -39,7 +39,13 @@ watch_spec = do
     it "should be able to parse any \"watch\" instructions"
       (forAll (arbitrary `suchThat` isWatch) $ isRight . parse . render)
 
+purge_spec :: Spec
+purge_spec = do
+    it "should be able to parse any \"purge\" instructions"
+      (forAll (arbitrary `suchThat` isPurge) $ isRight . parse . render)
+
 specs :: Spec
 specs = describe "Parser" $ do
     describe "throw" throw_spec
     describe "watch" watch_spec
+    describe "purge" watch_spec

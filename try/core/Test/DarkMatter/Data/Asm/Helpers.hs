@@ -21,17 +21,19 @@ import DarkMatter.Data.Time
 import DarkMatter.Data.Asm.Types
 import DarkMatter.Data.Asm.Render
 
-genKey :: Gen Text
-genKey = fmap pack $ (listOf1 $ elements (['a'..'z'] ++ ['0'..'9']))
+genPurge :: Gen Asm
+genPurge = do { k <- fmap abs arbitrary
+              ; return (Purge k)
+              }
 
 genWatch :: Gen Asm
-genWatch = do { k     <- genKey
+genWatch = do { k     <- fmap abs arbitrary
               ; funcs <- arbitrary
               ; return (Watch k funcs)
               }
 
 genThrow :: Gen Asm
-genThrow = do { k <- genKey
+genThrow = do { k <- fmap abs arbitrary
               ; c <- arbitrary
               ; v <- arbitrary
               ; return (Throw k c v)
@@ -41,6 +43,7 @@ instance Arbitrary Asm where
   
   arbitrary = oneof [ genWatch
                     , genThrow
+                    , genPurge
                     ]
 
 instance Arbitrary Function where
@@ -53,7 +56,10 @@ instance Arbitrary Function where
 
 instance Arbitrary Time where
 
-  arbitrary = fmap (fromUnixtimestamp . abs) arbitrary
+  arbitrary = do { s <- fmap abs arbitrary
+                 ; n <- fmap abs arbitrary
+                 ; return (mktime s n)
+                 }
 
 instance Arbitrary ArithF where
 

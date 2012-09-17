@@ -60,17 +60,20 @@ renderFunction (Window n m)   = T.concat [ "window "
                                          ]
 
 render :: Asm -> T.Text
-render (Throw k c v)     = T.concat [ "throw \""
-                                    , k
-                                    , "\" "
+render (Purge k)         = T.concat [ "purge "
+                                    , T.pack $ show k
+                                    ]
+render (Throw k c v)     = T.concat [ "throw "
+                                    , T.pack $ show k
+                                    , " "
                                     , T.pack $ show $ seconds c
                                     , "."
                                     , T.pack $ show $ nseconds c
                                     , " "
                                     , T.pack $ show v
                                     ]
-render (Watch k f)       = T.concat [ "watch \""
-                                    , k
-                                    , "\""
+render (Watch k f)       = T.concat [ "watch "
+                                    , T.pack $ show k
+                                    , " "
                                     , renderPipeline f
                                     ]

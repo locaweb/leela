@@ -17,22 +17,11 @@ module DarkMatter.Data.Time
        ( Time()
        , seconds
        , nseconds
-       , fromUnixtimestamp
-       , fromTime
+       , mktime
        ) where
-
-import System.Posix.Clock
 
 newtype Time = Time (Int, Int)
              deriving (Ord, Eq)
-
-integral :: (Num a) => Double -> a
-integral = fromIntegral . trunc
-  where trunc :: Double -> Integer
-        trunc = truncate
-
-fractional :: Double -> Double
-fractional n = integral n - n
 
 seconds :: Time -> Int
 seconds (Time p) = fst p
@@ -40,8 +29,5 @@ seconds (Time p) = fst p
 nseconds :: Time -> Int
 nseconds (Time p) = snd p
 
-fromTime :: Int -> Int -> Time
-fromTime = curry Time
-
-fromUnixtimestamp :: Int -> Time
-fromUnixtimestamp t = Time (t, 0)
+mktime :: Int -> Int -> Time
+mktime = curry Time

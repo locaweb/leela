@@ -19,10 +19,10 @@ module DarkMatter.Data.Asm.Types
        , ArithF(..)
        , isThrow
        , isWatch
+       , isPurge
        ) where
 
-import qualified Data.Text as T
-import           DarkMatter.Data.Time
+import DarkMatter.Data.Time
 
 -- | The functions available to users
 data Function = Window Int Int
@@ -44,9 +44,9 @@ data ArithF = Mul (Either Double Double)
             | Sub (Either Double Double)
 
 -- | The available instructions to execute
-data Asm = Throw T.Text Time Double
-           -- ^ Tells the engine to store this event
-         | Watch T.Text [Function]
+data Asm = Throw Int Time Double
+         | Watch Int [Function]
+         | Purge Int
 
 isWatch :: Asm -> Bool
 isWatch (Watch _ _) = True
@@ -55,3 +55,7 @@ isWatch _           = False
 isThrow :: Asm -> Bool
 isThrow (Throw _ _ _) = True
 isThrow _             = False
+
+isPurge :: Asm -> Bool
+isPurge (Purge _) = True
+isPurge _         = False
