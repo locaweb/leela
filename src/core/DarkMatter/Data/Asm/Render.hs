@@ -22,6 +22,7 @@ module DarkMatter.Data.Asm.Render
        ) where
 
 import qualified Data.Text as T
+import           DarkMatter.Data.Time
 import           DarkMatter.Data.Asm.Types
 
 renderPipeline :: [Function] -> T.Text
@@ -59,35 +60,17 @@ renderFunction (Window n m)   = T.concat [ "window "
                                          ]
 
 render :: Asm -> T.Text
-render (Store k c v)     = T.concat [ "store \""
+render (Throw k c v)     = T.concat [ "throw \""
                                     , k
                                     , "\" "
-                                    , T.pack $ show c
+                                    , T.pack $ show $ seconds c
+                                    , "."
+                                    , T.pack $ show $ nseconds c
                                     , " "
                                     , T.pack $ show v
-                                    ]
-render (Throw k v)       = T.concat [ "throw \""
-                                    , k
-                                    , "\" "
-                                    , T.pack $ show v
-                                    ]
-render (Fetch k (a,b) f) = T.concat [ "fetch \""
-                                    , k
-                                    , "\" "
-                                    , T.pack $ show a
-                                    , " "
-                                    , T.pack $ show b
-                                    , renderPipeline f
                                     ]
 render (Watch k f)       = T.concat [ "watch \""
                                     , k
                                     , "\""
                                     , renderPipeline f
-                                    ]
-render (Purge k (a,b))   = T.concat [ "purge \""
-                                    , k
-                                    , "\" "
-                                    , T.pack $ show a
-                                    , " "
-                                    , T.pack $ show b
                                     ]

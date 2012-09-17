@@ -17,19 +17,12 @@ module Test.DarkMatter.Data.Asm.Helpers where
 
 import Data.Text (Text, pack, unpack)
 import Test.QuickCheck
+import DarkMatter.Data.Time
 import DarkMatter.Data.Asm.Types
 import DarkMatter.Data.Asm.Render
 
 genKey :: Gen Text
 genKey = fmap pack $ (listOf1 $ elements (['a'..'z'] ++ ['0'..'9']))
-
-genFetch :: Gen Asm
-genFetch = do { k     <- genKey
-              ; col_a <- arbitrary
-              ; col_b <- arbitrary
-              ; funcs <- arbitrary
-              ; return (Fetch k (col_a, col_b) funcs)
-              }
 
 genWatch :: Gen Asm
 genWatch = do { k     <- genKey
@@ -37,33 +30,17 @@ genWatch = do { k     <- genKey
               ; return (Watch k funcs)
               }
 
-genPurge :: Gen Asm
-genPurge = do { k     <- genKey
-              ; col_a <- arbitrary
-              ; col_b <- arbitrary
-              ; return (Purge k (col_a, col_b))
-              }
-
-genStore :: Gen Asm
-genStore = do { k <- genKey
-              ; c <- arbitrary
-              ; v <- arbitrary
-              ; return (Store k c v)
-              }
-
 genThrow :: Gen Asm
 genThrow = do { k <- genKey
+              ; c <- arbitrary
               ; v <- arbitrary
-              ; return (Throw k v)
+              ; return (Throw k c v)
               }
 
 instance Arbitrary Asm where
   
-  arbitrary = oneof [ genFetch
-                    , genWatch
-                    , genStore
+  arbitrary = oneof [ genWatch
                     , genThrow
-                    , genPurge
                     ]
 
 instance Arbitrary Function where
@@ -73,6 +50,10 @@ instance Arbitrary Function where
                  ; f <- arbitrary
                  ; elements [Window n m, Count, Truncate, Floor, Ceil, Round, Mean, Median, Minimum, Maximum, Abs, Arithmetic f]
                  }
+
+instance Arbitrary Time where
+
+  arbitrary = fmap (fromUnixtimestamp . abs) arbitrary
 
 instance Arbitrary ArithF where
 

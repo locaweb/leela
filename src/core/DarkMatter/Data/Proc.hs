@@ -22,7 +22,7 @@ module DarkMatter.Data.Proc
        , doneR
        , await
        , apply
-       , pure
+       , pureF
        , pipe
        , window
        -- ^ Evaluators
@@ -95,8 +95,8 @@ pipe (Get f) g
   | otherwise              = await (\i -> f i `pipe` g)
 
 -- | Uses a pure function as a proc.
-pure :: (Monoid i) => (i -> o) -> Proc i o
-pure f = await (done . f)
+pureF :: (Monoid i) => (i -> o) -> Proc i o
+pureF f = await (done . f)
 
 -- | TODO:fixme
 window :: (Monoid i, Chunk i, ChunkListLike i) => Int -> Int -> Proc i i

@@ -14,38 +14,40 @@
 
 -- | The sole datatype that the core deals with.
 module DarkMatter.Data.Event
-       ( Event(row, col, time, val)
-       , durable
-       , volatile
-       , volatileM
+       ( Event(key, time, val)
+       , temporal
+       -- , atemporal
+       , update
+       -- , isTemporal
+       -- , timeOf
        ) where
 
-import System.Posix.Clock
-import Data.Word
 import qualified Data.Text as T
+import           DarkMatter.Data.Time
 
 -- | The event, the sole datatype [from user perspective] that the
 -- core deals with.
-data Event = Durable { row :: T.Text
-                     , col :: Word32
-                     , val :: Double
-                     }
-             -- ^ Creates an event that is durable, written to the storage engine
-           | Volatile { row  :: T.Text
-                      , time :: TimeSpec
+data Event = Temporal { key  :: T.Text
+                      , time :: Time
                       , val  :: Double
                       }
-             -- ^ Creates an volatile event, which is not written to the storage engine
-           deriving (Show)
+           -- | ATemporal { key :: T.Text
+           --             , val :: Double
+           --             }
 
-durable :: T.Text -> Word32 -> Double -> Event
-durable = Durable
+temporal :: T.Text -> Time -> Double -> Event
+temporal = Temporal
 
-volatile :: T.Text -> TimeSpec -> Double -> Event
-volatile = Volatile
+-- atemporal :: T.Text -> Double -> Event
+-- atemporal = ATemporal
 
-volatileM :: T.Text -> Double -> IO Event
-volatileM k v = do
-  { t <- getTime Monotonic
-  ; return (volatile k t v)
-  }
+-- timeOf :: Event -> Maybe Time
+-- timeOf (Temporal _ t _) = Just t
+-- timeOf _                = Nothing
+
+-- isTemporal :: Event -> Bool
+-- isTemporal (Temporal _ _ _) = True
+-- isTemporal _                = False
+
+update :: (Time -> Time) -> (Double -> Double) -> Event -> Event
+update f g (Temporal k t v) = Temporal k (f t) (g v)

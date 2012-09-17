@@ -16,17 +16,12 @@
 -- | The language that is used to communicate with the core. The
 -- parser should be able to recognize the following grammar (ABNF):
 -- 
---   S        = FETCH
---            / STORE
---            / PURGE
+--   S        = THROW
 --            / WATCH
---   FETCH  = "fetch" KEY COL COL *("|" PROC)
---   STORE  = "store" KEY COL VAL
---   THROW  = "throw" KEY VAL
---   PURGE  = "purge" KEY COL COL
+--   THROW  = "throw" KEY TIME VAL
 --   WATCH  = "watch" KEY *("|" PROC)
 --   KEY    = DQUOTE 1*UTF8-CHAR DQUOTE
---   COL    = 1*DIGIT
+--   TIME   = 1*DIGIT
 --   VAL    = 1*DIGIT "." 1*DIGIT
 --   PROC   = BINF
 --          / WINDOW
@@ -56,14 +51,12 @@ import           Data.Attoparsec.Text hiding (parse)
 import qualified Data.Text as T
 import           Data.Word
 import           DarkMatter.Data.Asm.Types
+import           DarkMatter.Data.Time
 
 parse :: T.Text -> Either String Asm
 parse = parseOnly asmParser
-  where asmParser = do { r <- choice [ parseStore
+  where asmParser = do { r <- choice [ parseWatch
                                      , parseThrow
-                                     , parseFetch
-                                     , parseWatch
-                                     , parsePurge
                                      ]
                        ; endOfInput
                        ; return r
@@ -79,41 +72,24 @@ parseKey = do { _   <- char '"'
 parseInt :: Parser Int
 parseInt = decimal
 
-parseCol :: Parser Word32
-parseCol = decimal
+parseTime :: Parser Time
+parseTime = do { s <- decimal
+               ; n <- option 0 (char '.' >> decimal)
+               ; return (fromTime s n)
+               }
 
 parseVal :: Parser Double
 parseVal = double
 
-parseStore :: Parser Asm
-parseStore = do { _   <- string "store"
+parseThrow :: Parser Asm
+parseThrow = do { _   <- string "throw"
                 ; skipSpace
                 ; key <- parseKey
                 ; skipSpace
-                ; col <- parseCol
+                ; col <- parseTime
                 ; skipSpace
                 ; val <- parseVal
-                ; return (Store key col val)
-                }
-
-parsePurge :: Parser Asm
-parsePurge = do { _     <- string "purge"
-                ; skipSpace
-                ; key   <- parseKey
-                ; skipSpace
-                ; col_a <- parseCol
-                ; skipSpace
-                ; col_b <- parseCol
-                ; return (Purge key (col_a,col_b))
-                }
-
-parseThrow :: Parser Asm
-parseThrow = do { _     <- string "throw"
-                ; skipSpace
-                ; key   <- parseKey
-                ; skipSpace
-                ; val   <- parseVal
-                ; return (Throw key val)
+                ; return (Throw key col val)
                 }
 
 parseWatch :: Parser Asm
@@ -174,16 +150,3 @@ parseArithmetic = do { _ <- char '('
                      ; _ <- char ')'
                      ; return (Arithmetic f)
                      }
-
-parseFetch :: Parser Asm
-parseFetch = do { _        <- string "fetch"
-                ; skipSpace
-                ; key      <- parseKey
-                ; skipSpace
-                ; cola     <- parseCol
-                ; skipSpace
-                ; colb     <- parseCol
-                ; skipSpace
-                ; pipeline <- parsePipeline
-                ; return (Fetch key (cola,colb) pipeline)
-                }

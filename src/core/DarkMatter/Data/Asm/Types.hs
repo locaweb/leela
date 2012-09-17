@@ -17,18 +17,12 @@ module DarkMatter.Data.Asm.Types
        ( Asm(..)
        , Function(..)
        , ArithF(..)
-       , Range
-       , isStore
        , isThrow
        , isWatch
-       , isFetch
-       , isPurge
        ) where
 
 import qualified Data.Text as T
-import           Data.Word
-
-type Range = (Word32, Word32)
+import           DarkMatter.Data.Time
 
 -- | The functions available to users
 data Function = Window Int Int
@@ -50,33 +44,14 @@ data ArithF = Mul (Either Double Double)
             | Sub (Either Double Double)
 
 -- | The available instructions to execute
-data Asm = Store T.Text Word32 Double
+data Asm = Throw T.Text Time Double
            -- ^ Tells the engine to store this event
-         | Fetch T.Text Range [Function]
-           -- ^ Tells the engine to fetch this event
          | Watch T.Text [Function]
-           -- ^ Monitors real time events with a set of functions
-         | Purge T.Text Range
-           -- ^ Removes an event from the storage backend
-         | Throw T.Text Double
-           -- ^ Tells the engine to process the event but not store it
-
-isStore :: Asm -> Bool
-isStore (Store _ _ _) = True
-isStore _             = False
-
-isFetch :: Asm -> Bool
-isFetch (Fetch _ _ _) = True
-isFetch _             = False
 
 isWatch :: Asm -> Bool
 isWatch (Watch _ _) = True
 isWatch _           = False
 
-isPurge :: Asm -> Bool
-isPurge (Purge _ _) = True
-isPurge _           = False
-
 isThrow :: Asm -> Bool
-isThrow (Throw _ _) = True
-isThrow _           = False
+isThrow (Throw _ _ _) = True
+isThrow _             = False

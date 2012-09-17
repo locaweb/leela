@@ -29,25 +29,10 @@ isRight :: Either a b -> Bool
 isRight (Right _) = True
 isRight _         = False
 
-store_spec :: Spec
-store_spec = do
-    it "should be able to parse any \"store\" instructions"
-      (forAll (arbitrary `suchThat` isStore) $ isRight . parse . render)
-
 throw_spec :: Spec
 throw_spec = do
     it "should be able to parse any \"throw\" instructions"
       (forAll (arbitrary `suchThat` isThrow) $ isRight . parse . render)
-
-purge_spec :: Spec
-purge_spec = do
-    it "shoulbe be able to parse any \"purge\" instructions"
-      (forAll (arbitrary `suchThat` isPurge) $ isRight . parse . render)
-
-fetch_spec :: Spec
-fetch_spec = do
-    it "should be able to parse any \"fetch\" instructions"
-      (forAll (arbitrary `suchThat` isFetch) $ isRight . parse . render)
 
 watch_spec :: Spec
 watch_spec = do
@@ -56,8 +41,5 @@ watch_spec = do
 
 specs :: Spec
 specs = describe "Parser" $ do
-    describe "store" store_spec
     describe "throw" throw_spec
-    describe "purge" purge_spec
-    describe "fetch" fetch_spec
     describe "watch" watch_spec
