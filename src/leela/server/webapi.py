@@ -81,14 +81,16 @@ def events_to_json(events):
             result[k]["series"].append((e.unixtimestamp(), e.value()))
     return(result)
 
-def wrap_results(reqtime, events):
+def wrap_results(loadtime, events):
+    t    = funcs.timer_start()
     data = events_to_json(events)
     uri  = bottle.request.path
     if (bottle.request.query_string):
         uri += "?" + bottle.request.query_string
     return({"results": data,
             "debug": {"request_uri": uri,
-                      "request_time": reqtime
+                      "cassandra_time": loadtime,
+                      "serialize_time": funcs.timer_stop(t)
                      }
            })
 
