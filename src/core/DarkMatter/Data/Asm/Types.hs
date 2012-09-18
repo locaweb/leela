@@ -17,9 +17,10 @@ module DarkMatter.Data.Asm.Types
        ( Asm(..)
        , Function(..)
        , ArithF(..)
-       , isSend
-       , isExec
-       , isFree
+       , isOpen
+       , isFlush
+       , isClose
+       , isWrite
        ) where
 
 import DarkMatter.Data.Time
@@ -45,18 +46,23 @@ data ArithF = Mul (Either Double Double)
             | Sub (Either Double Double)
 
 -- | The available instructions to execute
-data Asm = Send Int Time Double
-         | Exec Int [Function]
-         | Free Int
+data Asm = Write Int Time Double
+         | Flush Int
+         | Close Int
+         | Open Int [Function]
 
-isExec :: Asm -> Bool
-isExec (Exec _ _) = True
-isExec _          = False
+isOpen :: Asm -> Bool
+isOpen (Open _ _) = True
+isOpen _          = False
 
-isSend :: Asm -> Bool
-isSend (Send _ _ _) = True
-isSend _            = False
+isWrite :: Asm -> Bool
+isWrite (Write _ _ _) = True
+isWrite _             = False
 
-isFree :: Asm -> Bool
-isFree (Free _) = True
-isFree _        = False
+isClose :: Asm -> Bool
+isClose (Close _) = True
+isClose _         = False
+
+isFlush :: Asm -> Bool
+isFlush (Flush _) = True
+isFlush _         = False

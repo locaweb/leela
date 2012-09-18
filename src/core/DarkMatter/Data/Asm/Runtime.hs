@@ -13,7 +13,8 @@
 --    limitations under the License.
 
 module DarkMatter.Data.Asm.Runtime
-       ( pipeline
+       ( Runtime(..)
+       , pipeline
        , execute
        , proc
        ) where
@@ -26,12 +27,13 @@ import           DarkMatter.Data.Event
 -- import DarkMatter.Data.Time
 import DarkMatter.Data.Asm.Types
 
-data Runtime = Runtime { on_send :: Int -> Event -> IO ()
-                       , on_exec :: Int -> Proc Events Events -> IO ()
-                       , on_free :: Int -> IO ()
-                       }
-
 type Events = S.Seq Event
+
+data Runtime = Runtime { on_open  :: Int -> Proc Events Events -> IO ()
+                       , on_write :: Int -> Event -> IO ()
+                       , on_close :: Int -> IO ()
+                       , on_flush :: Int -> IO ()
+                       }
 
 procFoldEvent :: (Events -> Event) -> Proc Events Events
 procFoldEvent f = pureF (S.singleton . f)

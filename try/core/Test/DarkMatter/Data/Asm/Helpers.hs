@@ -21,29 +21,35 @@ import DarkMatter.Data.Time
 import DarkMatter.Data.Asm.Types
 import DarkMatter.Data.Asm.Render
 
-genFree :: Gen Asm
-genFree = do { k <- fmap abs arbitrary
-             ; return (Free k)
-             }
+genClose :: Gen Asm
+genClose = do { k <- fmap abs arbitrary
+              ; return (Close k)
+              }
 
-genExec :: Gen Asm
-genExec = do { k     <- fmap abs arbitrary
+genFlush :: Gen Asm
+genFlush = do { k <- fmap abs arbitrary
+              ; return (Flush k)
+              }
+
+genOpen :: Gen Asm
+genOpen = do { k     <- fmap abs arbitrary
              ; funcs <- arbitrary
-             ; return (Exec k funcs)
+             ; return (Open k funcs)
              }
 
-genSend :: Gen Asm
-genSend = do { k <- fmap abs arbitrary
-             ; c <- arbitrary
-             ; v <- arbitrary
-             ; return (Send k c v)
-             }
+genWrite :: Gen Asm
+genWrite = do { k <- fmap abs arbitrary
+              ; c <- arbitrary
+              ; v <- arbitrary
+              ; return (Write k c v)
+              }
 
 instance Arbitrary Asm where
   
-  arbitrary = oneof [ genExec
-                    , genSend
-                    , genFree
+  arbitrary = oneof [ genOpen
+                    , genWrite
+                    , genFlush
+                    , genClose
                     ]
 
 instance Arbitrary Function where

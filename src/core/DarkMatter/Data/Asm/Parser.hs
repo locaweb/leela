@@ -19,9 +19,10 @@
 --   S        = SEND
 --            / EXEC
 --            / FREE
---   SEND   = "send" KEY TIME VAL
---   EXEC   = "exec" KEY PROC *("|" PROC)
---   FREE   = "free" KEY
+--   WRITE  = "write" KEY TIME VAL
+--   FLUSH  = "flush" KEY
+--   CLOSE  = "close" KEY
+--   OPEN   = "open"  KEY PROC *("|" PROC)
 --   KEY    = 1*DIGIT
 --   TIME   = 1*DIGIT
 --   VAL    = 1*DIGIT "." 1*DIGIT
@@ -56,9 +57,10 @@ import           DarkMatter.Data.Asm.Types
 import           DarkMatter.Data.Time
 
 asmParser :: Parser Asm
-asmParser = do { r <- choice [ parseExec
-                             , parseSend
-                             , parseFree
+asmParser = do { r <- choice [ parseOpen
+                             , parseClose
+                             , parseFlush
+                             , parseWrite
                              ]
                ; return r
                }
@@ -78,31 +80,38 @@ parseTime = do { s <- decimal
 parseVal :: Parser Double
 parseVal = double
 
-parseFree :: Parser Asm
-parseFree = do { _   <- string "free"
+parseClose :: Parser Asm
+parseClose = do { _   <- string "close"
                ; skipSpace
                ; key <- parseInt
-               ; return (Free key)
+               ; return (Close key)
                }
 
-parseSend :: Parser Asm
-parseSend = do { _   <- string "send"
+parseFlush :: Parser Asm
+parseFlush = do { _   <- string "flush"
+               ; skipSpace
+               ; key <- parseInt
+               ; return (Flush key)
+               }
+
+parseWrite :: Parser Asm
+parseWrite = do { _   <- string "write"
                ; skipSpace
                ; key <- parseInt
                ; skipSpace
                ; col <- parseTime
                ; skipSpace
                ; val <- parseVal
-               ; return (Send key col val)
+               ; return (Write key col val)
                }
 
-parseExec :: Parser Asm
-parseExec = do { _          <- string "exec"
+parseOpen :: Parser Asm
+parseOpen = do { _         <- string "open"
                ; skipSpace
                ; k         <- parseInt
                ; skipSpace
                ; pipeline  <- parsePipeline
-               ; return (Exec k pipeline)
+               ; return (Open k pipeline)
                }
 
 parsePipeline :: Parser [Function]

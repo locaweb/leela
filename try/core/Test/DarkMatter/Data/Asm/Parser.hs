@@ -29,23 +29,29 @@ isRight :: Either a b -> Bool
 isRight (Right _) = True
 isRight _         = False
 
-send_spec :: Spec
-send_spec = do
-    it "should be able to parse any \"send\" instructions"
-      (forAll (arbitrary `suchThat` isSend) $ isRight . parse . render)
+write_spec :: Spec
+write_spec = do
+    it "should be able to parse any \"write\" instructions"
+      (forAll (arbitrary `suchThat` isWrite) $ isRight . parse . render)
 
-exec_spec :: Spec
-exec_spec = do
-    it "should be able to parse any \"exec\" instructions"
-      (forAll (arbitrary `suchThat` isExec) $ isRight . parse . render)
+open_spec :: Spec
+open_spec = do
+    it "should be able to parse any \"open\" instructions"
+      (forAll (arbitrary `suchThat` isOpen) $ isRight . parse . render)
 
-free_spec :: Spec
-free_spec = do
-    it "should be able to parse any \"free\" instructions"
-      (forAll (arbitrary `suchThat` isFree) $ isRight . parse . render)
+close_spec :: Spec
+close_spec = do
+    it "should be able to parse any \"close\" instructions"
+      (forAll (arbitrary `suchThat` isClose) $ isRight . parse . render)
+
+flush_spec :: Spec
+flush_spec = do
+    it "should be able to parse any \"flush\" instructions"
+      (forAll (arbitrary `suchThat` isFlush) $ isRight . parse . render)
 
 specs :: Spec
 specs = describe "Parser" $ do
-    describe "send" send_spec
-    describe "exec" exec_spec
-    describe "free" free_spec
+    describe "open" open_spec
+    describe "write" write_spec
+    describe "close" close_spec
+    describe "flush" flush_spec
