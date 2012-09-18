@@ -15,41 +15,30 @@
 
 module Test.DarkMatter.Data.Asm.Helpers where
 
-import Data.ByteString.Char8 (unpack)
+import Data.ByteString.Char8 (unpack, pack)
 import Test.QuickCheck
 import DarkMatter.Data.Time
 import DarkMatter.Data.Asm.Types
 import DarkMatter.Data.Asm.Render
 
-genClose :: Gen Asm
-genClose = do { k <- fmap abs arbitrary
-              ; return (Close k)
-              }
-
 genFlush :: Gen Asm
-genFlush = do { k <- fmap abs arbitrary
-              ; return (Flush k)
-              }
+genFlush = return Flush
 
 genCreat :: Gen Asm
-genCreat = do { k     <- fmap abs arbitrary
-              ; funcs <- arbitrary
-              ; return (Creat k funcs)
-              }
+genCreat = fmap Creat arbitrary
 
-genWrite :: Gen Asm
-genWrite = do { k <- fmap abs arbitrary
-              ; c <- arbitrary
-              ; v <- arbitrary
-              ; return (Write k c v)
-              }
+genData :: Gen Asm
+genData = do { k <- fmap pack (listOf1 $ elements $ ['a'..'z'] ++ ['0'..'9'] ++ ['.'])
+             ; c <- arbitrary
+             ; v <- arbitrary
+             ; return (Data k c v)
+             }
 
 instance Arbitrary Asm where
   
   arbitrary = oneof [ genCreat
-                    , genWrite
                     , genFlush
-                    , genClose
+                    , genData
                     ]
 
 instance Arbitrary Function where

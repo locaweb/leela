@@ -16,13 +16,12 @@
 -- | The language that is used to communicate with the core. The
 -- parser should be able to recognize the following grammar (ABNF):
 -- 
---   S        = SEND
---            / EXEC
---            / FREE
---   WRITE  = "write" KEY TIME VAL
---   FLUSH  = "flush" KEY
---   CLOSE  = "close" KEY
---   CREAT  = "creat"  KEY PROC *("|" PROC)
+--   S        = CREAT
+--            / EVENT
+--            / FLUSH
+--   EVENT  = "event" KEY TIME VAL
+--   FLUSH  = "flush"
+--   CREAT  = "creat" PROC *("|" PROC)
 --   KEY    = 1*DIGIT
 --   TIME   = 1*DIGIT "." 1*DIGIT
 --   VAL    = 1*DIGIT "." 1*DIGIT
@@ -58,9 +57,8 @@ import           DarkMatter.Data.Time
 
 asmParser :: Parser Asm
 asmParser = do { r <- choice [ parseCreat
-                             , parseClose
                              , parseFlush
-                             , parseWrite
+                             , parseData
                              ]
                ; return r
                }
@@ -71,6 +69,13 @@ parse = parseOnly asmParser
 parseInt :: Parser Int
 parseInt = decimal
 
+parseKey :: Parser B.ByteString
+parseKey = do { _ <- char '"'
+              ; k <- takeWhile1 (/= '"')
+              ; _ <- char '"'
+              ; return k
+              }
+
 parseTime :: Parser Time
 parseTime = do { s <- decimal
                ; n <- option 0 (char '.' >> decimal)
@@ -80,38 +85,25 @@ parseTime = do { s <- decimal
 parseVal :: Parser Double
 parseVal = double
 
-parseClose :: Parser Asm
-parseClose = do { _  <- string "close"
-               ; skipSpace
-               ; key <- parseInt
-               ; return (Close key)
-               }
-
 parseFlush :: Parser Asm
-parseFlush = do { _  <- string "flush"
-               ; skipSpace
-               ; key <- parseInt
-               ; return (Flush key)
-               }
+parseFlush = "flush" .*> return Flush
 
-parseWrite :: Parser Asm
-parseWrite = do { _  <- string "write"
+parseData :: Parser Asm
+parseData = do { _  <- string "data"
                ; skipSpace
-               ; key <- parseInt
+               ; key <- parseKey
                ; skipSpace
                ; col <- parseTime
                ; skipSpace
                ; val <- parseVal
-               ; return (Write key col val)
+               ; return (Data key col val)
                }
 
 parseCreat :: Parser Asm
 parseCreat = do { _         <- string "creat"
                 ; skipSpace
-                ; k         <- parseInt
-                ; skipSpace
                 ; pipeline  <- parsePipeline
-                ; return (Creat k pipeline)
+                ; return (Creat pipeline)
                 }
 
 parsePipeline :: Parser [Function]

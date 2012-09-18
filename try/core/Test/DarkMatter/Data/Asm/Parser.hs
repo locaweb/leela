@@ -29,20 +29,15 @@ isRight :: Either a b -> Bool
 isRight (Right _) = True
 isRight _         = False
 
-write_spec :: Spec
-write_spec = do
-    it "should be able to parse any \"write\" instructions"
-      (forAll (arbitrary `suchThat` isWrite) $ isRight . parse . render)
+data_spec :: Spec
+data_spec = do
+    it "should be able to parse any \"data\" instructions"
+      (forAll (arbitrary `suchThat` isData) $ isRight . parse . render)
 
 creat_spec :: Spec
 creat_spec = do
     it "should be able to parse any \"creat\" instructions"
       (forAll (arbitrary `suchThat` isCreat) $ isRight . parse . render)
-
-close_spec :: Spec
-close_spec = do
-    it "should be able to parse any \"close\" instructions"
-      (forAll (arbitrary `suchThat` isClose) $ isRight . parse . render)
 
 flush_spec :: Spec
 flush_spec = do
@@ -51,7 +46,6 @@ flush_spec = do
 
 specs :: Spec
 specs = describe "Parser" $ do
+    describe "data"  data_spec
     describe "creat" creat_spec
-    describe "write" write_spec
-    describe "close" close_spec
     describe "flush" flush_spec

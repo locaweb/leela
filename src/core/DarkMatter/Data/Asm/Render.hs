@@ -69,21 +69,14 @@ renderFunction (Window n m)   = B.concat [ "window "
                                          ]
 
 render :: Asm -> B.ByteString
-render (Close k)         = B.concat [ "close "
-                                    , B.pack $ show k
-                                    ]
-render (Flush k)         = B.concat [ "flush "
-                                    , B.pack $ show k
-                                    ]
-render (Write k c v)     = B.concat [ "write "
-                                    , B.pack $ show k
-                                    , " "
-                                    , renderTime c
-                                    , " "
-                                    , B.pack $ show v
-                                    ]
-render (Creat k f)      = B.concat [ "creat "
-                                   , B.pack $ show k
-                                   , " "
-                                   , renderPipeline f
-                                   ]
+render Flush        = "flush"
+render (Data k c v) = B.concat [ "data \""
+                               , k
+                               , "\" "
+                               , renderTime c
+                               , " "
+                               , B.pack $ show v
+                               ]
+render (Creat f)    = B.concat [ "creat "
+                               , renderPipeline f
+                               ]

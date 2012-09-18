@@ -19,11 +19,11 @@ module DarkMatter.Data.Asm.Types
        , ArithF(..)
        , isCreat
        , isFlush
-       , isClose
-       , isWrite
+       , isData
        ) where
 
 import DarkMatter.Data.Time
+import Data.ByteString.Char8 as B
 
 -- | The functions available to users
 data Function = Window Int Int
@@ -46,23 +46,18 @@ data ArithF = Mul (Either Double Double)
             | Sub (Either Double Double)
 
 -- | The available instructions to execute
-data Asm = Write Int Time Double
-         | Flush Int
-         | Close Int
-         | Creat Int [Function]
+data Asm = Data B.ByteString Time Double
+         | Flush
+         | Creat [Function]
 
 isCreat :: Asm -> Bool
-isCreat (Creat _ _) = True
-isCreat _           = False
+isCreat (Creat _) = True
+isCreat _         = False
 
-isWrite :: Asm -> Bool
-isWrite (Write _ _ _) = True
-isWrite _             = False
-
-isClose :: Asm -> Bool
-isClose (Close _) = True
-isClose _         = False
+isData :: Asm -> Bool
+isData (Data _ _ _) = True
+isData _             = False
 
 isFlush :: Asm -> Bool
-isFlush (Flush _) = True
-isFlush _         = False
+isFlush Flush = True
+isFlush _     = False
