@@ -29,23 +29,23 @@ isRight :: Either a b -> Bool
 isRight (Right _) = True
 isRight _         = False
 
-throw_spec :: Spec
-throw_spec = do
-    it "should be able to parse any \"throw\" instructions"
-      (forAll (arbitrary `suchThat` isThrow) $ isRight . parse . render)
+send_spec :: Spec
+send_spec = do
+    it "should be able to parse any \"send\" instructions"
+      (forAll (arbitrary `suchThat` isSend) $ isRight . parse . render)
 
-watch_spec :: Spec
-watch_spec = do
-    it "should be able to parse any \"watch\" instructions"
-      (forAll (arbitrary `suchThat` isWatch) $ isRight . parse . render)
+exec_spec :: Spec
+exec_spec = do
+    it "should be able to parse any \"exec\" instructions"
+      (forAll (arbitrary `suchThat` isExec) $ isRight . parse . render)
 
-purge_spec :: Spec
-purge_spec = do
-    it "should be able to parse any \"purge\" instructions"
-      (forAll (arbitrary `suchThat` isPurge) $ isRight . parse . render)
+free_spec :: Spec
+free_spec = do
+    it "should be able to parse any \"free\" instructions"
+      (forAll (arbitrary `suchThat` isFree) $ isRight . parse . render)
 
 specs :: Spec
 specs = describe "Parser" $ do
-    describe "throw" throw_spec
-    describe "watch" watch_spec
-    describe "purge" watch_spec
+    describe "send" send_spec
+    describe "exec" exec_spec
+    describe "free" free_spec

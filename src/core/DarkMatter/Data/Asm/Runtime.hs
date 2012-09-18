@@ -12,27 +12,36 @@
 --    See the License for the specific language governing permissions and
 --    limitations under the License.
 
-module DarkMatter.Data.Asm.VM
+module DarkMatter.Data.Asm.Runtime
        ( pipeline
+       , execute
        , proc
        ) where
 
-import Data.Function (on)
-import Data.List (sortBy, maximumBy, minimumBy)
-import DarkMatter.Data.Proc
-import DarkMatter.Data.Event
+import           Data.Function (on)
+import qualified Data.Sequence as S
+import qualified Data.Foldable as F
+import           DarkMatter.Data.Proc
+import           DarkMatter.Data.Event
 -- import DarkMatter.Data.Time
 import DarkMatter.Data.Asm.Types
 
-procFoldEvent :: ([Event] -> Event) -> Proc [Event] [Event]
-procFoldEvent f = pureF ((:[]) . f)
+data Runtime = Runtime { on_send :: Int -> Event -> IO ()
+                       , on_exec :: Int -> Proc Events Events -> IO ()
+                       , on_free :: Int -> IO ()
+                       }
 
-procMapEvent :: (Double -> Double) -> Proc [Event] [Event]
-procMapEvent f = pureF (map (update id f))
+type Events = S.Seq Event
 
-meanE :: [Event] -> Event
-meanE xs = fixE $ foldl1 plus xs
-  where size       = length xs
+procFoldEvent :: (Events -> Event) -> Proc Events Events
+procFoldEvent f = pureF (S.singleton . f)
+
+procMapEvent :: (Double -> Double) -> Proc Events Events
+procMapEvent f = pureF (fmap (update id f))
+
+meanE :: Events -> Event
+meanE xs = fixE $ F.foldl1 plus xs
+  where size       = S.length xs
         
         fixE       = update id (/ (fromIntegral size))
         
@@ -40,16 +49,20 @@ meanE xs = fixE $ foldl1 plus xs
                          v  = val e0 + val e1
                      in temporal t v
 
-countE :: [Event] -> Event
-countE xs = temporal (minimum (map time xs)) (sum (map val xs))
+countE :: Events -> Event
+countE xs = temporal (F.minimum (fmap time xs)) (F.sum (fmap val xs))
 
-medianE :: [Event] -> Event
+first :: Events -> Event
+first xs = let (x S.:< _) = S.viewl xs
+           in x
+
+medianE :: Events -> Event
 medianE xs
-    | odd l     = head (drop m sxs)
-    | otherwise = meanE (take 2 $ drop m sxs)
-  where l   = length xs
+    | odd l     = first (S.drop m sxs)
+    | otherwise = meanE (S.take 2 $ S.drop m sxs)
+  where l   = S.length xs
         m   = l `div` 2
-        sxs = sortBy (compare `on` val) xs
+        sxs = S.unstableSortBy (compare `on` val) xs
 
 leftOp :: (Double -> Double -> Double) -> Double -> (Double -> Double)
 leftOp f o = f o
@@ -57,7 +70,7 @@ leftOp f o = f o
 rightOp :: (Double -> Double -> Double) -> Double -> (Double -> Double)
 rightOp f o = flip f o
 
-proc :: Function -> Proc [Event] [Event]
+proc :: Function -> Proc Events Events
 proc (Window n m)         = window n m
 -- proc (TimeWindow _)       = error "todo:fixme"
 proc Count                = procFoldEvent countE
@@ -68,12 +81,17 @@ proc Round                = procMapEvent (fromInteger . round)
 proc Truncate             = procMapEvent (fromInteger . truncate)
 proc Mean                 = procFoldEvent meanE
 proc Median               = procFoldEvent medianE
-proc Maximum              = procFoldEvent (maximumBy (compare `on` val))
-proc Minimum              = procFoldEvent (minimumBy (compare `on` val))
+proc Maximum              = procFoldEvent (F.maximumBy (compare `on` val))
+proc Minimum              = procFoldEvent (F.maximumBy (compare `on` val))
 proc (Arithmetic (Div t)) = procMapEvent (either (leftOp (/)) (rightOp (/)) t)
 proc (Arithmetic (Sub t)) = procMapEvent (either (leftOp (-)) (rightOp (-)) t)
 proc (Arithmetic (Mul t)) = procMapEvent (either (*) (*) t)
 proc (Arithmetic (Add t)) = procMapEvent (either (+) (+) t)
 
-pipeline :: [Function] -> Proc [Event] [Event]
+pipeline :: [Function] -> Proc Events Events
 pipeline = foldr (\f acc -> proc f `pipe` acc) (pureF id)
+
+execute :: Runtime -> Asm -> IO ()
+execute e (Send k t v) = on_send k (temporal t v)
+execute e (Exec k f)   = on_exec k (pipeline f)
+execute e (Purge k)    = on_free k

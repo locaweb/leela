@@ -15,35 +15,35 @@
 
 module Test.DarkMatter.Data.Asm.Helpers where
 
-import Data.Text (unpack)
+import Data.ByteString.Char8 (unpack)
 import Test.QuickCheck
 import DarkMatter.Data.Time
 import DarkMatter.Data.Asm.Types
 import DarkMatter.Data.Asm.Render
 
-genPurge :: Gen Asm
-genPurge = do { k <- fmap abs arbitrary
-              ; return (Purge k)
-              }
+genFree :: Gen Asm
+genFree = do { k <- fmap abs arbitrary
+             ; return (Free k)
+             }
 
-genWatch :: Gen Asm
-genWatch = do { k     <- fmap abs arbitrary
-              ; funcs <- arbitrary
-              ; return (Watch k funcs)
-              }
+genExec :: Gen Asm
+genExec = do { k     <- fmap abs arbitrary
+             ; funcs <- arbitrary
+             ; return (Exec k funcs)
+             }
 
-genThrow :: Gen Asm
-genThrow = do { k <- fmap abs arbitrary
-              ; c <- arbitrary
-              ; v <- arbitrary
-              ; return (Throw k c v)
-              }
+genSend :: Gen Asm
+genSend = do { k <- fmap abs arbitrary
+             ; c <- arbitrary
+             ; v <- arbitrary
+             ; return (Send k c v)
+             }
 
 instance Arbitrary Asm where
   
-  arbitrary = oneof [ genWatch
-                    , genThrow
-                    , genPurge
+  arbitrary = oneof [ genExec
+                    , genSend
+                    , genFree
                     ]
 
 instance Arbitrary Function where
@@ -52,7 +52,20 @@ instance Arbitrary Function where
                  ; m <- fmap abs arbitrary
                  ; t <- arbitrary
                  ; f <- arbitrary
-                 ; elements [Window n m, TimeWindow t, Count, Truncate, Floor, Ceil, Round, Mean, Median, Minimum, Maximum, Abs, Arithmetic f]
+                 ; elements [ Window n m
+                            , TimeWindow t
+                            , Count
+                            , Truncate
+                            , Floor
+                            , Ceil
+                            , Round
+                            , Mean
+                            , Median
+                            , Minimum
+                            , Maximum
+                            , Abs
+                            , Arithmetic f
+                            ]
                  }
 
 instance Arbitrary Time where

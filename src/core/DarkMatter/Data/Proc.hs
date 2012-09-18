@@ -33,6 +33,7 @@ module DarkMatter.Data.Proc
 
 import           Prelude hiding (null, take, drop)
 import qualified Data.List as L
+import qualified Data.Sequence as S
 import           Data.Monoid
 
 data Proc i o = Put o i
@@ -59,15 +60,22 @@ feed (Put a i0) i = Put a (i0 `mappend` i)
 -- | Feed everything into the proc until no more input is
 -- available. Notice the output may not be a 1:1 correspondence to the
 -- input.
-run :: (Monoid i, Chunk i) => Proc i o -> [i] -> [o]
+run :: (Monoid i, Chunk i) => Proc i o -> i -> [o]
 run f = go f
-  where go (Put o _) [] = [o]
-        go _ []         = []
-        go g (x:xs)     = case (feed g x)
-                          of Put o i
-                               | null i    -> o : go f xs
-                               | otherwise -> o : go f (i:xs)
-                             h             -> go h xs
+  where go (Put o i0) i1 = o : go f (i0 `mappend` i1)
+        go g i0
+          | null i0      = []
+          | otherwise    = case (feed g i0)
+                           of Put o i1 -> o : go f i1
+                              _        -> []
+
+-- runM :: (Monoid i, Chunk i) => Proc i o -> IO (Maybe i) -> (o -> IO ()) -> IO ()
+-- runM f mget mput = loop f mempty
+--   where loop g r
+--           | null r    = mget >>= loop g
+--           | otherwise = case (eval $ feed g r)
+--                         of Left h       -> loop h mempty
+--                            Right (o, i) -> mput o >> loop f i
 
 -- | Evaluates the process. Right is used when the proc has produced a
 -- result. Left when it is requesting more data.
@@ -98,6 +106,7 @@ pipe (Get f) g
 pureF :: (Monoid i) => (i -> o) -> Proc i o
 pureF f = await (done . f)
 
+-- | Groups `n' items and then move the window `m' items.
 window :: (Monoid i, Chunk i, ChunkListLike i) => Int -> Int -> Proc i i
 window n m = go mempty
   where go !acc
@@ -105,10 +114,6 @@ window n m = go mempty
                             then uncurry doneR (split n acc)
                             else doneR (take n acc) (drop m acc)
           | otherwise     = await (\i -> go (acc `mappend` i))
-
--- mapR :: (a -> [a] -> b) -> [a] -> [b]
--- mapR _ []     = []
--- mapR f (x:xs) = f x xs : mapR f xs
 
 addResidue :: (Monoid i) => i -> Proc i o -> Proc i o
 addResidue i (Put a i1) = Put a (i `mappend` i1)
@@ -141,8 +146,11 @@ instance Functor (Proc i) where
 
 instance Chunk [a] where
   
-  null (_:_) = False
-  null _     = True
+  null = L.null
+
+instance Chunk (S.Seq a) where
+
+  null = S.null
 
 instance ChunkListLike [a] where
 
@@ -153,3 +161,13 @@ instance ChunkListLike [a] where
   drop  = L.drop
 
   split = L.splitAt
+
+instance ChunkListLike (S.Seq a) where
+
+  size = S.length
+
+  take = S.take
+
+  drop = S.drop
+
+  split = S.splitAt

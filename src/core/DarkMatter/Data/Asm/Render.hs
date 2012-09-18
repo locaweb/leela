@@ -21,30 +21,30 @@ module DarkMatter.Data.Asm.Render
        , renderFunction
        ) where
 
-import qualified Data.Text as T
+import qualified Data.ByteString.Char8 as B
 import           DarkMatter.Data.Time
 import           DarkMatter.Data.Asm.Types
 
-renderPipeline :: [Function] -> T.Text
+renderPipeline :: [Function] -> B.ByteString
 renderPipeline [] = ""
-renderPipeline xs = " | " `T.append` (T.intercalate " | " (map renderFunction xs))
+renderPipeline xs = " | " `B.append` (B.intercalate " | " (map renderFunction xs))
 
-renderArithF :: ArithF -> T.Text
+renderArithF :: ArithF -> B.ByteString
 renderArithF f = case (f)
                       of Mul v -> myRender "*" v
                          Div v -> myRender "/" v
                          Add v -> myRender "+" v
                          Sub v -> myRender "-" v
-  where myRender op (Left n)  = T.concat [T.pack $ show n, " ", op]
-        myRender op (Right n) = T.concat [op, " ", T.pack $ show n]
+  where myRender op (Left n)  = B.concat [B.pack $ show n, " ", op]
+        myRender op (Right n) = B.concat [op, " ", B.pack $ show n]
 
-renderTime :: Time -> T.Text
-renderTime t = T.concat [ T.pack $ show $ seconds t
+renderTime :: Time -> B.ByteString
+renderTime t = B.concat [ B.pack $ show $ seconds t
                         , "."
-                        , T.pack $ show $ nseconds t
+                        , B.pack $ show $ nseconds t
                         ]
 
-renderFunction :: Function -> T.Text
+renderFunction :: Function -> B.ByteString
 renderFunction Mean           = "mean"
 renderFunction Median         = "median"
 renderFunction Maximum        = "maximum"
@@ -55,32 +55,32 @@ renderFunction Ceil           = "ceil"
 renderFunction Round          = "round"
 renderFunction Truncate       = "truncate"
 renderFunction Abs            = "abs"
-renderFunction (Arithmetic f) = T.concat [ "("
+renderFunction (Arithmetic f) = B.concat [ "("
                                          , renderArithF f
                                          , ")"
                                          ]
-renderFunction (TimeWindow t) = T.concat [ "time_window "
+renderFunction (TimeWindow t) = B.concat [ "time_window "
                                          , renderTime t
                                          ]
-renderFunction (Window n m)   = T.concat [ "window "
-                                         , T.pack $ show n
+renderFunction (Window n m)   = B.concat [ "window "
+                                         , B.pack $ show n
                                          , " "
-                                         , T.pack $ show m
+                                         , B.pack $ show m
                                          ]
 
-render :: Asm -> T.Text
-render (Purge k)         = T.concat [ "purge "
-                                    , T.pack $ show k
-                                    ]
-render (Throw k c v)     = T.concat [ "throw "
-                                    , T.pack $ show k
-                                    , " "
-                                    , renderTime c
-                                    , " "
-                                    , T.pack $ show v
-                                    ]
-render (Watch k f)       = T.concat [ "watch "
-                                    , T.pack $ show k
-                                    , " "
-                                    , renderPipeline f
-                                    ]
+render :: Asm -> B.ByteString
+render (Free k)         = B.concat [ "free "
+                                   , B.pack $ show k
+                                   ]
+render (Send k c v)     = B.concat [ "send "
+                                   , B.pack $ show k
+                                   , " "
+                                   , renderTime c
+                                   , " "
+                                   , B.pack $ show v
+                                   ]
+render (Exec k f)       = B.concat [ "exec "
+                                   , B.pack $ show k
+                                   , " "
+                                   , renderPipeline f
+                                   ]

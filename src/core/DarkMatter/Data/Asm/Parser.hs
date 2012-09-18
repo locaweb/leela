@@ -16,11 +16,12 @@
 -- | The language that is used to communicate with the core. The
 -- parser should be able to recognize the following grammar (ABNF):
 -- 
---   S        = THROW
---            / WATCH
---   THROW  = "throw" KEY TIME VAL
---   WATCH  = "watch" KEY PROC *("|" PROC)
---   PURGE  = "purge" KEY
+--   S        = SEND
+--            / EXEC
+--            / FREE
+--   SEND   = "send" KEY TIME VAL
+--   EXEC   = "exec" KEY PROC *("|" PROC)
+--   FREE   = "free" KEY
 --   KEY    = 1*DIGIT
 --   TIME   = 1*DIGIT
 --   VAL    = 1*DIGIT "." 1*DIGIT
@@ -46,22 +47,24 @@
 --          / "-"
 module DarkMatter.Data.Asm.Parser
        ( parse
+       , asmParser
        ) where
 
-import           Data.Attoparsec.Text hiding (parse)
-import qualified Data.Text as T
+import           Data.Attoparsec.Char8 hiding (parse)
+import qualified Data.ByteString.Char8 as B
 import           DarkMatter.Data.Asm.Types
 import           DarkMatter.Data.Time
 
-parse :: T.Text -> Either String Asm
+asmParser :: Parser Asm
+asmParser = do { r <- choice [ parseExec
+                             , parseSend
+                             , parseFree
+                             ]
+               ; return r
+               }
+
+parse :: B.ByteString -> Either String Asm
 parse = parseOnly asmParser
-  where asmParser = do { r <- choice [ parseWatch
-                                     , parseThrow
-                                     , parsePurge
-                                     ]
-                       ; endOfInput
-                       ; return r
-                       }
 
 parseInt :: Parser Int
 parseInt = decimal
@@ -75,32 +78,32 @@ parseTime = do { s <- decimal
 parseVal :: Parser Double
 parseVal = double
 
-parsePurge :: Parser Asm
-parsePurge = do { _ <- string "purge"
-                ; skipSpace
-                ; key <- parseInt
-                ; return (Purge key)
-                }
+parseFree :: Parser Asm
+parseFree = do { _   <- string "free"
+               ; skipSpace
+               ; key <- parseInt
+               ; return (Free key)
+               }
 
-parseThrow :: Parser Asm
-parseThrow = do { _   <- string "throw"
-                ; skipSpace
-                ; key <- parseInt
-                ; skipSpace
-                ; col <- parseTime
-                ; skipSpace
-                ; val <- parseVal
-                ; return (Throw key col val)
-                }
+parseSend :: Parser Asm
+parseSend = do { _   <- string "send"
+               ; skipSpace
+               ; key <- parseInt
+               ; skipSpace
+               ; col <- parseTime
+               ; skipSpace
+               ; val <- parseVal
+               ; return (Send key col val)
+               }
 
-parseWatch :: Parser Asm
-parseWatch = do { _         <- string "watch"
-                ; skipSpace
-                ; k         <- parseInt
-                ; skipSpace
-                ; pipeline  <- parsePipeline
-                ; return (Watch k pipeline)
-                }
+parseExec :: Parser Asm
+parseExec = do { _          <- string "exec"
+               ; skipSpace
+               ; k         <- parseInt
+               ; skipSpace
+               ; pipeline  <- parsePipeline
+               ; return (Exec k pipeline)
+               }
 
 parsePipeline :: Parser [Function]
 parsePipeline = option [] (pipeSep >> parseFunction `sepBy1` pipeSep)

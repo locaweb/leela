@@ -17,9 +17,9 @@ module DarkMatter.Data.Asm.Types
        ( Asm(..)
        , Function(..)
        , ArithF(..)
-       , isThrow
-       , isWatch
-       , isPurge
+       , isSend
+       , isExec
+       , isFree
        ) where
 
 import DarkMatter.Data.Time
@@ -45,18 +45,18 @@ data ArithF = Mul (Either Double Double)
             | Sub (Either Double Double)
 
 -- | The available instructions to execute
-data Asm = Throw Int Time Double
-         | Watch Int [Function]
-         | Purge Int
+data Asm = Send Int Time Double
+         | Exec Int [Function]
+         | Free Int
 
-isWatch :: Asm -> Bool
-isWatch (Watch _ _) = True
-isWatch _           = False
+isExec :: Asm -> Bool
+isExec (Exec _ _) = True
+isExec _          = False
 
-isThrow :: Asm -> Bool
-isThrow (Throw _ _ _) = True
-isThrow _             = False
+isSend :: Asm -> Bool
+isSend (Send _ _ _) = True
+isSend _            = False
 
-isPurge :: Asm -> Bool
-isPurge (Purge _) = True
-isPurge _         = False
+isFree :: Asm -> Bool
+isFree (Free _) = True
+isFree _        = False
