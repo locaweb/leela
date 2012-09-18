@@ -22,7 +22,7 @@
 --   WRITE  = "write" KEY TIME VAL
 --   FLUSH  = "flush" KEY
 --   CLOSE  = "close" KEY
---   OPEN   = "open"  KEY PROC *("|" PROC)
+--   CREAT  = "creat"  KEY PROC *("|" PROC)
 --   KEY    = 1*DIGIT
 --   TIME   = 1*DIGIT
 --   VAL    = 1*DIGIT "." 1*DIGIT
@@ -57,7 +57,7 @@ import           DarkMatter.Data.Asm.Types
 import           DarkMatter.Data.Time
 
 asmParser :: Parser Asm
-asmParser = do { r <- choice [ parseOpen
+asmParser = do { r <- choice [ parseCreat
                              , parseClose
                              , parseFlush
                              , parseWrite
@@ -105,14 +105,14 @@ parseWrite = do { _   <- string "write"
                ; return (Write key col val)
                }
 
-parseOpen :: Parser Asm
-parseOpen = do { _         <- string "open"
-               ; skipSpace
-               ; k         <- parseInt
-               ; skipSpace
-               ; pipeline  <- parsePipeline
-               ; return (Open k pipeline)
-               }
+parseCreat :: Parser Asm
+parseCreat = do { _         <- string "creat"
+                ; skipSpace
+                ; k         <- parseInt
+                ; skipSpace
+                ; pipeline  <- parsePipeline
+                ; return (Creat k pipeline)
+                }
 
 parsePipeline :: Parser [Function]
 parsePipeline = option [] (pipeSep >> parseFunction `sepBy1` pipeSep)

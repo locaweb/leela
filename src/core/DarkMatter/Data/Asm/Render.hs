@@ -82,7 +82,7 @@ render (Write k c v)     = B.concat [ "write "
                                     , " "
                                     , B.pack $ show v
                                     ]
-render (Open k f)       = B.concat [ "open "
+render (Creat k f)      = B.concat [ "creat "
                                    , B.pack $ show k
                                    , " "
                                    , renderPipeline f

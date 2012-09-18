@@ -34,10 +34,10 @@ write_spec = do
     it "should be able to parse any \"write\" instructions"
       (forAll (arbitrary `suchThat` isWrite) $ isRight . parse . render)
 
-open_spec :: Spec
-open_spec = do
-    it "should be able to parse any \"open\" instructions"
-      (forAll (arbitrary `suchThat` isOpen) $ isRight . parse . render)
+creat_spec :: Spec
+creat_spec = do
+    it "should be able to parse any \"creat\" instructions"
+      (forAll (arbitrary `suchThat` isCreat) $ isRight . parse . render)
 
 close_spec :: Spec
 close_spec = do
@@ -51,7 +51,7 @@ flush_spec = do
 
 specs :: Spec
 specs = describe "Parser" $ do
-    describe "open" open_spec
+    describe "creat" creat_spec
     describe "write" write_spec
     describe "close" close_spec
     describe "flush" flush_spec

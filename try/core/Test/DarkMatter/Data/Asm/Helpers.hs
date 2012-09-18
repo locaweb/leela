@@ -31,11 +31,11 @@ genFlush = do { k <- fmap abs arbitrary
               ; return (Flush k)
               }
 
-genOpen :: Gen Asm
-genOpen = do { k     <- fmap abs arbitrary
-             ; funcs <- arbitrary
-             ; return (Open k funcs)
-             }
+genCreat :: Gen Asm
+genCreat = do { k     <- fmap abs arbitrary
+              ; funcs <- arbitrary
+              ; return (Creat k funcs)
+              }
 
 genWrite :: Gen Asm
 genWrite = do { k <- fmap abs arbitrary
@@ -46,7 +46,7 @@ genWrite = do { k <- fmap abs arbitrary
 
 instance Arbitrary Asm where
   
-  arbitrary = oneof [ genOpen
+  arbitrary = oneof [ genCreat
                     , genWrite
                     , genFlush
                     , genClose

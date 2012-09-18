@@ -17,7 +17,7 @@ module DarkMatter.Data.Asm.Types
        ( Asm(..)
        , Function(..)
        , ArithF(..)
-       , isOpen
+       , isCreat
        , isFlush
        , isClose
        , isWrite
@@ -49,11 +49,11 @@ data ArithF = Mul (Either Double Double)
 data Asm = Write Int Time Double
          | Flush Int
          | Close Int
-         | Open Int [Function]
+         | Creat Int [Function]
 
-isOpen :: Asm -> Bool
-isOpen (Open _ _) = True
-isOpen _          = False
+isCreat :: Asm -> Bool
+isCreat (Creat _ _) = True
+isCreat _           = False
 
 isWrite :: Asm -> Bool
 isWrite (Write _ _ _) = True
