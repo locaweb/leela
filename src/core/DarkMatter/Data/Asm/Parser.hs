@@ -24,7 +24,7 @@
 --   CLOSE  = "close" KEY
 --   CREAT  = "creat"  KEY PROC *("|" PROC)
 --   KEY    = 1*DIGIT
---   TIME   = 1*DIGIT
+--   TIME   = 1*DIGIT "." 1*DIGIT
 --   VAL    = 1*DIGIT "." 1*DIGIT
 --   PROC   = BINF
 --          / WINDOW
