@@ -81,21 +81,21 @@ parseVal :: Parser Double
 parseVal = double
 
 parseClose :: Parser Asm
-parseClose = do { _   <- string "close"
+parseClose = do { _  <- string "close"
                ; skipSpace
                ; key <- parseInt
                ; return (Close key)
                }
 
 parseFlush :: Parser Asm
-parseFlush = do { _   <- string "flush"
+parseFlush = do { _  <- string "flush"
                ; skipSpace
                ; key <- parseInt
                ; return (Flush key)
                }
 
 parseWrite :: Parser Asm
-parseWrite = do { _   <- string "write"
+parseWrite = do { _  <- string "write"
                ; skipSpace
                ; key <- parseInt
                ; skipSpace
