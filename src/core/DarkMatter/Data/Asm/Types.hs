@@ -14,21 +14,23 @@
 --    limitations under the License.
 
 module DarkMatter.Data.Asm.Types
-       ( Asm(..)
+       ( Key
+       , Asm(..)
        , Function(..)
-       , ArithF(..)
+       , ArithOp(..)
        , isCreat
-       , isFlush
-       , isData
+       , isClose
+       , isEvent
        ) where
 
 import DarkMatter.Data.Time
-import Data.ByteString.Char8 as B
+import Data.ByteString as B
 
 -- | The functions available to users
 data Function = Window Int Int
               | TimeWindow Time
-              | Count
+              | Sum
+              | Prod
               | Mean
               | Median
               | Minimum
@@ -38,26 +40,28 @@ data Function = Window Int Int
               | Ceil
               | Round
               | Truncate
-              | Arithmetic ArithF
+              | Arithmetic ArithOp Double
 
-data ArithF = Mul (Either Double Double)
-            | Add (Either Double Double)
-            | Div (Either Double Double)
-            | Sub (Either Double Double)
+data ArithOp = Mul
+             | Add
+             | Div
+             | Sub
+
+type Key = B.ByteString
 
 -- | The available instructions to execute
-data Asm = Data B.ByteString Time Double
-         | Flush
+data Asm = Event Key Time Double
          | Creat [Function]
+         | Close
 
 isCreat :: Asm -> Bool
 isCreat (Creat _) = True
 isCreat _         = False
 
-isData :: Asm -> Bool
-isData (Data _ _ _) = True
-isData _             = False
+isEvent :: Asm -> Bool
+isEvent (Event _ _ _) = True
+isEvent _             = False
 
-isFlush :: Asm -> Bool
-isFlush Flush = True
-isFlush _     = False
+isClose :: Asm -> Bool
+isClose Close = True
+isClose _     = False

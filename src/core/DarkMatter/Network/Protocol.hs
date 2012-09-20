@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- All Rights Reserved.
 --
 --    Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,29 +13,16 @@
 --    See the License for the specific language governing permissions and
 --    limitations under the License.
 
--- | The sole datatype that the core deals with.
-module DarkMatter.Data.Event
-       ( Event()
-       , time
-       , val
-       , temporal
-       , update
-       ) where
+module DarkMatter.Network.Protocol where
 
-import DarkMatter.Data.Time
+import qualified Data.ByteString as B
+import           Network.Socket (Socket)
+import           Network.Socket.ByteString
 
--- | The event, the sole datatype [from user perspective] that the
--- core deals with.
-newtype Event = Event (Time, Double)
+recvFrame :: Socket -> IO B.ByteString
+recvFrame = flip recv 65536
 
-time :: Event -> Time
-time (Event t) = fst t
+sendFrame :: Socket -> B.ByteString -> IO ()
+sendFrame s msg = send s msg >> return ()
+                       
 
-val :: Event -> Double
-val (Event t) = snd t
-
-temporal :: Time -> Double -> Event
-temporal = curry Event
-
-update :: (Time -> Time) -> (Double -> Double) -> Event -> Event
-update f g (Event (a,b)) = Event (f a, g b)

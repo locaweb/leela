@@ -18,34 +18,36 @@ module Test.DarkMatter.Data.Asm.Parser
        ( specs
        ) where
 
-import Test.Hspec
-import Test.QuickCheck
-import Test.DarkMatter.Data.Asm.Helpers ()
-import DarkMatter.Data.Asm.Types
-import DarkMatter.Data.Asm.Parser
-import DarkMatter.Data.Asm.Render
+import           Blaze.ByteString.Builder
+import qualified Data.ByteString as B
+import           Test.Hspec
+import           Test.QuickCheck
+import           Test.DarkMatter.Data.Asm.Helpers ()
+import           DarkMatter.Data.Asm.Types
+import           DarkMatter.Data.Asm.Parser
+import           DarkMatter.Data.Asm.Render
 
-isRight :: Either a b -> Bool
-isRight (Right _) = True
-isRight _         = False
+check :: Maybe (a, B.ByteString) -> Bool
+check (Just (_, i)) = B.null i
+check _             = False
 
-data_spec :: Spec
-data_spec = do
-    it "should be able to parse any \"data\" instructions"
-      (forAll (arbitrary `suchThat` isData) $ isRight . parse . render)
+event_spec :: Spec
+event_spec =
+    it "should be able to parse any \"event\" instructions"
+      (forAll (arbitrary `suchThat` isEvent) $ check . runOne . toByteString . render)
 
 creat_spec :: Spec
-creat_spec = do
+creat_spec =
     it "should be able to parse any \"creat\" instructions"
-      (forAll (arbitrary `suchThat` isCreat) $ isRight . parse . render)
+      (forAll (arbitrary `suchThat` isCreat) $ check . runOne . toByteString . render)
 
-flush_spec :: Spec
-flush_spec = do
-    it "should be able to parse any \"flush\" instructions"
-      (forAll (arbitrary `suchThat` isFlush) $ isRight . parse . render)
+close_spec :: Spec
+close_spec =
+    it "should be able to parse any \"close\" instructions"
+      (forAll (arbitrary `suchThat` isClose) $ check . runOne . toByteString . render)
 
 specs :: Spec
-specs = describe "Parser" $ do
-    describe "data"  data_spec
+specs = describe "DarkMatter.Data.Asm.Parser" $ do
+    describe "event" event_spec
     describe "creat" creat_spec
-    describe "flush" flush_spec
+    describe "close" close_spec

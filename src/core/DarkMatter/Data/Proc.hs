@@ -24,7 +24,7 @@ module DarkMatter.Data.Proc
        , apply
        , pureF
        , pipe
-       , window
+       , windowBy
        -- ^ Evaluators
        , feed
        , run
@@ -69,14 +69,6 @@ run f = go f
                            of Put o i1 -> o : go f i1
                               _        -> []
 
--- runM :: (Monoid i, Chunk i) => Proc i o -> IO (Maybe i) -> (o -> IO ()) -> IO ()
--- runM f mget mput = loop f mempty
---   where loop g r
---           | null r    = mget >>= loop g
---           | otherwise = case (eval $ feed g r)
---                         of Left h       -> loop h mempty
---                            Right (o, i) -> mput o >> loop f i
-
 -- | Evaluates the process. Right is used when the proc has produced a
 -- result. Left when it is requesting more data.
 eval :: Proc i o -> Either (Proc i o) (o, i)
@@ -106,14 +98,11 @@ pipe (Get f) g
 pureF :: (Monoid i) => (i -> o) -> Proc i o
 pureF f = await (done . f)
 
--- | Groups `n' items and then move the window `m' items.
-window :: (Monoid i, Chunk i, ChunkListLike i) => Int -> Int -> Proc i i
-window n m = go mempty
+windowBy :: (Monoid i, Chunk i) => (i -> Bool) -> (i -> (i, i)) -> Proc i i
+windowBy f g = go mempty
   where go !acc
-          | size acc >= n = if (n == m)
-                            then uncurry doneR (split n acc)
-                            else doneR (take n acc) (drop m acc)
-          | otherwise     = await (\i -> go (acc `mappend` i))
+          | f acc     = uncurry doneR (g acc)
+          | otherwise = await (\i -> go (acc `mappend` i))
 
 addResidue :: (Monoid i) => i -> Proc i o -> Proc i o
 addResidue i (Put a i1) = Put a (i `mappend` i1)
@@ -127,19 +116,6 @@ class Chunk i where
   
   null :: i -> Bool
 
-class ChunkListLike i where
-
-  size  :: i -> Int
-
-  take  :: Int -> i -> i
-  take n = fst . split n
-
-  drop  :: Int -> i -> i
-  drop n = snd . split n
-
-  split :: Int -> i -> (i, i)
-  split n i = (take n i, drop n i)
-
 instance Functor (Proc i) where
 
   fmap = apply
@@ -151,23 +127,3 @@ instance Chunk [a] where
 instance Chunk (S.Seq a) where
 
   null = S.null
-
-instance ChunkListLike [a] where
-
-  size  = L.length
-
-  take  = L.take
-
-  drop  = L.drop
-
-  split = L.splitAt
-
-instance ChunkListLike (S.Seq a) where
-
-  size = S.length
-
-  take = S.take
-
-  drop = S.drop
-
-  split = S.splitAt

@@ -15,30 +15,37 @@
 
 module Test.DarkMatter.Data.Asm.Helpers where
 
-import Data.ByteString.Char8 (unpack, pack)
-import Test.QuickCheck
-import DarkMatter.Data.Time
-import DarkMatter.Data.Asm.Types
-import DarkMatter.Data.Asm.Render
+import           Blaze.ByteString.Builder
+import           Control.Monad
+import           Data.Char
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as B8
+import           Test.QuickCheck
+import           DarkMatter.Data.Time
+import           DarkMatter.Data.Asm.Types
+import           DarkMatter.Data.Asm.Render
 
-genFlush :: Gen Asm
-genFlush = return Flush
+genKey :: Gen B8.ByteString
+genKey = fmap B8.pack (listOf1 $ elements $ ['a'..'z'] ++ ['0'..'9'] ++ ['.'])
+
+genClose :: Gen Asm
+genClose = return Close
 
 genCreat :: Gen Asm
 genCreat = fmap Creat arbitrary
 
-genData :: Gen Asm
-genData = do { k <- fmap pack (listOf1 $ elements $ ['a'..'z'] ++ ['0'..'9'] ++ ['.'])
-             ; c <- arbitrary
-             ; v <- arbitrary
-             ; return (Data k c v)
-             }
+genEvent :: Gen Asm
+genEvent = do { k <- genKey
+              ; c <- arbitrary
+              ; v <- arbitrary
+              ; return (Event k c v)
+              }
 
 instance Arbitrary Asm where
   
-  arbitrary = oneof [ genCreat
-                    , genFlush
-                    , genData
+  arbitrary = oneof [ genEvent
+                    , genCreat
+                    , genClose
                     ]
 
 instance Arbitrary Function where
@@ -49,7 +56,8 @@ instance Arbitrary Function where
                  ; f <- arbitrary
                  ; elements [ Window n m
                             , TimeWindow t
-                            , Count
+                            , Sum
+                            , Prod
                             , Truncate
                             , Floor
                             , Ceil
@@ -78,8 +86,8 @@ instance Arbitrary ArithF where
 
 instance Show Asm where
   
-  show = unpack . render
+  show = map (chr . fromIntegral) . B.unpack . toByteString . render
 
 instance Show Function where
   
-  show = unpack . renderFunction
+  show = map (chr . fromIntegral) . B.unpack . toByteString . renderFunction

@@ -16,67 +16,84 @@
 -- | The sole purpose of this module is to provide a string
 -- represetation [mostly for testing/debug purposes/ of the Asm type
 -- such as `parse . render == id`.
-module DarkMatter.Data.Asm.Render
-       ( render
-       , renderFunction
-       ) where
+module DarkMatter.Data.Asm.Render where
 
-import qualified Data.ByteString.Char8 as B
+import qualified Data.ByteString as B
+import           Data.Double.Conversion.ByteString
+import           Data.Monoid ((<>), mempty)
+import           Blaze.ByteString.Builder
+import           Blaze.ByteString.Builder.Char8
 import           DarkMatter.Data.Time
+import           DarkMatter.Data.Event
 import           DarkMatter.Data.Asm.Types
 
-renderPipeline :: [Function] -> B.ByteString
-renderPipeline [] = ""
-renderPipeline xs = " | " `B.append` (B.intercalate " | " (map renderFunction xs))
+renderPipeline :: [Function] -> Builder
+renderPipeline []     = mempty
+renderPipeline [f]    = renderFunction f
+renderPipeline (f:fs) = renderFunction f
+                        <> fromString " | "
+                        <> renderPipeline fs
 
-renderArithF :: ArithF -> B.ByteString
-renderArithF f = case (f)
-                      of Mul v -> myRender "*" v
-                         Div v -> myRender "/" v
-                         Add v -> myRender "+" v
-                         Sub v -> myRender "-" v
-  where myRender op (Left n)  = B.concat [B.pack $ show n, " ", op]
-        myRender op (Right n) = B.concat [op, " ", B.pack $ show n]
+renderOp :: ArithOp -> Builder
+renderOp Mul = fromChar '*'
+renderOp Add = fromChar '+'
+renderOp Div = fromChar '/'
+renderOp Sub = fromChar '-'
 
-renderTime :: Time -> B.ByteString
-renderTime t = B.concat [ B.pack $ show $ seconds t
-                        , "."
-                        , B.pack $ show $ nseconds t
-                        ]
+renderDouble :: Double -> Builder
+renderDouble = fromByteString . toShortest
 
-renderFunction :: Function -> B.ByteString
-renderFunction Mean           = "mean"
-renderFunction Median         = "median"
-renderFunction Maximum        = "maximum"
-renderFunction Minimum        = "minimum"
-renderFunction Count          = "count"
-renderFunction Floor          = "floor"
-renderFunction Ceil           = "ceil"
-renderFunction Round          = "round"
-renderFunction Truncate       = "truncate"
-renderFunction Abs            = "abs"
-renderFunction (Arithmetic f) = B.concat [ "("
-                                         , renderArithF f
-                                         , ")"
-                                         ]
-renderFunction (TimeWindow t) = B.concat [ "time_window "
-                                         , renderTime t
-                                         ]
-renderFunction (Window n m)   = B.concat [ "window "
-                                         , B.pack $ show n
-                                         , " "
-                                         , B.pack $ show m
-                                         ]
+renderTime :: Time -> Builder
+renderTime t = fromShow (seconds t)
+               <> fromChar '.'
+               <> fromShow (nseconds t)
 
-render :: Asm -> B.ByteString
-render Flush        = "flush"
-render (Data k c v) = B.concat [ "data \""
-                               , k
-                               , "\" "
-                               , renderTime c
-                               , " "
-                               , B.pack $ show v
-                               ]
-render (Creat f)    = B.concat [ "creat "
-                               , renderPipeline f
-                               ]
+renderEvent :: Builder -> Event -> Builder
+renderEvent k e = fromString "event "
+                  <> k
+                  <> fromChar ' '
+                  <> renderDouble (val e)
+                  <> fromChar ' '
+                  <> renderTime (time e)
+
+renderFunction :: Function -> Builder
+renderFunction Mean             = fromString "mean"
+renderFunction Median           = fromString "median"
+renderFunction Maximum          = fromString "maximum"
+renderFunction Minimum          = fromString "minimum"
+renderFunction Sum              = fromString "sum"
+renderFunction Prod             = fromString "prod"
+renderFunction Floor            = fromString "floor"
+renderFunction Ceil             = fromString "ceil"
+renderFunction Round            = fromString "round"
+renderFunction Truncate         = fromString "truncate"
+renderFunction Abs              = fromString "abs"
+renderFunction (Arithmetic o v) = fromChar '('
+                                  <> renderOp o
+                                  <> fromChar ' '
+                                  <> renderDouble v
+                                  <> fromChar ')'
+renderFunction (TimeWindow t)   = fromString "time_window "
+                                  <> renderTime t
+renderFunction (Window n m)     = fromString "window "
+                                  <> fromShow n
+                                  <> fromChar ' '
+                                  <> fromShow m
+
+renderKey :: B.ByteString -> Builder
+renderKey k = fromShow (B.length k)
+              <> fromString "|"
+              <> fromByteString k
+
+render :: Asm -> Builder
+render Close         = fromString "close;"
+render (Event k t v) = fromString "event "
+                       <> renderKey k
+                       <> fromChar ' '
+                       <> renderTime t
+                       <> fromChar ' '
+                       <> renderDouble v
+                       <> fromChar ';'
+render (Creat f)     = fromString "creat "
+                       <> renderPipeline f
+                       <> fromChar ';'

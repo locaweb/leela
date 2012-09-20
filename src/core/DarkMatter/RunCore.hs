@@ -12,29 +12,9 @@
 --    See the License for the specific language governing permissions and
 --    limitations under the License.
 
--- | The sole datatype that the core deals with.
-module DarkMatter.Data.Event
-       ( Event()
-       , time
-       , val
-       , temporal
-       , update
-       ) where
+module Main where
 
-import DarkMatter.Data.Time
+import DarkMatter.Network.CoreServer
 
--- | The event, the sole datatype [from user perspective] that the
--- core deals with.
-newtype Event = Event (Time, Double)
-
-time :: Event -> Time
-time (Event t) = fst t
-
-val :: Event -> Double
-val (Event t) = snd t
-
-temporal :: Time -> Double -> Event
-temporal = curry Event
-
-update :: (Time -> Time) -> (Double -> Double) -> Event -> Event
-update f g (Event (a,b)) = Event (f a, g b)
+main :: IO ()
+main = start "/tmp/test"

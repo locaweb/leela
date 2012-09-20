@@ -18,16 +18,18 @@
 -- 
 --   S        = CREAT
 --            / EVENT
---            / FLUSH
---   EVENT  = "event" KEY TIME VAL
---   FLUSH  = "flush"
---   CREAT  = "creat" PROC *("|" PROC)
---   KEY    = 1*DIGIT
+--            / CLOSE
+--   EVENT  = "event" SP SIZE|KEY SP TIME SP VAL EOL
+--   CREAT  = "creat" SP PROC *(SP "|" SP PROC) EOL
+--   CLOSE  = "close" SP EOL
+--   EOL    = ";"
+--   KEY    = ALPHANUM
 --   TIME   = 1*DIGIT "." 1*DIGIT
 --   VAL    = 1*DIGIT "." 1*DIGIT
 --   PROC   = BINF
 --          / WINDOW
---          / "count"
+--          / "sum"
+--          / "prod"
 --          / "truncate"
 --          / "ceil"
 --          / "floor"
@@ -38,127 +40,140 @@
 --          / "maximum"
 --          / "mininmum"
 --   BINF   = (" F ")"
---   WINDOW = "window" 1*DIGIT 1*DIGIT
---   F      = 1*DIGIT OP
---          / OP 1*DIGIT
+--   WINDOW = "window" SP 1*DIGIT SP 1*DIGIT
+--   F      = 1*DIGIT SP OP
+--          / OP SP 1*DIGIT
 --   OP     = "*"
 --          / "/"
 --          / "+"
 --          / "-"
 module DarkMatter.Data.Asm.Parser
-       ( parse
+       ( runOne
+       , runAll
        , asmParser
        ) where
 
-import           Data.Attoparsec.Char8 hiding (parse)
-import qualified Data.ByteString.Char8 as B
+import           Data.Attoparsec.ByteString as P
+import qualified Data.Attoparsec.ByteString.Char8 as P8
+import qualified Data.ByteString as B
 import           DarkMatter.Data.Asm.Types
 import           DarkMatter.Data.Time
 
 asmParser :: Parser Asm
-asmParser = do { r <- choice [ parseCreat
-                             , parseFlush
-                             , parseData
-                             ]
-               ; return r
+asmParser = do { mc <- P8.peekChar
+               ; case mc
+                 of Just 'e' -> parseEvent
+                    Just 'c' -> choice [parseCreat, parseClose]
+                    _        -> fail ("error: e|c was expected")
                }
 
-parse :: B.ByteString -> Either String Asm
-parse = parseOnly asmParser
+runOne :: B.ByteString -> Maybe (Asm, B.ByteString)
+runOne i = case (parse asmParser i)
+           of Done t asm -> Just (asm, t)
+              _          -> Nothing
+
+runAll :: B.ByteString -> [Asm]
+runAll i = case (runOne i)
+           of Just (asm, i1) -> asm : runAll i1
+              Nothing        -> []
+
+eol :: Parser ()
+eol = P8.char ';' >> return ()
 
 parseInt :: Parser Int
-parseInt = decimal
+parseInt = P8.decimal
 
 parseKey :: Parser B.ByteString
-parseKey = do { _ <- char '"'
-              ; k <- takeWhile1 (/= '"')
-              ; _ <- char '"'
-              ; return k
+parseKey = do { n <- parseInt
+              ; _ <- P8.char '|'
+              ; P.take n
               }
 
 parseTime :: Parser Time
-parseTime = do { s <- decimal
-               ; n <- option 0 (char '.' >> decimal)
+parseTime = do { s <- parseInt
+               ; _ <- P8.char '.'
+               ; n <- parseInt
                ; return (mktime s n)
                }
 
 parseVal :: Parser Double
-parseVal = double
+parseVal = P8.double
 
-parseFlush :: Parser Asm
-parseFlush = "flush" .*> return Flush
+parseClose :: Parser Asm
+parseClose = P8.string "close" >> eol >> return Close
 
-parseData :: Parser Asm
-parseData = do { _  <- string "data"
-               ; skipSpace
-               ; key <- parseKey
-               ; skipSpace
-               ; col <- parseTime
-               ; skipSpace
-               ; val <- parseVal
-               ; return (Data key col val)
-               }
+parseEvent :: Parser Asm
+parseEvent = do { _   <- string "event "
+                ; key <- parseKey
+                ; _   <- P8.space
+                ; col <- parseTime
+                ; _   <- P8.space
+                ; val <- parseVal
+                ; eol
+                ; return (Event key col val)
+                }
 
 parseCreat :: Parser Asm
-parseCreat = do { _         <- string "creat"
-                ; skipSpace
+parseCreat = do { _         <- string "creat "
                 ; pipeline  <- parsePipeline
+                ; eol
                 ; return (Creat pipeline)
                 }
 
 parsePipeline :: Parser [Function]
-parsePipeline = option [] (pipeSep >> parseFunction `sepBy1` pipeSep)
-  where pipeSep = skipSpace >> char '|' >> skipSpace
+parsePipeline = parseFunction `sepBy` pipeSep
+  where pipeSep = P8.space >> P8.char '|' >> P8.space
 
 parseFunction :: Parser Function
-parseFunction = choice [ "mean"     .*> return Mean
-                       , "median"   .*> return Median
-                       , "minimum"  .*> return Minimum
-                       , "maximum"  .*> return Maximum
-                       , "count"    .*> return Count
-                       , "truncate" .*> return Truncate
-                       , "floor"    .*> return Floor
-                       , "ceil"     .*> return Ceil
-                       , "round"    .*> return Round
-                       , "abs"      .*> return Abs
-                       , parseWindow
-                       , parseTimeWindow
-                       , parseArithmetic
-                       ]
+parseFunction = do { c <- P8.peekChar
+                   ; case c
+                     of Just 'a' -> string "abs" >> return Abs
+                        Just 'c' -> string "ceil" >> return Ceil
+                        Just 'f' -> string "floor" >> return Floor
+                        Just 'm' -> choice [ string "mean"     >> return Mean
+                                           , string "median"   >> return Median
+                                           , string "minimum"  >> return Minimum
+                                           , string "maximum"  >> return Maximum
+                                           ]
+                        Just 'p' -> string "prod" >> return Prod
+                        Just 'r' -> string "round" >> return Round
+                        Just 's' -> string "sum" >> return Sum
+                        Just 't' -> choice [ string "truncate" >> return Truncate
+                                           , parseTimeWindow
+                                           ]
+                        Just 'w' -> parseWindow
+                        Just '(' -> parseArithmetic
+                        _        -> fail "error: a|c|f|m|p|r|s|t|w|( was expected"
+                   }
 
-parseArithF :: Parser ArithF
-parseArithF = choice [ parseLeft
-                     , parseRight
-                     ]
-  where parseLeft = choice [ "* " .*> fmap (Mul . Left) parseVal
-                           , "/ " .*> fmap (Div . Left) parseVal
-                           , "+ " .*> fmap (Add . Left) parseVal
-                           , "- " .*> fmap (Sub . Left) parseVal
-                           ]
-        parseRight = fmap Right parseVal >>= \n -> choice [ " *" .*> return (Mul n)
-                                                          , " /" .*> return (Div n)
-                                                          , " +" .*> return (Add n)
-                                                          , " -" .*> return (Sub n)
-                                                          ]
+parseOp :: Parser ArithOp
+parseOp = do { c <- P8.satisfy (`elem` "*+/-")
+             ; case c
+               of '*' -> return Mul
+                  '+' -> return Add
+                  '/' -> return Div
+                  '-' -> return Sub
+                  _   -> fail "error: *|+|-|/ was expected"
+             }
 
 parseWindow :: Parser Function
-parseWindow = do { _ <- string "window"
-                 ; skipSpace
+parseWindow = do { _ <- string "window "
                  ; n <- parseInt
-                 ; skipSpace
+                 ; _ <- P8.space
                  ; m <- parseInt
                  ; return (Window n m)
                  }
 
 parseTimeWindow :: Parser Function
-parseTimeWindow = do { _ <- string "time_window"
-                     ; skipSpace
+parseTimeWindow = do { _ <- string "time_window "
                      ; fmap TimeWindow parseTime
                      }
 
 parseArithmetic :: Parser Function
-parseArithmetic = do { _ <- char '('
-                     ; f <- parseArithF
-                     ; _ <- char ')'
-                     ; return (Arithmetic f)
+parseArithmetic = do { _ <- P8.char '('
+                     ; o <- parseOp
+                     ; _ <- P8.space
+                     ; v <- parseVal
+                     ; _ <- P8.char ')'
+                     ; return (Arithmetic o v)
                      }
