@@ -77,7 +77,7 @@ def events_to_json(events):
         k = e.name()
         if (k not in result):
             result[k] = {"series": []}
-        if (not math.isnan(e.value())):
+        if (not math.isnan(e.value()) and not math.isinf(e.value())):
             result[k]["series"].append((e.unixtimestamp(), e.value()))
     return(result)
 
