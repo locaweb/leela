@@ -14,7 +14,11 @@
 
 module Main where
 
+import System.Console.GetOpt
+import DarkMatter.Logger
 import DarkMatter.Network.CoreServer
 
 main :: IO ()
-main = start "/tmp/test"
+main = do { setlevel DEBUG
+          ; start "/tmp/test"
+          }

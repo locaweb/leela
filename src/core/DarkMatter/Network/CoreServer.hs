@@ -23,6 +23,7 @@ import           Control.Monad.Trans
 import           Data.Function
 import qualified Data.Map as M
 import           Network.Socket
+import           DarkMatter.Logger (debug, info, warn, crit)
 import           DarkMatter.Data.Event
 import           DarkMatter.Data.Asm.Types
 import           DarkMatter.Data.Asm.Parser
@@ -66,37 +67,48 @@ stream h ichan ochan = do
     ; prog <- recvAsm h
     ; case prog
       of (Proc p:xs)
-           -> do { _ <- forkIO (xThread p >> putMVar wait ())
+           -> do { debug " forking worker thread"
+                 ; _ <- forkIO (xThread p >> putMVar wait ())
                  ; if (null xs)
                    then fix (\loop -> (recvAsm h >>= go loop))
                    else go (fix (\loop -> (recvAsm h >>= go loop))) xs
+                 ; debug " worker thread exiting"
                  ; takeMVar wait
                  }
          _
-           -> return ()
+           -> do { warn " error: invalid instruction (proc was expected)"
+                 ; sendEOF ochan
+                 }
     }
   where xThread = evalStateT (creat ichan ochan) . newMultiplex
 
         go cont [Event k t v]    = sendData ichan k (temporal t v) >> cont
         go cont (Event k t v:xs) = sendData ichan k (temporal t v) >> go cont xs
-        go _ _                   = sendEOF ichan
+        go _ (Close:_)           = sendEOF ichan
+        go _ _                   = do { warn " error: invalid instruction (event was excepected)"
+                                      ; sendEOF ichan
+                                      }
     
 start :: FilePath -> IO ()
-start f = do { s <- socket AF_UNIX SeqPacket 0
+start f = do { warn ("binding server on: " ++ f)
+             ; s <- socket AF_UNIX SeqPacket 0
              ; bindSocket s (SockAddrUnix f)
              ; listen s 5
-             ; fix (\loop -> do { c <- fmap fst (accept s)
-                                ; _ <- forkfinally (go c) (sClose c)
+             ; fix (\loop -> do { s1 <- fmap fst $ accept s
+                                ; info "> connection"
+                                ; _ <- forkfinally (go s1) (info "< connection" >> sClose s1)
                                 ; loop
                                 })
              }
   where go c = do { ochan  <- newBoundedChan 5
                   ; ichan  <- newBoundedChan 10
+                  ; debug " forking flushing thread"
                   ; _      <- forkIO (stream c ichan ochan)
                   ; fix (\loop -> do { mi <- readChan ochan
                                      ; case mi
                                        of Nothing -> return ()
                                           Just _  -> loop
                                      })
+                  ; debug " flusing thread exiting"
                   }
 
