@@ -19,7 +19,7 @@ import System.Console.GetOpt
 import System.Environment
 import System.Directory
 import DarkMatter.Logger
-import DarkMatter.Network.CoreServer
+import DarkMatter.Network.ProcServer
 
 data OptFlag = Verbose
              | Version
@@ -34,11 +34,12 @@ getopts :: [String] -> ([OptFlag], String)
 getopts argv = case (getOpt Permute options argv)
                of (o, [s], []) -> (o, s)
                   (_, _, msg)  -> error (concat msg ++ usageInfo header options)
-  where header = "USAGE: dmcore [-v|--verbose] [--version] SOCKET-FILE"
+  where header = "USAGE: dmproc [-v|--verbose] [--version] SOCKET-FILE"
 
 main :: IO ()
 main = do { (opts, socket) <- fmap getopts getArgs
           ; setopts INFO opts
+          ; warn "starting server (^C to terminate)"
           ; (start socket) `finally` (removeFile socket)
           }
   where setopts _ []               = return ()

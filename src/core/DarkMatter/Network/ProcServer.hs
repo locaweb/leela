@@ -13,7 +13,7 @@
 --    See the License for the specific language governing permissions and
 --    limitations under the License.
 
-module DarkMatter.Network.CoreServer where
+module DarkMatter.Network.ProcServer where
 
 import           Control.Concurrent hiding (readChan, writeChan)
 import           Control.Concurrent.BoundedChan
@@ -23,7 +23,7 @@ import           Control.Monad.Trans
 import           Data.Function
 import qualified Data.Map as M
 import           Network.Socket
-import           DarkMatter.Logger (debug, info, warn, crit)
+import           DarkMatter.Logger (debug, info, warn)
 import           DarkMatter.Data.Event
 import           DarkMatter.Data.Asm.Types
 import           DarkMatter.Data.Asm.Parser
@@ -85,7 +85,7 @@ stream h ichan ochan = do
         go cont [Event k t v]    = sendData ichan k (temporal t v) >> cont
         go cont (Event k t v:xs) = sendData ichan k (temporal t v) >> go cont xs
         go _ (Close:_)           = sendEOF ichan
-        go _ _                   = do { warn " error: invalid instruction (event was excepected)"
+        go _ _                   = do { warn " error: invalid instruction (event was excpected)"
                                       ; sendEOF ichan
                                       }
     
