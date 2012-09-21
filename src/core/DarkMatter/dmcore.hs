@@ -26,7 +26,7 @@ data OptFlag = Verbose
              deriving (Show)
 
 options :: [OptDescr OptFlag]
-options = [ Option "v" ["verbose"] (NoArg Verbose) "turn on debug messages (may be use multiple times)"
+options = [ Option "v" ["verbose"] (NoArg Verbose) "increase verbosity"
           , Option ""  ["version"] (NoArg Version) "show version and exit"
           ]
 
