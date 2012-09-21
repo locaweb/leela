@@ -111,8 +111,7 @@ proc (Arithmetic Mul t) = procMapEvent (* t)
 proc (Arithmetic Add t) = procMapEvent (+ t)
 
 pipeline :: [Function] -> Pipeline
-pipeline = foldr (\f acc -> proc f `pipe` acc) buffer
-  where buffer = windowBy ((200 ==) . S.length . chk) (\n -> (n, mempty))
+pipeline = foldr1 pipe . map proc
 
 getenv :: (Monad m) => Key -> StateT (Pipeline, M.Map Key Pipeline) m Pipeline
 getenv k = do { (z, m) <- get
@@ -148,7 +147,7 @@ multiplex :: (Monad m) => Key -> Event -> StateT (Pipeline, M.Map Key Pipeline) 
 multiplex k e = do { p <- getenv k
                    ; case (eval $ feed p (new_ $ S.singleton e))
                      of Left f        -> putenv k f >> return mempty
-                        Right (o, i)  -> reset k >> (when (not $ null i)) (feedback k i) >> return o
+                        Right (o, i)  -> reset k >> return o
                    }
 
 broadcastEOF :: (Monad m) => StateT (Pipeline, M.Map Key Pipeline) m [(Key, Events)]
