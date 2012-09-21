@@ -17,6 +17,7 @@
 module DarkMatter.Data.Proc
        ( Proc ()
        , Chunk(..)
+       , ChunkC()
        -- ^ Combinators
        , done
        , doneR
@@ -25,9 +26,13 @@ module DarkMatter.Data.Proc
        , pureF
        , pipe
        , windowBy
+       -- ^ ChunkC
+       , new
+       , new_
+       , chk
+       , eof
        -- ^ Evaluators
        , feed
-       , run
        , eval
        ) where
 
@@ -35,6 +40,8 @@ import           Prelude hiding (null, take, drop)
 import qualified Data.List as L
 import qualified Data.Sequence as S
 import           Data.Monoid
+
+newtype ChunkC a = ChunkC (a, Bool)
 
 data Proc i o = Put o i
               | Get (i -> Proc i o)
@@ -55,19 +62,7 @@ await = Get
 -- state.
 feed :: (Monoid i) => Proc i o -> i -> Proc i o
 feed (Get f) i    = f i
-feed (Put a i0) i = Put a (i0 `mappend` i)
-
--- | Feed everything into the proc until no more input is
--- available. Notice the output may not be a 1:1 correspondence to the
--- input.
-run :: (Monoid i, Chunk i) => Proc i o -> i -> [o]
-run f = go f
-  where go (Put o i0) i1 = o : go f (i0 `mappend` i1)
-        go g i0
-          | null i0      = []
-          | otherwise    = case (feed g i0)
-                           of Put o i1 -> o : go f i1
-                              _        -> []
+feed (Put a i0) i = Put a (i0 <> i)
 
 -- | Evaluates the process. Right is used when the proc has produced a
 -- result. Left when it is requesting more data.
@@ -86,7 +81,7 @@ apply f (Get g)   = await (\i -> apply f (g i))
 pipe :: (Monoid a, Chunk a) => Proc a a  -- ^ The first proc
                             -> Proc a a  -- ^ The second proc
                             -> Proc a a
-pipe (Put _ i0) (Put a i1) = Put a (i0 `mappend` i1)
+pipe (Put _ i0) (Put a i1) = Put a (i0 <> i1)
 pipe (Put a i0) (Get f)
   | null i0                = f a
   | otherwise              = addResidue i0 $ f a
@@ -98,19 +93,33 @@ pipe (Get f) g
 pureF :: (Monoid i) => (i -> o) -> Proc i o
 pureF f = await (done . f)
 
-windowBy :: (Monoid i, Chunk i) => (i -> Bool) -> (i -> (i, i)) -> Proc i i
+windowBy :: (Monoid i) => (ChunkC i -> Bool) -> (ChunkC i -> (ChunkC i, ChunkC i)) -> Proc (ChunkC i) (ChunkC i)
 windowBy f g = go mempty
   where go !acc
           | f acc     = uncurry doneR (g acc)
-          | otherwise = await (\i -> go (acc `mappend` i))
+          | otherwise = await (\i -> if (eof i)
+                                     then done acc
+                                     else go (acc <> i))
 
 addResidue :: (Monoid i) => i -> Proc i o -> Proc i o
-addResidue i (Put a i1) = Put a (i `mappend` i1)
+addResidue i (Put a i1) = Put a (i <> i1)
 addResidue i (Get f)    = Get (\i1 -> addResidue i $ f i1)
 
 isPut :: Proc i o -> Bool
 isPut (Put _ _) = True
 isPut _         = False
+
+eof :: ChunkC a -> Bool
+eof (ChunkC x) = snd x
+
+chk :: ChunkC a -> a
+chk (ChunkC x) = fst x
+
+new_ :: a -> ChunkC a
+new_ a = ChunkC (a, False)
+
+new :: a -> Bool -> ChunkC a
+new = curry ChunkC
 
 class Chunk i where
   
@@ -127,3 +136,29 @@ instance Chunk [a] where
 instance Chunk (S.Seq a) where
 
   null = S.null
+
+instance Functor ChunkC where
+
+  fmap f c = ChunkC (f $ chk c, eof c)
+
+instance (Chunk a) => Chunk (ChunkC a) where
+
+  null = null . chk
+
+instance (Monoid a) => Monoid (ChunkC a) where
+
+  mempty = ChunkC (mempty, False)
+
+  mappend a b = ChunkC (chk a <> chk b, eof a || eof b)
+
+instance (Show a) => Show (ChunkC a) where
+
+  showsPrec _ c = shows "ChunkC $ (" . shows (chk c) . shows ", " . shows (eof c) . shows ")"
+
+instance (Eq a) => Eq (ChunkC a) where
+
+  (==) a b = chk a == chk b
+
+instance (Ord a) => Ord (ChunkC a) where
+
+  compare a b = compare (chk a) (chk b)

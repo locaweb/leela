@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 -- All Rights Reserved.
 --
 --    Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,15 +16,19 @@
 module DarkMatter.Data.Asm.Runtime
        ( Events
        , Pipeline
+       , eofChunk
        , pipeline
        , newMultiplex
        , multiplex
+       , broadcastEOF
        , proc
        ) where
 
+import           Prelude hiding (null)
 import           Control.Monad
 import           Control.Monad.Trans.State
 import           Data.Function (on)
+import           Data.Monoid (mempty)
 import qualified Data.Sequence as S
 import qualified Data.Foldable as F
 import qualified Data.Map as M
@@ -32,59 +37,63 @@ import           DarkMatter.Data.Time
 import           DarkMatter.Data.Event
 import           DarkMatter.Data.Asm.Types
 
-type Events = S.Seq Event
+type Events = ChunkC (S.Seq Event)
 
 type Pipeline = Proc Events Events
 
-procFoldEvent :: (Events -> Event) -> Pipeline
-procFoldEvent f = pureF (S.singleton . f)
+procFoldEvent :: (Events -> ChunkC Event) -> Pipeline
+procFoldEvent f = pureF (fmap S.singleton . f)
 
 procMapEvent :: (Double -> Double) -> Pipeline
-procMapEvent f = pureF (fmap (update id f))
+procMapEvent f = pureF (fmap (fmap (update id f)))
 
-meanE :: Events -> Event
-meanE xs = fixE $ F.foldl1 plus xs
-  where size       = S.length xs
+meanE :: Events -> ChunkC Event
+meanE c = fmap (F.foldl1 plus) c
+  where size = fromIntegral $ S.length (chk c)
         
-        fixE       = update id (/ (fromIntegral size))
-        
-        plus e0 e1 = let t  = min (time e0) (time e1)
-                         v  = val e0 + val e1
-                     in temporal t v
+        plus !e0 e1 = let t  = min (time e0) (time e1)
+                          v  = (val e0 / size) + (val e1 / size)
+                      in temporal t v
 
-summarizeE :: (S.Seq Double -> Double) -> Events -> Event
-summarizeE f xs = temporal (F.minimum (fmap time xs)) (f (fmap val xs))
+summarizeE :: (S.Seq Double -> Double) -> Events -> ChunkC Event
+summarizeE f = fmap mk
+  where mk xs = temporal (F.minimum (fmap time xs)) (f (fmap val xs))
 
-sumE :: Events -> Event
+sumE :: Events -> ChunkC Event
 sumE = summarizeE (F.foldl' (+) 0)
 
-prodE :: Events -> Event
+prodE :: Events -> ChunkC Event
 prodE = summarizeE (F.foldl' (*) 1)
 
-firstE :: Events -> Event
+firstE :: S.Seq Event -> Event
 firstE xs = let (x S.:< _) = S.viewl xs
             in x
 
-lastE :: Events -> Event
+lastE :: S.Seq Event -> Event
 lastE xs = let (_ S.:> x) = S.viewr xs
            in x
 
-medianE :: Events -> Event
-medianE xs
-    | odd l     = firstE (S.drop m sxs)
-    | otherwise = meanE (S.take 2 $ S.drop m sxs)
-  where l   = S.length xs
-        m   = l `div` 2
-        sxs = S.unstableSortBy (compare `on` val) xs
+medianE :: Events -> ChunkC Event
+medianE c0
+    | odd l     = fmap (firstE . S.drop m) c
+    | otherwise = meanE (fmap (S.take 2 . S.drop m) c)
+  where l = S.length (chk c0)
+        m = l `div` 2
+        c = fmap (S.unstableSortBy (compare `on` val)) c
 
 timediff :: Events -> Time
-timediff xs = let e1 = time $ firstE xs
-                  e0 = time $ lastE xs
-              in diff e1 e0
+timediff c = let xs = chk c
+                 e1 = time $ firstE xs
+                 e0 = time $ lastE xs
+             in diff e1 e0
+
+chkSplitAt :: Int -> Events -> (Events, Events)
+chkSplitAt m c = let (l, r) = S.splitAt m (chk c)
+                 in (new_ l, new r (eof c))
 
 proc :: Function -> Pipeline
-proc (Window n m)       = windowBy ((n ==) . S.length) (S.splitAt m)
-proc (TimeWindow n)     = windowBy ((> n) . timediff) (\xs -> (xs, S.empty))
+proc (Window n m)       = windowBy ((n ==) . S.length . chk) (chkSplitAt m)
+proc (TimeWindow n)     = windowBy ((> n) . timediff) (\xs -> (xs, mempty))
 proc Sum                = procFoldEvent sumE
 proc Prod               = procFoldEvent prodE
 proc Abs                = procMapEvent abs
@@ -94,8 +103,8 @@ proc Round              = procMapEvent (fromInteger . round)
 proc Truncate           = procMapEvent (fromInteger . truncate)
 proc Mean               = procFoldEvent meanE
 proc Median             = procFoldEvent medianE
-proc Maximum            = procFoldEvent (F.maximumBy (compare `on` val))
-proc Minimum            = procFoldEvent (F.maximumBy (compare `on` val))
+proc Maximum            = procFoldEvent (fmap (F.maximumBy (compare `on` val)))
+proc Minimum            = procFoldEvent (fmap (F.maximumBy (compare `on` val)))
 proc (Arithmetic Div t) = procMapEvent (/ t)
 proc (Arithmetic Sub t) = procMapEvent (\n -> n - t)
 proc (Arithmetic Mul t) = procMapEvent (* t)
@@ -123,12 +132,25 @@ feedback k es = do { (z, m) <- get
   where go z Nothing  = Just (feed z es)
         go _ (Just f) = Just (feed f es)
 
+eofChunk :: Events
+eofChunk = new mempty True
+
 newMultiplex :: [Function] -> (Pipeline, M.Map Key Pipeline)
 newMultiplex p = (pipeline p, M.empty)
 
 multiplex :: (Monad m) => Key -> Event -> StateT (Pipeline, M.Map Key Pipeline) m Events
 multiplex k e = do { p <- getenv k
-                   ; case (eval $ feed p (S.singleton e))
-                     of Left f        -> putenv k f >> return S.empty
-                        Right (o, i)  -> (when (not $ S.null i)) (feedback k i) >> return o
+                   ; case (eval $ feed p (new_ $ S.singleton e))
+                     of Left f        -> putenv k f >> return mempty
+                        Right (o, i)  -> (when (not $ null i)) (feedback k i) >> return o
                    }
+
+broadcastEOF :: (Monad m) => StateT (Pipeline, M.Map Key Pipeline) m [(Key, Events)]
+broadcastEOF = do { (p, m) <- get
+                  ; put (p, M.empty)
+                  ; return (broadcast (M.toList m))
+                  }
+  where broadcast []         = []
+        broadcast ((k,f):xs) = case (eval $ feed f eofChunk)
+                               of Right (o, _) -> (k, o) : broadcast xs
+                                  _            -> broadcast xs

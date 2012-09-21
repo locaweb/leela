@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 -- All Rights Reserved.
 --
 --    Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,6 +27,7 @@ import           DarkMatter.Data.Event
 import           DarkMatter.Data.Asm.Types
 import           DarkMatter.Data.Asm.Parser
 import           DarkMatter.Data.Asm.Runtime
+import           DarkMatter.Data.Asm.Render
 import           DarkMatter.Network.Protocol
 
 type Input = (Key, Event)
@@ -45,14 +45,17 @@ creat ichan ochan = do { mi <- liftIO (readChan ichan)
                          of Just (k, e) -> do { multiplex k e >>= liftIO . sendData ochan k
                                               ; creat ichan ochan
                                               }
-                            Nothing     -> liftIO $ sendEOF ochan
+                            Nothing     -> do { liftIO $ debug " broadcasting EOF and closing worker thread"
+                                              ; broadcastEOF >>= liftIO . mapM_ (uncurry (sendData ochan))
+                                              ; liftIO (sendNil ochan)
+                                              }
                        }
 
 sendData :: BoundedChan (Maybe (k, v)) -> k -> v -> IO ()
 sendData chan k v = writeChan chan (Just (k, v))
 
-sendEOF :: BoundedChan (Maybe a) -> IO ()
-sendEOF = flip writeChan Nothing
+sendNil :: BoundedChan (Maybe a) -> IO ()
+sendNil = flip writeChan Nothing
 
 forkfinally :: IO () -> IO () -> IO ThreadId
 forkfinally action after =
@@ -77,16 +80,16 @@ stream h ichan ochan = do
                  }
          _
            -> do { warn " error: invalid instruction (proc was expected)"
-                 ; sendEOF ochan
+                 ; sendNil ochan
                  }
     }
   where xThread = evalStateT (creat ichan ochan) . newMultiplex
 
         go cont [Event k t v]    = sendData ichan k (temporal t v) >> cont
         go cont (Event k t v:xs) = sendData ichan k (temporal t v) >> go cont xs
-        go _ (Close:_)           = sendEOF ichan
+        go _ (Close:_)           = sendNil ichan
         go _ _                   = do { warn " error: invalid instruction (event was excpected)"
-                                      ; sendEOF ichan
+                                      ; sendNil ichan
                                       }
     
 start :: FilePath -> IO ()
@@ -107,7 +110,7 @@ start f = do { warn ("binding server on: " ++ f)
                   ; fix (\loop -> do { mi <- readChan ochan
                                      ; case mi
                                        of Nothing -> return ()
-                                          Just _  -> loop
+                                          Just x  -> loop
                                      })
                   ; debug " flusing thread exiting"
                   }
