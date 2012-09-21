@@ -31,8 +31,8 @@ genKey = fmap B8.pack (listOf1 $ elements $ ['a'..'z'] ++ ['0'..'9'] ++ ['.'])
 genClose :: Gen Asm
 genClose = return Close
 
-genCreat :: Gen Asm
-genCreat = fmap Creat arbitrary
+genProc :: Gen Asm
+genProc = fmap Proc arbitrary
 
 genEvent :: Gen Asm
 genEvent = do { k <- genKey
@@ -44,7 +44,7 @@ genEvent = do { k <- genKey
 instance Arbitrary Asm where
   
   arbitrary = oneof [ genEvent
-                    , genCreat
+                    , genProc
                     , genClose
                     ]
 
@@ -54,6 +54,7 @@ instance Arbitrary Function where
                  ; m <- fmap abs arbitrary
                  ; t <- arbitrary
                  ; f <- arbitrary
+                 ; v <- arbitrary
                  ; elements [ Window n m
                             , TimeWindow t
                             , Sum
@@ -67,7 +68,7 @@ instance Arbitrary Function where
                             , Minimum
                             , Maximum
                             , Abs
-                            , Arithmetic f
+                            , Arithmetic f v
                             ]
                  }
 
@@ -78,11 +79,9 @@ instance Arbitrary Time where
                  ; return (mktime s n)
                  }
 
-instance Arbitrary ArithF where
+instance Arbitrary ArithOp where
 
-  arbitrary = do { n <- arbitrary
-                 ; elements [Mul n, Add n, Div n, Sub n]
-                 }
+  arbitrary = elements [Mul, Add, Div, Sub]
 
 instance Show Asm where
   

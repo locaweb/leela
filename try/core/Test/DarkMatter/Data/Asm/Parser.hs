@@ -36,10 +36,10 @@ event_spec =
     it "should be able to parse any \"event\" instructions"
       (forAll (arbitrary `suchThat` isEvent) $ check . runOne . toByteString . render)
 
-creat_spec :: Spec
-creat_spec =
-    it "should be able to parse any \"creat\" instructions"
-      (forAll (arbitrary `suchThat` isCreat) $ check . runOne . toByteString . render)
+proc_spec :: Spec
+proc_spec =
+    it "should be able to parse any \"proc\" instructions"
+      (forAll (arbitrary `suchThat` isProc) $ check . runOne . toByteString . render)
 
 close_spec :: Spec
 close_spec =
@@ -49,5 +49,5 @@ close_spec =
 specs :: Spec
 specs = describe "DarkMatter.Data.Asm.Parser" $ do
     describe "event" event_spec
-    describe "creat" creat_spec
+    describe "proc" proc_spec
     describe "close" close_spec

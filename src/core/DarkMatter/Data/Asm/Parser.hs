@@ -16,17 +16,17 @@
 -- | The language that is used to communicate with the core. The
 -- parser should be able to recognize the following grammar (ABNF):
 -- 
---   S        = CREAT
---            / EVENT
---            / CLOSE
---   EVENT  = "event" SP SIZE|KEY SP TIME SP VAL EOL
---   CREAT  = "creat" SP PROC *(SP "|" SP PROC) EOL
---   CLOSE  = "close" SP EOL
+--   S      = PROC
+--          / EVENT
+--          / CLOSE
+--   PROC   = "proc" SP FUNC *(SP "|" SP FUNC) EOL
+--   EVENT  = "event" SP KEY SP TIME SP VAL EOL
+--   CLOSE  = "close" EOL
 --   EOL    = ";"
---   KEY    = ALPHANUM
+--   KEY    = 1*DIGIT "|" ALPHANUM
 --   TIME   = 1*DIGIT "." 1*DIGIT
 --   VAL    = 1*DIGIT "." 1*DIGIT
---   PROC   = BINF
+--   FUNC   = "(" ARITHF ")"
 --          / WINDOW
 --          / "sum"
 --          / "prod"
@@ -39,10 +39,8 @@
 --          / "median"
 --          / "maximum"
 --          / "mininmum"
---   BINF   = (" F ")"
 --   WINDOW = "window" SP 1*DIGIT SP 1*DIGIT
---   F      = 1*DIGIT SP OP
---          / OP SP 1*DIGIT
+--   ARITHF = OP SP VAL
 --   OP     = "*"
 --          / "/"
 --          / "+"
@@ -63,8 +61,9 @@ asmParser :: Parser Asm
 asmParser = do { mc <- P8.peekChar
                ; case mc
                  of Just 'e' -> parseEvent
-                    Just 'c' -> choice [parseCreat, parseClose]
-                    _        -> fail ("error: e|c was expected")
+                    Just 'p' -> parseProc
+                    Just 'c' -> parseClose
+                    _        -> fail ("error: e|c|p was expected")
                }
 
 runOne :: B.ByteString -> Maybe (Asm, B.ByteString)
@@ -113,12 +112,12 @@ parseEvent = do { _   <- string "event "
                 ; return (Event key col val)
                 }
 
-parseCreat :: Parser Asm
-parseCreat = do { _         <- string "creat "
-                ; pipeline  <- parsePipeline
-                ; eol
-                ; return (Creat pipeline)
-                }
+parseProc :: Parser Asm
+parseProc = do { _         <- string "proc "
+               ; pipeline  <- parsePipeline
+               ; eol
+               ; return (Proc pipeline)
+               }
 
 parsePipeline :: Parser [Function]
 parsePipeline = parseFunction `sepBy` pipeSep

@@ -60,29 +60,26 @@ forkfinally action after =
   where f :: Either SomeException a -> IO ()
         f = const after
 
-forknotify :: MVar [MVar ()] -> IO () -> IO ()
-forknotify n io = do { sig <- newEmptyMVar
-                     ; _   <- forkfinally io (putMVar sig ())
-                     ; modifyMVar_ n (return . (sig:))
-                     }
-
 stream :: Socket -> BoundedChan (Maybe Input) -> BoundedChan (Maybe Output) -> IO ()
-stream h ichan ochan = do { notify <- newMVar []
-                          ; fix (\loop -> do { prog <- recvAsm h
-                                             ; case prog
-                                               of [] -> sendEOF ichan
-                                                  xs -> go notify loop xs
-                                             })
-                          ; takeMVar notify >>= mapM_ takeMVar
-                          }
-  where go _ cont []               = cont
-        go _ _ (Close:_)           = sendEOF ichan
-        go n cont (Creat p:xs)     = do { forknotify n (evalStateT (creat ichan ochan) (newMultiplex p))
-                                        ; go n cont xs
-                                        }
-        go n cont (Event k t v:xs) = do { sendData ichan k (temporal t v)
-                                        ; go n cont xs
-                                        }
+stream h ichan ochan = do
+    { wait <- newEmptyMVar
+    ; prog <- recvAsm h
+    ; case prog
+      of (Proc p:xs)
+           -> do { _ <- forkIO (xThread p >> putMVar wait ())
+                 ; if (null xs)
+                   then fix (\loop -> (recvAsm h >>= go loop))
+                   else go (fix (\loop -> (recvAsm h >>= go loop))) xs
+                 ; takeMVar wait
+                 }
+         _
+           -> return ()
+    }
+  where xThread = evalStateT (creat ichan ochan) . newMultiplex
+
+        go cont [Event k t v]    = sendData ichan k (temporal t v) >> cont
+        go cont (Event k t v:xs) = sendData ichan k (temporal t v) >> go cont xs
+        go _ _                   = sendEOF ichan
     
 start :: FilePath -> IO ()
 start f = do { s <- socket AF_UNIX SeqPacket 0
@@ -94,7 +91,7 @@ start f = do { s <- socket AF_UNIX SeqPacket 0
                                 })
              }
   where go c = do { ochan  <- newBoundedChan 5
-                  ; ichan  <- newBoundedChan 5
+                  ; ichan  <- newBoundedChan 10
                   ; _      <- forkIO (stream c ichan ochan)
                   ; fix (\loop -> do { mi <- readChan ochan
                                      ; case mi

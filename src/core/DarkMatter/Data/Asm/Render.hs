@@ -94,6 +94,6 @@ render (Event k t v) = fromString "event "
                        <> fromChar ' '
                        <> renderDouble v
                        <> fromChar ';'
-render (Creat f)     = fromString "creat "
-                       <> renderPipeline f
-                       <> fromChar ';'
+render (Proc f)     = fromString "proc "
+                      <> renderPipeline f
+                      <> fromChar ';'

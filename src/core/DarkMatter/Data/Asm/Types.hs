@@ -18,7 +18,7 @@ module DarkMatter.Data.Asm.Types
        , Asm(..)
        , Function(..)
        , ArithOp(..)
-       , isCreat
+       , isProc
        , isClose
        , isEvent
        ) where
@@ -51,12 +51,12 @@ type Key = B.ByteString
 
 -- | The available instructions to execute
 data Asm = Event Key Time Double
-         | Creat [Function]
+         | Proc [Function]
          | Close
 
-isCreat :: Asm -> Bool
-isCreat (Creat _) = True
-isCreat _         = False
+isProc :: Asm -> Bool
+isProc (Proc _) = True
+isProc _        = False
 
 isEvent :: Asm -> Bool
 isEvent (Event _ _ _) = True
