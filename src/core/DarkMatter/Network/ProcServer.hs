@@ -14,12 +14,16 @@
 
 module DarkMatter.Network.ProcServer where
 
+import           Prelude hiding (null)
 import           Control.Concurrent hiding (readChan, writeChan)
 import           Control.Concurrent.BoundedChan
 import           Control.Exception
 import           Control.Monad.Trans.State
 import           Control.Monad.Trans
 import           Data.Function
+import           Data.Monoid
+import           Blaze.ByteString.Builder (toByteStringIO)
+import qualified Data.Foldable as F
 import qualified Data.Map as M
 import           Network.Socket
 import           DarkMatter.Logger (debug, info, warn)
@@ -29,6 +33,7 @@ import           DarkMatter.Data.Asm.Parser
 import           DarkMatter.Data.Asm.Runtime
 import           DarkMatter.Data.Asm.Render
 import           DarkMatter.Network.Protocol
+import           DarkMatter.Data.Proc
 
 type Input = (Key, Event)
 
@@ -42,14 +47,17 @@ recvAsm h = fmap runAll (recvFrame h)
 creat :: (BoundedChan (Maybe Input)) -> (BoundedChan (Maybe Output)) -> StateT (Pipeline, M.Map Key Pipeline) IO ()
 creat ichan ochan = do { mi <- liftIO (readChan ichan)
                        ; case mi
-                         of Just (k, e) -> do { multiplex k e >>= liftIO . sendData ochan k
+                         of Just (k, e) -> do { multiplex k e >>= dosend k
                                               ; creat ichan ochan
                                               }
                             Nothing     -> do { liftIO $ debug " broadcasting EOF and closing worker thread"
-                                              ; broadcastEOF >>= liftIO . mapM_ (uncurry (sendData ochan))
+                                              ; broadcastEOF >>= liftIO . mapM_ (uncurry dosend)
                                               ; liftIO (sendNil ochan)
                                               }
                        }
+  where dosend k v
+          | null v    = return ()
+          | otherwise = liftIO (sendData ochan k v)
 
 sendData :: BoundedChan (Maybe (k, v)) -> k -> v -> IO ()
 sendData chan k v = writeChan chan (Just (k, v))
@@ -103,15 +111,17 @@ start f = do { warn ("binding server on: " ++ f)
                                 ; loop
                                 })
              }
-  where go c = do { ochan  <- newBoundedChan 5
-                  ; ichan  <- newBoundedChan 10
+  where go c = do { ochan  <- newBoundedChan 2
+                  ; ichan  <- newBoundedChan 75
                   ; debug " forking flushing thread"
                   ; _      <- forkIO (stream c ichan ochan)
                   ; fix (\loop -> do { mi <- readChan ochan
                                      ; case mi
-                                       of Nothing -> return ()
-                                          Just x  -> loop
+                                       of Nothing     -> return ()
+                                          Just (k, v) -> let key   = renderKey k
+                                                             build = \acc e -> renderEvent key e <> acc
+                                                             msg = F.foldl' build mempty (chk v)
+                                                         in toByteStringIO (sendFrame c) msg >> loop
                                      })
                   ; debug " flusing thread exiting"
                   }
-

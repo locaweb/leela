@@ -51,9 +51,10 @@ renderEvent :: Builder -> Event -> Builder
 renderEvent k e = fromString "event "
                   <> k
                   <> fromChar ' '
-                  <> renderDouble (val e)
-                  <> fromChar ' '
                   <> renderTime (time e)
+                  <> fromChar ' '
+                  <> renderDouble (val e)
+                  <> fromChar ';'
 
 renderFunction :: Function -> Builder
 renderFunction Mean             = fromString "mean"
@@ -93,6 +94,6 @@ render (Event k t v) = fromString "event "
                        <> fromChar ' '
                        <> renderDouble v
                        <> fromChar ';'
-render (Proc f)     = fromString "proc "
-                      <> renderPipeline f
-                      <> fromChar ';'
+render (Proc f)      = fromString "proc "
+                       <> renderPipeline f
+                       <> fromChar ';'

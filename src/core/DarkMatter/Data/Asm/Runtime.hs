@@ -89,11 +89,11 @@ timediff c = let xs = chk c
 
 chkSplitAt :: Int -> Events -> (Events, Events)
 chkSplitAt m c = let (l, r) = S.splitAt m (chk c)
-                 in (new_ l, new r (eof c))
+                 in (new l (eof c), new r (eof c))
 
 proc :: Function -> Pipeline
 proc (Window n m)       = windowBy ((n ==) . S.length . chk) (chkSplitAt m)
-proc (TimeWindow n)     = windowBy ((> n) . timediff) (\xs -> (xs, mempty))
+proc (TimeWindow n)     = windowBy ((> n) . timediff) (\c -> (c, mempty))
 proc Sum                = procFoldEvent sumE
 proc Prod               = procFoldEvent prodE
 proc Abs                = procMapEvent abs
@@ -111,7 +111,8 @@ proc (Arithmetic Mul t) = procMapEvent (* t)
 proc (Arithmetic Add t) = procMapEvent (+ t)
 
 pipeline :: [Function] -> Pipeline
-pipeline = foldr (\f acc -> proc f `pipe` acc) (pureF id)
+pipeline = foldr (\f acc -> proc f `pipe` acc) buffer
+  where buffer = windowBy ((200 ==) . S.length . chk) (\n -> (n, mempty))
 
 getenv :: (Monad m) => Key -> StateT (Pipeline, M.Map Key Pipeline) m Pipeline
 getenv k = do { (z, m) <- get
@@ -124,6 +125,11 @@ putenv :: (Monad m) => Key -> Pipeline -> StateT (Pipeline, M.Map Key Pipeline) 
 putenv k p = do { (z, m) <- get
                 ; put (z, M.insert k p m)
                 }
+
+reset :: (Monad m) => Key -> StateT (Pipeline, M.Map Key Pipeline) m ()
+reset k = do { (z, m) <- get
+             ; put (z, M.insert k z m)
+             }
 
 feedback :: (Monad m) => Key -> Events -> StateT (Pipeline, M.Map Key Pipeline) m ()
 feedback k es = do { (z, m) <- get
@@ -142,7 +148,7 @@ multiplex :: (Monad m) => Key -> Event -> StateT (Pipeline, M.Map Key Pipeline) 
 multiplex k e = do { p <- getenv k
                    ; case (eval $ feed p (new_ $ S.singleton e))
                      of Left f        -> putenv k f >> return mempty
-                        Right (o, i)  -> (when (not $ null i)) (feedback k i) >> return o
+                        Right (o, i)  -> reset k >> (when (not $ null i)) (feedback k i) >> return o
                    }
 
 broadcastEOF :: (Monad m) => StateT (Pipeline, M.Map Key Pipeline) m [(Key, Events)]

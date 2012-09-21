@@ -31,6 +31,7 @@ module DarkMatter.Data.Proc
        , new_
        , chk
        , eof
+       , setEOF
        -- ^ Evaluators
        , feed
        , eval
@@ -96,10 +97,8 @@ pureF f = await (done . f)
 windowBy :: (Monoid i) => (ChunkC i -> Bool) -> (ChunkC i -> (ChunkC i, ChunkC i)) -> Proc (ChunkC i) (ChunkC i)
 windowBy f g = go mempty
   where go !acc
-          | f acc     = uncurry doneR (g acc)
-          | otherwise = await (\i -> if (eof i)
-                                     then done acc
-                                     else go (acc <> i))
+          | f acc || eof acc = uncurry doneR (g acc)
+          | otherwise        = await (\i -> go (acc <> i))
 
 addResidue :: (Monoid i) => i -> Proc i o -> Proc i o
 addResidue i (Put a i1) = Put a (i <> i1)
@@ -111,6 +110,9 @@ isPut _         = False
 
 eof :: ChunkC a -> Bool
 eof (ChunkC x) = snd x
+
+setEOF :: ChunkC a -> ChunkC a
+setEOF (ChunkC (a,_)) = ChunkC (a, True)
 
 chk :: ChunkC a -> a
 chk (ChunkC x) = fst x
