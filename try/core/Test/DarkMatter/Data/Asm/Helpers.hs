@@ -41,6 +41,10 @@ genEvent = do { k <- genKey
               ; return (Event k c v)
               }
 
+isWindow :: Function -> Bool
+isWindow (Window _ _) = True
+isWindow _            = False
+
 instance Arbitrary Asm where
   
   arbitrary = oneof [ genEvent
@@ -51,11 +55,11 @@ instance Arbitrary Asm where
 instance Arbitrary Function where
   
   arbitrary = do { n <- fmap abs arbitrary
-                 ; m <- fmap abs arbitrary
                  ; t <- arbitrary
                  ; f <- arbitrary
+                 ; p <- fmap (filter (not . isWindow)) arbitrary
                  ; v <- arbitrary
-                 ; elements [ Window n m
+                 ; elements [ Window n p
                             , TimeWindow t
                             , Sum
                             , Prod

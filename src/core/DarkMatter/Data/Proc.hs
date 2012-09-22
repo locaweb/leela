@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
 -- All Rights Reserved.
 --
 --    Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +19,6 @@ module DarkMatter.Data.Proc
        , ChunkC()
        -- ^ Combinators
        , done
-       , doneR
        , await
        , apply
        , pureF
@@ -44,16 +42,12 @@ import           Data.Monoid
 
 newtype ChunkC a = ChunkC (a, Bool)
 
-data Proc i o = Put o i
+data Proc i o = Put o
               | Get (i -> Proc i o)
 
 -- | Produces a value, usually meaning the proc is done
-done :: (Monoid i) => o -> Proc i o
-done = flip doneR mempty
-
--- | Produces a value with a leftover
-doneR :: o -> i -> Proc i o
-doneR = Put
+done :: o -> Proc i o
+done = Put
 
 -- | Requests more input
 await :: (i -> Proc i o) -> Proc i o
@@ -61,20 +55,20 @@ await = Get
 
 -- | Feeds a single input effectively moving the proc to its next
 -- state.
-feed :: (Monoid i) => Proc i o -> i -> Proc i o
-feed (Get f) i    = f i
-feed (Put a i0) i = Put a (i0 <> i)
+feed :: (Monoid i, Chunk i) => Proc i o -> i -> Proc i o
+feed (Get f) i = f i
+feed put _     = put
 
 -- | Evaluates the process. Right is used when the proc has produced a
 -- result. Left when it is requesting more data.
-eval :: Proc i o -> Either (Proc i o) (o, i)
-eval (Put o i) = Right (o, i)
-eval f         = Left f
+eval :: Proc i o -> Either (Proc i o) o
+eval (Put o) = Right o
+eval f       = Left f
 
 -- | Apply a pure function over the proc.
 apply :: (a -> b) -> Proc i a -> Proc i b
-apply f (Put a i) = doneR (f a) i
-apply f (Get g)   = await (\i -> apply f (g i))
+apply f (Put a) = done (f a)
+apply f (Get g) = await (\i -> apply f (g i))
 
 -- | Connects two procs. It fully evaluatates the first proc and its
 -- result is fed up into the second proc. Notice that if the second
@@ -82,31 +76,32 @@ apply f (Get g)   = await (\i -> apply f (g i))
 pipe :: (Monoid a, Chunk a) => Proc a a  -- ^ The first proc
                             -> Proc a a  -- ^ The second proc
                             -> Proc a a
-pipe (Put _ i0) (Put a i1) = Put a (i0 <> i1)
-pipe (Put a i0) (Get f)
-  | null i0                = f a
-  | otherwise              = addResidue i0 $ f a
+pipe (Put _) (Put _) = error "error: double put"
+pipe (Put a) (Get f) = f a
 pipe (Get f) g
-  | isPut g                = g
-  | otherwise              = await (\i -> f i `pipe` g)
+  | isPut g          = g
+  | otherwise        = await (\i -> f i `pipe` g)
 
 -- | Uses a pure function as a proc.
 pureF :: (Monoid i) => (i -> o) -> Proc i o
 pureF f = await (done . f)
 
-windowBy :: (Monoid i) => (ChunkC i -> Bool) -> (ChunkC i -> (ChunkC i, ChunkC i)) -> Proc (ChunkC i) (ChunkC i)
-windowBy f g = go mempty
-  where go !acc
-          | f acc || eof acc = uncurry doneR (g acc)
-          | otherwise        = await (\i -> go (acc <> i))
-
-addResidue :: (Monoid i) => i -> Proc i o -> Proc i o
-addResidue i (Put a i1) = Put a (i <> i1)
-addResidue i (Get f)    = Get (\i1 -> addResidue i $ f i1)
+windowBy :: (Monoid i, Chunk i) => (ChunkC i -> Bool)
+                                -> Proc (ChunkC i) o
+                                -> Proc (ChunkC i) o
+windowBy f proc0 = go proc0 mempty
+  where go proc acc
+          | f acc      = case (eval $ feed proc acc)
+                         of Right o -> done o
+                            Left h  -> go h mempty
+          | eof acc    = case (eval $ feed proc acc)
+                         of Right o -> done o
+                            _       -> error "windowBy: EOF"
+          | otherwise  = await (\i -> go proc (i <> acc))
 
 isPut :: Proc i o -> Bool
-isPut (Put _ _) = True
-isPut _         = False
+isPut (Put _) = True
+isPut _       = False
 
 eof :: ChunkC a -> Bool
 eof (ChunkC x) = snd x
@@ -118,10 +113,10 @@ chk :: ChunkC a -> a
 chk (ChunkC x) = fst x
 
 new_ :: a -> ChunkC a
-new_ a = ChunkC (a, False)
+new_ a = a `seq` ChunkC (a, False)
 
 new :: a -> Bool -> ChunkC a
-new = curry ChunkC
+new a b = a `seq` ChunkC (a, b)
 
 class Chunk i where
   

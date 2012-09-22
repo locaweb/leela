@@ -26,7 +26,7 @@ import DarkMatter.Data.Time
 import Data.ByteString as B
 
 -- | The functions available to users
-data Function = Window Int Int
+data Function = Window Int [Function]
               | TimeWindow Time
               | Sum
               | Prod

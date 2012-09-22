@@ -21,8 +21,8 @@ module DarkMatter.Data.Time
        , diff
        ) where
 
-newtype Time = Time { unTime ::  (Int, Int) }
-             deriving (Show, Eq, Ord)
+newtype Time = Time { unTime :: (Int, Int) }
+             deriving (Eq, Ord)
 
 seconds :: Time -> Int
 seconds = fst . unTime
@@ -31,7 +31,8 @@ nseconds :: Time -> Int
 nseconds = snd . unTime
 
 mktime :: Int -> Int -> Time
-mktime = curry Time
+mktime s n = Time (s, n)
+{-# INLINE mktime #-}
 
 nmax :: Int
 nmax = 10 ^ (9 :: Int)

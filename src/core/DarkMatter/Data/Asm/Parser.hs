@@ -158,9 +158,9 @@ parseOp = do { c <- P8.satisfy (`elem` "*+/-")
 parseWindow :: Parser Function
 parseWindow = do { _ <- string "window "
                  ; n <- parseInt
-                 ; _ <- P8.space
-                 ; m <- parseInt
-                 ; return (Window n m)
+                 ; _ <- P8.string " | "
+                 ; f <- parsePipeline
+                 ; return (Window n f)
                  }
 
 parseTimeWindow :: Parser Function

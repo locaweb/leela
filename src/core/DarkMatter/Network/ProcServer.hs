@@ -18,7 +18,6 @@ import           Prelude hiding (null)
 import           Control.Concurrent hiding (readChan, writeChan)
 import           Control.Concurrent.BoundedChan
 import           Control.Exception
-import           Control.Monad.Trans.State
 import           Control.Monad.Trans
 import           Data.Function
 import           Data.Monoid
@@ -26,7 +25,7 @@ import           Blaze.ByteString.Builder (toByteStringIO)
 import qualified Data.Foldable as F
 import qualified Data.Map as M
 import           Network.Socket
-import           DarkMatter.Logger (debug, info, warn)
+import           DarkMatter.Logger (debug, info, warn, crit)
 import           DarkMatter.Data.Event
 import           DarkMatter.Data.Asm.Types
 import           DarkMatter.Data.Asm.Parser
@@ -44,20 +43,21 @@ type State = M.Map Key Pipeline
 recvAsm :: Socket -> IO [Asm]
 recvAsm h = fmap runAll (recvFrame h)
 
-creat :: (BoundedChan (Maybe Input)) -> (BoundedChan (Maybe Output)) -> StateT (Pipeline, M.Map Key Pipeline) IO ()
-creat ichan ochan = do { mi <- liftIO (readChan ichan)
-                       ; case mi
-                         of Just (k, e) -> do { multiplex k e >>= dosend k
-                                              ; creat ichan ochan
-                                              }
-                            Nothing     -> do { liftIO $ debug " broadcasting EOF and closing worker thread"
-                                              ; broadcastEOF >>= liftIO . mapM_ (uncurry dosend)
-                                              ; liftIO (sendNil ochan)
-                                              }
-                       }
-  where dosend k v
-          | null v    = return ()
-          | otherwise = liftIO (sendData ochan k v)
+creat :: (BoundedChan (Maybe Input)) -> (BoundedChan (Maybe Output)) -> Runtime IO ()
+creat ichan ochan =
+  do { mi <- liftIO (readChan ichan)
+     ; case mi
+       of Just (k, e) -> do { multiplex1 k e >>= dosend k
+                            ; creat ichan ochan
+                            }
+          Nothing     -> do { liftIO $ debug " broadcasting EOF and closing worker thread"
+                            ; broadcastEOF >>= liftIO . mapM_ (uncurry dosend)
+                            ; liftIO (sendNil ochan)
+                            }
+     }
+    where dosend k v
+            | null v    = return ()
+            | otherwise = liftIO (sendData ochan k v)
 
 sendData :: BoundedChan (Maybe (k, v)) -> k -> v -> IO ()
 sendData chan k v = writeChan chan (Just (k, v))
@@ -69,8 +69,8 @@ forkfinally :: IO () -> IO () -> IO ThreadId
 forkfinally action after =
     mask $ \restore ->
       forkIO $ try (restore action) >>= f
-  where f :: Either SomeException a -> IO ()
-        f = const after
+  where f (Left (SomeException e)) = crit (show e) >> after
+        f _                        = after
 
 stream :: Socket -> BoundedChan (Maybe Input) -> BoundedChan (Maybe Output) -> IO ()
 stream h ichan ochan = do
@@ -79,7 +79,7 @@ stream h ichan ochan = do
     ; case prog
       of (Proc p:xs)
            -> do { debug " forking worker thread"
-                 ; _ <- forkIO (xThread p >> putMVar wait ())
+                 ; _ <- forkIO (run (creat ichan ochan) (newMultiplex p) >> putMVar wait ())
                  ; if (null xs)
                    then fix (\loop -> (recvAsm h >>= go loop))
                    else go (fix (\loop -> (recvAsm h >>= go loop))) xs
@@ -91,9 +91,7 @@ stream h ichan ochan = do
                  ; sendNil ochan
                  }
     }
-  where xThread = evalStateT (creat ichan ochan) . newMultiplex
-
-        go cont [Event k t v]    = sendData ichan k (temporal t v) >> cont
+  where go cont [Event k t v]    = sendData ichan k (temporal t v) >> cont
         go cont (Event k t v:xs) = sendData ichan k (temporal t v) >> go cont xs
         go _ (Close:_)           = sendNil ichan
         go _ _                   = do { warn " error: invalid instruction (event was excpected)"
@@ -120,7 +118,7 @@ start f = do { warn ("binding server on: " ++ f)
                                        of Nothing     -> return ()
                                           Just (k, v) -> let key   = renderKey k
                                                              build = \acc e -> renderEvent key e <> acc
-                                                             msg = F.foldl' build mempty (chk v)
+                                                             msg   = F.foldl' build mempty (chk v)
                                                          in toByteStringIO (sendFrame c) msg >> loop
                                      })
                   ; debug " flusing thread exiting"
