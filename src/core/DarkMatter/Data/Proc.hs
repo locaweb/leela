@@ -86,18 +86,12 @@ pipe (Get f) g
 pureF :: (Monoid i) => (i -> o) -> Proc i o
 pureF f = await (done . f)
 
-windowBy :: (Monoid i, Chunk i) => (ChunkC i -> Bool)
-                                -> Proc (ChunkC i) o
-                                -> Proc (ChunkC i) o
-windowBy f proc0 = go proc0 mempty
-  where go proc acc
-          | f acc      = case (eval $ feed proc acc)
-                         of Right o -> done o
-                            Left h  -> go h mempty
-          | eof acc    = case (eval $ feed proc acc)
-                         of Right o -> done o
-                            _       -> error "windowBy: EOF"
-          | otherwise  = await (\i -> go proc (i <> acc))
+windowBy :: (Monoid i, Chunk i) => (ChunkC i -> Bool) -> Proc (ChunkC i) (ChunkC i)
+windowBy f = go mempty
+  where go acc
+          | f acc     = done acc
+          | eof acc   = done acc
+          | otherwise = await (\i -> go (i <> acc))
 
 isPut :: Proc i o -> Bool
 isPut (Put _) = True

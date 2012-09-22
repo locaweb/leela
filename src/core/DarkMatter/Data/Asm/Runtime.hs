@@ -80,7 +80,7 @@ medianE c0
         c = fmap (sortBy (compare `on` val)) c0
 
 proc :: Function -> Pipeline
-proc (Window n f)       = windowBy ((>= n) . length . chk) (pipeline f)
+proc (Window n)         = windowBy ((>= n) . length . chk)
 proc (TimeWindow _)     = undefined -- windowBy ((> n) . timediff) (\c -> (c, mempty))
 proc Sum                = procFoldEvent sumE
 proc Prod               = procFoldEvent prodE

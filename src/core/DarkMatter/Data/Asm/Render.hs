@@ -75,10 +75,8 @@ renderFunction (Arithmetic o v) = fromChar '('
                                   <> fromChar ')'
 renderFunction (TimeWindow t)   = fromString "time_window "
                                   <> renderTime t
-renderFunction (Window n f)   = fromString "window "
-                                <> fromShow n
-                                <> fromString " | "
-                                <> renderPipeline f
+renderFunction (Window n)       = fromString "window "
+                                  <> fromShow n
 
 renderKey :: B.ByteString -> Builder
 renderKey k = fromShow (B.length k)
