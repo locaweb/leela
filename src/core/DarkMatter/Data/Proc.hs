@@ -86,6 +86,9 @@ pipe (Get f) g
 pureF :: (Monoid i) => (i -> o) -> Proc i o
 pureF f = await (done . f)
 
+-- | N.B.: This is not safe. You cannot combine multiple window
+-- functions. Need to remove it from here and create a proper control
+-- structure.
 windowBy :: (Monoid i, Chunk i) => (ChunkC i -> Bool) -> Proc (ChunkC i) (ChunkC i)
 windowBy f = go mempty
   where go acc
