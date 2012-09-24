@@ -23,7 +23,6 @@ module DarkMatter.Data.Proc
        , apply
        , pureF
        , pipe
-       , windowBy
        -- ^ ChunkC
        , new
        , new_
@@ -35,9 +34,9 @@ module DarkMatter.Data.Proc
        , eval
        ) where
 
-import           Prelude hiding (null, take, drop)
+import           Prelude hiding (null)
+import           Control.Monad
 import qualified Data.List as L
-import qualified Data.Sequence as S
 import           Data.Monoid
 
 newtype ChunkC a = ChunkC (a, Bool)
@@ -55,7 +54,7 @@ await = Get
 
 -- | Feeds a single input effectively moving the proc to its next
 -- state.
-feed :: (Monoid i, Chunk i) => Proc i o -> i -> Proc i o
+feed :: Proc i o -> i -> Proc i o
 feed (Get f) i = f i
 feed put _     = put
 
@@ -73,32 +72,18 @@ apply f (Get g) = await (\i -> apply f (g i))
 -- | Connects two procs. It fully evaluatates the first proc and its
 -- result is fed up into the second proc. Notice that if the second
 -- proc does not requests input, the first one is completely ignored.
-pipe :: (Monoid a, Chunk a) => Proc a a  -- ^ The first proc
-                            -> Proc a a  -- ^ The second proc
-                            -> Proc a a
-pipe (Put _) (Put _) = error "error: double put"
-pipe (Put a) (Get f) = f a
-pipe (Get f) g
-  | isPut g          = g
-  | otherwise        = await (\i -> f i `pipe` g)
+pipe :: Proc i i1  -- ^ The first proc
+     -> Proc i1 o  -- ^ The second proc
+     -> Proc i o
+pipe _       (Put a) = done a
+pipe (Put i) (Get f) = case (f i)
+                       of Put a -> done a
+                          _     -> error "pipe: EOF"
+pipe (Get f) g       = await (\i -> f i `pipe` g)
 
 -- | Uses a pure function as a proc.
-pureF :: (Monoid i) => (i -> o) -> Proc i o
+pureF :: (i -> o) -> Proc i o
 pureF f = await (done . f)
-
--- | N.B.: This is not safe. You cannot combine multiple window
--- functions. Need to remove it from here and create a proper control
--- structure.
-windowBy :: (Monoid i, Chunk i) => (ChunkC i -> Bool) -> Proc (ChunkC i) (ChunkC i)
-windowBy f = go mempty
-  where go acc
-          | f acc     = done acc
-          | eof acc   = done acc
-          | otherwise = await (\i -> go (i <> acc))
-
-isPut :: Proc i o -> Bool
-isPut (Put _) = True
-isPut _       = False
 
 eof :: ChunkC a -> Bool
 eof (ChunkC x) = snd x
@@ -126,10 +111,6 @@ instance Functor (Proc i) where
 instance Chunk [a] where
   
   null = L.null
-
-instance Chunk (S.Seq a) where
-
-  null = S.null
 
 instance Functor ChunkC where
 

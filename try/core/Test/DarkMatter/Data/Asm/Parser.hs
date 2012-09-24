@@ -19,6 +19,7 @@ module Test.DarkMatter.Data.Asm.Parser
        ) where
 
 import           Blaze.ByteString.Builder
+import           Data.Maybe
 import qualified Data.ByteString as B
 import           Test.Hspec
 import           Test.QuickCheck
@@ -27,24 +28,20 @@ import           DarkMatter.Data.Asm.Types
 import           DarkMatter.Data.Asm.Parser
 import           DarkMatter.Data.Asm.Render
 
-check :: Maybe (a, B.ByteString) -> Bool
-check (Just (_, i)) = B.null i
-check _             = False
-
 event_spec :: Spec
 event_spec =
     it "should be able to parse any \"event\" instructions"
-      (forAll (arbitrary `suchThat` isEvent) $ check . runOne . toByteString . render)
+      (forAll (arbitrary `suchThat` isEvent) $ isJust . runOne . toByteString . render)
 
 proc_spec :: Spec
 proc_spec =
     it "should be able to parse any \"proc\" instructions"
-      (forAll (arbitrary `suchThat` isProc) $ check . runOne . toByteString . render)
+      (forAll (arbitrary `suchThat` isProc) $ isJust . runOne . toByteString . render)
 
 close_spec :: Spec
 close_spec =
     it "should be able to parse any \"close\" instructions"
-      (forAll (arbitrary `suchThat` isClose) $ check . runOne . toByteString . render)
+      (forAll (arbitrary `suchThat` isClose) $ isJust . runOne . toByteString . render)
 
 specs :: Spec
 specs = describe "DarkMatter.Data.Asm.Parser" $ do

@@ -22,7 +22,7 @@ module DarkMatter.Data.Time
        ) where
 
 newtype Time = Time { unTime :: (Int, Int) }
-             deriving (Eq, Ord)
+             deriving (Show, Eq, Ord)
 
 seconds :: Time -> Int
 seconds = fst . unTime

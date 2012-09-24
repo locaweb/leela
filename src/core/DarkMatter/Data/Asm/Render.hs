@@ -56,6 +56,13 @@ renderEvent k e = fromString "event "
                   <> renderDouble (val e)
                   <> fromChar ';'
 
+renderMode :: Mode -> Builder
+renderMode ForEach      = fromString "foreach"
+renderMode (Window n m) = fromString "window "
+                          <> fromShow n
+                          <> fromChar ' '
+                          <> fromShow m
+
 renderFunction :: Function -> Builder
 renderFunction Mean             = fromString "mean"
 renderFunction Median           = fromString "median"
@@ -73,10 +80,6 @@ renderFunction (Arithmetic o v) = fromChar '('
                                   <> fromChar ' '
                                   <> renderDouble v
                                   <> fromChar ')'
-renderFunction (TimeWindow t)   = fromString "time_window "
-                                  <> renderTime t
-renderFunction (Window n)       = fromString "window "
-                                  <> fromShow n
 
 renderKey :: B.ByteString -> Builder
 renderKey k = fromShow (B.length k)
@@ -92,6 +95,8 @@ render (Event k t v) = fromString "event "
                        <> fromChar ' '
                        <> renderDouble v
                        <> fromChar ';'
-render (Proc f)      = fromString "proc "
+render (Proc m f)    = fromString "proc "
+                       <> renderMode m
+                       <> fromString " | "
                        <> renderPipeline f
                        <> fromChar ';'

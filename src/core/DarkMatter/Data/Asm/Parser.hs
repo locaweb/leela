@@ -19,15 +19,17 @@
 --   S      = PROC
 --          / EVENT
 --          / CLOSE
---   PROC   = "proc" SP FUNC *(SP "|" SP FUNC) EOL
+--   PROC   = "proc" SP MODE *(SP "|" SP FUNC) EOL
 --   EVENT  = "event" SP KEY SP TIME SP VAL EOL
 --   CLOSE  = "close" EOL
 --   EOL    = ";"
+--   MODE   = WINDOW / MAP
+--   WINDOW = "window" 1*DIGIT 1*DIGIT
+--   MAP    = "foreach"
 --   KEY    = 1*DIGIT "|" ALPHANUM
 --   TIME   = 1*DIGIT "." 1*DIGIT
 --   VAL    = 1*DIGIT "." 1*DIGIT
 --   FUNC   = "(" ARITHF ")"
---          / WINDOW
 --          / "sum"
 --          / "prod"
 --          / "truncate"
@@ -39,7 +41,6 @@
 --          / "median"
 --          / "maximum"
 --          / "mininmum"
---   WINDOW = "window" SP 1*DIGIT SP 1*DIGIT
 --   ARITHF = OP SP VAL
 --   OP     = "*"
 --          / "/"
@@ -63,18 +64,20 @@ asmParser = do { mc <- P8.peekChar
                  of Just 'e' -> parseEvent
                     Just 'p' -> parseProc
                     Just 'c' -> parseClose
-                    _        -> fail ("error: e|c|p was expected")
+                    _        -> fail ("error: e|c|p were expected")
                }
 
-runOne :: B.ByteString -> Maybe (Asm, B.ByteString)
-runOne i = case (parse asmParser i)
-           of Done t asm -> Just (asm, t)
-              _          -> Nothing
+endBy :: Parser a -> Parser () -> Parser a
+endBy m s = do { r <- m
+               ; _ <- s
+               ; return r
+               }
+
+runOne :: B.ByteString -> Maybe Asm
+runOne i = either (const Nothing) Just (parseOnly (asmParser `endBy` eol) i)
 
 runAll :: B.ByteString -> [Asm]
-runAll i = case (runOne i)
-           of Just (asm, i1) -> asm : runAll i1
-              Nothing        -> []
+runAll i = either (const []) id (parseOnly (asmParser `sepBy1` eol) (i `B.append` " "))
 
 eol :: Parser ()
 eol = P8.char ';' >> return ()
@@ -99,7 +102,7 @@ parseVal :: Parser Double
 parseVal = P8.double
 
 parseClose :: Parser Asm
-parseClose = P8.string "close" >> eol >> return Close
+parseClose = P8.string "close" >> return Close
 
 parseEvent :: Parser Asm
 parseEvent = do { _   <- string "event "
@@ -108,20 +111,29 @@ parseEvent = do { _   <- string "event "
                 ; col <- parseTime
                 ; _   <- P8.space
                 ; val <- parseVal
-                ; eol
                 ; return (Event key col val)
                 }
 
 parseProc :: Parser Asm
 parseProc = do { _         <- string "proc "
-               ; pipeline  <- parsePipeline
-               ; eol
-               ; return (Proc pipeline)
+               ; mode      <- parseMode
+               ; _         <- string " | "
+               ; pipeline  <- parseFunction `sepBy1` (string " | ")
+               ; return (Proc mode pipeline)
                }
 
-parsePipeline :: Parser [Function]
-parsePipeline = parseFunction `sepBy` pipeSep
-  where pipeSep = P8.space >> P8.char '|' >> P8.space
+parseMode :: Parser Mode
+parseMode = do { mc <- P8.peekChar
+               ; case mc
+                 of Just 'w' -> do { _ <- string "window "
+                                   ; n <- parseInt
+                                   ; _ <- P8.space
+                                   ; m <- parseInt
+                                   ; return (Window n m)
+                                   }
+                    Just 'f' -> string "foreach" >> return ForEach
+                    _        -> fail "error: w|f were expected"
+               }
 
 parseFunction :: Parser Function
 parseFunction = do { c <- P8.peekChar
@@ -137,12 +149,9 @@ parseFunction = do { c <- P8.peekChar
                         Just 'p' -> string "prod" >> return Prod
                         Just 'r' -> string "round" >> return Round
                         Just 's' -> string "sum" >> return Sum
-                        Just 't' -> choice [ string "truncate" >> return Truncate
-                                           , parseTimeWindow
-                                           ]
-                        Just 'w' -> parseWindow
+                        Just 't' -> string "truncate" >> return Truncate
                         Just '(' -> parseArithmetic
-                        _        -> fail "error: a|c|f|m|p|r|s|t|w|( was expected"
+                        _        -> fail "error: a|c|f|m|p|r|s|t|w|( were expected"
                    }
 
 parseOp :: Parser ArithOp
@@ -152,19 +161,8 @@ parseOp = do { c <- P8.satisfy (`elem` "*+/-")
                   '+' -> return Add
                   '/' -> return Div
                   '-' -> return Sub
-                  _   -> fail "error: *|+|-|/ was expected"
+                  _   -> fail "error: *|+|-|/ were expected"
              }
-
-parseWindow :: Parser Function
-parseWindow = do { _ <- string "window "
-                 ; n <- parseInt
-                 ; return (Window n)
-                 }
-
-parseTimeWindow :: Parser Function
-parseTimeWindow = do { _ <- string "time_window "
-                     ; fmap TimeWindow parseTime
-                     }
 
 parseArithmetic :: Parser Function
 parseArithmetic = do { _ <- P8.char '('

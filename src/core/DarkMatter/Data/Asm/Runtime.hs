@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns  #-}
 {-# LANGUAGE TupleSections #-}
 -- All Rights Reserved.
 --
@@ -24,79 +25,85 @@ module DarkMatter.Data.Asm.Runtime
        , multiplex
        , broadcastEOF
        , proc
-       , run
+       , forEach
+       , evalStateT
        ) where
 
 import           Prelude hiding (null)
 import           Control.Monad
+import           Control.Monad.Trans
 import           Control.Monad.Trans.State
 import           Data.Function (on)
 import           Data.Monoid (mempty)
-import           Data.List
 import qualified Data.Map as M
 import           DarkMatter.Data.Proc
+import           DarkMatter.Data.Time
 import           DarkMatter.Data.Event
 import           DarkMatter.Data.Asm.Types
 
-type Events = ChunkC ([Event])
+type Events = ChunkC [Event]
 
 type Pipeline = Proc Events Events
 
 type Runtime m a = StateT (Pipeline, M.Map Key Pipeline) m a
 
-run :: (Monad m) => Runtime m a -> (Pipeline, M.Map Key Pipeline) -> m (a, (Pipeline, M.Map Key Pipeline))
-run = runStateT
+mproc :: (Event -> Event) -> Proc Events Events
+mproc f = pureF g
+  where g c = fmap (map f) c
 
-procFoldEvent :: (Events -> ChunkC Event) -> Pipeline
-procFoldEvent f = pureF (fmap (:[]) . f)
+fproc :: (Event -> a) -> (a -> a -> a) -> (a -> [Event]) -> Proc Events Events
+fproc f g h = await (go Nothing)
+  where go macc c
+          | eof c     = done (new (h tmp) True)
+          | null c    = await (go macc)
+          | otherwise = await (go (Just tmp))
+            where tmp = case macc
+                        of Nothing       -> foldr1 g (map f (chk c))
+                           Just acc
+                             | null c    -> acc
+                             | otherwise -> acc `seq` (acc `g` foldr1 g (map f (chk c)))
 
-procMapEvent :: (Double -> Double) -> Pipeline
-procMapEvent f = pureF (fmap (fmap (update id f)))
+decomp :: Event -> (Time, Double)
+decomp e = (time e, val e)
 
-meanE :: Events -> ChunkC Event
-meanE c = fmap (foldl1 plus) c
-  where size = fromIntegral $ length (chk c)
-        
-        plus e0 e1 = let t  = min (time e0) (time e1)
-                         v  = (val e0 / size) + (val e1 / size)
-                     in temporal t v
+compose :: (a -> a -> a) -> (b -> b -> b) -> (a, b) -> (a, b) -> (a, b)
+compose f g (t0, v0) (t1, v1) = (f t0 t1, g v0 v1)
 
-summarizeE :: ([Double] -> Double) -> Events -> ChunkC Event
-summarizeE f = fmap mk
-  where mk xs = temporal (minimum (fmap time xs)) (f (fmap val xs))
+build :: (Time, Double) -> [Event]
+build (t, d) = [temporal t d]
 
-sumE :: Events -> ChunkC Event
-sumE = summarizeE (foldl' (+) 0)
+maxBy :: (a -> a -> Ordering) -> a -> a -> a
+maxBy cmp a b
+  | cmp a b == LT = b
+  | otherwise     = a
 
-prodE :: Events -> ChunkC Event
-prodE = summarizeE (foldl' (*) 1)
-
-medianE :: Events -> ChunkC Event
-medianE c0
-    | odd l     = fmap (head . drop m) c
-    | otherwise = meanE (fmap (take 2 . drop m) c)
-  where l = length (chk c0)
-        m = l `div` 2
-        c = fmap (sortBy (compare `on` val)) c0
+minBy :: (a -> a -> Ordering) -> a -> a -> a
+minBy cmp a b
+  | cmp a b == GT = b
+  | otherwise     = a
 
 proc :: Function -> Pipeline
-proc (Window n)         = windowBy ((>= n) . length . chk)
-proc (TimeWindow _)     = undefined -- windowBy ((> n) . timediff) (\c -> (c, mempty))
-proc Sum                = procFoldEvent sumE
-proc Prod               = procFoldEvent prodE
-proc Abs                = procMapEvent abs
-proc Ceil               = procMapEvent (fromInteger . ceiling)
-proc Floor              = procMapEvent (fromInteger . floor)
-proc Round              = procMapEvent (fromInteger . round)
-proc Truncate           = procMapEvent (fromInteger . truncate)
-proc Mean               = procFoldEvent meanE
-proc Median             = procFoldEvent medianE
-proc Maximum            = procFoldEvent (fmap (maximumBy (compare `on` val)))
-proc Minimum            = procFoldEvent (fmap (minimumBy (compare `on` val)))
-proc (Arithmetic Div t) = procMapEvent (/ t)
-proc (Arithmetic Sub t) = procMapEvent (\n -> n - t)
-proc (Arithmetic Mul t) = procMapEvent (* t)
-proc (Arithmetic Add t) = procMapEvent (+ t)
+proc Sum                = fproc (decomp)
+                                (compose (min) (+))
+                                (build)
+proc Prod               = fproc (decomp)
+                                (compose (min) (*))
+                                (build)
+proc Mean               = fproc (\e -> (decomp e, 1))
+                                (\(v0, n0) (v1, n1) -> (compose min (+) v0 v1, n0+n1))
+                                (\((t, v), n) -> [temporal t (v/n)])
+proc Median             = error "todo: fixme"
+proc Abs                = mproc (update id abs)
+proc Ceil               = mproc (update id (fromInteger . ceiling))
+proc Floor              = mproc (update id (fromInteger . floor))
+proc Round              = mproc (update id (fromInteger . round))
+proc Truncate           = mproc (update id (fromInteger . truncate))
+proc Maximum            = fproc id (maxBy (compare `on` val)) (:[])
+proc Minimum            = fproc id (minBy (compare `on` val)) (:[])
+proc (Arithmetic Div t) = mproc (update id (/ t))
+proc (Arithmetic Sub t) = mproc (update id (flip (-) t))
+proc (Arithmetic Mul t) = mproc (update id (* t))
+proc (Arithmetic Add t) = mproc (update id (+ t))
 
 pipeline :: [Function] -> Pipeline
 pipeline = foldr1 pipe . map proc
@@ -115,6 +122,17 @@ putenv k p = do { (z, m) <- get
 
 eofChunk :: Events
 eofChunk = new mempty True
+
+forEach :: (IO (Maybe (Key, Event))) -> (Key -> Events -> IO ()) -> IO () -> Runtime IO ()
+forEach getI putO close = do { mi <- liftIO getI
+                             ; case mi
+                               of Nothing    -> do { broadcastEOF >>= liftIO . mapM_ (uncurry putO)
+                                                   ; liftIO close
+                                                   }
+                                  Just (k,e) -> do { multiplex1 k e >>= liftIO . putO k
+                                                   ; forEach getI putO close
+                                                   }
+                             }
 
 newMultiplex :: [Function] -> (Pipeline, M.Map Key Pipeline)
 newMultiplex p = (pipeline p, M.empty)

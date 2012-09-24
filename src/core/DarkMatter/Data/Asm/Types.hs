@@ -15,6 +15,7 @@
 module DarkMatter.Data.Asm.Types
        ( Key
        , Asm(..)
+       , Mode(..)
        , Function(..)
        , ArithOp(..)
        , isProc
@@ -25,10 +26,11 @@ module DarkMatter.Data.Asm.Types
 import DarkMatter.Data.Time
 import Data.ByteString as B
 
--- | The functions available to users
-data Function = Window Int
-              | TimeWindow Time
-              | Sum
+data Mode = Window Int Int
+          | ForEach
+          deriving (Show)
+
+data Function = Sum
               | Prod
               | Mean
               | Median
@@ -40,22 +42,25 @@ data Function = Window Int
               | Round
               | Truncate
               | Arithmetic ArithOp Double
+              deriving (Show)
 
 data ArithOp = Mul
              | Add
              | Div
              | Sub
+             deriving (Show)
 
 type Key = B.ByteString
 
 -- | The available instructions to execute
 data Asm = Event Key Time Double
-         | Proc [Function]
+         | Proc Mode [Function]
          | Close
+         deriving (Show)
 
 isProc :: Asm -> Bool
-isProc (Proc _) = True
-isProc _        = False
+isProc (Proc _ _) = True
+isProc _          = False
 
 isEvent :: Asm -> Bool
 isEvent (Event _ _ _) = True

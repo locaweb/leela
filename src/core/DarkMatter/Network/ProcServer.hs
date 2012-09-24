@@ -18,6 +18,7 @@ import           Prelude hiding (null)
 import           Control.Concurrent hiding (readChan, writeChan)
 import           Control.Concurrent.BoundedChan
 import           Control.Exception
+import           Control.Monad
 import           Control.Monad.Trans
 import           Data.Function
 import           Data.Monoid
@@ -43,21 +44,16 @@ type State = M.Map Key Pipeline
 recvAsm :: Socket -> IO [Asm]
 recvAsm h = fmap runAll (recvFrame h)
 
-creat :: (BoundedChan (Maybe Input)) -> (BoundedChan (Maybe Output)) -> Runtime IO ()
-creat ichan ochan =
-  do { mi <- liftIO (readChan ichan)
-     ; case mi
-       of Just (k, e) -> do { multiplex1 k e >>= dosend k
-                            ; creat ichan ochan
-                            }
-          Nothing     -> do { liftIO $ debug " broadcasting EOF and closing worker thread"
-                            ; broadcastEOF >>= liftIO . mapM_ (uncurry dosend)
-                            ; liftIO (sendNil ochan)
-                            }
-     }
-    where dosend k v
-            | null v    = return ()
-            | otherwise = liftIO (sendData ochan k v)
+runProc :: (BoundedChan (Maybe Input)) -> (BoundedChan (Maybe Output)) -> Mode -> [Function] -> IO ()
+runProc ichan ochan mode func = evalStateT (modeM mode) (newMultiplex func)
+  where close = do { debug "closing worker runProc thread"
+                   ; liftIO (sendNil ochan)
+                   }
+
+        putO k e = when (not (null e)) (writeChan ochan $ Just (k, e))
+
+        modeM ForEach      = forEach (readChan ichan) putO close
+        modeM (Window _ _) = error "todo:fixme"
 
 sendData :: BoundedChan (Maybe (k, v)) -> k -> v -> IO ()
 sendData chan k v = writeChan chan (Just (k, v))
@@ -77,9 +73,9 @@ stream h ichan ochan = do
     { wait <- newEmptyMVar
     ; prog <- recvAsm h
     ; case prog
-      of (Proc p:xs)
+      of (Proc m p:xs)
            -> do { debug " forking worker thread"
-                 ; _ <- forkIO (run (creat ichan ochan) (newMultiplex p) >> putMVar wait ())
+                 ; _ <- forkIO (runProc ichan ochan m p >> putMVar wait ())
                  ; if (null xs)
                    then fix (\loop -> (recvAsm h >>= go loop))
                    else go (fix (\loop -> (recvAsm h >>= go loop))) xs
