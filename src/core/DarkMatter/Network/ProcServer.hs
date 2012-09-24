@@ -45,7 +45,7 @@ runProc ichan ochan mode func = evalStateT (modeM mode) (newMultiplex func)
           | null e    = return ()
           | otherwise = writeChan ochan (Just (k, e))
 
-        modeM ForEach      = forEach (readChan ichan) putO
+        modeM Passthrough  = passthrough (readChan ichan) putO
         modeM (Window n m) = window n m (readChan ichan) putO
 
 runFetch :: Socket -> (BoundedChan (Maybe Input)) -> IO ()
@@ -83,7 +83,7 @@ start f = do { warn ("binding server on: " ++ f)
                                 ; loop
                                 })
              }
-  where go s = do { ochan  <- newBoundedChan 5
+  where go s = do { ochan  <- newBoundedChan 25
                   ; ichan  <- newBoundedChan 5
                   ; asm    <- recvAsm s
                   ; case asm

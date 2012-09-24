@@ -131,8 +131,8 @@ parseMode = do { mc <- P8.peekChar
                                    ; m <- parseInt
                                    ; return (Window n m)
                                    }
-                    Just 'f' -> string "foreach" >> return ForEach
-                    _        -> fail "error: w|f were expected"
+                    Just 'p' -> string "passthrough" >> return Passthrough
+                    _        -> fail "error: p|f were expected"
                }
 
 parseFunction :: Parser Function

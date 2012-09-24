@@ -27,7 +27,7 @@ import DarkMatter.Data.Time
 import Data.ByteString as B
 
 data Mode = Window Int Int
-          | ForEach
+          | Passthrough
           deriving (Show)
 
 data Function = Sum

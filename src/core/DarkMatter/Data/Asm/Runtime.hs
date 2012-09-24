@@ -24,7 +24,7 @@ module DarkMatter.Data.Asm.Runtime
        , multiplex
        , broadcastEOF
        , proc
-       , forEach
+       , passthrough
        , window
        , evalStateT
        ) where
@@ -119,14 +119,14 @@ putenv k p = do { (z, m) <- get
 eofChunk :: Events
 eofChunk = new mempty True
 
-forEach :: (IO (Maybe (Key, Event))) -> (Key -> Events -> IO ()) -> Runtime IO ()
-forEach getI putO = do { mi <- liftIO getI
-                       ; case mi
-                         of Nothing    -> broadcastEOF >>= liftIO . mapM_ (uncurry putO)
-                            Just (k,e) -> do { multiplex1 k e >>= liftIO . putO k
-                                             ; forEach getI putO
-                                             }
-                       }
+passthrough :: (IO (Maybe (Key, Event))) -> (Key -> Events -> IO ()) -> Runtime IO ()
+passthrough getI putO = do { mi <- liftIO getI
+                           ; case mi
+                             of Nothing    -> broadcastEOF >>= liftIO . mapM_ (uncurry putO)
+                                Just (k,e) -> do { multiplex1 k e >>= liftIO . putO k
+                                                 ; passthrough getI putO
+                                                 }
+                           }
 
 window :: Int -> Int -> (IO (Maybe (Key, Event))) -> (Key -> Events -> IO ()) -> Runtime IO ()
 window n m getI putO = go M.empty

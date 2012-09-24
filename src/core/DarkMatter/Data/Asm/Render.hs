@@ -57,7 +57,7 @@ renderEvent k e = fromString "event "
                   <> fromChar ';'
 
 renderMode :: Mode -> Builder
-renderMode ForEach      = fromString "foreach"
+renderMode Passthrough  = fromString "passthrough"
 renderMode (Window n m) = fromString "window "
                           <> fromShow n
                           <> fromChar ' '
