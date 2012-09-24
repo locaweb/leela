@@ -119,26 +119,23 @@ putenv k p = do { (z, m) <- get
 eofChunk :: Events
 eofChunk = new mempty True
 
-forEach :: (IO (Maybe (Key, Event))) -> (Key -> Events -> IO ()) -> IO () -> Runtime IO ()
-forEach getI putO close = do { mi <- liftIO getI
-                             ; case mi
-                               of Nothing    -> do { broadcastEOF >>= liftIO . mapM_ (uncurry putO)
-                                                   ; liftIO close
-                                                   }
-                                  Just (k,e) -> do { multiplex1 k e >>= liftIO . putO k
-                                                   ; forEach getI putO close
-                                                   }
-                             }
+forEach :: (IO (Maybe (Key, Event))) -> (Key -> Events -> IO ()) -> Runtime IO ()
+forEach getI putO = do { mi <- liftIO getI
+                       ; case mi
+                         of Nothing    -> broadcastEOF >>= liftIO . mapM_ (uncurry putO)
+                            Just (k,e) -> do { multiplex1 k e >>= liftIO . putO k
+                                             ; forEach getI putO
+                                             }
+                       }
 
-window :: Int -> Int -> (IO (Maybe (Key, Event))) -> (Key -> Events -> IO ()) -> IO () -> Runtime IO ()
-window n m getI putO close = go M.empty
+window :: Int -> Int -> (IO (Maybe (Key, Event))) -> (Key -> Events -> IO ()) -> Runtime IO ()
+window n m getI putO = go M.empty
   where go buffer =
           do { mi <- liftIO getI
              ; case mi
                of Nothing
                     -> do { mapM_ (\(k, e) -> flush k (new_ e)) (M.toList buffer)
                           ; broadcastEOF >>= liftIO . mapM_ (uncurry putO)
-                          ; liftIO close
                           }
                   Just (k, e)
                     -> let (acc, bf) = insert k e buffer
