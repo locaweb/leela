@@ -8,6 +8,6 @@ Homepage: https://github.com/ncode/leela-server
 
 Package: leela-server
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, python-gevent, python-supay, python-pycassa, python-bottle, python-argparse, python-sleekxmpp, libgmp10
+Depends: ${shlibs:Depends}, ${misc:Depends}, python-gevent, python-supay, python-pycassa, python-bottle, python-argparse, python-sleekxmpp, libgmp10, libc6 (>= 2.7), libffi5 (>= 3.0.4)
 Description: Collect and Chart anything
  Collect and Chart anything
