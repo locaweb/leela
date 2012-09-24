@@ -43,20 +43,21 @@ from leela.server.storage import xmpp
 from leela.server import logger
 from leela.server.data import mavg
 from leela.server.data import ratelimit
-
-def scale(e):
-    e.set_time((e.year(), e.month(), e.day(), e.hour(), e.minute(), 0))
+from leela.server.network import dmproc
 
 @funcs.logerrors(logger)
 def monit_consumer(cont, cfg, opts, pipe):
     funcs.drop_privileges(opts.user, opts.gid)
 
     logger.debug("starting monitoring cpu.idle")
-    avg0 = mavg.MAvg(samples=30)
-    avg1 = mavg.MAvg(samples=30)
     rl   = ratelimit.RateLimit(300)
     s    = xmpp.XmppStorage(cfg)
     s.connect()
+
+    cpu = dmproc.DMProc(cfg.get("dmproc", "socket"), lambda e: map(s.store, e))
+    cpu.proc("window 30 5 | mean | (- 1) | (* 100) | abs | round;")
+    mem = dmproc.DMProc(cfg.get("dmproc", "socket"), lambda e: map(s.store, e))
+    mem.proc("window 30 5 | mean | (* 100) | round;")
 
     while (cont()):
         try:
@@ -64,20 +65,9 @@ def monit_consumer(cont, cfg, opts, pipe):
             for e in netprotocol.parse(text):
                 n = e.name()
                 if (n.startswith("xenserver.") and n.endswith(".cpu.cpu.idle")):
-                    k = "0%s" % n[10:-13]
-                    scale(e)
-                    val = avg0.compute(k, e)
-                    if (rl.should_emit(k) and not math.isnan(val)):
-                        logger.debug("monit_consumer: sending message to xmpp peer")
-                        s.store(event.Event(e.name(), round(val*100), long(time.time())))
+                    cpu.event(e)
                 elif (n.startswith("xenserver.") and n.endswith(".memory.main.used(%)")):
-                    k = "1%s" % n[10:-20]
-                    scale(e)
-                    val = avg1.compute(k, e)
-                    if (rl.should_emit(k) and not math.isnan(val)):
-                        logger.debug("monit_consumer: sending message to xmpp peer")
-                        s.store(event.Event(e.name(), round(val*100), long(time.time())))
-
+                    mem.event(e)
         except Empty:
             pass
         except:
