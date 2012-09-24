@@ -53,7 +53,7 @@ runProc ichan ochan mode func = evalStateT (modeM mode) (newMultiplex func)
         putO k e = when (not (null e)) (writeChan ochan $ Just (k, e))
 
         modeM ForEach      = forEach (readChan ichan) putO close
-        modeM (Window _ _) = error "todo:fixme"
+        modeM (Window n m) = window n m (readChan ichan) putO close
 
 sendData :: BoundedChan (Maybe (k, v)) -> k -> v -> IO ()
 sendData chan k v = writeChan chan (Just (k, v))

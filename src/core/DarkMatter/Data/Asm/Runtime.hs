@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns  #-}
 {-# LANGUAGE TupleSections #-}
 -- All Rights Reserved.
 --
@@ -26,6 +25,7 @@ module DarkMatter.Data.Asm.Runtime
        , broadcastEOF
        , proc
        , forEach
+       , window
        , evalStateT
        ) where
 
@@ -35,6 +35,7 @@ import           Control.Monad.Trans
 import           Control.Monad.Trans.State
 import           Data.Function (on)
 import           Data.Monoid (mempty)
+import           Data.List (foldl1', minimumBy, maximumBy)
 import qualified Data.Map as M
 import           DarkMatter.Data.Proc
 import           DarkMatter.Data.Time
@@ -52,35 +53,30 @@ mproc f = pureF g
   where g c = fmap (map f) c
 
 fproc :: (Event -> a) -> (a -> a -> a) -> (a -> [Event]) -> Proc Events Events
-fproc f g h = await (go Nothing)
-  where go macc c
-          | eof c     = done (new (h tmp) True)
-          | null c    = await (go macc)
-          | otherwise = await (go (Just tmp))
-            where tmp = case macc
-                        of Nothing       -> foldr1 g (map f (chk c))
-                           Just acc
-                             | null c    -> acc
-                             | otherwise -> acc `seq` (acc `g` foldr1 g (map f (chk c)))
-
+fproc f g h = await go0
+  where go0 c
+          | null c    = await go0
+          | otherwise = let s0 = head (chk c)
+                            s1 = fmap tail c
+                        in go (f s0) s1
+    
+        go acc0 c
+          | eof c     = if (null c)
+                        then done (new (h acc0) True)
+                        else done (new (h tmp) True)
+          | null c    = await (go acc0)
+          | otherwise = tmp `seq` (await (go tmp))
+            where tmp = let acc1 = foldl1' g (map f (chk c))
+                        in (g acc0 acc1)
+                        
 decomp :: Event -> (Time, Double)
 decomp e = (time e, val e)
 
 compose :: (a -> a -> a) -> (b -> b -> b) -> (a, b) -> (a, b) -> (a, b)
-compose f g (t0, v0) (t1, v1) = (f t0 t1, g v0 v1)
+compose f g (t0, v0) (t1, v1) = t0 `seq` v0 `seq` (f t0 t1, g v0 v1)
 
 build :: (Time, Double) -> [Event]
 build (t, d) = [temporal t d]
-
-maxBy :: (a -> a -> Ordering) -> a -> a -> a
-maxBy cmp a b
-  | cmp a b == LT = b
-  | otherwise     = a
-
-minBy :: (a -> a -> Ordering) -> a -> a -> a
-minBy cmp a b
-  | cmp a b == GT = b
-  | otherwise     = a
 
 proc :: Function -> Pipeline
 proc Sum                = fproc (decomp)
@@ -91,15 +87,15 @@ proc Prod               = fproc (decomp)
                                 (build)
 proc Mean               = fproc (\e -> (decomp e, 1))
                                 (\(v0, n0) (v1, n1) -> (compose min (+) v0 v1, n0+n1))
-                                (\((t, v), n) -> [temporal t (v/n)])
+                                (\((t, v), n) -> build (t, v/n))
+proc Maximum            = fproc id (\a b -> maximumBy (compare `on` val) [a, b]) (:[])
+proc Minimum            = fproc id (\a b -> minimumBy (compare `on` val) [a, b]) (:[])
 proc Median             = error "todo: fixme"
 proc Abs                = mproc (update id abs)
 proc Ceil               = mproc (update id (fromInteger . ceiling))
 proc Floor              = mproc (update id (fromInteger . floor))
 proc Round              = mproc (update id (fromInteger . round))
 proc Truncate           = mproc (update id (fromInteger . truncate))
-proc Maximum            = fproc id (maxBy (compare `on` val)) (:[])
-proc Minimum            = fproc id (minBy (compare `on` val)) (:[])
 proc (Arithmetic Div t) = mproc (update id (/ t))
 proc (Arithmetic Sub t) = mproc (update id (flip (-) t))
 proc (Arithmetic Mul t) = mproc (update id (* t))
@@ -133,6 +129,33 @@ forEach getI putO close = do { mi <- liftIO getI
                                                    ; forEach getI putO close
                                                    }
                              }
+
+window :: Int -> Int -> (IO (Maybe (Key, Event))) -> (Key -> Events -> IO ()) -> IO () -> Runtime IO ()
+window n m getI putO close = go M.empty
+  where go buffer =
+          do { mi <- liftIO getI
+             ; case mi
+               of Nothing
+                    -> do { mapM_ (\(k, e) -> flush k (new_ e)) (M.toList buffer)
+                          ; broadcastEOF >>= liftIO . mapM_ (uncurry putO)
+                          ; liftIO close
+                          }
+                  Just (k, e)
+                    -> let (acc, bf) = insert k e buffer
+                       in if (length acc == n)
+                          then do { flush k (new acc True)
+                                  ; go (M.insert k (take (n-m) acc) bf)
+                                  }
+                          else go bf
+             }
+        
+        insert k e buffer = case (M.insertLookupWithKey (\_ [x] xs -> x:xs) k [e] buffer)
+                            of (Nothing, bf)  -> ([e], bf)
+                               (Just acc, bf) -> (e:acc, bf)
+        
+        flush k e
+          | null e    = return ()
+          | otherwise = multiplex k e >>= liftIO . putO k
 
 newMultiplex :: [Function] -> (Pipeline, M.Map Key Pipeline)
 newMultiplex p = (pipeline p, M.empty)

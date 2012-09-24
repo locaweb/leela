@@ -35,7 +35,6 @@ module DarkMatter.Data.Proc
        ) where
 
 import           Prelude hiding (null)
-import           Control.Monad
 import qualified Data.List as L
 import           Data.Monoid
 
