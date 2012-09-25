@@ -13,6 +13,7 @@
 --    See the License for the specific language governing permissions and
 --    limitations under the License.
 
+-- | Provides the primitives necessary to execute the ASM data type.
 module DarkMatter.Data.Asm.Runtime
        ( Events
        , Pipeline
@@ -48,11 +49,20 @@ type Pipeline = Proc Events Events
 
 type Runtime m a = StateT (Pipeline, M.Map Key Pipeline) m a
 
+-- | A map-like combinator to create a pipeline.
 mproc :: (Event -> Event) -> Proc Events Events
 mproc f = pureF g
   where g c = fmap (map f) c
 
-fproc :: (Event -> a) -> (a -> a -> a) -> (a -> [Event]) -> Proc Events Events
+-- | A combinator useful to implement functions that change/reduce the
+-- number of items, like average or maximum.
+fproc :: (Event -> a)
+      -- ^ Transforms the event
+      -> (a -> a -> a)
+      -- ^ Combine intermediate results
+      -> (a -> [Event])
+      -- ^ Build the response
+      -> Proc Events Events
 fproc f g h = await go0
   where go0 c
           | null c    = await go0
@@ -68,13 +78,16 @@ fproc f g h = await go0
           | otherwise = tmp `seq` (await (go tmp))
             where tmp = let acc1 = foldl1' g (map f (chk c))
                         in (g acc0 acc1)
-                        
+
+-- | Utility function to unpack an event
 decomp :: Event -> (Time, Double)
 decomp e = (time e, val e)
 
+-- | Use two functions to perform the cartesian product.
 compose :: (a -> a -> a) -> (b -> b -> b) -> (a, b) -> (a, b) -> (a, b)
 compose f g (t0, v0) (t1, v1) = t0 `seq` v0 `seq` (f t0 t1, g v0 v1)
 
+-- | Utility function ot pack a single event
 build :: (Time, Double) -> [Event]
 build (t, d) = [temporal t d]
 
@@ -88,6 +101,7 @@ proc Prod               = fproc (decomp)
 proc Mean               = fproc (\e -> (decomp e, 1))
                                 (\(v0, n0) (v1, n1) -> v0 `seq` n0 `seq` (compose min (+) v0 v1, n0+n1))
                                 (\((t, v), n) -> build (t, v/n))
+proc Id                 = mproc (update id id)
 proc Maximum            = fproc id (\a b -> maximumBy (compare `on` val) [a, b]) (:[])
 proc Minimum            = fproc id (\a b -> minimumBy (compare `on` val) [a, b]) (:[])
 proc Median             = error "todo: fixme"
@@ -101,6 +115,8 @@ proc (Arithmetic Sub t) = mproc (update id (flip (-) t))
 proc (Arithmetic Mul t) = mproc (update id (* t))
 proc (Arithmetic Add t) = mproc (update id (+ t))
 
+-- | Creates a pipeline from a set of functions. The function list
+-- must no be null.
 pipeline :: [Function] -> Pipeline
 pipeline = foldr1 pipe . map proc
 
@@ -154,12 +170,17 @@ window n m getI putO = go M.empty
           | null e    = return ()
           | otherwise = multiplex k e >>= liftIO . putO k
 
+-- | Initial state of the multiplex monad. Useful in conjunction with
+-- evalStateT.
 newMultiplex :: [Function] -> (Pipeline, M.Map Key Pipeline)
 newMultiplex p = (pipeline p, M.empty)
 
+-- | Singleton version of multiplex.
 multiplex1 :: (Monad m) => Key -> Event -> Runtime m Events
 multiplex1 k = multiplex k . new_ . (:[])
 
+-- | Allows executing the same Pipeline over a set of different
+-- events. Uses the Key to differentiate each event.
 multiplex :: (Monad m) => Key -> Events -> Runtime m Events
 multiplex k i = do { (z, p) <- getenv k
                    ; case (eval $ feed p i)
@@ -169,6 +190,8 @@ multiplex k i = do { (z, p) <- getenv k
                           -> putenv k z >> return o
                    }
 
+-- | Maps over all current pipelines sending a eofChunk them to
+-- terminate any pending processing.
 broadcastEOF :: (Monad m, Functor m) => Runtime m [(Key, Events)]
 broadcastEOF = do { (_, m) <- get
                   ; broadcast (M.keys m)

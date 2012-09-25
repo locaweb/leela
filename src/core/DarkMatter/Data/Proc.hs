@@ -12,7 +12,7 @@
 --    See the License for the specific language governing permissions and
 --    limitations under the License.
 
--- | A very simple asynchronous pure process.
+-- | A very simple [synchronous] stream processor.
 module DarkMatter.Data.Proc
        ( Proc ()
        , Chunk(..)

@@ -12,22 +12,20 @@
 --    See the License for the specific language governing permissions and
 --    limitations under the License.
 
-module DarkMatter.Data.Asm.Types
-       ( Key
-       , Asm(..)
-       , Mode(..)
-       , Function(..)
-       , ArithOp(..)
-       , isProc
-       , isClose
-       , isEvent
-       ) where
+-- | Mostly this defines the types the parser module is able to
+-- recognize.
+module DarkMatter.Data.Asm.Types where
 
 import DarkMatter.Data.Time
 import Data.ByteString as B
 
+-- | The mode the pipeline will be executed.
 data Mode = Window Int Int
+          -- ^ Defined a buffer of size N (first arg) and speed M
+          --   (second arg).  In other words, invoke the pipeline when
+          --   N items are read, discarding N-M items afterwards.
           | Passthrough
+          -- ^ Runs without any buffering at all.
           deriving (Show)
 
 data Function = Sum
@@ -36,6 +34,7 @@ data Function = Sum
               | Median
               | Minimum
               | Maximum
+              | Id
               | Abs
               | Floor
               | Ceil

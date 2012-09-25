@@ -12,9 +12,8 @@
 --    See the License for the specific language governing permissions and
 --    limitations under the License.
 
--- | The sole purpose of this module is to provide a string
--- represetation [mostly for testing/debug purposes/ of the Asm type
--- such as `parse . render == id`.
+-- | The sole purpose of this module is to provide a [byte] string
+-- represetation of the Asm type such as `parse . render == id`.
 module DarkMatter.Data.Asm.Render where
 
 import qualified Data.ByteString as B
@@ -69,6 +68,7 @@ renderFunction Median           = fromString "median"
 renderFunction Maximum          = fromString "maximum"
 renderFunction Minimum          = fromString "minimum"
 renderFunction Sum              = fromString "sum"
+renderFunction Id               = fromString "id"
 renderFunction Prod             = fromString "prod"
 renderFunction Floor            = fromString "floor"
 renderFunction Ceil             = fromString "ceil"

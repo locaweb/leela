@@ -12,14 +12,20 @@
 --    See the License for the specific language governing permissions and
 --    limitations under the License.
 
+-- | We are using unix sockets + SEQPACKET so there is no need to
+-- defined a network protocol. The only thing this does is define the
+-- buffer size.
 module DarkMatter.Network.Protocol where
 
 import qualified Data.ByteString as B
 import           Network.Socket (Socket)
 import           Network.Socket.ByteString
 
+buffersize :: Int
+buffersize = 65536
+
 recvFrame :: Socket -> IO B.ByteString
-recvFrame = flip recv 65536
+recvFrame = flip recv buffersize
 
 sendFrame :: Socket -> B.ByteString -> IO ()
 sendFrame s msg = send s msg >> return ()

@@ -58,6 +58,7 @@ instance Arbitrary Function where
                  ; v <- arbitrary
                  ; elements [ Sum
                             , Prod
+                            , Id
                             , Truncate
                             , Floor
                             , Ceil

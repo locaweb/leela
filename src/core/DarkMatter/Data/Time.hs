@@ -12,7 +12,6 @@
 --    See the License for the specific language governing permissions and
 --    limitations under the License.
 
--- | The sole datatype that the core deals with.
 module DarkMatter.Data.Time
        ( Time
        , seconds
