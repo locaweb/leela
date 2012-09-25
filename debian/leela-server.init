@@ -28,7 +28,6 @@ SCRIPTNAME=/etc/init.d/$NAME
 case "$1" in
   start)
     log_daemon_msg "Starting $DAEMON" "$DAEMON"
-    create_xconsole
     $DAEMON -a start $DAEMON_ARGS
     log_end_msg $?
     ;;
