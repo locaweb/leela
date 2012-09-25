@@ -45,6 +45,9 @@ from leela.server.data import mavg
 from leela.server.data import ratelimit
 from leela.server.network import dmproc
 
+def scale(e):
+    e.set_time((e.year(), e.month(), e.day(), e.hour(), e.minute(), 0))
+
 @funcs.logerrors(logger)
 def monit_consumer(cont, cfg, opts, pipe):
     funcs.drop_privileges(opts.user, opts.gid)
