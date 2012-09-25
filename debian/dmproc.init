@@ -28,7 +28,7 @@ SCRIPTNAME=/etc/init.d/$NAME
 case "$1" in
   start)
     log_daemon_msg "Starting $DAEMON" "$DAEMON"
-    start-stop-daemon --background --make-pidfile --quiet --start --retry 5 --pidfile $DAEMON_PID --exec $DAEMON_BIN $DAEMON_ARGS
+    start-stop-daemon --background --make-pidfile --quiet --start --retry 5 --pidfile $DAEMON_PID --exec $DAEMON_BIN -- $DAEMON_ARGS
     log_end_msg $?
     ;;
 
