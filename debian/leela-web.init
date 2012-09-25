@@ -25,58 +25,28 @@ SCRIPTNAME=/etc/init.d/$NAME
 # Define LSB log_* functions.
 . /lib/lsb/init-functions
 
-create_xconsole() {
-    XCONSOLE=/dev/xconsole
-    if [ "$(uname -s)" = "GNU/kFreeBSD" ]; then
-        XCONSOLE=/var/run/xconsole
-        ln -sf $XCONSOLE /dev/xconsole
-    fi
-    if [ ! -e $XCONSOLE ]; then
-        mknod -m 640 $XCONSOLE p
-        chown root:adm $XCONSOLE
-        [ -x /sbin/restorecon ] && /sbin/restorecon $XCONSOLE
-    fi
-}
-
-sendsigs_omit() {
-    OMITDIR=/lib/init/rw/sendsigs.omit.d
-    mkdir -p $OMITDIR
-    rm -f $OMITDIR/rsyslog
-    ln -s $DAEMON_PIDFILE $OMITDIR/rsyslog
-}
-
 case "$1" in
   start)
     log_daemon_msg "Starting $DAEMON" "$DAEMON"
-    create_xconsole
     $DAEMON -a start $DAEMON_ARGS
-    case "$?" in
-        0) sendsigs_omit
-           log_end_msg 0 ;;
-        1) log_progress_msg "already started"
-           log_end_msg 0 ;;
-        *) log_end_msg 1 ;;
-    esac
-
+    log_end_msg $?
     ;;
+
   stop)
     log_daemon_msg "Stopping $DAEMON" "$DAEMON"
     $DAEMON -a stop
-    case "$?" in
-        0) log_end_msg 0 ;;
-        1) log_progress_msg "already stopped"
-           log_end_msg 0 ;;
-        *) log_end_msg 1 ;;
-    esac
+    log_end_msg $?
+    ;;
 
-    ;;
   restart)
-    $DAEMON -a stop
-    $DAEMON -a start $DAEMON_ARGS
+    /etc/init.d/$NAME stop
+    /etc/init.d/$NAME start
     ;;
+
   status)
     status_of_proc -p $DAEMON_PIDFILE $DAEMON_BIN $DAEMON && exit 0 || exit $?
     ;;
+
   *)
     echo "Usage: $SCRIPTNAME {start|stop|restart|status}" >&2
     exit 3
