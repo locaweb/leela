@@ -16,8 +16,12 @@ module Main where
 
 import Control.Exception
 import System.Console.GetOpt
+import Control.Concurrent.MVar
+import Control.Concurrent
 import System.Environment
 import System.Directory
+import System.Exit
+import System.Posix.Signals
 import DarkMatter.Logger
 import DarkMatter.Network.ProcServer
 
@@ -39,8 +43,15 @@ getopts argv = case (getOpt Permute options argv)
 main :: IO ()
 main = do { (opts, socket) <- fmap getopts getArgs
           ; setopts INFO opts
+          ; wait <- newEmptyMVar
           ; warn "starting server (^C to terminate)"
-          ; (start socket) `finally` (removeFile socket)
+          ; _    <- forkIO (start socket)
+          ; _    <- installHandler sigINT (Catch $ putMVar wait ()) Nothing
+          ; _    <- installHandler sigTERM (Catch $ putMVar wait ()) Nothing
+          ; takeMVar wait
+          ; warn "/bye"
+          ; removeFile socket
+          ; exitSuccess
           }
   where setopts _ []               = return ()
         setopts level (Verbose:xs) = setlevel level >> setopts DEBUG xs

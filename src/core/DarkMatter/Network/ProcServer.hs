@@ -32,7 +32,6 @@ import           Data.Function
 import           Data.Monoid
 import           Blaze.ByteString.Builder (toByteStringIO)
 import qualified Data.Foldable as F
-import qualified Data.Map as M
 import           Network.Socket
 import           DarkMatter.Logger (debug, info, warn, crit)
 import           DarkMatter.Data.Event
@@ -46,8 +45,6 @@ import           DarkMatter.Data.Proc
 type Input = (Key, Event)
 
 type Output = (Key, Events)
-
-type State = M.Map Key Pipeline
 
 runProc :: (BoundedChan (Maybe Input)) -> (BoundedChan (Maybe Output)) -> Mode -> [Function] -> IO ()
 runProc ichan ochan mode func = evalStateT (modeM mode) (newMultiplex func)
@@ -110,9 +107,6 @@ start f = do { warn ("binding server on: " ++ f)
         
 recvAsm :: Socket -> IO [Asm]
 recvAsm h = fmap runAll (recvFrame h)
-
-sendData :: BoundedChan (Maybe (k, v)) -> k -> v -> IO ()
-sendData chan k v = writeChan chan (Just (k, v))
 
 sendNil :: BoundedChan (Maybe a) -> IO ()
 sendNil = flip writeChan Nothing
