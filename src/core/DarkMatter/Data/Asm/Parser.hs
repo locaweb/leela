@@ -19,13 +19,13 @@
 --   S      = PROC
 --          / EVENT
 --          / CLOSE
---   PROC   = "proc" SP MODE *(SP "|" SP FUNC) EOL
+--   PROC   = "proc" SP MODE 1*(SP "|" SP FUNC) EOL
 --   EVENT  = "event" SP KEY SP TIME SP VAL EOL
 --   CLOSE  = "close" EOL
 --   EOL    = ";"
---   MODE   = WINDOW / MAP
---   WINDOW = "window" 1*DIGIT 1*DIGIT
---   MAP    = "foreach"
+--   MODE   = WINDOW / PT
+--   WINDOW = "window" SP 1*DIGIT 1*DIGIT
+--   PT     = "passthrough"
 --   KEY    = 1*DIGIT "|" ALPHANUM
 --   TIME   = 1*DIGIT "." 1*DIGIT
 --   VAL    = 1*DIGIT "." 1*DIGIT
