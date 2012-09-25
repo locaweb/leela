@@ -6,5 +6,5 @@ then
   nodetool -h localhost compact
   nodetool -h localhost cleanup
 else
-  nodetool -h localhost repair -pr
+  nodetool -h localhost repair
 fi
