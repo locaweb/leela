@@ -14,7 +14,6 @@
 
 module Main where
 
-import Control.Exception
 import System.Console.GetOpt
 import Control.Concurrent.MVar
 import Control.Concurrent

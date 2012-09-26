@@ -46,7 +46,7 @@ type Input = (Key, Event)
 
 type Output = (Key, Events)
 
-runProc :: (BoundedChan (Maybe Input)) -> (BoundedChan (Maybe Output)) -> Mode -> [Function] -> IO ()
+runProc :: BoundedChan (Maybe Input) -> (BoundedChan (Maybe Output)) -> Mode -> [Function] -> IO ()
 runProc ichan ochan mode func = evalStateT (modeM mode) (newMultiplex func)
   where putO k e
           | null e    = return ()
@@ -55,12 +55,11 @@ runProc ichan ochan mode func = evalStateT (modeM mode) (newMultiplex func)
         modeM Passthrough  = passthrough (readChan ichan) putO
         modeM (Window n m) = window n m (readChan ichan) putO
 
-runFetch :: Socket -> (BoundedChan (Maybe Input)) -> IO ()
-runFetch s chan = recvAsm s >>= go (runFetch s chan)
-  where go cont [Event k t v]    = writeChan chan (Just (k, temporal t v)) >> cont
-        go cont (Event k t v:xs) = writeChan chan (Just (k, temporal t v)) >> go cont xs
-        go _ (Close:_)           = return ()
-        go _ _                   = crit " error: close|event were expected"
+runFetch :: BoundedChan (Maybe Input) -> IO () -> [Asm] -> IO ()
+runFetch chan cont [Event k t v]    = writeChan chan (Just (k, temporal t v)) >> cont
+runFetch chan cont (Event k t v:xs) = writeChan chan (Just (k, temporal t v)) >> runFetch chan cont xs
+runFetch _ _ (Close:_)              = return ()
+runFetch _ _ _                      = crit " error: close|event were expected"
 
 runSync :: Socket -> (BoundedChan (Maybe Output)) -> IO ()
 runSync s chan = do { mi <- readChan chan
@@ -94,15 +93,20 @@ start f = do { warn ("binding server on: " ++ f)
                   ; ichan  <- newBoundedChan 5
                   ; asm    <- recvAsm s
                   ; case asm
-                    of [Proc m p] -> do { wait <- newEmptyMVar
-                                        ; debug " forking proc thread"
-                                        ; _    <- forkfinally (runProc ichan ochan m p) (sendNil ochan)
-                                        ; debug " exec'ing sync thread"
-                                        ; _    <- forkfinally (runSync s ochan) (putMVar wait ())
-                                        ; (runFetch s ichan) `finally` (sendNil ichan)
-                                        ; takeMVar wait
-                                        }
-                       _          -> crit " error: single proc was expected"
+                    of (Proc m p:xs)
+                         -> do { wait <- newEmptyMVar
+                               ; debug " forking proc thread"
+                               ; _    <- forkfinally (runProc ichan ochan m p) (sendNil ochan)
+                               ; debug " exec'ing sync thread"
+                               ; _    <- forkfinally (runSync s ochan) (putMVar wait ())
+                               ; (if (null xs)
+                                  then fix (\loop -> recvAsm s >>= runFetch ichan loop)
+                                  else runFetch ichan (fix (\loop -> recvAsm s >>= runFetch ichan loop)) xs)
+                                   `finally` (sendNil ichan)
+                               ; takeMVar wait
+                               }
+                       _
+                         -> crit " error: single proc was expected"
                   }
         
 recvAsm :: Socket -> IO [Asm]
