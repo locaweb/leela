@@ -205,7 +205,7 @@ class LeelaXmppInterface(xmppim.MessageProtocol):
                                                     True)
             self.bus.connect()
             self.bus.autoretry(True)
-            self.pooling.start(60)
+            self.pooling.start(5)
         except:
             logger.exception()
 

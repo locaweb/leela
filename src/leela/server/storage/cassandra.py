@@ -33,24 +33,24 @@ from leela.server.data import event
 DEFAULT_EPOCH = 2000
 
 def connect(config):
-    server_list = map(lambda s: s.strip(), config.get("cassandra", "server").split(","))
-    return(pycassa.ConnectionPool(keyspace        = config.get("cassandra", "keyspace"),
+    server_list = map(lambda s: s.strip(), config.get("storage", "server").split(","))
+    return(pycassa.ConnectionPool(keyspace        = config.get("storage", "keyspace"),
                                   server_list     = server_list,
                                   pool_size       = len(server_list)*2,
                                   max_overflow    = len(server_list),
                                   timeout         = 5,
                                   recycle         = 1000,
-                                  pool_timeout    = config.getint("cassandra", "timeout"),
-                                  max_retries     = config.getint("cassandra", "retries"),
+                                  pool_timeout    = config.getint("storage", "timeout"),
+                                  max_retries     = config.getint("storage", "retries"),
                                   prefill         = False,
                                   use_threadlocal = True))
 
 def create_schema(config):
-    keyspace       = config.get("cassandra", "keyspace")
-    manager        = config.get("cassandra", "system_manager")
-    sysmgr         = pycassa.system_manager.SystemManager(manager, timeout=config.getint("cassandra", "timeout"))
+    keyspace       = config.get("storage", "keyspace")
+    manager        = config.get("storage", "system_manager")
+    sysmgr         = pycassa.system_manager.SystemManager(manager, timeout=config.getint("storage", "timeout"))
     try:
-        schema         = sysmgr.get_keyspace_column_families(config.get("cassandra", "keyspace"))
+        schema         = sysmgr.get_keyspace_column_families(config.get("storage", "keyspace"))
         events         = EventsStorage(None)
         if (events.name() not in schema):
             events.create(sysmgr, keyspace)

@@ -77,7 +77,7 @@ class DMProc(protocol.Protocol):
 
     def send_events(self, es):
         if (len(es) > 0):
-            self.send_data("%s;" % "".join(map(render_event, es)))
+            self.send_data("%s;" % ";".join(map(render_event, es)))
 
     def send_close(self):
         self.send_data("close;")
@@ -96,10 +96,23 @@ class DMProc(protocol.Protocol):
         Invoked whenever a close msg is received
         """
 
+# class LegacyEventProtocol(protocol.LineReceiver):
+
+#     def lineReceived(self, string):
+#         (name, value) = string.split(": ", 2)
+#         if (" " in value):
+#             (lval, tval) = value.split(" ", 2)
+#             tval = long(tval, 10)
+#         else:
+#             lval = value
+#             tval = long(time.time())
+#         self.recv_event(Event(name[:255], float(lval), tval))
+
 class LeelaBus(pipe.UnixPipeReader):
 
     def __init__(self, fname):
         pipe.UnixPipeReader.__init__(self, fname)
+        self.maxsz     = 65536
         self.residue   = ""
         self.callbacks = {}
 
@@ -111,6 +124,12 @@ class LeelaBus(pipe.UnixPipeReader):
         if (gid in self.callbacks):
             del(self.callbacks[gid])
         logger.info("unregistering cc: %s/%d" % (gid, len(self.callbacks)))
+
+    def set_residue(self, data):
+        if (len(data) < self.maxsz):
+            self.residue = data
+        else:
+            self.residue = ""
 
     def recv_data(self, data0):
         data = self.residue + data0
@@ -124,7 +143,7 @@ class LeelaBus(pipe.UnixPipeReader):
                 if (e is None):
                     break
                 msgs.append(e)
-        self.residue = "".join(tmp)
+        self.set_residue("".join(tmp))
         if (len(msgs) > 0):
             for cc in self.callbacks.values():
                 cc.recv_broadcast(msgs)

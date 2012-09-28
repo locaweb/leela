@@ -70,8 +70,6 @@ class UnixPipeReader(FileDescriptor):
                 return
             else:
                 return CONNECTION_LOST
-            if not output:
-                return CONNECTION_DONE
         # if (output == ""):
         #     return(CONNECTION_DONE)
         self.recv_data(output)

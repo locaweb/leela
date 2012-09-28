@@ -17,6 +17,7 @@
 #
 
 import sys
+import logging
 from twisted.python import log
 from logging import DEBUG
 from logging import INFO
@@ -25,9 +26,6 @@ from logging import ERROR
 
 this = sys.modules[__name__]
 
-def exception(*args, **kwargs):
-    log.err(*args, **kwargs)
-
 def when(p, f):
     def g(*args, **kwargs):
         if (p):
@@ -35,9 +33,18 @@ def when(p, f):
     g.__name__ = f.__name__
     return(g)
 
-def set_level(level):
+def set_level(level, backend="twistex"):
     # yeah, pretty nasty hack ... only four lines though :-)
-    this.debug  = when(level<=DEBUG, log.msg)
-    this.info   = when(level<=INFO, log.msg)
-    this.warn   = when(level<=WARNING, log.msg)
-    this.error  = when(level<=ERROR, log.msg)
+    if (backend == "twisted"):
+        this.debug     = when(level<=DEBUG, log.msg)
+        this.info      = when(level<=INFO, log.msg)
+        this.warn      = when(level<=WARNING, log.msg)
+        this.error     = when(level<=ERROR, log.msg)
+        this.exception = logging.err
+    else:
+        logging.getLogger().setLevel(level)
+        this.debug     = logging.debug
+        this.info      = logging.info
+        this.warn      = logging.warn
+        this.error     = logging.error
+        this.exception = logging.exception

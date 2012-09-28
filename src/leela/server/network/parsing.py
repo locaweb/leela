@@ -72,9 +72,19 @@ def parse_event(s):
     s      = parse_string(s, " ")
     (v, s) = parse_double(s)
     if (s == ";"):
-        return(event.Event(n, t, v))
+        return(event.Event(n, v, t))
     else:
         raise(RuntimeError())
+
+def parse_event_legacy(s):
+    (name, value) = string.split(": ", 2)
+    if (" " in value):
+        (lval, tval) = value.split(" ", 2)
+        tval = long(tval, 10)
+    else:
+        lval = value
+        tval = long(time.time())
+    return(event.Event(name[:255], float(lval), tval))
 
 def parse_from(s):
     items = []

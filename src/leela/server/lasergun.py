@@ -30,6 +30,7 @@ import threading
 import signal
 import json
 import math
+import exceptions
 from Queue import Empty
 from Queue import Full
 from multiprocessing import Process
@@ -38,47 +39,38 @@ from leela.server import funcs
 from leela.server import config
 from leela.server.data import event
 from leela.server.data import netprotocol
+from leela.server.network import parsing
 from leela.server.storage import cassandra
-from leela.server.storage import xmpp
 from leela.server import logger
 from leela.server.data import mavg
 from leela.server.data import ratelimit
-from leela.server.network import dmproc
 
 def scale(e):
     e.set_time((e.year(), e.month(), e.day(), e.hour(), e.minute(), 0))
 
-@funcs.logerrors(logger)
-def monit_consumer(cont, cfg, opts, pipe):
-    funcs.drop_privileges(opts.user, opts.gid)
+class PipeWrapper(object):
 
-    logger.debug("starting monitoring cpu.idle")
-    rl   = ratelimit.RateLimit(300)
-    s    = xmpp.XmppStorage(cfg)
-    s.connect()
+    def __init__(self, fname):
+        self.fn     = fname
+        self.fd     = None
+        self.buffer = ""
 
-    cpu = dmproc.DMProc(cfg.get("dmproc", "socket"), lambda e: map(s.store, e))
-    cpu.proc("window 30 5 | mean | (- 1) | (* 100) | abs | round;")
-    mem = dmproc.DMProc(cfg.get("dmproc", "socket"), lambda e: map(s.store, e))
-    mem.proc("window 30 5 | mean | (* 100) | round;")
-
-    while (cont()):
+    def put_nowait(self, data):
+        if (self.fd is None):
+            self.fd = os.open(self.fn, os.O_WRONLY|os.O_NONBLOCK)
         try:
-            text = pipe.get(timeout=1)
-            for e in netprotocol.parse(text):
-                n = e.name()
-                if (n.startswith("xenserver.") and n.endswith(".cpu.cpu.idle")):
-                    cpu.event(e)
-                elif (n.startswith("xenserver.") and n.endswith(".memory.main.used(%)")):
-                    mem.event(e)
-        except Empty:
-            pass
-        except:
-            if (opts.debug):
-                logger.exception("monit_consumer: exceptiong caught")
-    s.disconnect()
-    logger.debug("monit_consumer: /bye")
-    sys.exit(0)
+            tmp = []
+            for e in netprotocol.parse(data):
+                tmp.append(parsing.render_event(e))
+            os.write(self.fd, ";".join(tmp) + ";")
+        except exceptions.OSError, e:
+            if (e.errno in [errno.EWOULDBLOCK, errno.EAGAIN]):
+                raise(Full())
+            raise
+
+    def close(self):
+        funcs.suppress(os.close)(self.fd)
+        self.fd = None
 
 @funcs.logerrors(logger)
 def cassandra_consumer(cont, cfg, opts, pipe):
@@ -91,7 +83,9 @@ def cassandra_consumer(cont, cfg, opts, pipe):
         try:
             text = pipe.get(timeout=1)
             t = funcs.timer_start()
+            c = 0
             for e in netprotocol.parse(text):
+                c += 1
                 t1 = funcs.timer_start()
                 scale(e)
                 e.store(storage)
@@ -102,7 +96,7 @@ def cassandra_consumer(cont, cfg, opts, pipe):
         except Empty:
             pass
         except:
-            if (opts.debug):
+            if (opts.debug or True):
                 logger.exception("cassandra_consumer: error writing data [text: %s]" % str(text))
     logger.debug("cassandra_consumer: /bye")
     sys.exit(0)
@@ -185,17 +179,13 @@ def cli_parser():
 def main_start(opts):
     cfg = config.read_config(opts.config)
     q0  = Queue(10000)
-    q1  = Queue(10000)
+    q1  = PipeWrapper(cfg.get("xmpp", "pipe"))
 
     if (opts.create_schema):
         cassandra.create_schema(cfg)
 
     logger.debug("starting server...")
     p0 = funcs.start_process(server_consumer, cfg, opts, [q0, q1])
-
-    if (opts.xmpp_enabled):
-        logger.debug("starting monitoring consumer...")
-        funcs.start_process(monit_consumer, cfg, opts, q1)
 
     logger.debug("starting cassandra consumer...")
     for _ in range(cfg.getint("lasergun", "consumers")):
@@ -205,7 +195,6 @@ def main_start(opts):
     q0.close()
     q1.close()
     q0.cancel_join_thread()
-    q1.cancel_join_thread()
     logger.debug("bye!")
 
 def main():
@@ -213,12 +202,11 @@ def main():
     daemon = supay.Daemon("leela-lasergun")
     if (opts.debug):
         logger.set_level(logger.DEBUG)
+    else:
+        logger.set_level(logger.INFO)
     if (opts.action == "start"):
-        if (opts.daemonize):
+        if (opts.daemonize): 
             daemon.start()
-            logger.use_syslog()
-        else:
-            logger.use_console()
         main_start(opts)
     elif (opts.action == "stop"):
         daemon.stop()
