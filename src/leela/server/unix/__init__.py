@@ -16,28 +16,3 @@
 #    limitations under the License.
 #
 
-import sys
-from twisted.python import log
-from logging import DEBUG
-from logging import INFO
-from logging import WARNING
-from logging import ERROR
-
-this = sys.modules[__name__]
-
-def exception(*args, **kwargs):
-    log.err(*args, **kwargs)
-
-def when(p, f):
-    def g(*args, **kwargs):
-        if (p):
-            f(*args, **kwargs)
-    g.__name__ = f.__name__
-    return(g)
-
-def set_level(level):
-    # yeah, pretty nasty hack ... only four lines though :-)
-    this.debug  = when(level<=DEBUG, log.msg)
-    this.info   = when(level<=INFO, log.msg)
-    this.warn   = when(level<=WARNING, log.msg)
-    this.error  = when(level<=ERROR, log.msg)
