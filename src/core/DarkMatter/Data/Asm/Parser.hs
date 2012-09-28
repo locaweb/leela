@@ -23,9 +23,9 @@
 --   EVENT  = "event" SP KEY SP TIME SP VAL EOL
 --   CLOSE  = "close" EOL
 --   EOL    = ";"
---   MODE   = WINDOW / PT
+--   MODE   = WINDOW / MAP
 --   WINDOW = "window" SP 1*DIGIT 1*DIGIT
---   PT     = "passthrough"
+--   MAP    = "map"
 --   KEY    = 1*DIGIT "|" ALPHANUM
 --   TIME   = 1*DIGIT "." 1*DIGIT
 --   VAL    = 1*DIGIT "." 1*DIGIT
@@ -131,7 +131,7 @@ parseMode = do { mc <- P8.peekChar
                                    ; m <- parseInt
                                    ; return (Window n m)
                                    }
-                    Just 'p' -> string "passthrough" >> return Passthrough
+                    Just 'm' -> string "map" >> return Map
                     _        -> fail "error: p|f were expected"
                }
 
@@ -141,6 +141,7 @@ parseFunction = do { c <- P8.peekChar
                      of Just 'a' -> string "abs" >> return Abs
                         Just 'c' -> string "ceil" >> return Ceil
                         Just 'f' -> string "floor" >> return Floor
+                        Just 'i' -> string "id" >> return Id
                         Just 'm' -> choice [ string "mean"     >> return Mean
                                            , string "median"   >> return Median
                                            , string "minimum"  >> return Minimum

@@ -17,17 +17,28 @@
 -- buffer size.
 module DarkMatter.Network.Protocol where
 
+import           Data.Bits
 import qualified Data.ByteString as B
 import           Network.Socket (Socket)
 import           Network.Socket.ByteString
 
-buffersize :: Int
-buffersize = 65536
+unpackShort :: B.ByteString -> Int
+unpackShort n = let [a, b] = map fromIntegral (B.unpack n)
+                in (a `shiftL` 8) .|. b
+
+packShort :: Int -> B.ByteString
+packShort i0 = let a = fromIntegral (i0 `shiftR` 8 .&. 0xFF)
+                   b = fromIntegral (i0 .&. 0xFF)
+               in B.pack [a, b]
 
 recvFrame :: Socket -> IO B.ByteString
-recvFrame = flip recv buffersize
+recvFrame s = do { sz <- recv s 2
+                 ; if (B.length sz == 2)
+                   then recv s (unpackShort sz)
+                   else return B.empty
+                 }
 
 sendFrame :: Socket -> B.ByteString -> IO ()
-sendFrame s msg = send s msg >> return ()
-                       
+sendFrame s msg = let sz = B.length msg
+                  in sendAll s (packShort sz `B.append` msg)
 

@@ -52,7 +52,7 @@ runProc ichan ochan mode func = evalStateT (modeM mode) (newMultiplex func)
           | null e    = return ()
           | otherwise = writeChan ochan (Just (k, e))
 
-        modeM Passthrough  = passthrough (readChan ichan) putO
+        modeM Map          = passthrough (readChan ichan) putO
         modeM (Window n m) = window n m (readChan ichan) putO
 
 runFetch :: BoundedChan (Maybe Input) -> IO () -> [Asm] -> IO ()
@@ -80,7 +80,7 @@ runSync s chan = do { mi <- readChan chan
 
 start :: FilePath -> IO ()
 start f = do { warn ("binding server on: " ++ f)
-             ; s <- socket AF_UNIX SeqPacket 0
+             ; s <- socket AF_UNIX Stream 0
              ; bindSocket s (SockAddrUnix f)
              ; listen s 1
              ; fix (\loop -> do { s1 <- fmap fst $ accept s

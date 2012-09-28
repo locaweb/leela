@@ -56,7 +56,7 @@ renderEvent k e = fromString "event "
                   <> fromChar ';'
 
 renderMode :: Mode -> Builder
-renderMode Passthrough  = fromString "passthrough"
+renderMode Map          = fromString "map"
 renderMode (Window n m) = fromString "window "
                           <> fromShow n
                           <> fromChar ' '

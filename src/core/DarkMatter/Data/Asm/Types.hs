@@ -24,7 +24,7 @@ data Mode = Window Int Int
           -- ^ Defined a buffer of size N (first arg) and speed M
           --   (second arg).  In other words, invoke the pipeline when
           --   N items are read, discarding N-M items afterwards.
-          | Passthrough
+          | Map
           -- ^ Runs without any buffering at all.
           deriving (Show)
 

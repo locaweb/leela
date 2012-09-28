@@ -50,7 +50,7 @@ instance Arbitrary Asm where
 
 instance Arbitrary Mode where
 
-  arbitrary = oneof [return Passthrough, liftM2 Window (fmap abs arbitrary) (fmap abs arbitrary)]
+  arbitrary = oneof [return Map, liftM2 Window (fmap abs arbitrary) (fmap abs arbitrary)]
 
 instance Arbitrary Function where
   
