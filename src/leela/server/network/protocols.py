@@ -18,14 +18,14 @@
 
 import struct
 import uuid
+import time
 from twisted.internet import protocol
-from twisted.python import log
 from leela.server.unix import pipe
 from leela.server.data import event
 from leela.server.network.parsing import *
 from leela.server import logger
 
-class DMProc(protocol.Protocol):
+class DMProcProtocol(protocol.Protocol):
 
     def __init__(self, buffersz=65536):
         self.obuffer  = [0, []]
@@ -73,11 +73,11 @@ class DMProc(protocol.Protocol):
             self.obuffer[1] = []
 
     def send_event(self, e):
-        self.send_data("%s;" % render_event(e))
+        self.send_data(render_event(e))
 
     def send_events(self, es):
         if (len(es) > 0):
-            self.send_data("%s;" % ";".join(map(render_event, es)))
+            self.send_data(render_events(es))
 
     def send_close(self):
         self.send_data("close;")
@@ -96,22 +96,32 @@ class DMProc(protocol.Protocol):
         Invoked whenever a close msg is received
         """
 
-# class LegacyEventProtocol(protocol.LineReceiver):
+class UdpProtocol(protocol.DatagramProtocol):
 
-#     def lineReceived(self, string):
-#         (name, value) = string.split(": ", 2)
-#         if (" " in value):
-#             (lval, tval) = value.split(" ", 2)
-#             tval = long(tval, 10)
-#         else:
-#             lval = value
-#             tval = long(time.time())
-#         self.recv_event(Event(name[:255], float(lval), tval))
+    def parse1(self, string):
+        (name, value) = string.split(": ", 2)
+        if (" " in value):
+            (lval, tval) = value.split(" ", 2)
+            tval = long(tval, 10)
+        else:
+            lval = value
+            tval = long(time.time())
+        return(event.Event(name[:255], float(lval), tval))
+
+    def datagramReceived(self, string, peer):
+        tmp = []
+        for l in string.splitlines():
+            try:
+                tmp.append(self.parse1(l))
+            except:
+                logger.exception()
+        if (len(tmp) > 0):
+            self.recv_event(tmp)
 
 class LeelaBus(pipe.UnixPipeReader):
 
-    def __init__(self, fname):
-        pipe.UnixPipeReader.__init__(self, fname)
+    def __init__(self, fname, mode="r"):
+        pipe.UnixPipeReader.__init__(self, fname, mode)
         self.maxsz     = 65536
         self.residue   = ""
         self.callbacks = {}
@@ -130,6 +140,9 @@ class LeelaBus(pipe.UnixPipeReader):
             self.residue = data
         else:
             self.residue = ""
+
+    def send_broadcast(self, events):
+        self.write(render_events(events))
 
     def recv_data(self, data0):
         data = self.residue + data0

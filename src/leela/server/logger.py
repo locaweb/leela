@@ -47,4 +47,4 @@ def set_level(level, backend="twistex"):
         this.info      = logging.info
         this.warn      = logging.warn
         this.error     = logging.error
-        this.exception = logging.exception
+        this.exception = lambda *args, **kwargs: logging.exception("", *args, **kwargs)

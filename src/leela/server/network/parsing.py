@@ -21,7 +21,12 @@ import json
 from leela.server.data import event
 
 def render_event(e):
-    return("event %d|%s %d.0 %s" % (len(e.name()), e.name(), e.unixtimestamp(), repr(e.value())))
+    return("event %d|%s %d.0 %s;" % (len(e.name()), e.name(), e.unixtimestamp(), repr(e.value())))
+
+def render_events(es):
+    if (len(es) == 0):
+        return("")
+    return("".join(map(render_event, es)))
 
 def render_event_to_json(e):
     return(json.dumps({"name": e.name(), "value": e.value(), "timestamp": e.unixtimestamp()}))

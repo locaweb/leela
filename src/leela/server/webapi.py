@@ -47,7 +47,7 @@ def reply_json(f):
             data = {"error": 404, "message": "not found"}
         except Exception, e:
             cache = 0
-            logger.exception("internal server error")
+            logger.exception()
             bottle.response.status = 500
             data = {"error": 500, "message": "internal server error: %s" % str(e)}
         if (cache > 0):
@@ -193,9 +193,6 @@ def main():
     if (opts.action == "start"):
         if (opts.daemonize):
             daemon.start()
-            logger.use_syslog()
-        else:
-            logger.use_console()
         main_start(opts)
     elif (opts.action == "stop"):
         daemon.stop()

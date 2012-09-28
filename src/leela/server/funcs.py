@@ -59,7 +59,7 @@ def logerrors(logger):
             try:
                 f(*args, **kwargs)
             except:
-                logger.exception("exception caught")
+                logger.exception()
         g.__name__ = f.__name__
         return(g)
     return(proxy_f)

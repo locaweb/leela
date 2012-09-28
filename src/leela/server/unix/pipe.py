@@ -29,8 +29,9 @@ from leela.server import logger
 
 class UnixPipeReader(FileDescriptor):
 
-    def __init__(self, name, reactor=None):
+    def __init__(self, name, mode, reactor=None):
         FileDescriptor.__init__(self, reactor=reactor)
+        self._md = mode
         self._fn = name
         self._fd = None
         self._ar = True
@@ -39,20 +40,28 @@ class UnixPipeReader(FileDescriptor):
         self._ar = v
 
     def connect(self):
-        logger.debug("connecting to unix pipe: "+ self._fn)
+        logger.info("connecting to unix pipe: "+ self._fn)
         if (self._fd is None):
-            self._fd = os.open(self._fn, os.O_RDONLY|os.O_NONBLOCK)
+            if (self._md == "r"):
+                self._fd = os.open(self._fn, os.O_RDONLY|os.O_NONBLOCK)
+            elif (self._md == "w"):
+                self._fd = os.open(self._fn, os.O_WRONLY)
+            else:
+                raise(RuntimeError())
             fdesc.setNonBlocking(self._fd)
             fdesc._setCloseOnExec(self._fd)
             self.connected    = True
             self.disconnected = False
-            self.startReading()
+            if ("r" == self._md):
+                self.startReading()
+            if ("w" == self._md):
+                self.startWriting()
 
     def disconnect(self):
-        logger.debug("disconnecting from unix pipe: "+ self._fn)
         self.loseConnection()
 
     def connectionLost(self, reason):
+        logger.info("lost connection with pipe")
         FileDescriptor.connectionLost(self, reason)
         funcs.suppress(os.close)(self._fd)
         self._fd = None
@@ -62,6 +71,9 @@ class UnixPipeReader(FileDescriptor):
     def fileno(self):
         return(self._fd)
 
+    def writeSomeData(self, data):
+        return(fdesc.writeToFD(self._fd, data))
+
     def doRead(self):
         try:
             output = os.read(self._fd, 65536)
@@ -70,8 +82,8 @@ class UnixPipeReader(FileDescriptor):
                 return
             else:
                 return CONNECTION_LOST
-        # if (output == ""):
-        #     return(CONNECTION_DONE)
+        if not output:
+            return CONNECTION_DONE
         self.recv_data(output)
 
     def recv_data(self, data):

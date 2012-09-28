@@ -31,6 +31,7 @@ from leela.server import funcs
 from leela.server.data import event
 
 DEFAULT_EPOCH = 2000
+COLFAMILY     = "events"
 
 def connect(config):
     server_list = map(lambda s: s.strip(), config.get("storage", "server").split(","))
@@ -99,7 +100,7 @@ class CassandraCF(object):
 class EventsStorage(CassandraCF):
 
     def name(self):
-        return("events")
+        return(COLFAMILY)
 
     def create(self, sysmgr, keyspace):
         logger.info("creating %s column family on %s" % (self.name(), keyspace))

@@ -24,13 +24,15 @@ from twisted.application import internet
 from twisted.python import log
 from wokkel.client import XMPPClient
 from wokkel.xmppim import JID
-from leela.server.network import xmpp
+from leela.server.services import xmpp
+from leela.server.services import storage
+from leela.server.services import udp
 from leela.server import logger
 from leela.server import config
 
 class LeelaOption(usage.Options):
     optParameters = [ ["config", "", config.default_config_file(), "Leela config file to use"],
-                      ["service", "", "xmpp", "What leela service to start (xmpp|http|udp|tcp)"],
+                      ["service", "", "xmpp", "What leela service to start (xmpp|storage|udp)"],
                       ["log-level", "", "warn", "The log level (debug|info|warn|error)"]
                     ]
 
@@ -51,10 +53,16 @@ class LeelaServiceMk(object):
                 port = cfg.getint("xmpp", "port")
         service = XMPPClient(JID(user), pwrd, host, port)
         lepres  = xmpp.PresenceHandler()
-        leproto = xmpp.LeelaXmppInterface(cfg)
+        leproto = xmpp.XmppService(cfg)
         lepres.setHandlerParent(service)
         leproto.setHandlerParent(service)
         return(service)
+
+    def storage_service(self, cfg):
+        return(storage.StorageService(cfg))
+
+    def udp_service(self, cfg):
+        return(udp.UdpService(cfg))
 
     def makeService(self, options):
         logmap = {"debug": logger.DEBUG,
@@ -66,6 +74,10 @@ class LeelaServiceMk(object):
         cfg = config.read_config(options["config"])
         if (options["service"] == "xmpp"):
             return(self.xmpp_service(cfg))
+        elif (options["service"] == "storage"):
+            return(self.storage_service(cfg))
+        elif (options["service"] == "udp"):
+            return(self.udp_service(cfg))
         else:
             raise(RuntimeError("error: unknown service"))
 
