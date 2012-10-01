@@ -1,14 +1,13 @@
 #!/bin/bash
 
 if [ "$1" = "purge" ] ; then
-    userdel leela >/dev/null 2>&1 || true
-    groupdel leela >/dev/null 2>&1 || true
+  userdel leela >/dev/null 2>&1 || true
+  groupdel leela >/dev/null 2>&1 || true
+  update-rc.d leela-web remove >/dev/null
+  update-rc.d leela-udp remove >/dev/null
+  update-rc.d leela-xmpp remove >/dev/null
+  update-rc.d leela-dmproc remove >/dev/null
+  update-rc.d leela-storage remove >/dev/null
 fi
 
-if [ "$1" = "purge" ] ; then
-	update-rc.d leela-web remove >/dev/null
-fi
-
-if [ "$1" = "purge" ] ; then
-	update-rc.d leela-server remove >/dev/null
-fi
+exit 0

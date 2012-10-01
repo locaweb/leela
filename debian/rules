@@ -13,6 +13,8 @@
 	dh $@ --with python2 --namespace leela
 
 override_dh_installinit:
-	dh_installinit --name=leela-server
 	dh_installinit --name=leela-web
-	dh_installinit --name=dmproc
+	dh_installinit --name=leela-udp
+	dh_installinit --name=leela-xmpp
+	dh_installinit --name=leela-dmproc
+	dh_installinit --name=leela-storage

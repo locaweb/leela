@@ -3,20 +3,14 @@
 chgrp leela /etc/leela/leela.conf 2>/dev/null || addgroup --system leela
 chown leela /etc/leela/leela.conf 2>/dev/null || adduser --system --disabled-login --home /var/run/leela --no-create-home --disabled-password --ingroup leela leela
 
-if [ -x "/etc/init.d/leela-server" ]; then
-	update-rc.d leela-server defaults >/dev/null
-	if [ -x "`which invoke-rc.d 2>/dev/null`" ]; then
-		invoke-rc.d leela-server start || exit $?
-	else
-		/etc/init.d/leela-server start || exit $?
-	fi
-fi
+[ -p /var/local/leela-xmpp    ] || { mkfifo /var/local/leela-xmpp; chown leela /var/local/leela-xmpp; }
+[ -p /var/local/leela-dmproc  ] || { mkfifo /var/local/leela-dmproc; chown leela/var/local/leela-dmproc; }
+[ -p /var/local/leela-storage ] || { mkfifo /var/local/leela-storage; chown leela /var/local/leela-storage; }
 
-if [ -x "/etc/init.d/leela-web" ]; then
-	update-rc.d leela-web defaults >/dev/null
-	if [ -x "`which invoke-rc.d 2>/dev/null`" ]; then
-		invoke-rc.d leela-web start || exit $?
-	else
-		/etc/init.d/leela-web start || exit $?
-	fi
-fi
+update-rc.d leela-web defaults >/dev/null
+update-rc.d leela-udp defaults >/dev/null
+update-rc.d leela-xmpp defaults >/dev/null
+update-rc.d leela-dmproc defaults >/dev/null
+update-rc.d leela-storage defaults >/dev/null
+
+exit 0
