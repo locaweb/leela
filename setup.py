@@ -31,7 +31,7 @@ setup(
     url              = "http://leela.readthedocs.org",
     # install_requires = install_deps(),
     namespace_packages = ["leela"],
-    packages         = find_packages("src"),
+    packages         = find_packages("src") + ["twisted.plugins"],
     package_dir      = {"": "src"},
     data_files       = find_datafiles(".", path_f),
     entry_points     = {
