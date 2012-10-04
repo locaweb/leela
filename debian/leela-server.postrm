@@ -6,8 +6,9 @@ update-rc.d leela-xmpp remove
 update-rc.d leela-dmproc remove 
 update-rc.d leela-storage remove
 
+rm -rf /var/run/leela
+
 if [ "$1" = "purge" ] ; then
-  rm -rf /var/run/leela
   rm -rf /var/log/leela
   userdel leela
   groupdel leela

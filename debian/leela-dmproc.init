@@ -1,4 +1,5 @@
 #!/bin/sh
+
 ### BEGIN INIT INFO
 # Provides:          leela-dmproc
 # Required-Start:    $network $local_fs
@@ -18,13 +19,16 @@ PIDFILE=/var/run/leela/dmproc.pid
 
 start_service() {
   log_daemon_msg "starting $DAEMON" "$DAEMON"
-  start-stop-daemon -Sq -c leela -b -m -p $PIDFILE -x $DAEMON -- $DAEMON_OPTS /var/run/leela/dmproc
+  start-stop-daemon -Sq -c leela -b -m -p $PIDFILE -x $DAEMON -- $DAEMON_OPTS ${DMPROC_SOCKET:-/var/run/leela/dmproc.s}
+  test -S ${DMPROC_SOCKET:-/var/run/leela/dmproc.s}
   log_end_msg $?
 }
 
 stop_service() {
   log_daemon_msg "stopping $DAEMON" "$DAEMON"
   start-stop-daemon -Kq -R 10 -p $PIDFILE
+  rm -f $PIDFILE
+  rm -f ${DMPROC_SOCKET:-/var/run/leela/dmproc.s}
   log_end_msg $?
 }
 
