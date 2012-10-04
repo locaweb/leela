@@ -102,7 +102,7 @@ def parse_from(s):
     return(items)
 
 def parse_select(s):
-    m = re.match(r"^SELECT (.*?) FROM (.*?);$", s.strip(), re.I)
+    m = re.match(r"^SELECT (.+?) FROM (.+?);$", s.strip(), re.I)
     r = {}
     if (m):
         return({ "select": { "proc": m.group(1),
@@ -112,10 +112,10 @@ def parse_select(s):
     raise(RuntimeError())
 
 def parse_delete(s):
-    m = re.match(r"^DELETE FROM leela.xmpp WHERE key=(.*);$", s.strip(), re.I)
+    m = re.match(r"^DELETE FROM leela.xmpp(?: WHERE key=(.+?))?;$", s.strip(), re.I)
     r = {}
     if (m):
-        return({ "delete": {"key": m.group(1).encode("utf8")}
+        return({ "delete": {"key": m.group(1)}
                })
     raise(RuntimeError())
 

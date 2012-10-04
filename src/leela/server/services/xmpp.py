@@ -156,19 +156,36 @@ class XmppService(xmppim.MessageProtocol):
             cc({"status": 500})
 
     @defer.inlineCallbacks
+    def handle_delete_all(self, sender, cc):
+        data0 = yield self.redis.hgetall("leela.xmpp")
+        keys  = []
+        for (key, data1) in data0.iteritems():
+            data = json.loads(data1)
+            if (xmppim.JID(data["sender"]).userhost() == sender.userhost()):
+                keys.append(key)
+                yield self.redis.hdel("leela.xmpp", key)
+        cc({"status": 200, "results": keys})
+
+    @defer.inlineCallbacks
+    def handle_delete_one(self, key, sender, cc):
+        data0 = yield self.redis.hget("leela.xmpp", key)
+        if (data0 is not None):
+            data = json.loads(data0)
+            if (xmppim.JID(data["sender"]).userhost() == sender.userhost()):
+                yield self.redis.hdel("leela.xmpp", key)
+                cc({"status": 200})
+            else:
+                cc({"status": 403})
+        else:
+            cc({"status": 404})
+
     def handle_delete(self, request, sender, cc):
         try:
-            key   = request["delete"]["key"]
-            data0 = yield self.redis.hget("leela.xmpp", key)
-            if (data0 is not None):
-                data = json.loads(data0)
-                if (xmppim.JID(data["sender"]).userhost() == sender.userhost()):
-                    yield self.redis.hdel("leela.xmpp", key)
-                    cc({"status": 200})
-                else:
-                    cc({"status": 403})
+            key = request["delete"]["key"]
+            if (key is None):
+                self.handle_delete_all(sender, cc)
             else:
-                cc({"status": 404})
+                self.handle_delete_one(key, sender, cc)
         except:
             logger.exception()
             cc({"status": 500})
