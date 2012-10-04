@@ -10,20 +10,20 @@
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DAEMON=/usr/bin/dmproc
-PIDFILE=/var/run/leela-dmproc.pid
+PIDFILE=/var/run/leela/dmproc.pid
 
 [ -x "$DAEMON" ]                 || exit 0
 [ -r /etc/default/leela-dmproc ] && . /etc/default/leela-dmproc
 [ -r /lib/lsb/init-functions ]   && . /lib/lsb/init-functions
 
 start_service() {
-  log_daemon_msg "starting $DAEMON [$SERVICE]" "$DAEMON [$SERVICE]"
-  start-stop-daemon -Sq -c leela:leela -b -m -p $PIDFILE -x $DAEMON -- $DAEMON_OPTS
+  log_daemon_msg "starting $DAEMON" "$DAEMON"
+  start-stop-daemon -Sq -c leela -b -m -p $PIDFILE -x $DAEMON -- $DAEMON_OPTS /var/run/leela/dmproc
   log_end_msg $?
 }
 
 stop_service() {
-  log_daemon_msg "stopping $DAEMON [$SERVICE]" "$DAEMON [$SERVICE]"
+  log_daemon_msg "stopping $DAEMON" "$DAEMON"
   start-stop-daemon -Kq -R 10 -p $PIDFILE
   log_end_msg $?
 }

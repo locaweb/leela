@@ -3,9 +3,11 @@
 addgroup --system --quiet leela
 adduser --system --quiet --disabled-login --home /var/run/leela --no-create-home --disabled-password --ingroup leela leela
 
-[ -p /var/local/leela-xmpp    ] || { mkfifo /var/local/leela-xmpp; chown leela /var/local/leela-xmpp; }
-[ -p /var/local/leela-dmproc  ] || { mkfifo /var/local/leela-dmproc; chown leela/var/local/leela-dmproc; }
-[ -p /var/local/leela-storage ] || { mkfifo /var/local/leela-storage; chown leela /var/local/leela-storage; }
+[ -d /var/log/leela         ] || { mkdir /var/log/leela; chown leela /var/log/leela;                  }
+[ -d /var/run/leela         ] || { mkdir /var/run/leela; chown leela /var/run/leela;                  }
+[ -p /var/run/leela/xmpp    ] || { mkfifo /var/run/leela/xmpp; chown leela /var/run/leela/xmpp;       }
+[ -p /var/run/leela/dmproc  ] || { mkfifo /var/run/leela/dmproc; chown leela/var/run/leela/dmproc;    }
+[ -p /var/run/leela/storage ] || { mkfifo /var/run/leela/storage; chown leela /var/run/leela/storage; }
 
 update-rc.d leela-web defaults
 update-rc.d leela-udp defaults
