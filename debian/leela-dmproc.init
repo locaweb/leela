@@ -12,6 +12,7 @@
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DAEMON=/usr/bin/dmproc
 PIDFILE=/var/run/leela/dmproc.pid
+LOGFILE=/var/log/leela/dmproc.log
 
 [ -x "$DAEMON" ]                 || exit 0
 [ -r /etc/default/leela-dmproc ] && . /etc/default/leela-dmproc
@@ -19,8 +20,7 @@ PIDFILE=/var/run/leela/dmproc.pid
 
 start_service() {
   log_daemon_msg "starting $DAEMON" "$DAEMON"
-  start-stop-daemon -Sq -c leela -b -m -p $PIDFILE -x $DAEMON -- $DAEMON_OPTS ${DMPROC_SOCKET:-/var/run/leela/dmproc.s}
-  test -S ${DMPROC_SOCKET:-/var/run/leela/dmproc.s}
+  start-stop-daemon -Sq -p $PIDFILE -x /usr/bin/daemon -- $DAEMON_OPTS -F $PIDFILE -o $LOGFILE -- $DAEMON +RTS -N${DMPROC_THREADS} -RTS -vvv ${DMPROC_SOCKET:-/var/run/leela/dmproc.s}
   log_end_msg $?
 }
 
