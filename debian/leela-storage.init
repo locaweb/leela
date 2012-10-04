@@ -20,7 +20,7 @@ LOGFILE=/var/log/leela-$SERVICE.log
 
 start_service() {
   log_daemon_msg "starting $DAEMON [$SERVICE]" "$DAEMON [$SERVICE]"
-  start-stop-daemon -Sq -p $PIDFILE -x $DAEMON -- --logfile=$LOGFILE --pidfile=$PIDFILE leela --service=$SERVICE $DAEMON_OPTS
+  start-stop-daemon -Sq -p $PIDFILE -x $DAEMON -- --uid=leela --gid=leela --logfile=$LOGFILE --pidfile=$PIDFILE leela --service=$SERVICE $DAEMON_OPTS
   log_end_msg $?
 }
 
