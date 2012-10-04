@@ -94,7 +94,8 @@ start f = do { warn ("binding server on: " ++ f)
                   ; asm    <- recvAsm s
                   ; case asm
                     of (Proc m p:xs)
-                         -> do { wait <- newEmptyMVar
+                         -> do { sendStatus s Success
+                               ; wait <- newEmptyMVar
                                ; debug (" forking proc thread: " ++ toString (render $ Proc m p))
                                ; _    <- forkfinally (runProc ichan ochan m p) (sendNil ochan)
                                ; _    <- forkfinally (runSync s ochan) (putMVar wait ())
@@ -105,7 +106,9 @@ start f = do { warn ("binding server on: " ++ f)
                                ; takeMVar wait
                                }
                        _
-                         -> crit " error: proc was expected as the fst instruction"
+                         -> do { sendStatus s Failure
+                               ; crit " error: proc was expected as the fst instruction"
+                               }
                   }
         
 recvAsm :: Socket -> IO [Asm]

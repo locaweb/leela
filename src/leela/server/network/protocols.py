@@ -51,10 +51,11 @@ class DMProcProtocol(protocol.Protocol):
             for l in frame.split(";"):
                 if (l.startswith("e")):
                     self.recv_event(parse_event(l + ";"))
-                elif (l == "close;"):
+                elif (l.startswith("s")):
+                    self.recv_status(parse_status(l + ";"))
+                else:
+                    parse_string(l, "close")
                     self.recv_close()
-                elif (l != ""):
-                    raise(RuntimeError(l))
         except:
             self.transport.loseConnection()
 
@@ -88,12 +89,17 @@ class DMProcProtocol(protocol.Protocol):
 
     def recv_event(self, e):
         """
-        This is invoked whenever a new event is received.
+        This is invoked whenever a new event is received
         """
 
     def recv_close(self):
         """
         Invoked whenever a close msg is received
+        """
+
+    def recv_status(self):
+        """
+        Invoked whenever the servers sends a status message
         """
 
 class UdpProtocol(protocol.DatagramProtocol):

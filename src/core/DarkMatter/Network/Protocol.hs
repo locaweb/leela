@@ -19,8 +19,12 @@ module DarkMatter.Network.Protocol where
 
 import           Data.Bits
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as B8
 import           Network.Socket (Socket)
 import           Network.Socket.ByteString
+
+data Status = Success
+            | Failure
 
 unpackShort :: B.ByteString -> Int
 unpackShort n = let [a, b] = map fromIntegral (B.unpack n)
@@ -42,3 +46,6 @@ sendFrame :: Socket -> B.ByteString -> IO ()
 sendFrame s msg = let sz = B.length msg
                   in sendAll s (packShort sz `B.append` msg)
 
+sendStatus :: Socket -> Status -> IO ()
+sendStatus s Success = sendFrame s (B8.pack "status 0;")
+sendStatus s Failure = sendFrame s (B8.pack "status 1;")

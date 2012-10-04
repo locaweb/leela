@@ -62,13 +62,16 @@ class Connection(object):
         self.key   = key
         self.core  = protocols.DMProcProtocol()
         self.core.recv_event     = self.on_core_recv_event
+        self.core.recv_status    = self.on_core_recv_status
         self.core.connectionLost = self.on_core_connection_lost
         self.core.connectionMade = self.on_core_connection_made
 
-    def on_core_recv_event(self, e):
-        bdy = parsing.render_event_to_json(e)
+    def _send_string(self, bdy):
         xml = xmppim.Message(recipient=self.peer, body=unicode(bdy)).toElement()
         self.xmpp.send(xml)
+        
+    def on_core_recv_event(self, e):
+        self._send_string(parsing.render_event_to_json(e))
 
     def on_core_connection_lost(self, _):
         logger.info("dmproc connection lost: %s" % self.key)
@@ -81,6 +84,12 @@ class Connection(object):
         self.core.flush()
         self.xmpp.bus.attach(self.key, self)
         self.xmpp.active[self.key] = self
+
+    def on_core_recv_status(self, s):
+        if (s == 0):
+            self._send_string(json.dumps({"status": 200, "results": {"key": self.key}}))
+        else:
+            self._send_string(json.dumps({"status": 500, "results": {"key": self.key}}))
 
     def shutdown(self):
         logger.warn("disconnecting: %s" % self.key)
@@ -148,9 +157,6 @@ class XmppService(xmppim.MessageProtocol):
             else:
                 key  = str(uuid.uuid1())
                 self.redis.hset("leela.xmpp", key, json.dumps({"request": request, "sender": sender.full()}))
-                cc({"status": 200,
-                    "results": {"key": key}
-                   })
         except:
             logger.exception()
             cc({"status": 500})

@@ -81,6 +81,14 @@ def parse_event(s):
     else:
         raise(RuntimeError())
 
+def parse_status(s):
+    s      = parse_string(s, "status ")
+    (l, s) = parse_int(s)
+    if (s == ";"):
+        return(l)
+    else:
+        raise(RuntimeError())
+
 def parse_event_legacy(s):
     (name, value) = string.split(": ", 2)
     if (" " in value):
@@ -133,3 +141,9 @@ def parse_event_(s):
         return(parse_event(s))
     except:
         return(None)
+
+def parse_status_(s):
+    try:
+        return(parse_status(s))
+    except:
+        return(-1)
