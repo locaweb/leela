@@ -49,14 +49,18 @@ class DMProcProtocol(protocol.Protocol):
     def recv_frame(self, frame):
         try:
             for l in frame.split(";"):
-                if (l.startswith("e")):
+                c = l[:1]
+                if (c == 'e'):
                     self.recv_event(parse_event(l + ";"))
-                elif (l.startswith("s")):
+                elif (c == 's'):
                     self.recv_status(parse_status(l + ";"))
-                else:
+                elif (c == 'c'):
                     parse_string(l, "close")
                     self.recv_close()
+                elif (l != ""):
+                    raise(RuntimeError())
         except:
+            logger.exception()
             self.transport.loseConnection()
 
     def send_data(self, msg):
