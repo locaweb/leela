@@ -1,16 +1,16 @@
 #!/bin/bash
 
-chgrp leela /etc/leela/leela.conf 2>/dev/null || addgroup --system leela
-chown leela /etc/leela/leela.conf 2>/dev/null || adduser --system --disabled-login --home /var/run/leela --no-create-home --disabled-password --ingroup leela leela
+addgroup --system --quiet leela
+adduser --system --quiet --disabled-login --home /var/run/leela --no-create-home --disabled-password --ingroup leela leela
 
 [ -p /var/local/leela-xmpp    ] || { mkfifo /var/local/leela-xmpp; chown leela /var/local/leela-xmpp; }
 [ -p /var/local/leela-dmproc  ] || { mkfifo /var/local/leela-dmproc; chown leela/var/local/leela-dmproc; }
 [ -p /var/local/leela-storage ] || { mkfifo /var/local/leela-storage; chown leela /var/local/leela-storage; }
 
-update-rc.d leela-web defaults >/dev/null
-update-rc.d leela-udp defaults >/dev/null
-update-rc.d leela-xmpp defaults >/dev/null
-update-rc.d leela-dmproc defaults >/dev/null
-update-rc.d leela-storage defaults >/dev/null
+update-rc.d leela-web defaults
+update-rc.d leela-udp defaults
+update-rc.d leela-xmpp defaults
+update-rc.d leela-dmproc defaults
+update-rc.d leela-storage defaults
 
 exit 0
