@@ -11,7 +11,7 @@
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DAEMON=/usr/bin/twistd
 SERVICE=storage
-PIDFILE=/var/run/leela-server.pid
+PIDFILE=/var/run/leela-storage.pid
 LOGFILE=/var/log/leela-$SERVICE.log
 
 [ -x "$DAEMON" ]                   || exit 0
