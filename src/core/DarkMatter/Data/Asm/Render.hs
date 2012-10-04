@@ -17,6 +17,7 @@
 module DarkMatter.Data.Asm.Render where
 
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as B8
 import           Data.Double.Conversion.ByteString
 import           Data.Monoid ((<>), mempty)
 import           Blaze.ByteString.Builder
@@ -100,3 +101,6 @@ render (Proc m f)    = fromString "proc "
                        <> fromString " | "
                        <> renderPipeline f
                        <> fromChar ';'
+
+toString :: Builder -> String
+toString = B8.unpack . toByteString

@@ -84,8 +84,8 @@ start f = do { warn ("binding server on: " ++ f)
              ; bindSocket s (SockAddrUnix f)
              ; listen s 1
              ; fix (\loop -> do { s1 <- fmap fst $ accept s
-                                ; info "> connection"
-                                ; _ <- forkfinally (go s1) (info "< connection" >> sClose s1)
+                                ; info "creating new connection"
+                                ; _ <- forkfinally (go s1) (info "droppping connection" >> sClose s1)
                                 ; loop
                                 })
              }
@@ -95,9 +95,8 @@ start f = do { warn ("binding server on: " ++ f)
                   ; case asm
                     of (Proc m p:xs)
                          -> do { wait <- newEmptyMVar
-                               ; debug " forking proc thread"
+                               ; debug (" forking proc thread: " ++ toString (render $ Proc m p))
                                ; _    <- forkfinally (runProc ichan ochan m p) (sendNil ochan)
-                               ; debug " exec'ing sync thread"
                                ; _    <- forkfinally (runSync s ochan) (putMVar wait ())
                                ; (if (null xs)
                                   then fix (\loop -> recvAsm s >>= runFetch ichan loop)
@@ -106,7 +105,7 @@ start f = do { warn ("binding server on: " ++ f)
                                ; takeMVar wait
                                }
                        _
-                         -> crit " error: single proc was expected"
+                         -> crit " error: proc was expected as the fst instruction"
                   }
         
 recvAsm :: Socket -> IO [Asm]
