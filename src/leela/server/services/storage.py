@@ -34,6 +34,12 @@ def parse_srvaddr(s):
     else:
         return((res[0], 9160))
 
+def encode_string(s):
+    try:
+        return(s.encode("utf8"))
+    except UnicodeError:
+        return(s)
+
 class StorageService(CassandraClusterPool):
 
     def __init__(self, cfg):
@@ -45,7 +51,6 @@ class StorageService(CassandraClusterPool):
         keyspace   = self.cfg.get("storage", "keyspace")
         CassandraClusterPool.__init__(self, seed_list=servers, keyspace=keyspace, conn_timeout=60)
 
-    @defer.inlineCallbacks
     def recv_broadcast(self, events):
         t = funcs.timer_start()
         for e in events:
@@ -53,7 +58,7 @@ class StorageService(CassandraClusterPool):
             (k0, v0) = cassandra.serialize_event(e, cassandra.DEFAULT_EPOCH)
             k = struct.pack(">i", k0)
             v = struct.pack(">d", v0)
-            yield self.insert(key=e.name(), column_family=cassandra.COLFAMILY, value=v, column=k)
+            self.insert(key=encode_string(e.name()), column_family=cassandra.COLFAMILY, value=v, column=k)
         logger.debug("wrote %d events [walltime: %s]" % (len(events), funcs.timer_stop(t)))
 
     def startService(self):
