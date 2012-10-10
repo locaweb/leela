@@ -44,18 +44,17 @@ class UnixPipeReader(FileDescriptor):
         if (self._fd is None):
             if (self._md == "r"):
                 self._fd = os.open(self._fn, os.O_RDONLY|os.O_NONBLOCK)
+                fdesc._setCloseOnExec(self._fd)
             elif (self._md == "w"):
                 self._fd = os.open(self._fn, os.O_WRONLY)
+                fdesc.setNonBlocking(self._fd)
+                fdesc._setCloseOnExec(self._fd)
             else:
                 raise(RuntimeError())
-            fdesc.setNonBlocking(self._fd)
-            fdesc._setCloseOnExec(self._fd)
             self.connected    = True
             self.disconnected = False
             if ("r" == self._md):
                 self.startReading()
-            if ("w" == self._md):
-                self.startWriting()
 
     def disconnect(self):
         self.loseConnection()
@@ -79,7 +78,7 @@ class UnixPipeReader(FileDescriptor):
             output = os.read(self._fd, 65536)
         except (OSError, IOError), ioe:
             if ioe.args[0] in (errno.EAGAIN, errno.EINTR):
-                return
+                return 0
             else:
                 return CONNECTION_LOST
         if not output:
