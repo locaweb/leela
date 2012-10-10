@@ -99,7 +99,7 @@ parseTime = do { s <- parseInt
                }
 
 parseVal :: Parser Double
-parseVal = P8.double
+parseVal = P8.rational
 
 parseClose :: Parser Asm
 parseClose = P8.string "close" >> return Close

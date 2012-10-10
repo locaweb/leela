@@ -44,14 +44,18 @@ def parse_istring(s, w):
 def parse_take(s, n):
     return(s[:n], s[n:])
 
+def parse_takewhile(s, p):
+    tmp = []
+    for c in s:
+        if (p(c)):
+            tmp.append(c)
+        else:
+            break
+    return(("".join(tmp), s[len(tmp):]))
+
 def parse_double(s):
-    (d, s) = parse_int(s, signed=True)
-    if (s.startswith(".")):
-        s      = parse_string(s, ".")
-        (r, s) = parse_int(s)
-    else:
-        r = 0
-    return(float("%d.%d" % (d ,r)), s)
+    (d, s) = parse_takewhile(s, lambda c: c in "0123456789.e-+")
+    return(float(d), s)
 
 def parse_int(s, signed=False):
     tmp = []

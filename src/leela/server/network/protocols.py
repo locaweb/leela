@@ -163,6 +163,7 @@ class LeelaBus(pipe.UnixPipeReader):
             if (c == ';'):
                 e = parse_event_("".join(tmp))
                 if (e is None):
+                    logger.debug("error parsing: %s" % "".join(tmp))
                     tmp = []
                 else:
                     tmp = []
