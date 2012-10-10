@@ -161,11 +161,12 @@ class LeelaBus(pipe.UnixPipeReader):
         for c in data:
             tmp.append(c)
             if (c == ';'):
-                e   = parse_event_("".join(tmp))
-                tmp = []
+                e = parse_event_("".join(tmp))
                 if (e is None):
-                    break
-                msgs.append(e)
+                    tmp = []
+                else:
+                    tmp = []
+                    msgs.append(e)
         self.set_residue("".join(tmp))
         if (len(msgs) > 0):
             for cc in self.callbacks.values():
