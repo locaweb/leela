@@ -1,15 +1,15 @@
 #!/bin/bash
 
-update-rc.d leela-web remove
-update-rc.d leela-udp remove
-update-rc.d leela-xmpp remove
-update-rc.d leela-dmproc remove 
-update-rc.d leela-storage remove
-
-rm -rf /var/run/leela
-
 if [ "$1" = "purge" ] ; then
+  update-rc.d leela-web remove
+  update-rc.d leela-udp remove
+  update-rc.d leela-xmpp remove
+  update-rc.d leela-dmproc remove 
+  update-rc.d leela-storage remove
+
+  rm -rf /var/run/leela
   rm -rf /var/log/leela
+
   userdel leela
   groupdel leela
 fi
