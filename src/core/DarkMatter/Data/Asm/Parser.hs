@@ -121,7 +121,9 @@ parseVal = do { c <- P8.peekChar
               ; case c
                 of Just 'n' -> string "nan" >> return nan
                    Just 'i' -> string "inf" >> return inf
-                   Just '-' -> string "-inf" >> return ninf
+                   Just '-' -> choice [ P8.rational
+                                      , string "-inf" >> return ninf
+                                      ]
                    _        -> P8.rational
               }
 
@@ -144,18 +146,18 @@ parseProc = do { _         <- string "proc "
                ; return (Proc pipeline)
                }
 
-parseWindow :: Parser Function
+parseWindow :: Parser AsyncFunc
 parseWindow = do { _ <- string "window "
                  ; n <- parseInt
                  ; _ <- P8.space
                  ; _ <- P8.char '('
-                 ; p <- parseFunction `sepBy` string " | "
+                 ; p <- parseSyncFunc `sepBy` string " | "
                  ; _ <- P8.char ')'
                  ; return (Window n p)
                  }
 
-parseFunction :: Parser Function
-parseFunction = do { c <- P8.peekChar
+parseSyncFunc :: Parser SyncFunc
+parseSyncFunc = do { c <- P8.peekChar
                    ; case c
                      of Just 'a' -> string "abs" >> return Abs
                         Just 'c' -> string "ceil" >> return Ceil
@@ -168,12 +170,44 @@ parseFunction = do { c <- P8.peekChar
                                            ]
                         Just 'p' -> string "prod" >> return Prod
                         Just 'r' -> string "round" >> return Round
-                        Just 's' -> string "sum" >> return Sum
+                        Just 's' -> string "sum"  >> return Sum
                         Just 't' -> string "truncate" >> return Truncate
-                        Just 'w' -> parseWindow
                         Just '(' -> parseArithmetic
-                        _        -> fail "error: a|c|f|m|p|r|s|t|w|( were expected"
+                        _        -> fail "error: a|c|f|m|p|r|s|t|( were expected"
                    }
+
+parseAsyncFunc :: Parser AsyncFunc
+parseAsyncFunc = do { mc <- P8.peekChar
+                    ; case mc
+                      of Just 's' -> choice [ parseSMA
+                                            , parseSample
+                                            ]
+                         Just 'w' -> parseWindow
+                         _        -> fail "parseAsyncFunc: s|w were expected"
+                    }
+
+parseFunction :: Parser Function
+parseFunction = do { c <- P8.peekChar
+                   ; case c
+                     of Just 's' -> choice [ fmap Left parseAsyncFunc
+                                           , fmap Right parseSyncFunc
+                                           ]
+                        Just 'w' -> fmap Left parseAsyncFunc
+                        _        -> fmap Right parseSyncFunc
+                   }
+
+parseSMA :: Parser AsyncFunc
+parseSMA = do { _ <- string "sma "
+              ; liftM SMA parseInt
+              }
+
+parseSample :: Parser AsyncFunc
+parseSample = do { _ <- string "sample "
+                 ; n <- parseInt
+                 ; _ <- P8.char '/'
+                 ; m <- parseInt
+                 ; return (Sample n m)
+                 }
 
 parseOp :: Parser ArithOp
 parseOp = do { c <- P8.satisfy (`elem` "*+/-")
@@ -185,7 +219,7 @@ parseOp = do { c <- P8.satisfy (`elem` "*+/-")
                   _   -> fail "error: *|+|-|/ were expected"
              }
 
-parseArithmetic :: Parser Function
+parseArithmetic :: Parser SyncFunc
 parseArithmetic = do { _ <- P8.char '('
                      ; o <- parseOp
                      ; _ <- P8.space

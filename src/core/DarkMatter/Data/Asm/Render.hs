@@ -40,7 +40,7 @@ renderOp Div = fromChar '/'
 renderOp Sub = fromChar '-'
 
 renderDouble :: Double -> Builder
-renderDouble = fromByteString . toShortest
+renderDouble = fromString . show
 
 renderTime :: Time -> Builder
 renderTime t = fromShow (seconds t)
@@ -56,30 +56,42 @@ renderEvent k e = fromString "event "
                   <> renderDouble (val e)
                   <> fromChar ';'
 
-renderFunction :: Function -> Builder
-renderFunction (Window n p)     = fromString "window "
-                                  <> fromShow n
-                                  <> fromChar ' '
-                                  <> fromChar '('
-                                  <> renderPipeline p
-                                  <> fromChar ')'
-renderFunction Mean             = fromString "mean"
-renderFunction Median           = fromString "median"
-renderFunction Maximum          = fromString "maximum"
-renderFunction Minimum          = fromString "minimum"
-renderFunction Sum              = fromString "sum"
-renderFunction Id               = fromString "id"
-renderFunction Prod             = fromString "prod"
-renderFunction Floor            = fromString "floor"
-renderFunction Ceil             = fromString "ceil"
-renderFunction Round            = fromString "round"
-renderFunction Truncate         = fromString "truncate"
-renderFunction Abs              = fromString "abs"
-renderFunction (Arithmetic o v) = fromChar '('
+renderSyncFunc :: SyncFunc -> Builder
+renderSyncFunc Mean             = fromString "mean"
+renderSyncFunc Median           = fromString "median"
+renderSyncFunc Maximum          = fromString "maximum"
+renderSyncFunc Minimum          = fromString "minimum"
+renderSyncFunc Sum              = fromString "sum"
+renderSyncFunc Id               = fromString "id"
+renderSyncFunc Prod             = fromString "prod"
+renderSyncFunc Floor            = fromString "floor"
+renderSyncFunc Ceil             = fromString "ceil"
+renderSyncFunc Round            = fromString "round"
+renderSyncFunc Truncate         = fromString "truncate"
+renderSyncFunc Abs              = fromString "abs"
+renderSyncFunc (Arithmetic o v) = fromChar '('
                                   <> renderOp o
                                   <> fromChar ' '
                                   <> renderDouble v
                                   <> fromChar ')'
+
+renderAsyncFunc :: AsyncFunc -> Builder
+renderAsyncFunc (Window n p)  = fromString "window "
+                               <> fromShow n
+                               <> fromChar ' '
+                               <> fromChar '('
+                               <> renderPipeline (map Right p)
+                               <> fromChar ')'
+renderAsyncFunc (Sample n m) = fromString "sample "
+                               <> fromShow n
+                               <> fromChar '/'
+                               <> fromShow m
+renderAsyncFunc (SMA n)      = fromString "sma "
+                               <> fromShow n
+
+renderFunction :: Function -> Builder
+renderFunction (Left f)  = renderAsyncFunc f
+renderFunction (Right f) = renderSyncFunc f
 
 renderKey :: B.ByteString -> Builder
 renderKey k = fromShow (B.length k)

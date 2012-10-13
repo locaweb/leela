@@ -24,13 +24,13 @@
 --   proc thread;
 module DarkMatter.Network.ProcServer ( start ) where
 
-import           Prelude hiding (null, catch)
+import           Prelude hiding (catch)
 import           Control.Concurrent hiding (readChan, writeChan)
 import           Control.Concurrent.BoundedChan
 import           Control.Exception
 import           Data.Function
 import           Data.Monoid
-import           Blaze.ByteString.Builder (toByteStringIO)
+import           Blaze.ByteString.Builder
 import qualified Data.Foldable as F
 import           Network.Socket
 import           DarkMatter.Logger (debug, info, warn, crit)
@@ -44,16 +44,13 @@ import           DarkMatter.Data.Proc
 
 type Input = (Key, Event)
 
-type Output = (Key, Events)
+type Output = (Key, Event)
 
-runProc :: BoundedChan (Maybe Input) -> (BoundedChan (Maybe Output)) -> Mode -> [Function] -> IO ()
-runProc ichan ochan mode func = evalStateT (modeM mode) (newMultiplex func)
-  where putO k e
-          | null e    = return ()
-          | otherwise = writeChan ochan (Just (k, e))
-
-        modeM Map          = passthrough (readChan ichan) putO
-        modeM (Window n m) = window n m (readChan ichan) putO
+runProc :: BoundedChan (Maybe Input) -> (BoundedChan (Maybe Output)) -> [Function] -> IO ()
+runProc ichan ochan func = evalStateT (exec getI putO) (newMultiplex func)
+  where getI = readChan ichan
+  
+        putO = writeChan ochan
 
 runFetch :: BoundedChan (Maybe Input) -> IO () -> [Asm] -> IO ()
 runFetch chan cont [Event k t v]    = writeChan chan (Just (k, temporal t v)) >> cont
@@ -64,19 +61,28 @@ runFetch _ _ _                      = crit " error: close|event were expected"
 runSync :: Socket -> (BoundedChan (Maybe Output)) -> IO ()
 runSync s chan = do { mi <- readChan chan
                     ; case mi
-                      of Nothing     -> return ()
-                         Just (k, v) -> let key   = renderKey k
-                                            build = \acc e -> renderEvent key e <> acc
-                                            msg   = F.foldl' build mempty (chk v)
-                                        in (toByteStringIO (sendFrame s) msg >> runSync s chan)
-                                             `catch` (\(SomeException _) -> crit " error: sending output" >> clearChan)
+                      of Nothing
+                           -> return ()
+                         Just (k, e)
+                           -> let msg = renderEvent (renderKey k) e
+                              in (sendmsg msg (runSync s chan) clearChan)
                     }
-  where clearChan = do { mi <- readChan chan
-                       ; case mi
-                         of Nothing -> return ()
-                            _       -> clearChan
-                       }
+    where sendmsg m contOk contErr =
+            do { ok <- (toByteStringIO (sendFrame s) m >> return True)
+                       `catch` \(SomeException _) -> (crit " error: sending output"
+                                                        >> return False)
+               ; if (ok)
+                 then contOk
+                 else contErr
+               }
 
+          clearChan = do { mi <- readChan chan
+                         ; case mi
+                           of Nothing
+                                -> return ()
+                              Just (k, e)
+                                -> time e `seq` val e `seq` clearChan
+                         }
 
 start :: FilePath -> IO ()
 start f = do { warn ("binding server on: " ++ f)
@@ -93,11 +99,11 @@ start f = do { warn ("binding server on: " ++ f)
                   ; ichan  <- newBoundedChan 5
                   ; asm    <- recvAsm s
                   ; case asm
-                    of (Proc m p:xs)
+                    of (Proc p:xs)
                          -> do { sendStatus s Success
                                ; wait <- newEmptyMVar
-                               ; debug (" forking proc thread: " ++ toString (render $ Proc m p))
-                               ; _    <- forkfinally (runProc ichan ochan m p) (sendNil ochan)
+                               ; debug (" forking proc thread: " ++ toString (render $ Proc p))
+                               ; _    <- forkfinally (runProc ichan ochan p) (sendNil ochan)
                                ; _    <- forkfinally (runSync s ochan) (putMVar wait ())
                                ; (if (null xs)
                                   then fix (\loop -> recvAsm s >>= runFetch ichan loop)

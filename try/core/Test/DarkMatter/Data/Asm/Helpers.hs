@@ -41,26 +41,10 @@ genEvent = do { k <- genKey
               ; return (Event k c v)
               }
 
-genFunction :: Gen Function
-genFunction = do { f  <- arbitrary
-                 ; v  <- arbitrary
-                 ; n  <- fmap abs arbitrary
-                 ; p  <- listOf1 $ elements [ Sum
-                                            , Prod
-                                            , Id
-                                            , Truncate
-                                            , Floor
-                                            , Ceil
-                                            , Round
-                                            , Mean
-                                            , Median
-                                            , Minimum
-                                            , Maximum
-                                            , Abs
-                                            , Arithmetic f v
-                                            ]
-                 ; elements [ Window n p
-                            , Sum
+genSyncFunc :: Gen SyncFunc
+genSyncFunc = do { f <- arbitrary
+                 ; v <- arbitrary
+                 ; elements [ Sum
                             , Prod
                             , Id
                             , Truncate
@@ -74,7 +58,25 @@ genFunction = do { f  <- arbitrary
                             , Abs
                             , Arithmetic f v
                             ]
-                 }
+                  }
+
+genAsyncFunc :: Gen AsyncFunc
+genAsyncFunc = do { n <- arbitrary `suchThat` (> 0)
+                  ; m <- arbitrary `suchThat` (>= n)
+                  ; f <- arbitrary `suchThat` ((> 0) . length)
+                  ; elements [ Window n f
+                             , SMA n
+                             , Sample n m
+                             ]
+                  }
+
+instance Arbitrary SyncFunc where
+
+  arbitrary = genSyncFunc
+
+instance Arbitrary AsyncFunc where
+
+  arbitrary = genAsyncFunc
 
 instance Arbitrary Asm where
   
@@ -82,10 +84,6 @@ instance Arbitrary Asm where
                     , genProc
                     , genClose
                     ]
-
-instance Arbitrary Function where
-  
-  arbitrary = genFunction
 
 instance Arbitrary Time where
 

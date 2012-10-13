@@ -19,8 +19,9 @@ module DarkMatter.Data.Asm.Types where
 import DarkMatter.Data.Time
 import Data.ByteString as B
 
-data Function = Window Int [Function]
-              | Sum
+type Function = Either AsyncFunc SyncFunc
+
+data SyncFunc = Sum
               | Prod
               | Mean
               | Median
@@ -35,6 +36,11 @@ data Function = Window Int [Function]
               | Arithmetic ArithOp Double
               deriving (Eq)
 
+data AsyncFunc = Window Int [SyncFunc]
+               | SMA Int
+               | Sample Int Int
+               deriving (Eq)
+
 data ArithOp = Mul
              | Add
              | Div
@@ -45,7 +51,7 @@ type Key = B.ByteString
 
 -- | The available instructions to execute
 data Asm = Event Key Time Double
-         | Proc [Function]
+         | Proc [Either AsyncFunc SyncFunc]
          | Close
          deriving (Eq)
 
