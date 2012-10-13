@@ -21,4 +21,5 @@ import qualified Test.DarkMatter.Data.Asm.Parser as S1
 import qualified Test.DarkMatter.Data.ProcLib as S2
 
 main :: IO ()
-main = hspec (S2.specs)
+main = hspec $ do S1.specs
+                  S2.specs

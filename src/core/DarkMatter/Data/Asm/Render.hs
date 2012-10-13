@@ -56,14 +56,13 @@ renderEvent k e = fromString "event "
                   <> renderDouble (val e)
                   <> fromChar ';'
 
-renderMode :: Mode -> Builder
-renderMode Map          = fromString "map"
-renderMode (Window n m) = fromString "window "
-                          <> fromShow n
-                          <> fromChar ' '
-                          <> fromShow m
-
 renderFunction :: Function -> Builder
+renderFunction (Window n p)     = fromString "window "
+                                  <> fromShow n
+                                  <> fromChar ' '
+                                  <> fromChar '('
+                                  <> renderPipeline p
+                                  <> fromChar ')'
 renderFunction Mean             = fromString "mean"
 renderFunction Median           = fromString "median"
 renderFunction Maximum          = fromString "maximum"
@@ -96,11 +95,12 @@ render (Event k t v) = fromString "event "
                        <> fromChar ' '
                        <> renderDouble v
                        <> fromChar ';'
-render (Proc m f)    = fromString "proc "
-                       <> renderMode m
-                       <> fromString " | "
+render (Proc f)      = fromString "proc "
                        <> renderPipeline f
                        <> fromChar ';'
+
+renderList :: [Asm] -> Builder
+renderList = foldr1 (<>) . map render
 
 toString :: Builder -> String
 toString = B8.unpack . toByteString

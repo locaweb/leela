@@ -40,14 +40,14 @@ mean = Proc (f 0 1)
                    in (m1, Proc (f m1 (n + 1)))
 
 -- | Simple moving average
-sma :: (Fractional a) => Int -> Proc a a
+sma :: (Fractional a) => Int -> Proc a (Maybe a)
 sma n = Proc (f [])
   where f acc i
           | length acc == n = g acc i
-          | otherwise       = (0, Proc $ f (i : acc))
+          | otherwise       = (Nothing, Proc $ f (i : acc))
 
         g acc i = let m = fst $ run_ mean acc
-                  in (m, Proc $ g (i : init acc))
+                  in (Just m, Proc $ g (i : init acc))
 
 -- | Drops the first n items
 dropProc :: Int -> Proc a (Maybe a)
@@ -92,7 +92,15 @@ select p = Proc f
 -- | Sample @n@ elements out from a population of @m@ elements. For
 -- every value, @n@ and @m@ are decremented. The function returns
 -- @Nothing@ if @n == 0@ and the process starts over with the original
--- values when @m == 0@
+-- values when @m == 0@.
+--
+-- The frequency which elements are picked is defined by the following:
+-- @
+--   let L = total of elements
+--       n = the number of elements to select
+--       m = the population size
+--   in n * (L `mod` m) + min n (L `mod` m))
+-- @
 sample :: Int  -- ^ Number of elements to select (@n@)
        -> Int  -- ^ Population size (@m@)
        -> Proc i (Maybe i)

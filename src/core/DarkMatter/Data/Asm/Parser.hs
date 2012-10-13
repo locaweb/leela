@@ -19,19 +19,21 @@
 --   S      = PROC
 --          / EVENT
 --          / CLOSE
---   PROC   = "proc" SP MODE 1*(SP "|" SP FUNC) EOL
+--   PROC   = "proc" SP PIPELINE EOL
+--   PIPELINE = FUNC *(SP "|" SP FUNC)
 --   EVENT  = "event" SP KEY SP TIME SP VAL EOL
 --   CLOSE  = "close" EOL
 --   EOL    = ";"
---   MODE   = WINDOW / MAP
 --   WINDOW = "window" SP 1*DIGIT 1*DIGIT
 --   MAP    = "map"
 --   KEY    = 1*DIGIT "|" ALPHANUM
 --   TIME   = 1*DIGIT "." 1*DIGIT
 --   VAL    = 1*DIGIT "." 1*DIGIT
 --   FUNC   = "(" ARITHF ")"
+--          / "window" SP 1*DIGIT "(" PIPELINE ")"
 --          / "sum"
 --          / "prod"
+--          / "id"
 --          / "truncate"
 --          / "ceil"
 --          / "floor"
@@ -52,11 +54,22 @@ module DarkMatter.Data.Asm.Parser
        , asmParser
        ) where
 
+import Debug.Trace
+import           Control.Monad
 import           Data.Attoparsec.ByteString as P
 import qualified Data.Attoparsec.ByteString.Char8 as P8
 import qualified Data.ByteString as B
 import           DarkMatter.Data.Asm.Types
 import           DarkMatter.Data.Time
+
+nan :: Double
+nan = 0 / 0
+
+inf :: Double
+inf = 1 / 0
+
+ninf :: Double
+ninf = - inf
 
 asmParser :: Parser Asm
 asmParser = do { mc <- P8.peekChar
@@ -77,7 +90,12 @@ runOne :: B.ByteString -> Maybe Asm
 runOne i = either (const Nothing) Just (parseOnly (asmParser `endBy` eol) i)
 
 runAll :: B.ByteString -> [Asm]
-runAll i = either (const []) id (parseOnly (asmParser `sepBy1` eol) (i `B.append` " "))
+runAll i = either (const []) id (parseOnly parser i)
+  where parser = do { eof <- atEnd
+                    ; if eof
+                      then return []
+                      else liftM2 (:) (asmParser `endBy` eol) parser
+                    }
 
 eol :: Parser ()
 eol = P8.char ';' >> return ()
@@ -99,7 +117,13 @@ parseTime = do { s <- parseInt
                }
 
 parseVal :: Parser Double
-parseVal = P8.rational
+parseVal = do { c <- P8.peekChar
+              ; case c
+                of Just 'n' -> string "nan" >> return nan
+                   Just 'i' -> string "inf" >> return inf
+                   Just '-' -> string "-inf" >> return ninf
+                   _        -> P8.rational
+              }
 
 parseClose :: Parser Asm
 parseClose = P8.string "close" >> return Close
@@ -116,24 +140,19 @@ parseEvent = do { _   <- string "event "
 
 parseProc :: Parser Asm
 parseProc = do { _         <- string "proc "
-               ; mode      <- parseMode
-               ; _         <- string " | "
-               ; pipeline  <- parseFunction `sepBy1` (string " | ")
-               ; return (Proc mode pipeline)
+               ; pipeline  <- parseFunction `sepBy` string " | "
+               ; return (Proc pipeline)
                }
 
-parseMode :: Parser Mode
-parseMode = do { mc <- P8.peekChar
-               ; case mc
-                 of Just 'w' -> do { _ <- string "window "
-                                   ; n <- parseInt
-                                   ; _ <- P8.space
-                                   ; m <- parseInt
-                                   ; return (Window n m)
-                                   }
-                    Just 'm' -> string "map" >> return Map
-                    _        -> fail "error: p|f were expected"
-               }
+parseWindow :: Parser Function
+parseWindow = do { _ <- string "window "
+                 ; n <- parseInt
+                 ; _ <- P8.space
+                 ; _ <- P8.char '('
+                 ; p <- parseFunction `sepBy` string " | "
+                 ; _ <- P8.char ')'
+                 ; return (Window n p)
+                 }
 
 parseFunction :: Parser Function
 parseFunction = do { c <- P8.peekChar
@@ -151,6 +170,7 @@ parseFunction = do { c <- P8.peekChar
                         Just 'r' -> string "round" >> return Round
                         Just 's' -> string "sum" >> return Sum
                         Just 't' -> string "truncate" >> return Truncate
+                        Just 'w' -> parseWindow
                         Just '(' -> parseArithmetic
                         _        -> fail "error: a|c|f|m|p|r|s|t|w|( were expected"
                    }

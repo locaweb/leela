@@ -32,7 +32,7 @@ genClose :: Gen Asm
 genClose = return Close
 
 genProc :: Gen Asm
-genProc = liftM2 Proc arbitrary (listOf1 arbitrary)
+genProc = liftM Proc (listOf1 arbitrary)
 
 genEvent :: Gen Asm
 genEvent = do { k <- genKey
@@ -41,22 +41,26 @@ genEvent = do { k <- genKey
               ; return (Event k c v)
               }
 
-instance Arbitrary Asm where
-  
-  arbitrary = oneof [ genEvent
-                    , genProc
-                    , genClose
-                    ]
-
-instance Arbitrary Mode where
-
-  arbitrary = oneof [return Map, liftM2 Window (fmap abs arbitrary) (fmap abs arbitrary)]
-
-instance Arbitrary Function where
-  
-  arbitrary = do { f <- arbitrary
-                 ; v <- arbitrary
-                 ; elements [ Sum
+genFunction :: Gen Function
+genFunction = do { f  <- arbitrary
+                 ; v  <- arbitrary
+                 ; n  <- fmap abs arbitrary
+                 ; p  <- listOf1 $ elements [ Sum
+                                            , Prod
+                                            , Id
+                                            , Truncate
+                                            , Floor
+                                            , Ceil
+                                            , Round
+                                            , Mean
+                                            , Median
+                                            , Minimum
+                                            , Maximum
+                                            , Abs
+                                            , Arithmetic f v
+                                            ]
+                 ; elements [ Window n p
+                            , Sum
                             , Prod
                             , Id
                             , Truncate
@@ -72,6 +76,17 @@ instance Arbitrary Function where
                             ]
                  }
 
+instance Arbitrary Asm where
+  
+  arbitrary = oneof [ genEvent
+                    , genProc
+                    , genClose
+                    ]
+
+instance Arbitrary Function where
+  
+  arbitrary = genFunction
+
 instance Arbitrary Time where
 
   arbitrary = do { s <- fmap abs arbitrary
@@ -82,3 +97,7 @@ instance Arbitrary Time where
 instance Arbitrary ArithOp where
 
   arbitrary = elements [Mul, Add, Div, Sub]
+
+instance Show Asm where
+
+  show = toString . render

@@ -19,6 +19,7 @@ module Test.DarkMatter.Data.Asm.Parser
        ) where
 
 import           Blaze.ByteString.Builder
+import           Debug.Trace
 import           Data.Maybe
 import qualified Data.ByteString as B
 import           Test.Hspec
@@ -28,20 +29,46 @@ import           DarkMatter.Data.Asm.Types
 import           DarkMatter.Data.Asm.Parser
 import           DarkMatter.Data.Asm.Render
 
+myRunOne :: Asm -> Bool
+myRunOne asm = let f = runOne . toByteString . render
+               in f asm == Just asm
+
+myRunAll :: [Asm] -> Bool
+myRunAll asms = let f = runAll . toByteString . renderList
+                in f asms == asms
+
 event_spec :: Spec
-event_spec =
-    it "should be able to parse any \"event\" instructions"
-      (forAll (arbitrary `suchThat` isEvent) $ isJust . runOne . toByteString . render)
+event_spec = do
+    it "\"event\" instruction"
+      (forAll samples0 myRunOne)
+
+    it "\"event\" instructions"
+      (forAll samples1 myRunAll)
+
+  where samples0 = arbitrary `suchThat` isEvent
+        samples1 = arbitrary `suchThat` \xs -> all isEvent xs && length xs > 0
 
 proc_spec :: Spec
-proc_spec =
-    it "should be able to parse any \"proc\" instructions"
-      (forAll (arbitrary `suchThat` isProc) $ isJust . runOne . toByteString . render)
+proc_spec = do
+    it "\"proc\" instruction"
+      (forAll samples0 $ myRunOne)
+
+    it "\"proc\" instructions"
+      (forAll samples1 $ myRunAll)
+
+  where samples0 = arbitrary `suchThat` isProc
+        samples1 = arbitrary `suchThat` \xs -> all isProc xs && length xs > 0
 
 close_spec :: Spec
-close_spec =
-    it "should be able to parse any \"close\" instructions"
-      (forAll (arbitrary `suchThat` isClose) $ isJust . runOne . toByteString . render)
+close_spec = do
+    it "\"close\" instruction"
+      (forAll samples0 myRunOne)
+
+    it "\"close\" instructions"
+      (forAll samples1 myRunAll)
+
+  where samples0 = arbitrary `suchThat` isClose
+        samples1 = arbitrary `suchThat` \xs -> all isClose xs && length xs > 0
 
 specs :: Spec
 specs = describe "DarkMatter.Data.Asm.Parser" $ do

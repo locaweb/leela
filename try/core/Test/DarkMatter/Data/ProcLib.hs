@@ -31,7 +31,7 @@ mean_spec = do
     it "numerical stability"
       (forAll samples0 $ not . isInfinite . fst . run_ mean)
 
-    it "comparison with reference implementation"
+    it "against reference implementation"
       (forAll samples1 (\xs -> let m1 = fst (run_ mean xs)
                                    m0 = refImpl xs
                                in abs (m1-m0) < 0.01))
@@ -51,7 +51,7 @@ count_spec =
 
 binary_spec :: Spec
 binary_spec =
-    it "works like Prelude.foldr1"
+    it "against reference implementation"
       (forAll samples (\(Op f, xs) -> let v0 = foldr1 f xs
                                           v1 = fst (run_ (binary f) xs)
                                       in v0 == v1))
@@ -62,7 +62,7 @@ binary_spec =
 
 select_spec :: Spec
 select_spec =
-    it "works like reversed Prelude.filter"
+    it "against reference implementation"
       (forAll samples (\xs -> let f  = (> 0)
                                   v0 = reverse $ filter f xs
                                   v1 = catMaybes (fst $ run (select f) xs)
@@ -71,27 +71,27 @@ select_spec =
 
 window_spec :: Spec
 window_spec =
-    it "apply the proc given when buffer is full"
+    it "honor the buffer size"
       (forAll samples ((all (==10)) . catMaybes . fst . run (window 10 count)))
   where samples = arbitrary :: Gen [()]
 
 takeProc_spec :: Spec
 takeProc_spec =
-    it "works like Prelude.take"
+    it "against reference implementation"
       (forAll samples (\n -> let v0 = fst $ runWhile isJust (takeProc n) [1..]
                              in length v0 == n))
   where samples = elements [0..100]
 
 dropProc_spec :: Spec
 dropProc_spec =
-    it "works like Prelude.drop"
+    it "against reference implementation"
       (forAll samples (\n -> let v0 = fst $ runWhile isNothing (dropProc n) [1..]
                              in length v0 == n))
   where samples = elements [0..100]
 
 sample_spec :: Spec
 sample_spec =
-    it "ensures the frequency: (size (sample n m) = n * (L % m) + min n (L % m))"
+    it "honor the documented frequency"
       (forAll samples (\(n, m) -> let vs = catMaybes $ fst $ run (sample n m) [1..100]
                                       ex = n * (100 `div` m) + min n (100 `mod` m)
                                   in length vs == ex))
@@ -100,11 +100,11 @@ sample_spec =
 sma_spec :: Spec
 sma_spec = do
     it "numerical stability"
-      (forAll samples0 (\(n, xs) -> let v0 = fst $ run (sma n) xs
+      (forAll samples0 (\(n, xs) -> let v0 = catMaybes $ fst $ run (sma n) xs
                                     in all (not . isInfinite) v0))
 
-    it "comparison with reference implementation"
-      (forAll samples1 (\(n, xs) -> let v0 = drop n $ reverse $ fst $ run (sma n) xs
+    it "reference implemenetation"
+      (forAll samples1 (\(n, xs) -> let v0 = catMaybes $ reverse $ fst $ run (sma n) xs
                                         v1 = refImpl n xs
                                         vs = zipWith (-) v0 v1
                                     in all ((< 0.01) . abs) vs))

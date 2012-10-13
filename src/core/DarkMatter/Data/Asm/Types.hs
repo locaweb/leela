@@ -19,16 +19,8 @@ module DarkMatter.Data.Asm.Types where
 import DarkMatter.Data.Time
 import Data.ByteString as B
 
--- | The mode the pipeline will be executed.
-data Mode = Window Int Int
-          -- ^ Defined a buffer of size N (first arg) and speed M
-          --   (second arg).  In other words, invoke the pipeline when
-          --   N items are read, discarding N-M items afterwards.
-          | Map
-          -- ^ Runs without any buffering at all.
-          deriving (Show)
-
-data Function = Sum
+data Function = Window Int [Function]
+              | Sum
               | Prod
               | Mean
               | Median
@@ -41,25 +33,25 @@ data Function = Sum
               | Round
               | Truncate
               | Arithmetic ArithOp Double
-              deriving (Show)
+              deriving (Eq)
 
 data ArithOp = Mul
              | Add
              | Div
              | Sub
-             deriving (Show)
+             deriving (Eq)
 
 type Key = B.ByteString
 
 -- | The available instructions to execute
 data Asm = Event Key Time Double
-         | Proc Mode [Function]
+         | Proc [Function]
          | Close
-         deriving (Show)
+         deriving (Eq)
 
 isProc :: Asm -> Bool
-isProc (Proc _ _) = True
-isProc _          = False
+isProc (Proc _) = True
+isProc _        = False
 
 isEvent :: Asm -> Bool
 isEvent (Event _ _ _) = True
