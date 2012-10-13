@@ -15,6 +15,8 @@
 module DarkMatter.Data.Proc
        ( Proc (..)
        -- ^ Combinators
+       , pipeM2
+       , pipeM
        , pipe
        , proc
        -- ^ Evaluatation
@@ -40,6 +42,29 @@ pipe (Proc f) (Proc g) = Proc h
   where h a = let (b, f1) = f a
                   (c, g1) = g b
               in (c, pipe f1 g1)
+
+-- | Sequences two procs. The first proc may decide to delay the
+-- output [= @Nothing@], in which case the second one does not get
+-- called.
+pipeM :: Proc a (Maybe b)
+      -> Proc b c
+      -> Proc a (Maybe c)
+pipeM (Proc f) g0@(Proc g) = Proc h
+  where h a = case (f a)
+              of (Nothing, f1) -> (Nothing, f1 `pipeM` g0)
+                 (Just b, f1)  -> let (c, g1) = g b
+                                  in (Just c, f1 `pipeM` g1)
+
+-- | Works exactly as @pipeM@ but in this version the second proc also
+-- uses @Maybe@.
+pipeM2 :: Proc a (Maybe b)
+       -> Proc b (Maybe c)
+       -> Proc a (Maybe c)
+pipeM2 (Proc f) g0@(Proc g) = Proc h
+  where h a = case (f a)
+              of (Nothing, f1) -> (Nothing, f1 `pipeM2` g0)
+                 (Just b, f1)  -> let (mc, g1) = g b
+                                  in (mc, f1 `pipeM2` g1)
 
 -- | Lifts a pure function into a proc.
 proc :: (i -> o) -> Proc i o
