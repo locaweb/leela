@@ -99,8 +99,7 @@ run_ p0 (x0:xs0) = go (unProc p0 x0) xs0
         go (_, p) (x:xs) = go (unProc p x) xs
 
 -- | Consumes the input until no more items are available or a
--- predicate fails. The motivation behing this is mostly for testing
--- purposes, for instance:
+-- predicate fails (mostly for testing purposes). Example:
 -- @
 --   runWhile isJust (takeProc 5) [1..]
 -- @
