@@ -24,23 +24,20 @@
 --   proc thread;
 module DarkMatter.Network.ProcServer ( start ) where
 
-import           Prelude hiding (catch)
-import           Control.Concurrent hiding (readChan, writeChan)
-import           Control.Concurrent.BoundedChan
-import           Control.Exception
-import           Data.Function
-import           Data.Monoid
-import           Blaze.ByteString.Builder
-import qualified Data.Foldable as F
-import           Network.Socket
-import           DarkMatter.Logger (debug, info, warn, crit)
-import           DarkMatter.Data.Event
-import           DarkMatter.Data.Asm.Types
-import           DarkMatter.Data.Asm.Parser
-import           DarkMatter.Data.Asm.Runtime
-import           DarkMatter.Data.Asm.Render
-import           DarkMatter.Network.Protocol
-import           DarkMatter.Data.Proc
+import Prelude hiding (catch)
+import Control.Concurrent hiding (readChan, writeChan)
+import Control.Concurrent.BoundedChan
+import Control.Exception
+import Data.Function
+import Blaze.ByteString.Builder
+import Network.Socket
+import DarkMatter.Logger (debug, info, warn, crit)
+import DarkMatter.Data.Event
+import DarkMatter.Data.Asm.Types
+import DarkMatter.Data.Asm.Parser
+import DarkMatter.Data.Asm.Runtime
+import DarkMatter.Data.Asm.Render
+import DarkMatter.Network.Protocol
 
 type Input = (Key, Event)
 
@@ -81,7 +78,7 @@ runSync s chan = do { mi <- readChan chan
                            of Nothing
                                 -> return ()
                               Just (k, e)
-                                -> time e `seq` val e `seq` clearChan
+                                -> k `seq` time e `seq` val e `seq` clearChan
                          }
 
 start :: FilePath -> IO ()

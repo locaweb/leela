@@ -40,7 +40,7 @@ renderOp Div = fromChar '/'
 renderOp Sub = fromChar '-'
 
 renderDouble :: Double -> Builder
-renderDouble = fromString . show
+renderDouble = fromByteString . toShortest
 
 renderTime :: Time -> Builder
 renderTime t = fromShow (seconds t)

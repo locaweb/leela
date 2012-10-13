@@ -54,7 +54,6 @@ module DarkMatter.Data.Asm.Parser
        , asmParser
        ) where
 
-import Debug.Trace
 import           Control.Monad
 import           Data.Attoparsec.ByteString as P
 import qualified Data.Attoparsec.ByteString.Char8 as P8
