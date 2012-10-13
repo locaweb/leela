@@ -18,6 +18,7 @@ module Main
 
 import           Test.Hspec
 import qualified Test.DarkMatter.Data.Asm.Parser as S1
+import qualified Test.DarkMatter.Data.ProcLib as S2
 
 main :: IO ()
-main = hspec S1.specs
+main = hspec (S2.specs)

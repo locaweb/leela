@@ -12,127 +12,90 @@
 --    See the License for the specific language governing permissions and
 --    limitations under the License.
 
--- | A very simple [synchronous] stream processor.
 module DarkMatter.Data.Proc
-       ( Proc ()
-       , Chunk(..)
-       , ChunkC()
+       ( Proc (..)
        -- ^ Combinators
-       , done
-       , await
-       , apply
-       , pureF
        , pipe
-       -- ^ ChunkC
-       , new
-       , new_
-       , chk
-       , eof
-       , setEOF
-       -- ^ Evaluators
-       , feed
-       , eval
+       , proc
+       -- ^ Evaluatation
+       , run
+       , run_
+       , runM
+       , runWhile
        ) where
 
-import           Prelude hiding (null)
-import qualified Data.List as L
-import           Data.Monoid
+import Control.Applicative
 
-newtype ChunkC a = ChunkC (a, Bool)
+-- | A purely functional automata as usually found in literature.
+-- 
+-- It is provided instances for @Functor@ [fmap over the output] and
+-- @Applicative@.
+newtype Proc i o = Proc { unProc :: i -> (o, Proc i o) }
 
-data Proc i o = Put o
-              | Get (i -> Proc i o)
+-- | Sequences two procs.
+pipe :: Proc a b
+     -> Proc b c
+     -> Proc a c
+pipe (Proc f) (Proc g) = Proc h
+  where h a = let (b, f1) = f a
+                  (c, g1) = g b
+              in (c, pipe f1 g1)
 
--- | Produces a value, usually meaning the proc is done
-done :: o -> Proc i o
-done = Put
+-- | Lifts a pure function into a proc.
+proc :: (i -> o) -> Proc i o
+proc f = Proc (\i -> (f i, proc f))
 
--- | Requests more input
-await :: (i -> Proc i o) -> Proc i o
-await = Get
+-- | Uses a monad to produce input and consume output. When this
+-- function receives @Nothing@ it stops consuming input.
+runM :: (Monad m) => Proc i o -> m (Maybe i) -> (o -> m ()) -> m ()
+runM p0 mget mput =
+    mget >>= \mi -> case mi
+                    of Nothing
+                         -> return ()
+                       Just i
+                         -> let (o, p) = unProc p0 i
+                            in mput o >> runM p mget mput
 
--- | Feeds a single input effectively moving the proc to its next
--- state.
-feed :: Proc i o -> i -> Proc i o
-feed (Get f) i = f i
-feed put _     = put
+-- | Iterates over a list and collectes all values along with the last
+-- version of the proc.
+run :: Proc i o -> [i] -> ([o], Proc i o)
+run = go []
+  where go acc p []     = (acc, p)
+        go acc p (x:xs) = let (o, p1) = unProc p x
+                          in go (o:acc) p1 xs
 
--- | Evaluates the process. Right is used when the proc has produced a
--- result. Left when it is requesting more data.
-eval :: Proc i o -> Either (Proc i o) o
-eval (Put o) = Right o
-eval f       = Left f
+-- | Same as @run@ but do not keep intermediary results. This is
+-- sightly more efficient than @run@, as it discards all results but
+-- the last. It is an error to use this with an empty list.
+run_ :: Proc i o -> [i] -> (o, Proc i o)
+run_ _  []       = error "run_: empty list"
+run_ p0 (x0:xs0) = go (unProc p0 x0) xs0
+  where go (o, p) []     = (o, p)
+        go (_, p) (x:xs) = go (unProc p x) xs
 
--- | Apply a pure function over the proc.
-apply :: (a -> b) -> Proc i a -> Proc i b
-apply f (Put a) = done (f a)
-apply f (Get g) = await (\i -> apply f (g i))
-
--- | Connects two procs. It fully evaluatates the first proc and its
--- result is fed up into the second proc. Notice that if the second
--- proc does not requests input, the first one is completely ignored.
-pipe :: Proc i i1  -- ^ The first proc
-     -> Proc i1 o  -- ^ The second proc
-     -> Proc i o
-pipe _       (Put a) = done a
-pipe (Put i) (Get f) = case (f i)
-                       of Put a -> done a
-                          _     -> error "pipe: EOF"
-pipe (Get f) g       = await (\i -> f i `pipe` g)
-
--- | Uses a pure function as a proc.
-pureF :: (i -> o) -> Proc i o
-pureF f = await (done . f)
-
-eof :: ChunkC a -> Bool
-eof (ChunkC x) = snd x
-
-setEOF :: ChunkC a -> ChunkC a
-setEOF (ChunkC (a,_)) = ChunkC (a, True)
-
-chk :: ChunkC a -> a
-chk (ChunkC x) = fst x
-
-new_ :: a -> ChunkC a
-new_ a = a `seq` ChunkC (a, False)
-
-new :: a -> Bool -> ChunkC a
-new a b = a `seq` ChunkC (a, b)
-
-class Chunk i where
-  
-  null :: i -> Bool
+-- | Consumes the input until no more items are available or a
+-- predicate fails. The motivation behing this is mostly for testing
+-- purposes, for instance:
+-- @
+--   runWhile isJust (takeProc 5) [1..]
+-- @
+runWhile :: (o -> Bool) -> Proc i o -> [i] -> ([o], Proc i o)
+runWhile t = go []
+  where go acc p []     = (acc, p)
+        go acc p (x:xs) = let (o, p1) = unProc p x
+                          in if (t o)
+                             then go (o:acc) p1 xs
+                             else (acc, p)
 
 instance Functor (Proc i) where
 
-  fmap = apply
+  fmap f g = g `pipe` (proc f)
 
-instance Chunk [a] where
+instance Applicative (Proc i) where
   
-  null = L.null
+  pure a    = Proc $ const (a, pure a)
 
-instance Functor ChunkC where
-
-  fmap f c = ChunkC (f $ chk c, eof c)
-
-instance (Chunk a) => Chunk (ChunkC a) where
-
-  null = null . chk
-
-instance (Monoid a) => Monoid (ChunkC a) where
-
-  mempty = ChunkC (mempty, False)
-
-  mappend a b = ChunkC (chk a <> chk b, eof a || eof b)
-
-instance (Show a) => Show (ChunkC a) where
-
-  showsPrec _ c = shows "ChunkC $ (" . shows (chk c) . shows ", " . shows (eof c) . shows ")"
-
-instance (Eq a) => Eq (ChunkC a) where
-
-  (==) a b = chk a == chk b
-
-instance (Ord a) => Ord (ChunkC a) where
-
-  compare a b = compare (chk a) (chk b)
+  pf <*> pv = Proc (\i -> let (f, pf1) = unProc pf i
+                              (v, pv1) = unProc pv i
+                          in (f v, pf1 <*> pv1))
+            
