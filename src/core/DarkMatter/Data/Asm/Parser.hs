@@ -16,38 +16,41 @@
 -- | The language that is used to communicate with the core. The
 -- parser should be able to recognize the following grammar (ABNF):
 -- 
---   S      = PROC
---          / EVENT
---          / CLOSE
---   PROC   = "proc" SP PIPELINE EOL
+--   S        = PROC
+--            / EVENT
+--            / CLOSE
+--   PROC     = "proc" SP PIPELINE EOL
 --   PIPELINE = FUNC *(SP "|" SP FUNC)
---   EVENT  = "event" SP KEY SP TIME SP VAL EOL
---   CLOSE  = "close" EOL
---   EOL    = ";"
---   WINDOW = "window" SP 1*DIGIT 1*DIGIT
---   MAP    = "map"
---   KEY    = 1*DIGIT "|" ALPHANUM
---   TIME   = 1*DIGIT "." 1*DIGIT
---   VAL    = 1*DIGIT "." 1*DIGIT
---   FUNC   = "(" ARITHF ")"
---          / "window" SP 1*DIGIT "(" PIPELINE ")"
---          / "sum"
---          / "prod"
---          / "id"
---          / "truncate"
---          / "ceil"
---          / "floor"
---          / "round"
---          / "abs"
---          / "mean"
---          / "median"
---          / "maximum"
---          / "mininmum"
---   ARITHF = OP SP VAL
---   OP     = "*"
---          / "/"
---          / "+"
---          / "-"
+--   EVENT    = "event" SP KEY SP TIME SP VAL EOL
+--   CLOSE    = "close" EOL
+--   EOL      = ";"
+--   WINDOW   = "window" SP 1*DIGIT 1*DIGIT
+--   MAP      = "map"
+--   KEY      = 1*DIGIT "|" ALPHANUM
+--   TIME     = 1*DIGIT "." 1*DIGIT
+--   VAL      =                                                               ; DOUBLE NUMBER (e.g.: 2.7, -2.3, 3.3e7)
+--   FUNC     = SFUNC
+--            / AFUNC
+--   SFUNC    = "(" OP SP VAL ")"
+--            / "id"
+--            / "truncate"
+--            / "ceil"
+--            / "floor"
+--            / "round"
+--            / "abs"
+--            / "mean"
+--            / "median"
+--            / "maximum"
+--            / "mininmum"
+--            / "sum"
+--            / "prod"
+--   AFUNC    = "window" SP 1*DIGIT SP "(" SFUNC *(SP "|" SP SFUNC) ")"
+--            / "sma" SP 1*DIGIT
+--            / "sample" SP 1*DIGIT SP 1*DIGIT
+--   OP       = "*"
+--            / "/"
+--            / "+"
+--            / "-"
 module DarkMatter.Data.Asm.Parser
        ( runOne
        , runAll
