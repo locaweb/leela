@@ -173,7 +173,7 @@ class XmppService(xmppim.MessageProtocol):
             data = json.loads(data1)
             if (xmppim.JID(data["sender"]).userhost() == sender.userhost()):
                 keys.append({"key": key})
-                yield self.redis.hdel("leela.xmpp", key)
+                self.redis.hdel("leela.xmpp", key)
         cc(200, {"results": keys})
 
     @defer.inlineCallbacks
@@ -247,10 +247,9 @@ class XmppService(xmppim.MessageProtocol):
         except:
             logger.exception()
 
-    @defer.inlineCallbacks
     def connectionLost(self, reason):
         xmppim.MessageProtocol.connectionLost(self, reason)
         funcs.suppress(self.pooling.stop)()
-        yield funcs.suppress(self.redis.disconnect)()
+        funcs.suppress(self.redis.disconnect)()
         self.bus.autoretry(False)
         self.bus.disconnect()
