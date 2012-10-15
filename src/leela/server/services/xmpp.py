@@ -20,6 +20,7 @@ import fnmatch
 import uuid
 import json
 import txredisapi as redis
+import hashlib
 from wokkel import xmppim
 from twisted.internet import defer
 from twisted.internet import task
@@ -159,8 +160,12 @@ class XmppService(xmppim.MessageProtocol):
                                    })
                 cc(200, {"results": tmp})
             else:
-                key  = str(uuid.uuid1())
-                self.redis.hset("leela.xmpp", key, json.dumps({"request": request, "sender": sender.full()}))
+                hcode = hashlib.sha512()
+                hcode.update(sender.user)
+                hcode.update(request["select"]["proc"])
+                map(hcode.update, sorted(request["select"]["from"]))
+                key   = hcode.hexdigest()
+                self.redis.hsetnx("leela.xmpp", key, json.dumps({"request": request, "sender": sender.full()}))
         except:
             logger.exception()
             cc(500, {"reason": "internal server error"})
