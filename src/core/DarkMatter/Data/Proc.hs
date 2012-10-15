@@ -40,7 +40,7 @@ pipe :: Proc a b
 pipe (Auto f) (Auto g) = Auto h
   where h a = let (b, f1) = f a
                   (c, g1) = g b
-              in (c, pipe f1 g1)
+              in c `seq` (c, pipe f1 g1)
 
 -- | Sequences two procs. The first proc may decide to delay the
 -- output [= @Nothing@], in which case the second one does not get
@@ -52,7 +52,7 @@ pipeM (Auto f) g0@(Auto g) = Auto h
   where h a = case (f a)
               of (Nothing, f1) -> (Nothing, f1 `pipeM` g0)
                  (Just b, f1)  -> let (c, g1) = g b
-                                  in (Just c, f1 `pipeM` g1)
+                                  in c `seq` (Just c, f1 `pipeM` g1)
 
 -- | Works exactly as @pipeM@ but in this version the second proc also
 -- uses @Maybe@.
@@ -63,7 +63,7 @@ pipeM2 (Auto f) g0@(Auto g) = Auto h
   where h a = case (f a)
               of (Nothing, f1) -> (Nothing, f1 `pipeM2` g0)
                  (Just b, f1)  -> let (mc, g1) = g b
-                                  in (mc, f1 `pipeM2` g1)
+                                  in mc `mseq` (mc, f1 `pipeM2` g1)
 
 -- | Lifts a pure function into a proc.
 proc :: (i -> o) -> Proc i o
@@ -98,6 +98,10 @@ runWhile t = go []
                           in if (t o)
                              then go (o:acc) p1 xs
                              else (acc, p)
+
+mseq :: Maybe a -> b -> b
+mseq Nothing  b = b
+mseq (Just x) b = x `seq` b
 
 instance Functor (Proc i) where
 
