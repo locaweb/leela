@@ -66,12 +66,16 @@ class Connection(object):
         self.core.connectionLost = self.on_core_connection_lost
         self.core.connectionMade = self.on_core_connection_made
 
-    def _send_string(self, bdy):
-        xml = xmppim.Message(recipient=self.peer, body=unicode(bdy)).toElement()
-        self.xmpp.send(xml)
-        
+    def _sendmsg(self, status, msg):
+        xml = xmppim.Message(recipient=self.peer).toElement()
+        sql = "SELECT %s FROM %s;" % (self.query["proc"], ",".join(self.query["from"]))
+        dbg = {"request": {"cmd": sql, "key": self.key}}
+        self.xmpp.mkcc(xml, dbg)(status, msg)
+
     def on_core_recv_event(self, e):
-        self._send_string(parsing.render_event_to_json(e))
+        msg = {"results": {"event": parsing.render_event_to_json(e)}}
+        msg.update(parsing.render_event_to_json(e)) # do not break compatibility with previous version
+        self._sendmsg(200, msg)
 
     def on_core_connection_lost(self, _):
         logger.info("dmproc connection lost: %s" % self.key)
@@ -87,9 +91,9 @@ class Connection(object):
 
     def on_core_recv_status(self, s):
         if (s == 0):
-            self._send_string(json.dumps({"status": 200, "results": {"key": self.key}}))
+            self._sendmsg(200, {"results": {"key": self.key}})
         else:
-            self._send_string(json.dumps({"status": 500, "results": {"key": self.key}}))
+            self._sendmsg(500, {"reason": "bad command"})
 
     def shutdown(self):
         logger.warn("disconnecting: %s" % self.key)
@@ -150,16 +154,16 @@ class XmppService(xmppim.MessageProtocol):
                                                    ",".join(data["request"]["select"]["from"])
                                                   )
                     if (xmppim.JID(data["sender"]).userhost() == sender.userhost()):
-                        tmp.append({key: sql})
-                cc({"status": 200,
-                    "results": tmp
-                   })
+                        tmp.append({"key": key,
+                                    "cmd": sql
+                                   })
+                cc(200, {"results": tmp})
             else:
                 key  = str(uuid.uuid1())
                 self.redis.hset("leela.xmpp", key, json.dumps({"request": request, "sender": sender.full()}))
         except:
             logger.exception()
-            cc({"status": 500})
+            cc(500, {"reason": "internal server error"})
 
     @defer.inlineCallbacks
     def handle_delete_all(self, sender, cc):
@@ -168,9 +172,9 @@ class XmppService(xmppim.MessageProtocol):
         for (key, data1) in data0.iteritems():
             data = json.loads(data1)
             if (xmppim.JID(data["sender"]).userhost() == sender.userhost()):
-                keys.append(key)
+                keys.append({"key": key})
                 yield self.redis.hdel("leela.xmpp", key)
-        cc({"status": 200, "results": keys})
+        cc(200, {"results": keys})
 
     @defer.inlineCallbacks
     def handle_delete_one(self, key, sender, cc):
@@ -179,11 +183,11 @@ class XmppService(xmppim.MessageProtocol):
             data = json.loads(data0)
             if (xmppim.JID(data["sender"]).userhost() == sender.userhost()):
                 yield self.redis.hdel("leela.xmpp", key)
-                cc({"status": 200})
+                cc(200, {"results": {"key": key}})
             else:
-                cc({"status": 403})
+                cc(403, {"reason": "forbidden"})
         else:
-            cc({"status": 404})
+            cc(404, {"reason": "not found"})
 
     def handle_delete(self, request, sender, cc):
         try:
@@ -194,7 +198,7 @@ class XmppService(xmppim.MessageProtocol):
                 self.handle_delete_one(key, sender, cc)
         except:
             logger.exception()
-            cc({"status": 500})
+            cc(500, {"reason": "internal server error"})
 
     def handle_request(self, request, sender, cc):
         if ("select" in request):
@@ -202,19 +206,29 @@ class XmppService(xmppim.MessageProtocol):
         elif ("delete" in request):
             self.handle_delete(request, sender, cc)
         else:
-            cc({"status": 400})
+            cc(400, {"reason": "unknow command"})
+
+    def mkcc(self, envelope, debug={}):
+        def f(status, results=None):
+            if (results is None):
+                envelope.addElement("body", content=json.dumps({"status": status, "debug": debug}))
+            else:
+                msg = dict(results)
+                msg.update({"status": status, "debug": debug})
+                envelope.addElement("body", content=json.dumps(msg))
+            self.send(envelope)
+        return(f)
 
     def onMessage(self, message):
         if (message.getAttribute("type") != "chat" or message.body is None):
             return
         sender = xmppim.JID(message.getAttribute("from"))
         req    = parsing.parse_sql_(unicode(message.body))
-        def cc(msg):
-            resp = toResponse(message, message.getAttribute("type"))
-            resp.addElement("body", content=json.dumps(msg))
-            self.send(resp)
+        debug  = {"request": unicode(message.body)}
+        resp   = toResponse(message, message.getAttribute("type"))
+        cc     = self.mkcc(resp, debug)
         if (req is None):
-            cc({"status": 400})
+            cc(400, {"reason": "parsing error"})
         else:
             logger.debug("message [%s] %s" % (message.getAttribute("from"), message.body))
             self.handle_request(req, sender, cc)

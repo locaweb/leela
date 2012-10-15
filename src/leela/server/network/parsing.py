@@ -29,7 +29,10 @@ def render_events(es):
     return("".join(map(render_event, es)))
 
 def render_event_to_json(e):
-    return(json.dumps({"name": e.name(), "value": e.value(), "timestamp": e.unixtimestamp()}))
+    return({"name": e.name(), "value": e.value(), "timestamp": e.unixtimestamp()})
+
+def render_event_to_json_(e):
+    return(json.dumps(render_event_to_json(e)))
 
 def parse_string(s, w):
     if (s.startswith(w)):
