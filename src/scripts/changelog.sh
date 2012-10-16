@@ -14,7 +14,7 @@ header () {
 }
 
 payload () {
-  tag0=ef3490aef1454971feb48e8d61c86b27e9e53faf
+  tag0=$(git --no-pager rev-list --max-parents=0 HEAD)
   for tag in $(git tag | grep '^v' | sort -V)
   do
     hdr=$(gitlog -n1 --pretty=format:"$tag | (%ai)" $tag)
@@ -26,9 +26,9 @@ payload () {
     do
       prefix=$(gitlog -n1 --pretty=format:%s $commit | sed s,/,,g)
       suffix=$(gitlog -n1 --pretty=format:"| %aN <%aE> (%ai)" $commit | sed s,/,,g)
-      gitlog -n1 --pretty=format:%b $commit  | \
-        grep '^changelog::'                  | \
-        sed -r "s/^changelog:: *$/  * $prefix/; s/^changelog:: /  * /; s/$/ $suffix/"
+      gitlog -n1 --pretty=format:"%b%n%N" $commit    | \
+        grep '^\[changelog\]'                  | \
+        sed -r "s/^\\[changelog\\] *\$/  * $prefix/; s/^\\[changelog\\] /  * /; s/\$/ $suffix/"
     done
 
     tag0=$tag
