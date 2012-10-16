@@ -24,10 +24,11 @@ payload () {
 
     for commit in $(gitlog --pretty=format:"%H" $tag0..$tag)
     do
-      suffix=$(gitlog -n1 --pretty=format:"| %aN <%aE> (%ai)%n")
-      gitlog --pretty=format:%b -n1 $commit  | \
-        grep '^changelog:: '                 | \
-        sed "s/^changelog:: /  * /;s/$/ $suffix/"
+      prefix=$(gitlog -n1 --pretty=format:%s $commit | sed s,/,,g)
+      suffix=$(gitlog -n1 --pretty=format:"| %aN <%aE> (%ai)" $commit | sed s,/,,g)
+      gitlog -n1 --pretty=format:%b $commit  | \
+        grep '^changelog::'                  | \
+        sed -r "s/^changelog:: *$/  * $prefix/; s/^changelog:: /  * /; s/$/ $suffix/"
     done
 
     tag0=$tag
