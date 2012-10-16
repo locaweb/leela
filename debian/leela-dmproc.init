@@ -20,12 +20,14 @@ LOGFILE=/var/log/leela/dmproc.log
 
 start_service() {
   log_daemon_msg "starting $DAEMON" "$DAEMON"
-  start-stop-daemon -Sq -p $PIDFILE -x /usr/bin/daemon -- $DAEMON_OPTS -F $PIDFILE -o $LOGFILE -- $DAEMON +RTS -N${DMPROC_THREADS} -RTS -vvv ${DMPROC_SOCKET:-/var/run/leela/dmproc.s}
+  chown leela:leela $PIDFILE
+  start-stop-daemon -Sq -p $PIDFILE -x /usr/bin/daemon -- -u leela:leela $DAEMON_OPTS -F $PIDFILE -o $LOGFILE -- $DAEMON +RTS -N${DMPROC_THREADS} -RTS -vvv ${DMPROC_SOCKET:-/var/run/leela/dmproc.s}
   log_end_msg $?
 }
 
 stop_service() {
   log_daemon_msg "stopping $DAEMON" "$DAEMON"
+  chown leela:leela $PIDFILE
   start-stop-daemon -Kq -R 10 -p $PIDFILE
   rm -f $PIDFILE
   rm -f ${DMPROC_SOCKET:-/var/run/leela/dmproc.s}

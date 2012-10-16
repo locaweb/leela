@@ -1,6 +1,6 @@
 
 # daemon options (refer to daemon for more information)
-DAEMON_OPTS="-u leela:leela"
+# DAEMON_OPTS=""
 
 # How many bounded threads the dmproc is allowed to create/use. If you do not
 # set this, it will use as many threads as cores are avaialable.

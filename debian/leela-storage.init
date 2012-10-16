@@ -20,13 +20,16 @@ LOGFILE=/var/log/leela/$SERVICE.log
 
 start_service() {
   log_daemon_msg "starting $DAEMON [$SERVICE]" "$DAEMON [$SERVICE]"
+  chown leela:leela $PIDFILE 2>/dev/null
   start-stop-daemon -Sq -p $PIDFILE -x $DAEMON -- --uid=leela --gid=leela --logfile=$LOGFILE --pidfile=$PIDFILE leela --service=$SERVICE $DAEMON_OPTS
   log_end_msg $?
 }
 
 stop_service() {
   log_daemon_msg "stopping $DAEMON [$SERVICE]" "$DAEMON [$SERVICE]"
+  chown leela:leela $PIDFILE 2>/dev/null
   start-stop-daemon -Kq -R 10 -p $PIDFILE
+  rm -f $PIDFILE
   log_end_msg $?
 }
 
