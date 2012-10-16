@@ -57,7 +57,10 @@ class LeelaServiceMk(object):
         port = 5222
         user = cfg.get("xmpp", "user")
         pwrd = cfg.get("xmpp", "pwrd")
-        pipe = env.get("pipe", cfg.get("xmpp", "pipe"))
+        if (cfg.has_option("xmpp", "pipe")):
+            pipe = env.get("pipe", cfg.get("xmpp", "pipe"))
+        else:
+            pipe = env["pipe"]
         if (cfg.has_option("xmpp", "host")):
             host = cfg.get("xmpp", "host")
             if (cfg.has_option("xmpp", "port")):
@@ -70,7 +73,10 @@ class LeelaServiceMk(object):
         return(service)
 
     def storage_service(self, cfg, env):
-        pipe = env.get("pipe", cfg.get("storage", "pipe"))
+        if (cfg.has_option("storage", "pipe")):
+            pipe = env.get("pipe", cfg.get("storage", "pipe"))
+        else:
+            pipe = env["pipe"]
         return(storage.StorageService(cfg, pipe))
 
     def udp_service(self, cfg, env):
