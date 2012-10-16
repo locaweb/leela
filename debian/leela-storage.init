@@ -18,16 +18,20 @@ LOGFILE=/var/log/leela/$SERVICE.log
 [ -r /etc/default/leela-$SERVICE ] && . /etc/default/leela-$SERVICE
 [ -r /lib/lsb/init-functions ]     && . /lib/lsb/init-functions
 
+fixpid () {
+  [ -f $PIDFILE ] && chown leela:leela $PIDFILE
+}
+
 start_service() {
   log_daemon_msg "starting $DAEMON [$SERVICE]" "$DAEMON [$SERVICE]"
-  chown leela:leela $PIDFILE 2>/dev/null
+  fixpid
   start-stop-daemon -Sq -p $PIDFILE -x $DAEMON -- --uid=leela --gid=leela --logfile=$LOGFILE --pidfile=$PIDFILE leela --service=$SERVICE $DAEMON_OPTS
   log_end_msg $?
 }
 
 stop_service() {
   log_daemon_msg "stopping $DAEMON [$SERVICE]" "$DAEMON [$SERVICE]"
-  chown leela:leela $PIDFILE 2>/dev/null
+  fixpid
   start-stop-daemon -Kq -R 10 -p $PIDFILE
   rm -f $PIDFILE
   log_end_msg $?
