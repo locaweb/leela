@@ -22,18 +22,37 @@ from leela.server import logger
 from leela.server.network import protocols
 from leela.server.storage import cassandra
 
+class RoundRobin(object):
+
+    def __init__(self, ring):
+        self.ring = ring
+
+    def getnext(self):
+        x = self.ring.pop(0)
+        self.ring.append(x)
+        return(x)
+
+    def fmap(self, f):
+        return(map(f, self.ring))
+
 class UdpService(Service, protocols.UdpProtocol):
 
+    def mkbus(self, string):
+        result = []
+        for group in string.split(","):
+            tmp = map(lambda s: s.strip(), group.split(";"))
+            logger.warn("creating new broadcast group (RR): " + ", ".join(tmp))
+            result.append(RoundRobin(map(lambda f: protocols.LeelaBus(f, "w"), tmp)))
+        return(result)
+            
     def __init__(self, cfg):
-        broadcast = map(lambda s: s.strip(), cfg.get("udp", "broadcast").split(","))
         self.cfg  = cfg
-        self.bus  = map(lambda fn: protocols.LeelaBus(fn, "w"), broadcast)
+        self.bus  = self.mkbus(cfg.get("udp", "broadcast"))
         self.conn = None
 
     def broadcast(self, events):
-        def f(bus):
-            bus.send_broadcast(events)
-        map(f, self.bus)
+        for rr in self.bus:
+            rr.getnext().send_broadcast(events)
 
     def recv_event(self, events):
         logger.debug("recv_events: %d" % len(events))
@@ -41,14 +60,14 @@ class UdpService(Service, protocols.UdpProtocol):
 
     def startService(self):
         def f(bus):
-            bus.connect()
-            bus.autoretry(True)
+            bus.fmap(lambda o: o.connect())
+            bus.fmap(lambda o: o.autoretry(True))
         map(f, self.bus)
         self.conn = reactor.listenUDP(self.cfg.getint("udp", "port"), self, interface=self.cfg.get("udp", "address"))
 
     def stopService(self):
         self.conn.stopListening()
         def f(bus):
-            bus.autoretry(False)
-            bus.disconnect()
+            bus.fmap(lambda o: o.autoretry(False))
+            bus.fmap(lambda o: o.disconnect())
         map(f, self.bus)

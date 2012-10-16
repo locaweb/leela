@@ -30,38 +30,50 @@ from leela.server.services import udp
 from leela.server import logger
 from leela.server import config
 
+def read_env(envstr):
+    env = {}
+    for var in envstr.split(","):
+        if (':' not in var):
+            continue
+        (k, v) = var.split(":", 2)
+        env[k.strip()] = v.strip()
+    return(env)
+
 class LeelaOption(usage.Options):
-    optParameters = [ ["config", "", config.default_config_file(), "Leela config file to use"],
-                      ["service", "", "xmpp", "What leela service to start (xmpp|storage|udp)"],
-                      ["log-level", "", "warn", "The log level (debug|info|warn|error)"]
+    optParameters = [ ["config"   , "", config.default_config_file(), "Leela config file to use"                             ],
+                      ["service"  , "", "xmpp"                      , "What leela service to start (xmpp|storage|udp)"       ],
+                      ["log-level", "", "warn"                      , "The log level (debug|info|warn|error)"                ],
+                      ["setenv"   , "", ""                          , "Provides options to the service (e.g. setenv=a:b,b:c)"]
                     ]
 
 class LeelaServiceMk(object):
     implements(IServiceMaker, IPlugin)
     tapname     = "leela"
-    description = "Collects anything, monitors anything and analyzes anything"
+    description = "Distributed, real time event processing and monitoring engine"
     options     = LeelaOption
 
-    def xmpp_service(self, cfg):
+    def xmpp_service(self, cfg, env):
         host = None
         port = 5222
         user = cfg.get("xmpp", "user")
         pwrd = cfg.get("xmpp", "pwrd")
+        pipe = env.get("pipe", cfg.get("xmpp", "pipe"))
         if (cfg.has_option("xmpp", "host")):
             host = cfg.get("xmpp", "host")
             if (cfg.has_option("xmpp", "port")):
                 port = cfg.getint("xmpp", "port")
         service = XMPPClient(JID(user), pwrd, host, port)
         lepres  = xmpp.PresenceHandler()
-        leproto = xmpp.XmppService(cfg)
+        leproto = xmpp.XmppService(cfg, pipe)
         lepres.setHandlerParent(service)
         leproto.setHandlerParent(service)
         return(service)
 
-    def storage_service(self, cfg):
-        return(storage.StorageService(cfg))
+    def storage_service(self, cfg, env):
+        pipe = env.get("pipe", cfg.get("storage", "pipe"))
+        return(storage.StorageService(cfg, pipe))
 
-    def udp_service(self, cfg):
+    def udp_service(self, cfg, env):
         return(udp.UdpService(cfg))
 
     def makeService(self, options):
@@ -72,12 +84,13 @@ class LeelaServiceMk(object):
                  }
         logger.set_level(logmap.get(options["log-level"], "warn"))
         cfg = config.read_config(options["config"])
+        env = read_env(options["setenv"])
         if (options["service"] == "xmpp"):
-            return(self.xmpp_service(cfg))
+            return(self.xmpp_service(cfg, env))
         elif (options["service"] == "storage"):
-            return(self.storage_service(cfg))
+            return(self.storage_service(cfg, env))
         elif (options["service"] == "udp"):
-            return(self.udp_service(cfg))
+            return(self.udp_service(cfg, env))
         else:
             raise(RuntimeError("error: unknown service"))
 

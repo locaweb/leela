@@ -121,11 +121,11 @@ class Connection(object):
 
 class XmppService(xmppim.MessageProtocol):
 
-    def __init__(self, cfg):
+    def __init__(self, cfg, pipe):
         self.cfg     = cfg
         self.active  = {}
         self.redis   = None
-        self.bus     = protocols.LeelaBus(self.cfg.get("xmpp", "pipe"), "r")
+        self.bus     = protocols.LeelaBus(pipe, "r")
         self.core    = UNIXClientEndpoint(reactor, self.cfg.get("core", "socket"), 30, False)
         self.pooling = task.LoopingCall(self.redis_pooling)
 

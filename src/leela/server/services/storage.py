@@ -42,9 +42,9 @@ def encode_string(s):
 
 class StorageService(CassandraClusterPool):
 
-    def __init__(self, cfg):
+    def __init__(self, cfg, pipe):
         self.cfg   = cfg
-        self.bus   = protocols.LeelaBus(self.cfg.get("storage", "pipe"), "r")
+        self.bus   = protocols.LeelaBus(pipe, "r")
         self.bus.attach("cassandra", self)
         parse_addr = lambda s: s.split(":")
         servers    = map(parse_srvaddr, self.cfg.get("storage", "server").split(","))

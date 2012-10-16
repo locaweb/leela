@@ -5,8 +5,6 @@ adduser --system --quiet --disabled-login --home /var/run/leela --no-create-home
 
 [ -d /var/log/leela           ] || { mkdir /var/log/leela; chown leela /var/log/leela;                      }
 [ -d /var/run/leela           ] || { mkdir /var/run/leela; chown leela /var/run/leela;                      }
-[ -p /var/run/leela/xmpp.p    ] || { mkfifo /var/run/leela/xmpp.p; chown leela /var/run/leela/xmpp.p;       }
-[ -p /var/run/leela/storage.p ] || { mkfifo /var/run/leela/storage.p; chown leela /var/run/leela/storage.p; }
 
 update-rc.d leela-web defaults
 update-rc.d leela-udp defaults

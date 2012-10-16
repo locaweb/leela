@@ -13,46 +13,46 @@ DAEMON=/usr/bin/twistd
 SERVICE=storage
 PIDFILE=/var/run/leela/storage.pid
 LOGFILE=/var/log/leela/$SERVICE.log
+PIPE=/var/run/leela/storage
 
 [ -x "$DAEMON" ]                   || exit 0
 [ -r /etc/default/leela-$SERVICE ] && . /etc/default/leela-$SERVICE
 [ -r /lib/lsb/init-functions ]     && . /lib/lsb/init-functions
-
-fixpid () {
-  [ -f $PIDFILE ] && chown leela:leela $PIDFILE
-}
+[ -r /usr/libexec/leela-functions ]  && . /usr/libexec/leela-functions
 
 start_service() {
-  log_daemon_msg "starting $DAEMON [$SERVICE]" "$DAEMON [$SERVICE]"
-  fixpid
-  start-stop-daemon -Sq -p $PIDFILE -x $DAEMON -- --uid=leela --gid=leela --logfile=$LOGFILE --pidfile=$PIDFILE leela --service=$SERVICE $DAEMON_OPTS
+  proc_id=$1
+  pidfile=$PIDFILE-$proc_id
+  logfile=$LOGFILE-$proc_id
+  pipefile=$PIPE-$proc_id
+  fixfile $pidfile
+  fixpipe $pipefile
+  log_daemon_msg "starting $DAEMON [$SERVICE/$proc_id]"
+  start-stop-daemon -Sq -p $pidfile -x $DAEMON -- --uid=leela --gid=leela --logfile=$logfile --pidfile=$pidfile leela --service=$SERVICE --setenv=pipe:$pipefile $DAEMON_OPTS
   log_end_msg $?
 }
 
 stop_service() {
-  log_daemon_msg "stopping $DAEMON [$SERVICE]" "$DAEMON [$SERVICE]"
-  fixpid
-  start-stop-daemon -Kq -R 10 -p $PIDFILE
-  rm -f $PIDFILE
+  proc_id=$1
+  pidfile=$PIDFILE-$proc_id
+  fixfile $pidfile
+  log_daemon_msg "stopping $DAEMON [$SERVICE/$proc_id]"
+  start-stop-daemon -Kq -R 10 -p $pidfile
   log_end_msg $?
+  rm -f $pidfile
 }
 
 case "$1" in
   start)
-    start_service
+    repeat ${NPROCS:-1} start_service
     ;;
 
   stop)
-    stop_service
-    ;;
-
-  restart)
-    stop_service
-    start_service
+    repeat ${NPROCS:-1} stop_service
     ;;
 
   *)
-    echo "Usage: $0 {start|stop|restart}" >&2
+    echo "Usage: $0 {start|stop}" >&2
     exit 3
     ;;
 esac

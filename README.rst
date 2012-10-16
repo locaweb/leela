@@ -2,7 +2,7 @@
 LEELA
 =====
 
-Distributed event processor and monitoring system.
+Distributed, real time event processor and monitoring engine.
 
 For information on the usage, architecture and much more please refer
 to the documentation.

@@ -17,24 +17,21 @@ LOGFILE=/var/log/leela/$SERVICE.log
 [ -x "$DAEMON" ]                   || exit 0
 [ -r /etc/default/leela-$SERVICE ] && . /etc/default/leela-$SERVICE
 [ -r /lib/lsb/init-functions ]     && . /lib/lsb/init-functions
-
-fixpid () {
-  [ -f $PIDFILE ] && chown leela:leela $PIDFILE
-}
+[ -r /usr/libexec/leela-functions ]  && . /usr/libexec/leela-functions
 
 start_service() {
   log_daemon_msg "starting $DAEMON [$SERVICE]" "$DAEMON [$SERVICE]"
-  fixpid
+  fixfile $PIDFILE
   start-stop-daemon -Sq -p $PIDFILE -x $DAEMON -- --uid=leela --gid=leela --logfile=$LOGFILE --pidfile=$PIDFILE leela --service=$SERVICE $DAEMON_OPTS
   log_end_msg $?
 }
 
 stop_service() {
   log_daemon_msg "stopping $DAEMON [$SERVICE]" "$DAEMON [$SERVICE]"
-  fixpid
+  fixfile $PIDFILE
   start-stop-daemon -Kq -R 10 -p $PIDFILE
-  rm -f $PIDFILE
   log_end_msg $?
+  rm -f $PIDFILE
 }
 
 case "$1" in
@@ -46,13 +43,8 @@ case "$1" in
     stop_service
     ;;
 
-  restart)
-    stop_service
-    start_service
-    ;;
-
   *)
-    echo "Usage: $0 {start|stop|restart}" >&2
+    echo "Usage: $0 {start|stop}" >&2
     exit 3
     ;;
 esac

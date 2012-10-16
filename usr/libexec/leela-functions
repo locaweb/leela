@@ -1,0 +1,27 @@
+#!/bin/sh
+
+fixfile () {
+  file=$1
+
+  [ -f "$file" ] && chown leela:leela "$file"
+  return 0
+}
+
+fixpipe () {
+  pipefile=$1
+
+  [ -p "$pipefile" ] || mkfifo "$pipefile"
+  chown leela:leela "$pipefile"
+  test -p "$pipefile"
+}
+
+repeat () {
+  n=$1
+  c=$2
+  shift 1
+  while [ $n -gt 0 ]
+  do
+    $c $n
+    n=$(expr $n - 1)
+  done
+}
