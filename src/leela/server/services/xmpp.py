@@ -42,17 +42,21 @@ class PresenceHandler(xmppim.PresenceProtocol):
         pass
 
     def subscribeReceived(self, presence):
-        self.subscribed(recipient=presence.sender, sender=presence.recipient)
-        self.available(recipient=presence.sender, status=u"Zug Zug", sender=presence.recipient)
+        logger.warn("subscribed received: %s/%s" % (presence.sender, presence.recipient))
+        self.subscribe(presence.sender)
+        self.subscribed(presence.sender)
 
     def unsubscribeReceived(self, presence):
-        self.unsubscribed(recipient=presence.sender, sender=presence.recipient)
+        logger.warn("unsubscribed received: %s/%s" % (presence.sender, presence.recipient))
+        self.unsubscribed(presence.sender)
+        self.unsubscribe(presence.sender)
 
-    def probeReceived(self, presence):
-        self.available(recipient=presence.sender, status=u"Zug Zug", sender=presence.recipient)
+    def probeReceibed(self, presence):
+        self.available(presence.sender, status=u"Zug Zug")
 
     def connectionMade(self):
-        self.available()
+        xmppim.PresenceProtocol.connectionMade(self)
+        self.available(status=u"Zug Zug")
 
 class Connection(object):
 

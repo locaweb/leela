@@ -65,11 +65,11 @@ class LeelaServiceMk(object):
             host = cfg.get("xmpp", "host")
             if (cfg.has_option("xmpp", "port")):
                 port = cfg.getint("xmpp", "port")
-        service = XMPPClient(JID(user), pwrd, host, port)
-        lepres  = xmpp.PresenceHandler()
-        leproto = xmpp.XmppService(cfg, pipe)
-        lepres.setHandlerParent(service)
-        leproto.setHandlerParent(service)
+        service  = XMPPClient(JID(user), pwrd, host, port)
+        presence = xmpp.PresenceHandler()
+        leelasrv = xmpp.XmppService(cfg, pipe)
+        presence.setHandlerParent(service)
+        leelasrv.setHandlerParent(service)
         return(service)
 
     def storage_service(self, cfg, env):
