@@ -1,8 +1,0 @@
-/var/log/leela-lasergun.log {
-        missingok
-        size 25M
-        rotate 7
-        notifempty
-        compress
-        copytruncate
-}
