@@ -15,12 +15,12 @@ PIDFILE=/var/run/leela/storage.pid
 LOGFILE=/var/log/leela/$SERVICE.log
 PIPE=/var/run/leela/storage
 
-[ -x "$DAEMON" ]                   || exit 0
-[ -r /etc/default/leela-$SERVICE ] && . /etc/default/leela-$SERVICE
-[ -r /lib/lsb/init-functions ]     && . /lib/lsb/init-functions
-[ -r /usr/libexec/leela-functions ]  && . /usr/libexec/leela-functions
+[ -x "$DAEMON" ]                    || exit 0
+[ -r /etc/default/leela-$SERVICE ]  && . /etc/default/leela-$SERVICE
+[ -r /lib/lsb/init-functions ]      && . /lib/lsb/init-functions
+[ -r /usr/libexec/leela-functions ] && . /usr/libexec/leela-functions
 
-start_service() {
+start_service () {
   proc_id=$1
   pidfile=$PIDFILE-$proc_id
   logfile=$LOGFILE-$proc_id
@@ -32,7 +32,7 @@ start_service() {
   log_end_msg $?
 }
 
-stop_service() {
+stop_service () {
   proc_id=$1
   pidfile=$PIDFILE-$proc_id
   fixfile $pidfile
@@ -40,6 +40,11 @@ stop_service() {
   start-stop-daemon -Kq -R 10 -p $pidfile
   log_end_msg $?
   rm -f $pidfile
+}
+
+restart_service () {
+  stop_service $1
+  start_service $1
 }
 
 case "$1" in
@@ -51,8 +56,12 @@ case "$1" in
     repeat ${NPROCS:-1} stop_service
     ;;
 
+  restart)
+    repeat ${NPROCS:-1} restart_service
+    ;;
+
   *)
-    echo "Usage: $0 {start|stop}" >&2
+    echo "Usage: $0 {start|stop|restart}" >&2
     exit 3
     ;;
 esac

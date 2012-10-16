@@ -14,24 +14,29 @@ SERVICE=udp
 PIDFILE=/var/run/leela/udp.pid
 LOGFILE=/var/log/leela/$SERVICE.log
 
-[ -x "$DAEMON" ]                   || exit 0
-[ -r /etc/default/leela-$SERVICE ] && . /etc/default/leela-$SERVICE
-[ -r /lib/lsb/init-functions ]     && . /lib/lsb/init-functions
-[ -r /usr/libexec/leela-functions ]  && . /usr/libexec/leela-functions
+[ -x "$DAEMON" ]                    || exit 0
+[ -r /etc/default/leela-$SERVICE ]  && . /etc/default/leela-$SERVICE
+[ -r /lib/lsb/init-functions ]      && . /lib/lsb/init-functions
+[ -r /usr/libexec/leela-functions ] && . /usr/libexec/leela-functions
 
-start_service() {
-  log_daemon_msg "starting $DAEMON [$SERVICE]" "$DAEMON [$SERVICE]"
+start_service () {
+  log_daemon_msg "starting $DAEMON [$SERVICE]"
   fixfile $PIDFILE
   start-stop-daemon -Sq -p $PIDFILE -x $DAEMON -- --uid=leela --gid=leela --logfile=$LOGFILE --pidfile=$PIDFILE leela --service=$SERVICE $DAEMON_OPTS
   log_end_msg $?
 }
 
-stop_service() {
-  log_daemon_msg "stopping $DAEMON [$SERVICE]" "$DAEMON [$SERVICE]"
+stop_service () {
+  log_daemon_msg "stopping $DAEMON [$SERVICE]"
   fixfile $PIDFILE
   start-stop-daemon -Kq -R 10 -p $PIDFILE
   log_end_msg $?
   rm -f $PIDFILE
+}
+
+restart_service () {
+  stop_service
+  start_service
 }
 
 case "$1" in
@@ -43,8 +48,12 @@ case "$1" in
     stop_service
     ;;
 
+  restart)
+    restart_service
+    ;;
+
   *)
-    echo "Usage: $0 {start|stop}" >&2
+    echo "Usage: $0 {start|stop|restart}" >&2
     exit 3
     ;;
 esac
