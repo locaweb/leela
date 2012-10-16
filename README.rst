@@ -2,7 +2,7 @@
 LEELA
 =====
 
-Collects anything, monitors anything and analyzes anything.
+Distributed event processor and monitoring system.
 
 For information on the usage, architecture and much more please refer
 to the documentation.
@@ -15,7 +15,7 @@ Documentation
 API Stability
 =============
 
-* unstable [2]_
+* testing [2]_
 
 .. [2] Possible values:
 
