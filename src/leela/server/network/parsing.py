@@ -119,10 +119,10 @@ def parse_event_legacy(s):
 
 def parse_from(s):
     items = []
-    for i in s.split(";"):
+    for i in s.split(","):
         t = i.strip()
         if (t != ""):
-            items.append(i)
+            items.append(t)
     if (len(items) == 0):
         raise(RuntimeError())
     return(items)
