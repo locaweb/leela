@@ -60,6 +60,7 @@ class DMProcProtocol(protocol.Protocol):
                 elif (l != ""):
                     raise(RuntimeError())
         except:
+            logger.error("bad frame: " + frame)
             logger.exception()
             self.transport.loseConnection()
 
