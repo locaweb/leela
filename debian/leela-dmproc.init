@@ -25,7 +25,7 @@ fixfile () {
 start_service() {
   log_daemon_msg "starting $DAEMON" "$DAEMON"
   fixfile
-  start-stop-daemon -Sq -p $PIDFILE -x /usr/bin/daemon -- -u leela:leela $DAEMON_OPTS -F $PIDFILE -o $LOGFILE -- $DAEMON +RTS -N${DMPROC_THREADS} -RTS -vvv ${DMPROC_SOCKET:-/var/run/leela/dmproc}
+  start-stop-daemon -N-5 -Sq -p $PIDFILE -x /usr/bin/daemon -- -u leela:leela $DAEMON_OPTS -F $PIDFILE -o $LOGFILE -- $DAEMON +RTS -N${DMPROC_THREADS} -RTS -vvv ${DMPROC_SOCKET:-/var/run/leela/dmproc}
   log_end_msg $?
 }
 
