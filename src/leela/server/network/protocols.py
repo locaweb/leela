@@ -129,11 +129,11 @@ class UdpProtocol(protocol.DatagramProtocol):
         if (len(tmp) > 0):
             self.recv_event(tmp)
 
-class LeelaBus(pipe.UnixPipeReader):
+class LeelaBus(pipe.UnixPipe):
 
     def __init__(self, fname, mode="r"):
-        pipe.UnixPipeReader.__init__(self, fname, mode)
-        self.maxsz     = 65536
+        pipe.UnixPipe.__init__(self, fname, mode)
+        self._rlimit   = 42*1024*1024
         self.residue   = ""
         self.callbacks = {}
 
@@ -147,13 +147,13 @@ class LeelaBus(pipe.UnixPipeReader):
         logger.info("unregistering cc: %s/%d" % (gid, len(self.callbacks)))
 
     def set_residue(self, data):
-        if (len(data) < self.maxsz):
+        if (len(data) < self._rlimit):
             self.residue = data
         else:
             self.residue = ""
 
     def send_broadcast(self, events):
-        self.write(render_events(events))
+        self.write_chunks(map(render_event, events))
 
     def recv_data(self, data0):
         data = self.residue + data0
