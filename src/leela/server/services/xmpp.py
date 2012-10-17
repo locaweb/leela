@@ -158,18 +158,18 @@ class XmppService(xmppim.MessageProtocol):
                     sql  = "SELECT %s FROM %s;" % (data["request"]["select"]["proc"],
                                                    ",".join(data["request"]["select"]["from"])
                                                   )
-                    if (xmppim.JID(data["sender"]).userhost() == sender.userhost()):
+                    if (data["sender"] == sender.userhost()):
                         tmp.append({"key": key,
                                     "cmd": sql
                                    })
                 cc(200, {"results": tmp})
             else:
                 hcode = hashlib.sha512()
-                hcode.update(sender.user)
+                hcode.update(sender.userhost())
                 hcode.update(request["select"]["proc"])
                 map(hcode.update, sorted(request["select"]["from"]))
                 key   = hcode.hexdigest()
-                self.redis.hsetnx("leela.xmpp", key, json.dumps({"request": request, "sender": sender.full()}))
+                self.redis.hsetnx("leela.xmpp", key, json.dumps({"request": request, "sender": sender.userhost()}))
         except:
             logger.exception()
             cc(500, {"reason": "internal server error"})
@@ -180,7 +180,7 @@ class XmppService(xmppim.MessageProtocol):
         keys  = []
         for (key, data1) in data0.iteritems():
             data = json.loads(data1)
-            if (xmppim.JID(data["sender"]).userhost() == sender.userhost()):
+            if (data["sender"] == sender.userhost()):
                 keys.append({"key": key})
                 self.redis.hdel("leela.xmpp", key)
         cc(200, {"results": keys})
@@ -190,7 +190,7 @@ class XmppService(xmppim.MessageProtocol):
         data0 = yield self.redis.hget("leela.xmpp", key)
         if (data0 is not None):
             data = json.loads(data0)
-            if (xmppim.JID(data["sender"]).userhost() == sender.userhost()):
+            if (data["sender"] == sender.userhost()):
                 yield self.redis.hdel("leela.xmpp", key)
                 cc(200, {"results": {"key": key}})
             else:
