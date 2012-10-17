@@ -57,12 +57,16 @@ def parse_takewhile(s, p):
     return(("".join(tmp), s[len(tmp):]))
 
 def parse_double(s):
-    if (s.startswith("nan")):
+    if (s.startswith("nan") or s.startswith("NaN")):
         return(float("nan"), s[3:])
     elif (s.startswith("inf")):
         return(float("inf"), s[3:])
+    elif (s.startswith("Infinity")):
+        return(float("inf"), s[8:])
     elif (s.startswith("-inf")):
         return(float("-inf"), s[4:])
+    elif (s.startswith("-Infinity")):
+        return(float("-inf"), s[9:])
     else:
         (d, s) = parse_takewhile(s, lambda c: c in "0123456789.e-+")
         return(float(d), s)
