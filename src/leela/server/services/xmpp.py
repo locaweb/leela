@@ -42,12 +42,12 @@ class PresenceHandler(xmppim.PresenceProtocol):
         pass
 
     def subscribeReceived(self, presence):
-        logger.warn("subscribed received: %s/%s" % (presence.sender, presence.recipient))
+        logger.warn("subscription received: %s/%s" % (presence.sender, presence.recipient))
         self.subscribe(presence.sender)
         self.subscribed(presence.sender)
 
     def unsubscribeReceived(self, presence):
-        logger.warn("unsubscribed received: %s/%s" % (presence.sender, presence.recipient))
+        logger.warn("unsubscription received: %s/%s" % (presence.sender, presence.recipient))
         self.unsubscribed(presence.sender)
         self.unsubscribe(presence.sender)
 
