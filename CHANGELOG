@@ -2,8 +2,11 @@ CHANGELOG
 =========
 
 
-v1.0.0 | (2012-10-16 15:57:22 -0300)
+v1.0.0 | (2012-10-17 20:00:37 -0300)
 ------------------------------------
+  * unixpipe now does only atomic writes | diego souza <dsouza@c0d3.xxx> (2012-10-17 20:00:37 -0300)
+  * bugfix: parse_double is now able to parse haskell string representation of nan, infinity and -infinity | diego souza <dsouza@c0d3.xxx> (2012-10-17 07:42:21 -0300)
+  * xmpp service subscribes back to the user upon receiving a subscription request | diego souza <dsouza@c0d3.xxx> (2012-10-16 19:36:31 -0300)
   * udp service supports broadcasting to multiple services in a round-robin fashion | diego souza <dsouza@c0d3.xxx> (2012-10-16 11:11:37 -0300)
   * creating changelog file | diego souza <dsouza@c0d3.xxx> (2012-10-15 23:57:42 -0300)
   * Server is now working with the new Automata code | diego souza <dsouza@c0d3.xxx> (2012-10-13 15:16:45 -0300)
