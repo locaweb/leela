@@ -25,100 +25,82 @@
 module DarkMatter.Network.ProcServer ( start ) where
 
 import Prelude hiding (catch)
-import Control.Concurrent hiding (readChan, writeChan)
-import Control.Concurrent.BoundedChan
+import Control.Concurrent
+import Control.Monad
 import Control.Exception
 import Data.Function
 import Blaze.ByteString.Builder
 import Network.Socket
 import DarkMatter.Logger (debug, info, warn, crit)
 import DarkMatter.Data.Event
-import DarkMatter.Data.Asm.Types
+import DarkMatter.Data.Asm.Types hiding (Stream)
 import DarkMatter.Data.Asm.Parser
 import DarkMatter.Data.Asm.Runtime
 import DarkMatter.Data.Asm.Render
 import DarkMatter.Network.Protocol
+import DarkMatter.Network.Databus
 
-type Input = (Key, Event)
+type Input = [(Key, Event)]
 
 type Output = (Key, Event)
 
-runProc :: BoundedChan (Maybe Input) -> (BoundedChan (Maybe Output)) -> [Function] -> IO ()
-runProc ichan ochan func = evalStateT (exec getI putO) (newMultiplex func)
-  where getI = readChan ichan
-  
-        putO = writeChan ochan
+wait :: MVar () -> IO ()
+wait = takeMVar
 
-runFetch :: BoundedChan (Maybe Input) -> IO () -> [Asm] -> IO ()
-runFetch chan cont [Event k t v]    = writeChan chan (Just (k, temporal t v)) >> cont
-runFetch chan cont (Event k t v:xs) = writeChan chan (Just (k, temporal t v)) >> runFetch chan cont xs
-runFetch _ _ (Close:_)              = return ()
-runFetch _ _ _                      = crit " error: close|event were expected"
+signal :: MVar () -> IO ()
+signal = flip putMVar ()
 
-runSync :: Socket -> (BoundedChan (Maybe Output)) -> IO ()
-runSync s chan = do { mi <- readChan chan
-                    ; case mi
-                      of Nothing
-                           -> return ()
-                         Just (k, e)
-                           -> let msg = renderEvent (renderKey k) e
-                              in (sendmsg msg (runSync s chan) clearChan)
-                    }
-    where sendmsg m contOk contErr =
-            do { ok <- (toByteStringIO (sendFrame s) m >> return True)
-                       `catch` \(SomeException _) -> (crit " error: sending output"
-                                                        >> return False)
-               ; if (ok)
-                 then contOk
-                 else contErr
-               }
+runProc :: IO (Chunk Input) -> (Output -> IO ()) -> [Function] -> IO ()
+runProc getI0 putO func = evalStateT (exec getI putO) (newMultiplex func)
+  where getI = do { mv <- getI0
+                  ; case mv
+                    of EOF     -> return Nothing
+                       Chunk c -> return $ Just c
+                  }
 
-          clearChan = do { mi <- readChan chan
-                         ; case mi
-                           of Nothing
-                                -> return ()
-                              Just (k, e)
-                                -> k `seq` time e `seq` val e `seq` clearChan
-                         }
+handleRequest :: Socket -> Databus Input -> Mode -> [Function] -> IO ()
+handleRequest s bus (Match m) p =
+  do { sendStatus s Success
+     ; sem  <- newEmptyMVar
+     ; wire <- attach bus (databusMatcher (snd m))
+     ; debug (" forking proc thread: " ++ toString (render $ Proc (Match m) p))
+     ; _    <- forkfinally (runProc (wireRead wire) (sockWrite s) p)
+                           (detach bus wire >> signal sem)
+     ; asm <- recvAsm s
+     ; when (asm /= [Close]) (warn "error: `close;' was expected")
+     ; close wire
+     ; wait sem
+     }
+handleRequest s _ _ _ = sendStatus s Failure
 
-start :: FilePath -> IO ()
-start f = do { warn ("binding server on: " ++ f)
-             ; s <- socket AF_UNIX Stream 0
-             ; bindSocket s (SockAddrUnix f)
-             ; listen s 1
-             ; fix (\loop -> do { s1 <- fmap fst $ accept s
-                                ; info "creating new connection"
-                                ; _ <- forkfinally (go s1) (info "droppping connection" >> sClose s1)
-                                ; loop
-                                })
-             }
-  where go s = do { ochan  <- newBoundedChan 25
-                  ; ichan  <- newBoundedChan 5
-                  ; asm    <- recvAsm s
+
+sockWrite :: Socket -> Output -> IO ()
+sockWrite s (k, e) = let msg = renderEvent (renderStr k) e
+                     in toByteStringIO (sendFrame s) msg
+
+start :: Databus Input -> FilePath -> IO ()
+start bus f = do { warn ("binding server on: " ++ f)
+                 ; s <- socket AF_UNIX Stream 0
+                 ; bindSocket s (SockAddrUnix f)
+                 ; listen s 1
+                 ; fix (\loop -> do { s1 <- fmap fst $ accept s
+                                    ; info "creating new connection"
+                                    ; _ <- forkfinally (go s1) (info "droppping connection" >> sClose s1)
+                                    ; loop
+                                    })
+                 }
+  where go s = do { asm <- recvAsm s
                   ; case asm
-                    of (Proc p:xs)
-                         -> do { sendStatus s Success
-                               ; wait <- newEmptyMVar
-                               ; debug (" forking proc thread: " ++ toString (render $ Proc p))
-                               ; _    <- forkfinally (runProc ichan ochan p) (sendNil ochan)
-                               ; _    <- forkfinally (runSync s ochan) (putMVar wait ())
-                               ; (if (null xs)
-                                  then fix (\loop -> recvAsm s >>= runFetch ichan loop)
-                                  else runFetch ichan (fix (\loop -> recvAsm s >>= runFetch ichan loop)) xs)
-                                   `finally` (sendNil ichan)
-                               ; takeMVar wait
-                               }
+                    of [Proc m p]
+                         -> handleRequest s bus m p
                        _
                          -> do { sendStatus s Failure
-                               ; crit " error: proc was expected as the fst instruction"
+                               ; crit " error: single proc was expected as the fst instruction"
                                }
                   }
-        
-recvAsm :: Socket -> IO [Asm]
-recvAsm h = fmap runAll (recvFrame h)
 
-sendNil :: BoundedChan (Maybe a) -> IO ()
-sendNil = flip writeChan Nothing
+recvAsm :: Socket -> IO [Asm]
+recvAsm h = fmap (runAll asmParser) (recvFrame h)
 
 forkfinally :: IO () -> IO () -> IO ThreadId
 forkfinally action after =

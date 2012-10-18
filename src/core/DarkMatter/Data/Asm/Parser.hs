@@ -55,13 +55,17 @@ module DarkMatter.Data.Asm.Parser
        ( runOne
        , runAll
        , asmParser
+       , eventParser
        ) where
 
 import           Control.Monad
 import           Data.Attoparsec.ByteString as P
 import qualified Data.Attoparsec.ByteString.Char8 as P8
+import           Text.Regex.TDFA
+import           Text.Regex.TDFA.ByteString
 import qualified Data.ByteString as B
 import           DarkMatter.Data.Asm.Types
+import qualified DarkMatter.Data.Event as E
 import           DarkMatter.Data.Time
 
 nan :: Double
@@ -82,21 +86,26 @@ asmParser = do { mc <- P8.peekChar
                     _        -> fail ("error: e|c|p were expected")
                }
 
+eventParser :: Parser (Key, E.Event)
+eventParser = fmap cast parseEvent
+  where cast (Event k t d) = (k, E.temporal t d)
+        cast _             = error "eventParser: event was expected"
+
 endBy :: Parser a -> Parser () -> Parser a
 endBy m s = do { r <- m
                ; _ <- s
                ; return r
                }
 
-runOne :: B.ByteString -> Maybe Asm
-runOne i = either (const Nothing) Just (parseOnly (asmParser `endBy` eol) i)
+runOne :: Parser a -> B.ByteString -> Maybe a
+runOne p i = either (const Nothing) Just (parseOnly (p `endBy` eol) i)
 
-runAll :: B.ByteString -> [Asm]
-runAll i = either (const []) id (parseOnly parser i)
+runAll :: Parser a -> B.ByteString -> [a]
+runAll p i = either (const []) id (parseOnly parser i)
   where parser = do { eof <- atEnd
                     ; if eof
                       then return []
-                      else liftM2 (:) (asmParser `endBy` eol) parser
+                      else liftM2 (:) (p `endBy` eol) parser
                     }
 
 eol :: Parser ()
@@ -105,8 +114,8 @@ eol = P8.char ';' >> return ()
 parseInt :: Parser Int
 parseInt = P8.decimal
 
-parseKey :: Parser B.ByteString
-parseKey = do { n <- parseInt
+parseStr :: Parser B.ByteString
+parseStr = do { n <- parseInt
               ; _ <- P8.char '|'
               ; P.take n
               }
@@ -134,7 +143,7 @@ parseClose = P8.string "close" >> return Close
 
 parseEvent :: Parser Asm
 parseEvent = do { _   <- string "event "
-                ; key <- parseKey
+                ; key <- parseStr
                 ; _   <- P8.space
                 ; col <- parseTime
                 ; _   <- P8.space
@@ -142,10 +151,30 @@ parseEvent = do { _   <- string "event "
                 ; return (Event key col val)
                 }
 
+parseMatch :: Parser Mode
+parseMatch = do { _   <- string "match "
+                ; str <- parseStr
+                ; case (compile copts xopts str)
+                  of Left err -> fail $ "parseMatch: " ++ err
+                     Right r  -> return $ Match (str, matchTest r)
+                }
+  where copts = defaultCompOpt { lastStarGreedy = True  }
+        xopts = defaultExecOpt { captureGroups  = False }
+
+parseMode :: Parser Mode
+parseMode = do { mc <- P8.peekChar
+               ; case mc
+                 of -- Just 's' -> string "stream" >> return Stream
+                    Just 'm' -> parseMatch
+                    _        -> fail "parseMode: s|b were expected"
+               }
+
 parseProc :: Parser Asm
 parseProc = do { _         <- string "proc "
+               ; mode      <- parseMode
+               ; _         <- P8.space
                ; pipeline  <- parseFunction `sepBy` string " | "
-               ; return (Proc pipeline)
+               ; return (Proc mode pipeline)
                }
 
 parseWindow :: Parser AsyncFunc

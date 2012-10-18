@@ -93,21 +93,27 @@ renderFunction :: Function -> Builder
 renderFunction (Left f)  = renderAsyncFunc f
 renderFunction (Right f) = renderSyncFunc f
 
-renderKey :: B.ByteString -> Builder
-renderKey k = fromShow (B.length k)
+renderStr :: B.ByteString -> Builder
+renderStr k = fromShow (B.length k)
               <> fromString "|"
               <> fromByteString k
+
+renderMode :: Mode -> Builder
+renderMode Stream    = fromString "stream"
+renderMode (Match k) = fromString "match " <> renderStr (fst k)
 
 render :: Asm -> Builder
 render Close         = fromString "close;"
 render (Event k t v) = fromString "event "
-                       <> renderKey k
+                       <> renderStr k
                        <> fromChar ' '
                        <> renderTime t
                        <> fromChar ' '
                        <> renderDouble v
                        <> fromChar ';'
-render (Proc f)      = fromString "proc "
+render (Proc m f)    = fromString "proc "
+                       <> renderMode m
+                       <> fromChar ' '
                        <> renderPipeline f
                        <> fromChar ';'
 

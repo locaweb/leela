@@ -33,6 +33,9 @@ from leela.server.network import protocols
 from leela.server import funcs
 from leela.server import logger
 
+def render_select(proc, regex):
+    return("SELECT %s FROM %s;" % (proc, regex))
+
 class PresenceHandler(xmppim.PresenceProtocol):
 
     def subscribedReceived(self, presence):
@@ -73,28 +76,30 @@ class Connection(object):
 
     def _sendmsg(self, status, msg):
         xml = xmppim.Message(recipient=self.peer).toElement()
-        sql = "SELECT %s FROM %s;" % (self.query["proc"], ",".join(self.query["from"]))
+        sql = render_select(self.query["proc"], self.query["regex"])
         dbg = {"request": {"cmd": sql, "key": self.key}}
         self.xmpp.mkcc(xml, dbg)(status, msg)
 
     def on_core_recv_event(self, e):
+        logger.debug("core_recv_event: %s" % e)
         msg = {"results": {"event": parsing.render_event_to_json(e)}}
         msg.update(parsing.render_event_to_json(e)) # do not break compatibility with previous version
         self._sendmsg(200, msg)
 
     def on_core_connection_lost(self, _):
-        logger.info("dmproc connection lost: %s" % self.key)
+        logger.info("core_connection_lost: %s" % self.key)
         del(self.xmpp.active[self.key])
-        self.xmpp.bus.detach(self.key)
 
     def on_core_connection_made(self):
-        logger.warn("dmproc connection established: %s" % self.key)
-        self.core.send_proc(self.query["proc"].encode("utf8"))
+        logger.warn("core_connection_made: %s" % self.key)
+        mode = self.core.proc_match(self.query["regex"].encode("utf8"))
+        proc = self.query["proc"].encode("utf8")
+        self.core.send_proc(mode, proc)
         self.core.flush()
-        self.xmpp.bus.attach(self.key, self)
         self.xmpp.active[self.key] = self
 
     def on_core_recv_status(self, s):
+        logger.debug("core_recv_status: %d" % s)
         if (s == 0):
             self._sendmsg(200, {"results": {"key": self.key}})
         else:
@@ -104,20 +109,6 @@ class Connection(object):
         logger.warn("disconnecting: %s" % self.key)
         self.core.send_close()
 
-    def should_accept(self, e):
-        for g in self.query["from"]:
-            if (fnmatch.fnmatch(e.name(), g)):
-                return(True)
-        return(False)
-
-    def recv_broadcast(self, events0):
-        events = []
-        for e in events0:
-            if (self.should_accept(e)):
-                events.append(e)
-        self.core.send_events(events)
-        self.core.flush()
-
     def factory(self):
         f = Factory()
         f.protocol = lambda: self.core
@@ -125,12 +116,11 @@ class Connection(object):
 
 class XmppService(xmppim.MessageProtocol):
 
-    def __init__(self, cfg, pipe):
+    def __init__(self, cfg):
         self.cfg     = cfg
         self.active  = {}
         self.redis   = None
-        self.bus     = protocols.LeelaBus(pipe, "r")
-        self.core    = UNIXClientEndpoint(reactor, self.cfg.get("core", "socket"), 30, False)
+        self.core    = UNIXClientEndpoint(reactor, self.cfg.get("xmpp", "dmproc"), 30, False)
         self.pooling = task.LoopingCall(self.redis_pooling)
 
     @defer.inlineCallbacks
@@ -150,14 +140,13 @@ class XmppService(xmppim.MessageProtocol):
     @defer.inlineCallbacks
     def handle_select(self, request, sender, cc):
         try:
-            if (request["select"]["from"] == ("leela.xmpp",) and request["select"]["proc"] == "*"):
+            if (request["select"]["regex"] == ("leela.xmpp",) and request["select"]["proc"] == "*"):
                 data0 = yield self.redis.hgetall("leela.xmpp")
                 tmp   = []
                 for (key, data1) in data0.iteritems():
                     data = json.loads(data1)
-                    sql  = "SELECT %s FROM %s;" % (data["request"]["select"]["proc"],
-                                                   ",".join(data["request"]["select"]["from"])
-                                                  )
+                    sql  = render_select(data["request"]["select"]["proc"],
+                                         data["request"]["select"]["regex"])
                     if (data["sender"] == sender.userhost()):
                         tmp.append({"key": key,
                                     "cmd": sql
@@ -167,7 +156,7 @@ class XmppService(xmppim.MessageProtocol):
                 hcode = hashlib.sha512()
                 hcode.update(sender.userhost())
                 hcode.update(request["select"]["proc"])
-                map(hcode.update, sorted(request["select"]["from"]))
+                hcode.update(request["select"]["regex"])
                 key   = hcode.hexdigest()
                 self.redis.hsetnx("leela.xmpp", key, json.dumps({"request": request, "sender": sender.userhost()}))
         except:
@@ -237,9 +226,10 @@ class XmppService(xmppim.MessageProtocol):
         resp   = toResponse(message, message.getAttribute("type"))
         cc     = self.mkcc(resp, debug)
         if (req is None):
+            logger.debug("message [%s] - 400" % message.body)
             cc(400, {"reason": "parsing error"})
         else:
-            logger.debug("message [%s] %s" % (message.getAttribute("from"), message.body))
+            logger.debug("message [%s] %s - 200" % (message.getAttribute("from"), message.body))
             self.handle_request(req, sender, cc)
 
     @defer.inlineCallbacks
@@ -249,8 +239,6 @@ class XmppService(xmppim.MessageProtocol):
                                                     self.cfg.getint("redis", "port"),
                                                     self.cfg.getint("redis", "db"),
                                                     True)
-            self.bus.connect()
-            self.bus.autoretry(True)
             self.pooling.start(5)
             xmppim.MessageProtocol.connectionMade(self)
         except:
@@ -260,5 +248,3 @@ class XmppService(xmppim.MessageProtocol):
         xmppim.MessageProtocol.connectionLost(self, reason)
         funcs.suppress(self.pooling.stop)()
         funcs.suppress(self.redis.disconnect)()
-        self.bus.autoretry(False)
-        self.bus.disconnect()

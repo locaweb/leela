@@ -27,6 +27,10 @@ from leela.server import logger
 
 class DMProcProtocol(protocol.Protocol):
 
+    @classmethod
+    def proc_match(self, regex):
+        return("match %d|%s" % (len(regex), regex))
+
     def __init__(self, buffersz=65536):
         self.obuffer  = [0, []]
         self.ibuffer  = [0, buffer("")]
@@ -73,8 +77,10 @@ class DMProcProtocol(protocol.Protocol):
 
     def flush(self):
         if (self.obuffer[0] > 0):
+            frame = "".join(self.obuffer[1])
+            logger.debug("dmproc: sending frame: %s" % frame)
             self.transport.write(struct.pack("!H", self.obuffer[0]))
-            self.transport.write("".join(self.obuffer[1]))
+            self.transport.write(frame)
             self.obuffer[0] = 0
             self.obuffer[1] = []
 
@@ -89,8 +95,8 @@ class DMProcProtocol(protocol.Protocol):
         self.send_data("close;")
         self.flush()
 
-    def send_proc(self, proc):
-        self.send_data("proc %s;" % proc)
+    def send_proc(self, mode, proc):
+        self.send_data("proc %s %s;" % (mode, proc))
 
     def recv_event(self, e):
         """

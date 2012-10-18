@@ -30,11 +30,11 @@ import           DarkMatter.Data.Asm.Parser
 import           DarkMatter.Data.Asm.Render
 
 myRunOne :: Asm -> Bool
-myRunOne asm = let f = runOne . toByteString . render
+myRunOne asm = let f = runOne asmParser . toByteString . render
                in f asm /= Nothing
 
 myRunAll :: [Asm] -> Bool
-myRunAll asms = let f = runAll . toByteString . renderList
+myRunAll asms = let f = runAll asmParser . toByteString . renderList
                 in length (f asms) == length asms
 
 event_spec :: Spec

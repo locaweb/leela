@@ -14,24 +14,22 @@ DAEMON=/usr/bin/dmproc
 PIDFILE=/var/run/leela/dmproc.pid
 LOGFILE=/var/log/leela/dmproc.log
 
-[ -x "$DAEMON" ]                 || exit 0
-[ -r /etc/default/leela-dmproc ] && . /etc/default/leela-dmproc
-[ -r /lib/lsb/init-functions ]   && . /lib/lsb/init-functions
-
-fixfile () {
-  [ -f $PIDFILE ] && chown leela:leela $PIDFILE
-}
+[ -x "$DAEMON" ]                    || exit 0
+[ -r /etc/default/leela-dmproc ]    && . /etc/default/leela-dmproc
+[ -r /lib/lsb/init-functions ]      && . /lib/lsb/init-functions
+[ -r /usr/libexec/leela-functions ] && . /usr/libexec/leela-functions
 
 start_service() {
-  log_daemon_msg "starting $DAEMON" "$DAEMON"
-  fixfile
-  start-stop-daemon -N-5 -Sq -p $PIDFILE -x /usr/bin/daemon -- -u leela:leela $DAEMON_OPTS -F $PIDFILE -o $LOGFILE -- $DAEMON +RTS -N${DMPROC_THREADS} -RTS -vvv ${DMPROC_SOCKET:-/var/run/leela/dmproc}
+  pipefile=${DMPROC_DATABUS:-/var/run/leela/dmproc-databus}
+  sockfile=${DMPROC_SOCKET:-/var/run/leela/dmproc}
+  fixpipe $pipefile
+  log_daemon_msg "starting $DAEMON"
+  start-stop-daemon -N-5 -Sq -p $PIDFILE -x /usr/bin/daemon -- -u leela:leela $DAEMON_OPTS -F $PIDFILE -o $LOGFILE -- $DAEMON +RTS -N${DMPROC_THREADS} -RTS -vvv $pipefile $sockfile
   log_end_msg $?
 }
 
 stop_service() {
-  log_daemon_msg "stopping $DAEMON" "$DAEMON"
-  fixfile
+  log_daemon_msg "stopping $DAEMON"
   start-stop-daemon -Kq -R 10 -p $PIDFILE
   rm -f $PIDFILE
   rm -f ${DMPROC_SOCKET:-/var/run/leela/dmproc.s}

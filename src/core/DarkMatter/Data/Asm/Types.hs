@@ -49,15 +49,18 @@ data ArithOp = Mul
 
 type Key = B.ByteString
 
+data Mode = Match (B.ByteString, Key -> Bool)
+          | Stream
+
 -- | The available instructions to execute
 data Asm = Event Key Time Double
-         | Proc [Either AsyncFunc SyncFunc]
+         | Proc Mode [Either AsyncFunc SyncFunc]
          | Close
          deriving (Eq)
 
 isProc :: Asm -> Bool
-isProc (Proc _) = True
-isProc _        = False
+isProc (Proc _ _) = True
+isProc _          = False
 
 isEvent :: Asm -> Bool
 isEvent (Event _ _ _) = True
@@ -66,3 +69,9 @@ isEvent _             = False
 isClose :: Asm -> Bool
 isClose Close = True
 isClose _     = False
+
+instance Eq Mode where
+
+  Stream    == Stream    = True
+  (Match x) == (Match y) = fst x == fst y
+  _         == _         = False

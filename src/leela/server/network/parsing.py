@@ -117,22 +117,12 @@ def parse_event_legacy(s):
         tval = long(time.time())
     return(event.Event(name[:255], float(lval), tval))
 
-def parse_from(s):
-    items = []
-    for i in s.split(","):
-        t = i.strip()
-        if (t != ""):
-            items.append(t)
-    if (len(items) == 0):
-        raise(RuntimeError())
-    return(items)
-
 def parse_select(s):
     m = re.match(r"^SELECT (.+?) FROM (.+?);$", s.strip(), re.I)
     r = {}
     if (m):
         return({ "select": { "proc": m.group(1),
-                             "from": tuple(sorted(parse_from(m.group(2))))
+                             "regex": m.group(2).strip()
                            }
                })
     raise(RuntimeError())

@@ -22,6 +22,7 @@ module DarkMatter.Data.Proc
        -- ^ Evaluatation
        , run
        , run_
+       , run1
        , runWhile
        ) where
 
@@ -85,6 +86,10 @@ run_ _  []       = error "run_: empty list"
 run_ p0 (x0:xs0) = go (unAuto p0 x0) xs0
   where go (o, p) []     = (o, p)
         go (_, p) (x:xs) = go (unAuto p x) xs
+
+-- | The same as @run_ p . (:[])@.
+run1 :: Proc i o -> i -> (o, Proc i o)
+run1 p = run_ p . (:[])
 
 -- | Consumes the input until no more items are available or a
 -- predicate fails (mostly for testing purposes). Example:

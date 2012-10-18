@@ -25,17 +25,17 @@ import           DarkMatter.Data.Time
 import           DarkMatter.Data.Asm.Types
 import           DarkMatter.Data.Asm.Render
 
-genKey :: Gen B8.ByteString
-genKey = fmap B8.pack (listOf1 $ elements $ ['a'..'z'] ++ ['0'..'9'] ++ ['.'])
+genStr :: Gen B8.ByteString
+genStr = fmap B8.pack (listOf1 $ elements $ ['a'..'z'] ++ ['0'..'9'] ++ ['.'])
 
 genClose :: Gen Asm
 genClose = return Close
 
 genProc :: Gen Asm
-genProc = liftM Proc (listOf1 arbitrary)
+genProc = liftM2 Proc arbitrary (listOf1 arbitrary)
 
 genEvent :: Gen Asm
-genEvent = do { k <- genKey
+genEvent = do { k <- genStr
               ; c <- arbitrary
               ; v <- arbitrary
               ; return (Event k c v)
@@ -87,10 +87,14 @@ instance Arbitrary Asm where
 
 instance Arbitrary Time where
 
-  arbitrary = do { s <- fmap abs arbitrary
-                 ; n <- fmap abs arbitrary
+  arbitrary = do { s <- arbitrary `suchThat` (>= 0)
+                 ; n <- arbitrary `suchThat` (>= 0)
                  ; return (mktime s n)
                  }
+
+instance Arbitrary Mode where
+
+  arbitrary = elements [Match (B8.singleton '.', const True)]
 
 instance Arbitrary ArithOp where
 

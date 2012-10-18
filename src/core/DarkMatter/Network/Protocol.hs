@@ -22,6 +22,10 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as B8
 import           Network.Socket (Socket)
 import           Network.Socket.ByteString
+import           DarkMatter.Data.Asm.Types (Key)
+import           DarkMatter.Data.Asm.Parser
+import           DarkMatter.Data.Event
+import           DarkMatter.Data.Proc
 
 data Status = Success
             | Failure
@@ -49,3 +53,14 @@ sendFrame s msg = let sz = B.length msg
 sendStatus :: Socket -> Status -> IO ()
 sendStatus s Success = sendFrame s (B8.pack "status 0;")
 sendStatus s Failure = sendFrame s (B8.pack "status 1;")
+
+eol :: B.ByteString
+eol = B8.singleton ';'
+
+databusParser :: Proc B.ByteString [(Key, Event)]
+databusParser = Auto $ f B.empty
+  where f l r = let i                 = B.append l r
+                    (frame, leftover) = B8.breakEnd (== ';') i
+                    events            = runAll eventParser frame
+                in events `seq` (events, Auto $ f leftover)
+

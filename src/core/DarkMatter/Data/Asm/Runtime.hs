@@ -18,6 +18,7 @@ module DarkMatter.Data.Asm.Runtime
        ( Pipeline
        , Runtime
        , pipeline
+       , databusMatcher
        , newMultiplex
        , multiplex
        , proc
@@ -94,19 +95,26 @@ putenv k p = do { (z, m) <- get
                 ; put (z, M.insert k p m)
                 }
 
-exec :: (IO (Maybe (Key, Event))) -> (Maybe (Key, Event) -> IO ()) -> Runtime IO ()
+exec :: (IO (Maybe [(Key, Event)])) -> ((Key, Event) -> IO ()) -> Runtime IO ()
 exec getI putO = do { mi <- liftIO getI
                     ; case mi
-                      of Nothing    -> liftIO (putO Nothing)
-                         Just (k,e) -> do { multiplex k e >>= liftIO . mputO k
-                                          ; exec getI putO
-                                          }
+                      of Nothing
+                           -> return ()
+                         Just value
+                           -> do { mapM_ (\(k, e) -> multiplex k e >>= liftIO . mputO k) value
+                                 ; exec getI putO
+                                 }
                     }
   where mputO _ Nothing  = return ()
-        mputO k (Just e) = putO (Just (k, e))
+        mputO k (Just e) = putO (k, e)
+
+databusMatcher :: (Key -> Bool) -> [(Key, Event)] -> Maybe [(Key, Event)]
+databusMatcher f xs = case (filter (f . fst) xs)
+                      of [] -> Nothing
+                         ys -> Just ys
 
 -- | Initial state of the multiplex monad. Useful in conjunction with
--- evalStateT.
+ -- evalStateT.
 newMultiplex :: [Function] -> (Pipeline, M.Map Key Pipeline)
 newMultiplex p = (pipeline p, M.empty)
 

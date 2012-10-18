@@ -15,6 +15,7 @@
 module Main where
 
 import System.Console.GetOpt
+import Control.Monad
 import Control.Concurrent.MVar
 import Control.Concurrent
 import System.Environment
@@ -22,6 +23,8 @@ import System.Directory
 import System.Exit
 import System.Posix.Signals
 import DarkMatter.Logger
+import DarkMatter.Network.Databus
+import DarkMatter.Network.Protocol
 import DarkMatter.Network.ProcServer
 
 data OptFlag = Verbose
@@ -33,18 +36,20 @@ options = [ Option "v" ["verbose"] (NoArg Verbose) "increase verbosity"
           , Option ""  ["version"] (NoArg Version) "show version and exit"
           ]
 
-getopts :: [String] -> ([OptFlag], String)
+getopts :: [String] -> ([OptFlag], String, String)
 getopts argv = case (getOpt Permute options argv)
-               of (o, [s], []) -> (o, s)
+               of (o, [p, s], []) -> (o, p, s)
                   (_, _, msg)  -> error (concat msg ++ usageInfo header options)
-  where header = "USAGE: dmproc [-v|--verbose] [--version] SOCKET-FILE"
+  where header = "USAGE: dmproc [-v|--verbose] [--version] PIPE-FILE SOCKET-FILE"
 
 main :: IO ()
-main = do { (opts, socket) <- fmap getopts getArgs
+main = do { (opts, pipe, socket) <- fmap getopts getArgs
           ; setopts INFO opts
           ; wait <- newEmptyMVar
           ; warn "starting server (^C to terminate)"
-          ; _    <- forkIO (start socket)
+          ; db   <- newDatabus
+          ; _    <- forkIO (forever $ connectTo db databusParser pipe)
+          ; _    <- forkIO (start db socket)
           ; _    <- installHandler sigINT (Catch $ putMVar wait ()) Nothing
           ; _    <- installHandler sigTERM (Catch $ putMVar wait ()) Nothing
           ; takeMVar wait
