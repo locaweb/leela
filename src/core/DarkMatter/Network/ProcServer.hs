@@ -24,7 +24,7 @@
 --   proc thread;
 module DarkMatter.Network.ProcServer ( start ) where
 
-import Prelude hiding (catch)
+import Prelude
 import Control.Concurrent
 import Control.Monad
 import Control.Exception

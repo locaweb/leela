@@ -116,8 +116,10 @@ connect :: Databus a -> Proc B.ByteString a -> Handle -> IO ()
 connect db parse fh = fetch parse
   where fetch p = do { (a, p1) <- fmap (run1 p) (B.hGet fh 512)
                      ; broadcast a
-                     ; a `seq` fetch p1
+                     ; ifStillOpen (fetch p1)
                      }
+
+        ifStillOpen cc = fmap not (hIsEOF fh) >>= flip when cc
 
         broadcast a = fmap connections (readTVarIO db) >>= mapM_ doWrite
           where doWrite w = case (accept w a)

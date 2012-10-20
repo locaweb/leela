@@ -61,5 +61,5 @@ databusParser :: Proc B.ByteString [(Key, Event)]
 databusParser = Auto $ f B.empty
   where f l r = let (frame, leftover) = B8.breakEnd (== ';') (B.append l r)
                     events            = runAll eventParser frame
-                in (events , Auto $ f leftover)
+                in leftover `seq` (events , Auto $ f leftover)
 

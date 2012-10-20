@@ -48,7 +48,7 @@ main = do { (opts, pipe, socket) <- fmap getopts getArgs
           ; wait <- newEmptyMVar
           ; warn "starting server (^C to terminate)"
           ; db   <- newDatabus
-          ; _    <- forkIO (forever $ connectTo db databusParser pipe)
+          ; _    <- forkIO (forever $ threadDelay 500000 >> connectTo db databusParser pipe)
           ; _    <- forkIO (start db socket)
           ; _    <- installHandler sigINT (Catch $ putMVar wait ()) Nothing
           ; _    <- installHandler sigTERM (Catch $ putMVar wait ()) Nothing
