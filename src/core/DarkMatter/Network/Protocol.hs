@@ -59,8 +59,7 @@ eol = B8.singleton ';'
 
 databusParser :: Proc B.ByteString [(Key, Event)]
 databusParser = Auto $ f B.empty
-  where f l r = let i                 = B.append l r
-                    (frame, leftover) = B8.breakEnd (== ';') i
+  where f l r = let (frame, leftover) = B8.breakEnd (== ';') (B.append l r)
                     events            = runAll eventParser frame
-                in events `seq` (events, Auto $ f leftover)
+                in (events , Auto $ f leftover)
 

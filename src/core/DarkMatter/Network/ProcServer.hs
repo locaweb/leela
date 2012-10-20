@@ -55,6 +55,7 @@ runProc getI0 putO func = evalStateT (exec getI putO) (newMultiplex func)
   where getI = do { mv <- getI0
                   ; case mv
                     of EOF     -> return Nothing
+                       Empty   -> getI
                        Chunk c -> return $ Just c
                   }
 

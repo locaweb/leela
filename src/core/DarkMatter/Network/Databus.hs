@@ -51,13 +51,15 @@ data State = Read
 
 -- | This represents a connection to the databus.
 data Wire a = Wire { uid    :: Int
-                   , queue  :: TBQueue a
+                   , queue  :: TBQueue (Chunk a)
                    , accept :: a -> Maybe a
                    , state  :: TVar State
                    }
 
 data Chunk a = Chunk a
+             | Empty
              | EOF
+             deriving (Eq)
 
 -- | Creates a new empty databus.
 newDatabus :: IO (Databus a)
@@ -75,18 +77,18 @@ ifStateOrElse w f a b = do { s <- readTVar (state w)
 -- returns EOF.
 wireRead :: Wire a -> IO (Chunk a)
 wireRead w = atomically $ ifStateOrElse w (== ReadWrite) doRead checkRead
-  where doRead    = fmap Chunk (readTBQueue $ queue w)
+  where doRead    = readTBQueue $ queue w
         checkRead = do { mv <- tryReadTBQueue (queue w)
                        ; case (mv)
                          of Nothing -> return $ EOF
-                            Just x  -> return $ Chunk x
+                            Just x  -> return x
                        }
 
 -- | Write something into the wire. May block if the queue is full. If
 -- the wire has been close, this function does nothing.
 wireWrite :: Wire a -> a -> IO ()
 wireWrite w a = atomically $ ifStateOrElse w (== ReadWrite) doWrite (return ())
-  where doWrite = writeTBQueue (queue w) a
+  where doWrite = writeTBQueue (queue w) (Chunk a)
 
 -- | Shutdown any writes into this wire. Remember you still must
 -- invoke detach.
@@ -112,7 +114,7 @@ connectTo db p f = bracket open hClose (connect db p)
 -- function blocks.
 connect :: Databus a -> Proc B.ByteString a -> Handle -> IO ()
 connect db parse fh = fetch parse
-  where fetch p = do { (a, p1) <- fmap (run1 p) (B.hGetSome fh 65536)
+  where fetch p = do { (a, p1) <- fmap (run1 p) (B.hGet fh 512)
                      ; broadcast a
                      ; a `seq` fetch p1
                      }
@@ -131,16 +133,18 @@ connect db parse fh = fetch parse
 attach :: Databus a -> (a -> Maybe a) -> IO (Wire a)
 attach db f = atomically $ doAttach
   where doAttach = do { wuid        <- nextid db
-                      ; wire        <- liftM2 (\q s -> Wire wuid q f s) (newTBQueue 2) (newTVar ReadWrite)
+                      ; wire        <- liftM2 (\q s -> Wire wuid q f s) (newTBQueue 5) (newTVar ReadWrite)
                       ; modifyTVar db (flip attachWire wire)
                       ; return wire
                       }
 
 -- | Destroy an wire previously created using attach.
 detach :: Databus a -> Wire a -> IO ()
-detach db w = atomically (drain >> destroy)
-  where drain = do { closeT w
-                   ; tryReadTBQueue (queue w)
+detach db w = atomically (closeT w >> drain >> destroy)
+  where drain = do { mv <- tryReadTBQueue (queue w)
+                   ; case mv
+                     of Nothing -> writeTBQueue (queue w) Empty
+                        Just _  -> drain
                    }
 
         destroy = modifyTVar db (flip removeWire w)

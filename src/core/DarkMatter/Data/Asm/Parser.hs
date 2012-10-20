@@ -74,9 +74,6 @@ nan = 0 / 0
 inf :: Double
 inf = 1 / 0
 
-ninf :: Double
-ninf = - inf
-
 asmParser :: Parser Asm
 asmParser = do { mc <- P8.peekChar
                ; case mc
@@ -130,12 +127,10 @@ parseTime = do { s <- parseInt
 parseVal :: Parser Double
 parseVal = do { c <- P8.peekChar
               ; case c
-                of Just 'n' -> string "nan" >> return nan
-                   Just 'i' -> string "inf" >> return inf
-                   Just '-' -> choice [ P8.rational
-                                      , string "-inf" >> return ninf
-                                      ]
-                   _        -> P8.rational
+                of Just 'n' -> string "nan"  >> return nan
+                   Just 'i' -> string "inf"  >> return inf
+                   Just '-' -> P8.char '-' >> fmap negate parseVal
+                   _        -> choice [P8.double, P8.rational]
               }
 
 parseClose :: Parser Asm
