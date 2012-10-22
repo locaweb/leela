@@ -140,7 +140,7 @@ class XmppService(xmppim.MessageProtocol):
     @defer.inlineCallbacks
     def handle_select(self, request, sender, cc):
         try:
-            if (request["select"]["regex"] == ("leela.xmpp",) and request["select"]["proc"] == "*"):
+            if ((request["select"]["regex"] == "leela.xmpp") and (request["select"]["proc"] == "*")):
                 data0 = yield self.redis.hgetall("leela.xmpp")
                 tmp   = []
                 for (key, data1) in data0.iteritems():

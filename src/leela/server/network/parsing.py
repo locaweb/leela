@@ -121,7 +121,7 @@ def parse_select(s):
     m = re.match(r"^SELECT (.+?) FROM (.+?);$", s.strip(), re.I)
     r = {}
     if (m):
-        return({ "select": { "proc": m.group(1),
+        return({ "select": { "proc": m.group(1).strip(),
                              "regex": m.group(2).strip()
                            }
                })
