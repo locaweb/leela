@@ -127,6 +127,12 @@ def parse_select(s):
                })
     raise(RuntimeError())
 
+def parse_show(s):
+    m = re.match(r"^SHOW (COMMANDS);$", s.strip(), re.I)
+    if (m):
+        return({"show": m.group(1).lower()})
+    raise(RuntimeError())
+
 def parse_delete(s):
     m = re.match(r"^DELETE FROM leela.xmpp(?: WHERE key=(.+?))?;$", s.strip(), re.I)
     r = {}
@@ -140,7 +146,10 @@ def parse_sql_(s):
         if (s[0] in "dD"):
             return(parse_delete(s))
         elif (s[0] in "sS"):
-            return(parse_select(s))
+            if (s[1] in "eE"):
+                return(parse_select(s))
+            elif (s[1] in "oO"):
+                return(parse_show(s))
     except:
         return({})
 
