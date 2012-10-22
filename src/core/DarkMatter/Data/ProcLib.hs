@@ -111,14 +111,15 @@ sample n0 m0 = Auto (f n0 m0)
           | n > 0     = (Just a, Auto $ f (n - 1) (m - 1))
           | otherwise = (Nothing, Auto $ f 0 (m - 1))
 
--- | Keeps an internal buffer of n elements using a proc to process it
--- when it is full. Possible use @window 30 mean@
-window :: Int              -- ^ The number of elements to buffer
-       -> Proc i o         -- ^ The proc to execute when the buffer is full
+-- | Invokes a given proc N number, keeping its intermediary
+-- state. When N is reached, the proc is put back to its original
+-- state and a value is produced.
+window :: Int              -- ^ The number of elements to invoke proc
+       -> Proc i o         -- ^ The proc to execute N number of times
        -> Proc i (Maybe o) -- ^ The resulting `window proc'
-window n f = Auto (go (0,[]))
-  where go (k,acc) i
-          | k + 1 == n = let (o, _) = run_ f (i : acc)
-                         in (Just o, window n f)
-          | otherwise  = i `seq` (Nothing, Auto $ go (k + 1, i : acc))
+window n f0 = Auto (go (1, f0))
+  where go (k, f) i = let (o, f1) = run1 f i
+                      in if (k == n)
+                         then (Just o, window n f0)
+                         else o `seq` (Nothing, Auto $ go (k+1, f1))
 
