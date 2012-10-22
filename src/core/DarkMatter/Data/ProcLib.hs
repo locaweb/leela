@@ -44,7 +44,7 @@ sma :: (Fractional a) => Int -> Proc a (Maybe a)
 sma n = Auto (f [])
   where f acc i
           | length acc == n = g acc i
-          | otherwise       = (Nothing, Auto $ f (i : acc))
+          | otherwise       = i `seq` (Nothing, Auto $ f (i : acc))
 
         g acc i = let m = fst $ run_ mean acc
                   in (Just m, Auto $ g (i : init acc))
@@ -78,7 +78,8 @@ count = Auto (f 0)
 -- @
 binary :: (a -> a -> a) -> Proc a a
 binary f = Auto (\i -> (i, Auto $ g i))
-  where g a b = (f a b, Auto (g $ f a b))
+  where g a b = let c = f a b
+                in (c, Auto (g $ c))
 
 -- | Uses a predicate to decide whether or not to return an
 -- element. When this predicate evaluates to false, Nothing is
@@ -119,5 +120,5 @@ window n f = Auto (go (0,[]))
   where go (k,acc) i
           | k + 1 == n = let (o, _) = run_ f (i : acc)
                          in (Just o, window n f)
-          | otherwise  = (Nothing, Auto $ go (k + 1, i : acc))
+          | otherwise  = i `seq` (Nothing, Auto $ go (k + 1, i : acc))
 
