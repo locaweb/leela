@@ -137,10 +137,21 @@ class XmppService(xmppim.MessageProtocol):
                 conn = Connection(key, xmppim.JID(data["sender"]), data["request"]["select"], self)
                 self.core.connect(conn.factory())
 
+    @defer.inlineCallbacks
     def handle_select(self, request, sender, cc):
         try:
             if ((request["select"]["regex"] == "leela.xmpp") and (request["select"]["proc"] == "*")):
-                cc(400, {"reason": "DEPRECATED! Please use `SHOW COMMANDS;' command"})
+                data0 = yield self.redis.hgetall("leela.xmpp")
+                tmp   = []
+                for (key, data1) in data0.iteritems():
+                    data = json.loads(data1)
+                    sql  = render_select(data["request"]["select"]["proc"],
+                                         data["request"]["select"]["regex"])
+                    if (data["sender"] == sender.userhost()):
+                        tmp.append({"key": key,
+                                    "cmd": sql
+                                   })
+                cc(200, {"results": tmp})
             else:
                 hcode = hashlib.sha512()
                 hcode.update(sender.userhost())
@@ -151,20 +162,6 @@ class XmppService(xmppim.MessageProtocol):
         except:
             logger.exception()
             cc(500, {"reason": "internal server error"})
-
-    @defer.inlineCallbacks
-    def handle_show(self, request, sender, cc):
-        data0 = yield self.redis.hgetall("leela.xmpp")
-        tmp   = []
-        for (key, data1) in data0.iteritems():
-            data = json.loads(data1)
-            sql  = render_select(data["request"]["select"]["proc"],
-                                 data["request"]["select"]["regex"])
-            if (data["sender"] == sender.userhost()):
-                tmp.append({"key": key,
-                            "cmd": sql
-                           })
-        cc(200, {"results": tmp})
 
     @defer.inlineCallbacks
     def handle_delete_all(self, sender, cc):
@@ -206,8 +203,6 @@ class XmppService(xmppim.MessageProtocol):
             self.handle_select(request, sender, cc)
         elif ("delete" in request):
             self.handle_delete(request, sender, cc)
-        elif ("show" in request):
-            self.handle_show(request, sender, cc)
         else:
             cc(400, {"reason": "unknow command"})
 
