@@ -34,12 +34,14 @@ data SyncFunc = Sum
               | Round
               | Truncate
               | ArithmeticL ArithOp Double
-              | ArithmeticR ArithOp Double 
+              | ArithmeticR ArithOp Double
               deriving (Eq)
 
 data AsyncFunc = Window Int [SyncFunc]
                | SMA Int
                | Sample Int Int
+               | ComparisonL ComparisonOp Double
+               | ComparisonR ComparisonOp Double
                deriving (Eq)
 
 data ArithOp = Mul
@@ -47,6 +49,14 @@ data ArithOp = Mul
              | Div
              | Sub
              deriving (Eq)
+
+data ComparisonOp = Lt
+                  | Gt
+                  | Eq
+                  | Ge
+                  | Le
+                  | Ne
+                  deriving (Eq)
 
 type Key = B.ByteString
 

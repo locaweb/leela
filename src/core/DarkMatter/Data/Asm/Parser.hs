@@ -31,8 +31,8 @@
 --   VAL      =                                                               ; DOUBLE NUMBER (e.g.: 2.7, -2.3, 3.3e7)
 --   FUNC     = SFUNC
 --            / AFUNC
---   SFUNC    = "(" OP SP VAL ")"
---            / "(" VAL SP OP ")"
+--   SFUNC    = "(" AOP SP VAL ")"
+--            / "(" VAL SP AOP ")"
 --            / "id"
 --            / "truncate"
 --            / "ceil"
@@ -48,10 +48,17 @@
 --   AFUNC    = "window" SP 1*DIGIT SP "(" SFUNC *(SP "|" SP SFUNC) ")"
 --            / "sma" SP 1*DIGIT
 --            / "sample" SP 1*DIGIT SP 1*DIGIT
---   OP       = "*"
+--            / "[" LOP SP VAL "]"
+--            / "[" ROP SP VAL "]"
+--   AOP      = "*"
 --            / "/"
 --            / "+"
 --            / "-"
+--   LOP      = ">"
+--            / "<"
+--            / "="
+--            / ">="
+--            / "<="
 module DarkMatter.Data.Asm.Parser
        ( runOne
        , runAll
@@ -212,6 +219,7 @@ parseAsyncFunc = do { mc <- P8.peekChar
                                             , parseSample
                                             ]
                          Just 'w' -> parseWindow
+                         Just '[' -> parseComparison
                          _        -> fail "parseAsyncFunc: s|w were expected"
                     }
 
@@ -222,6 +230,7 @@ parseFunction = do { c <- P8.peekChar
                                            , fmap Right parseSyncFunc
                                            ]
                         Just 'w' -> fmap Left parseAsyncFunc
+                        Just '[' -> fmap Left parseAsyncFunc
                         _        -> fmap Right parseSyncFunc
                    }
 
@@ -243,18 +252,33 @@ parseSample = do { _ <- string "sample "
                    else fail "parseSample: n <= 0 || m < n"
                  }
 
-parseOp :: Parser ArithOp
-parseOp = do { c <- P8.satisfy (`elem` "*+/-")
-             ; case c
-               of '*' -> return Mul
-                  '+' -> return Add
-                  '/' -> return Div
-                  '-' -> return Sub
-                  _   -> fail "error: *|+|-|/ were expected"
-             }
+parseAOp :: Parser ArithOp
+parseAOp = do { c <- P8.satisfy (`elem` "*+/-")
+              ; case c
+                of '*' -> return Mul
+                   '+' -> return Add
+                   '/' -> return Div
+                   '-' -> return Sub
+                   _   -> fail "error: *|+|-|/ were expected"
+              }
+
+parseLOp :: Parser ComparisonOp
+parseLOp = do { c <- P8.satisfy (`elem` "><=/")
+              ; case c
+                of '>' -> ifNxEqOrElse (P8.char '=' >> return Ge) (return Gt)
+                   '<' -> ifNxEqOrElse (P8.char '=' >> return Le) (return Lt)
+                   '=' -> return Eq
+                   '/' -> P8.char '=' >> return Ne
+                   _   -> fail "error: >|<|= were expected"
+              }
+  where ifNxEqOrElse a b = do { isEq <- fmap (== Just '=') P8.peekChar
+                              ; if (isEq)
+                                then a
+                                else b
+                              }
 
 parseArithL :: Parser SyncFunc
-parseArithL = do { o <- parseOp
+parseArithL = do { o <- parseAOp
                  ; _ <- P8.space
                  ; v <- parseVal
                  ; return (ArithmeticL o v)
@@ -263,7 +287,7 @@ parseArithL = do { o <- parseOp
 parseArithR :: Parser SyncFunc
 parseArithR = do { v <- parseVal
                  ; _ <- P8.space
-                 ; o <- parseOp
+                 ; o <- parseAOp
                  ; return (ArithmeticR o v)
                  }
 
@@ -278,8 +302,29 @@ parseArith = do { mc <- P8.peekChar
                        | otherwise     -> parseArithR
                      Nothing  -> fail "parseArithmetic: unknow expression"
                 }
-  where rNegate (ArithmeticR o v) = (ArithmeticR o (negate v))
-        rNegate x                 = x
+
+parseCompareL :: Parser AsyncFunc
+parseCompareL = do { o <- parseLOp
+                   ; _ <- P8.space
+                   ; v <- parseVal
+                   ; return (ComparisonL o v)
+                   }
+
+parseCompareR :: Parser AsyncFunc
+parseCompareR = do { v <- parseVal
+                   ; _ <- P8.space
+                   ; o <- parseLOp
+                   ; return (ComparisonR o v)
+                   }
+
+parseCompare :: Parser AsyncFunc
+parseCompare = do { mc <- P8.peekChar
+                  ; case mc
+                    of Just c 
+                         | c `elem` "><=" -> parseCompareL
+                         | otherwise      -> parseCompareR
+                       Nothing  -> fail "parseCompare: unknow expression"
+                  }
 
 parseArithmetic :: Parser SyncFunc
 parseArithmetic = do { _ <- P8.char '('
@@ -288,3 +333,9 @@ parseArithmetic = do { _ <- P8.char '('
                      ; return a
                      }
 
+parseComparison :: Parser AsyncFunc
+parseComparison = do { _ <- P8.char '['
+                     ; l <- parseCompare
+                     ; _ <- P8.char ']'
+                     ; return l
+                     }

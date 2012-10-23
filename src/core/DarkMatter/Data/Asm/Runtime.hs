@@ -54,6 +54,16 @@ asyncFunc (Window n f)       = let func = foldr1 pipe . map (syncFunc id)
                                in procLiftM2 (window n (func f))
 asyncFunc (SMA n)            = procLiftM2 (sma n)
 asyncFunc (Sample n m)       = procLiftM2 (sample n m)
+asyncFunc (ComparisonL Eq t) = procLiftM2 (select (== t))
+asyncFunc (ComparisonL Ge t) = procLiftM2 (select (>= t))
+asyncFunc (ComparisonL Gt t) = procLiftM2 (select (> t))
+asyncFunc (ComparisonL Lt t) = procLiftM2 (select (< t))
+asyncFunc (ComparisonL Le t) = procLiftM2 (select (<= t))
+asyncFunc (ComparisonR Eq t) = procLiftM2 (select (t ==))
+asyncFunc (ComparisonR Ge t) = procLiftM2 (select (t >=))
+asyncFunc (ComparisonR Gt t) = procLiftM2 (select (t >))
+asyncFunc (ComparisonR Lt t) = procLiftM2 (select (t <))
+asyncFunc (ComparisonR Le t) = procLiftM2 (select (t <=))
 
 int2double :: Integer -> Double
 int2double = fromIntegral

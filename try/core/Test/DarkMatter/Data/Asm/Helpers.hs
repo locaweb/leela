@@ -62,9 +62,13 @@ genAsyncFunc :: Gen AsyncFunc
 genAsyncFunc = do { n <- arbitrary `suchThat` (> 0)
                   ; m <- arbitrary `suchThat` (>= n)
                   ; f <- arbitrary `suchThat` ((> 0) . length)
+                  ; g <- arbitrary
+                  ; v <- arbitrary
                   ; elements [ Window n f
                              , SMA n
                              , Sample n m
+                             , ComparisonL g v
+                             , ComparisonR g v
                              ]
                   }
 
@@ -97,6 +101,10 @@ instance Arbitrary Mode where
 instance Arbitrary ArithOp where
 
   arbitrary = elements [Mul, Add, Div, Sub]
+
+instance Arbitrary ComparisonOp where
+
+  arbitrary = elements [Eq, Lt, Le, Gt, Ge, Ne]
 
 instance Show Asm where
 

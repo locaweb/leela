@@ -33,11 +33,19 @@ renderPipeline (f:fs) = renderFunction f
                         <> fromString " | "
                         <> renderPipeline fs
 
-renderOp :: ArithOp -> Builder
-renderOp Mul = fromChar '*'
-renderOp Add = fromChar '+'
-renderOp Div = fromChar '/'
-renderOp Sub = fromChar '-'
+renderAOp :: ArithOp -> Builder
+renderAOp Mul = fromChar '*'
+renderAOp Add = fromChar '+'
+renderAOp Div = fromChar '/'
+renderAOp Sub = fromChar '-'
+
+renderLOp :: ComparisonOp -> Builder
+renderLOp Eq = fromChar '='
+renderLOp Le = fromString "<="
+renderLOp Lt = fromChar '<'
+renderLOp Ge = fromString ">="
+renderLOp Gt = fromChar '>'
+renderLOp Ne = fromString "/="
 
 renderDouble :: Double -> Builder
 renderDouble = fromByteString . toShortest
@@ -70,29 +78,39 @@ renderSyncFunc Round             = fromString "round"
 renderSyncFunc Truncate          = fromString "truncate"
 renderSyncFunc Abs               = fromString "abs"
 renderSyncFunc (ArithmeticL o v) = fromChar '('
-                                  <> renderOp o
+                                  <> renderAOp o
                                   <> fromChar ' '
                                   <> renderDouble v
                                   <> fromChar ')'
 renderSyncFunc (ArithmeticR o v) = fromChar '('
                                   <> renderDouble v
                                   <> fromChar ' '
-                                  <> renderOp o
+                                  <> renderAOp o
                                   <> fromChar ')'
 
 renderAsyncFunc :: AsyncFunc -> Builder
-renderAsyncFunc (Window n p)  = fromString "window "
-                               <> fromShow n
-                               <> fromChar ' '
-                               <> fromChar '('
-                               <> renderPipeline (map Right p)
-                               <> fromChar ')'
-renderAsyncFunc (Sample n m) = fromString "sample "
-                               <> fromShow n
-                               <> fromChar '/'
-                               <> fromShow m
-renderAsyncFunc (SMA n)      = fromString "sma "
-                               <> fromShow n
+renderAsyncFunc (Window n p)       = fromString "window "
+                                     <> fromShow n
+                                     <> fromChar ' '
+                                     <> fromChar '('
+                                     <> renderPipeline (map Right p)
+                                     <> fromChar ')'
+renderAsyncFunc (Sample n m)       = fromString "sample "
+                                     <> fromShow n
+                                     <> fromChar '/'
+                                     <> fromShow m
+renderAsyncFunc (SMA n)            = fromString "sma "
+                                     <> fromShow n
+renderAsyncFunc (ComparisonL o v)  = fromChar '['
+                                   <> renderDouble v
+                                   <> fromChar ' '
+                                   <> renderLOp o
+                                   <> fromChar ']'
+renderAsyncFunc (ComparisonR o v)  = fromChar '['
+                                   <> renderDouble v
+                                   <> fromChar ' '
+                                   <> renderLOp o
+                                   <> fromChar ']'
 
 renderFunction :: Function -> Builder
 renderFunction (Left f)  = renderAsyncFunc f
