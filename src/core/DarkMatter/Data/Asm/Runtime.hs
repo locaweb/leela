@@ -59,21 +59,25 @@ int2double :: Integer -> Double
 int2double = fromIntegral
 
 syncFunc :: (Proc Double Double -> Proc a b) -> SyncFunc -> Proc a b
-syncFunc f Sum                = f $ binary (+)
-syncFunc f Id                 = f $ proc id
-syncFunc f Prod               = f $ binary (*)
-syncFunc f Mean               = f $ mean
-syncFunc f Maximum            = f $ binary max
-syncFunc f Minimum            = f $ binary min
-syncFunc f Abs                = f $ proc abs
-syncFunc f Ceil               = f $ proc (int2double . ceiling)
-syncFunc f Floor              = f $ proc (int2double . floor)
-syncFunc f Round              = f $ proc (int2double . round)
-syncFunc f Truncate           = f $ proc (int2double . truncate)
-syncFunc f (Arithmetic Div t) = f $ proc (/ t)
-syncFunc f (Arithmetic Sub t) = f $ proc (flip (-) t)
-syncFunc f (Arithmetic Mul t) = f $ proc (* t)
-syncFunc f (Arithmetic Add t) = f $ proc (+ t)
+syncFunc f Sum                 = f $ binary (+)
+syncFunc f Id                  = f $ proc id
+syncFunc f Prod                = f $ binary (*)
+syncFunc f Mean                = f $ mean
+syncFunc f Maximum             = f $ binary max
+syncFunc f Minimum             = f $ binary min
+syncFunc f Abs                 = f $ proc abs
+syncFunc f Ceil                = f $ proc (int2double . ceiling)
+syncFunc f Floor               = f $ proc (int2double . floor)
+syncFunc f Round               = f $ proc (int2double . round)
+syncFunc f Truncate            = f $ proc (int2double . truncate)
+syncFunc f (ArithmeticL Div t) = f $ proc (/ t)
+syncFunc f (ArithmeticL Sub t) = f $ proc (flip (-) t)
+syncFunc f (ArithmeticL Mul t) = f $ proc (* t)
+syncFunc f (ArithmeticL Add t) = f $ proc (+ t)
+syncFunc f (ArithmeticR Div t) = f $ proc (t /)
+syncFunc f (ArithmeticR Sub t) = f $ proc (t -)
+syncFunc f (ArithmeticR Mul t) = f $ proc (t *)
+syncFunc f (ArithmeticR Add t) = f $ proc (t +)
 syncFunc _ _                  = error "syncFunc: unsupported operation"
 
 -- | Creates a pipeline from a set of functions. The function list

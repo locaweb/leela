@@ -18,16 +18,13 @@ module Test.DarkMatter.Data.Asm.Parser
        ( specs
        ) where
 
-import           Blaze.ByteString.Builder
-import           Debug.Trace
-import           Data.Maybe
-import qualified Data.ByteString as B
-import           Test.Hspec
-import           Test.QuickCheck
-import           Test.DarkMatter.Data.Asm.Helpers ()
-import           DarkMatter.Data.Asm.Types
-import           DarkMatter.Data.Asm.Parser
-import           DarkMatter.Data.Asm.Render
+import Blaze.ByteString.Builder
+import Test.Hspec
+import Test.QuickCheck
+import Test.DarkMatter.Data.Asm.Helpers ()
+import DarkMatter.Data.Asm.Types
+import DarkMatter.Data.Asm.Parser
+import DarkMatter.Data.Asm.Render
 
 myRunOne :: Asm -> Bool
 myRunOne asm = let f = runOne asmParser . toByteString . render

@@ -57,22 +57,27 @@ renderEvent k e = fromString "event "
                   <> fromChar ';'
 
 renderSyncFunc :: SyncFunc -> Builder
-renderSyncFunc Mean             = fromString "mean"
-renderSyncFunc Median           = fromString "median"
-renderSyncFunc Maximum          = fromString "maximum"
-renderSyncFunc Minimum          = fromString "minimum"
-renderSyncFunc Sum              = fromString "sum"
-renderSyncFunc Id               = fromString "id"
-renderSyncFunc Prod             = fromString "prod"
-renderSyncFunc Floor            = fromString "floor"
-renderSyncFunc Ceil             = fromString "ceil"
-renderSyncFunc Round            = fromString "round"
-renderSyncFunc Truncate         = fromString "truncate"
-renderSyncFunc Abs              = fromString "abs"
-renderSyncFunc (Arithmetic o v) = fromChar '('
+renderSyncFunc Mean              = fromString "mean"
+renderSyncFunc Median            = fromString "median"
+renderSyncFunc Maximum           = fromString "maximum"
+renderSyncFunc Minimum           = fromString "minimum"
+renderSyncFunc Sum               = fromString "sum"
+renderSyncFunc Id                = fromString "id"
+renderSyncFunc Prod              = fromString "prod"
+renderSyncFunc Floor             = fromString "floor"
+renderSyncFunc Ceil              = fromString "ceil"
+renderSyncFunc Round             = fromString "round"
+renderSyncFunc Truncate          = fromString "truncate"
+renderSyncFunc Abs               = fromString "abs"
+renderSyncFunc (ArithmeticL o v) = fromChar '('
                                   <> renderOp o
                                   <> fromChar ' '
                                   <> renderDouble v
+                                  <> fromChar ')'
+renderSyncFunc (ArithmeticR o v) = fromChar '('
+                                  <> renderDouble v
+                                  <> fromChar ' '
+                                  <> renderOp o
                                   <> fromChar ')'
 
 renderAsyncFunc :: AsyncFunc -> Builder

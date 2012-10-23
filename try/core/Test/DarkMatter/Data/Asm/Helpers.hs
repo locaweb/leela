@@ -15,10 +15,7 @@
 
 module Test.DarkMatter.Data.Asm.Helpers where
 
-import           Blaze.ByteString.Builder
 import           Control.Monad
-import           Data.Char
-import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as B8
 import           Test.QuickCheck
 import           DarkMatter.Data.Time
@@ -56,7 +53,8 @@ genSyncFunc = do { f <- arbitrary
                             , Minimum
                             , Maximum
                             , Abs
-                            , Arithmetic f v
+                            , ArithmeticL f v
+                            , ArithmeticR f v
                             ]
                   }
 

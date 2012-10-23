@@ -33,7 +33,8 @@ data SyncFunc = Sum
               | Ceil
               | Round
               | Truncate
-              | Arithmetic ArithOp Double
+              | ArithmeticL ArithOp Double
+              | ArithmeticR ArithOp Double 
               deriving (Eq)
 
 data AsyncFunc = Window Int [SyncFunc]

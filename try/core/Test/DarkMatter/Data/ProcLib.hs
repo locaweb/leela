@@ -17,7 +17,6 @@ module Test.DarkMatter.Data.ProcLib
        ( specs
        ) where
 
-import Debug.Trace
 import Data.Maybe
 import Test.Hspec
 import Test.QuickCheck hiding (sample)
@@ -35,7 +34,7 @@ mean_spec = do
       (forAll samples1 (\xs -> let m1 = fst (run_ mean xs)
                                    m0 = refImpl xs
                                in abs (m1-m0) < 0.01))
-  where samples0 = listOf1 (elements [1.7976931348623157e+308])
+  where samples0 = listOf1 (elements [1.7976931348623157e+308 :: Double])
         samples1 = listOf1 (choose (0, 1) :: Gen Double)
 
         refImpl xs = sum xs / fromIntegral (length xs)
@@ -71,7 +70,7 @@ select_spec =
 window_spec :: Spec
 window_spec =
     it "honor the buffer size"
-      (forAll samples ((all (==10)) . catMaybes . fst . run (window 10 count)))
+      (forAll samples ((all (== 10)) . catMaybes . fst . run (window 10 count)))
   where samples = arbitrary :: Gen [()]
 
 takeProc_spec :: Spec
@@ -107,7 +106,7 @@ sma_spec = do
                                         v1 = refImpl n xs
                                         vs = zipWith (-) v0 v1
                                     in all ((< 0.01) . abs) vs))
-  where samples0 = do { vals <- listOf1 (elements [1.7976931348623158e+308])
+  where samples0 = do { vals <- listOf1 (elements [1.7976931348623158e+308 :: Double])
                       ; size <- elements [1..100]
                       ; return (size, vals)
                       }

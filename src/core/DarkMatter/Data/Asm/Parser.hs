@@ -32,6 +32,7 @@
 --   FUNC     = SFUNC
 --            / AFUNC
 --   SFUNC    = "(" OP SP VAL ")"
+--            / "(" VAL SP OP ")"
 --            / "id"
 --            / "truncate"
 --            / "ceil"
@@ -179,7 +180,9 @@ parseWindow = do { _ <- string "window "
                  ; _ <- P8.char '('
                  ; p <- parseSyncFunc `sepBy` string " | "
                  ; _ <- P8.char ')'
-                 ; return (Window n p)
+                 ; if (n > 0)
+                   then return (Window n p)
+                   else fail "parseWindow: n <= 0"
                  }
 
 parseSyncFunc :: Parser SyncFunc
@@ -224,7 +227,10 @@ parseFunction = do { c <- P8.peekChar
 
 parseSMA :: Parser AsyncFunc
 parseSMA = do { _ <- string "sma "
-              ; liftM SMA parseInt
+              ; n <- parseInt
+              ; if (n > 0)
+                then return (SMA n)
+                else fail "parseSMA: n <= 0"
               }
 
 parseSample :: Parser AsyncFunc
@@ -232,7 +238,9 @@ parseSample = do { _ <- string "sample "
                  ; n <- parseInt
                  ; _ <- P8.char '/'
                  ; m <- parseInt
-                 ; return (Sample n m)
+                 ; if (n > 0 && m >= n)
+                   then return (Sample n m)
+                   else fail "parseSample: n <= 0 || m < n"
                  }
 
 parseOp :: Parser ArithOp
@@ -245,11 +253,38 @@ parseOp = do { c <- P8.satisfy (`elem` "*+/-")
                   _   -> fail "error: *|+|-|/ were expected"
              }
 
+parseArithL :: Parser SyncFunc
+parseArithL = do { o <- parseOp
+                 ; _ <- P8.space
+                 ; v <- parseVal
+                 ; return (ArithmeticL o v)
+                 }
+
+parseArithR :: Parser SyncFunc
+parseArithR = do { v <- parseVal
+                 ; _ <- P8.space
+                 ; o <- parseOp
+                 ; return (ArithmeticR o v)
+                 }
+
+parseArith :: Parser SyncFunc
+parseArith = do { mc <- P8.peekChar
+                ; case mc
+                  of Just c 
+                       | c `elem` "*/" -> parseArithL
+                       | c `elem` "+-" -> choice [ parseArithL
+                                                 , parseArithR
+                                                 ]
+                       | otherwise     -> parseArithR
+                     Nothing  -> fail "parseArithmetic: unknow expression"
+                }
+  where rNegate (ArithmeticR o v) = (ArithmeticR o (negate v))
+        rNegate x                 = x
+
 parseArithmetic :: Parser SyncFunc
 parseArithmetic = do { _ <- P8.char '('
-                     ; o <- parseOp
-                     ; _ <- P8.space
-                     ; v <- parseVal
+                     ; a <- parseArith
                      ; _ <- P8.char ')'
-                     ; return (Arithmetic o v)
+                     ; return a
                      }
+
