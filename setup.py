@@ -48,33 +48,19 @@ def find_datafiles(root, path_f):
             result.append((tr_root, map(lambda f: os.path.join(root, f), files)))
     return(result)
 
-def install_deps():
-    ver  = sys.version_info
-    deps = ["gevent>=0.13.6", "pycassa", "bottle", "supay"]
-    # if (ver[0] == 2 and ver[1] < 7):
-    #     deps.append("argparse")
-    return(deps)
-
 accept_f = lambda f: reduce(lambda acc, p: acc or f.startswith(p), ("./etc", "./usr"), False)
 path_f   = lambda f: accept_f(f) and f[1:] or False
 setup(
-    name             = "leela-server",
-    version          = "1.0.0",
-    description      = "Collect, Monitor and Analyze anything - server module",
-    author           = "Juliano Martinez, Diego Souza",
-    author_email     = "juliano@martinez.io",
-    url              = "http://leela.readthedocs.org",
-    # install_requires = install_deps(),
+    name               = "leela-server",
+    version            = "1.0.0",
+    description        = "Collect, Monitor and Analyze anything - server module",
+    author             = "Juliano Martinez, Diego Souza",
+    author_email       = "juliano@martinez.io",
+    url                = "http://leela.readthedocs.org",
     namespace_packages = ["leela"],
-    packages         = find_packages("src") + ["twisted.plugins"],
-    package_dir      = {"": "src"},
-    data_files       = find_datafiles(".", path_f),
-    entry_points     = {
-        "console_scripts": [
-            "leela-server = leela.server.lasergun:main",
-            "leela-web    = leela.server.webapi:main"
-        ],
-    })
+    packages           = find_packages("src/server") + ["twisted.plugins"],
+    package_dir        = {"": "src/server"},
+    data_files         = find_datafiles(".", path_f))
 
 # Make Twisted regenerate the dropin.cache, if possible.  This is necessary
 # because in a site-wide install, dropin.cache cannot be rewritten by
