@@ -141,15 +141,19 @@ def parse_delete(s):
                })
     raise(RuntimeError())
 
+def parse_sql(s):
+    if (s[0] in "dD"):
+        return(parse_delete(s))
+    elif (s[0] in "sS"):
+        if (s[1] in "eE"):
+            return(parse_select(s))
+        elif (s[1] in "hH"):
+            return(parse_show(s))
+    raise(RuntimeError())
+
 def parse_sql_(s):
     try:
-        if (s[0] in "dD"):
-            return(parse_delete(s))
-        elif (s[0] in "sS"):
-            if (s[1] in "eE"):
-                return(parse_select(s))
-            elif (s[1] in "oO"):
-                return(parse_show(s))
+        return(parse_sql(s))
     except:
         return({})
 
