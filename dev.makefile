@@ -54,6 +54,7 @@ bootstrap:
 	$(bin_cabal) install -v0 -O2 quickcheck
 	$(bin_cabal) install -v0 -O2 hslogger
 	$(bin_cabal) install -v0 -O2 hspec
+	$(bin_cabal) install -v0 -O2 shelltestrunner
 
 clean:
 	$(bin_find) . -type f -name \*.o -exec $(bin_rm) -f \{\} \;
@@ -77,3 +78,6 @@ test_server:
 	$(pyenv) $(bin_nosetests) $(nosetestsargs) $(srcroot)/try/server
 
 test: test_dmproc test_server
+
+golden-test:
+	cd $(srcroot); $(HOME)/.cabal/bin/shelltest $(srcroot)/try/golden/

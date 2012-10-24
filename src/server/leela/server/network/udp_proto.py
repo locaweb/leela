@@ -17,6 +17,7 @@
 #
 
 from twisted.internet import protocol
+from leela.server import logger
 from leela.server.data.parser import *
 
 class UDP(protocol.DatagramProtocol):
