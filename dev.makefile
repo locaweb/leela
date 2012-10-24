@@ -80,4 +80,4 @@ test_server:
 test: test_dmproc test_server
 
 golden-test:
-	cd $(srcroot); $(HOME)/.cabal/bin/shelltest -p $(srcroot)/try/golden/
+	cd $(srcroot); $(HOME)/.cabal/bin/shelltest -c -p $(srcroot)/try/golden

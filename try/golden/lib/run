@@ -2,6 +2,7 @@
 
 . ./try/golden/lib/trylib.sh
 . ./try/golden/lib/tryudp.sh
+. ./try/golden/lib/tryxmpp.sh
 . ./try/golden/lib/trystorage.sh
 
 "$@"

@@ -112,6 +112,7 @@ Functional tests. You will need the following up and running:
 
 * cassandra [bind to localhost:9160];
 * redis [bind to localhost:6379];
+* ejabberd [bind to localhost:5222];
 
 ::
   

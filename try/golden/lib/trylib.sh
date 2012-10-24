@@ -29,6 +29,7 @@ leela_trylib_service_start () {
     --pidfile=$pidfile                 \
     leela                              \
     --service=$1                       \
+    --log-level=debug                  \
     --config=${srcroot}/try/golden/cnf/leela.conf
   sleep 1
 }
@@ -40,6 +41,14 @@ leela_trylib_service_stop () {
 
 leela_trylib_udp_write () {
   nc -q1 -u localhost 6968
+}
+
+leela_trylib_xmpp_singleshot () {
+  env PYTHONPATH=${srcroot}/src/server \
+    $bin_twistd                        \
+    --logfile=/dev/null                \
+    -n -o -y                           \
+    ${srcroot}/try/golden/lib/xmpp_singleshot.py
 }
 
 leela_trylib_cassandra_execute () {

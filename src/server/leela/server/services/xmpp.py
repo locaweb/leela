@@ -216,14 +216,14 @@ class XmppService(xmppim.MessageProtocol):
         return(f)
 
     def onMessage(self, message):
-        if (message.getAttribute("type") != "chat" or message.body is None):
+        if (message.body is None):
             return
         sender = xmppim.JID(message.getAttribute("from"))
         req    = parser.parse_sql_(unicode(message.body))
         debug  = {"request": unicode(message.body)}
-        resp   = toResponse(message, message.getAttribute("type"))
+        resp   = xmppim.Message(recipient = sender).toElement()
         cc     = self.mkcc(resp, debug)
-        if (req is None):
+        if (req in [{}, None]):
             logger.debug("message [%s] - 400" % message.body)
             cc(400, {"reason": "parse error"})
         else:
