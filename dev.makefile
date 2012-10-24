@@ -45,14 +45,14 @@ bootstrap:
 	$(HOME)/pyenv/leela-server/bin/pip install -q mock
 
 	test -d $(HOME)/.cabal || $(bin_cabal) update
-	$(bin_cabal) install -v0 -O2 -p attoparsec
-	$(bin_cabal) install -v0 -O2 -p blaze-builder
-	$(bin_cabal) install -v0 -O2 -p double-conversion
-	$(bin_cabal) install -v0 -O2 -p regex-tdfa
-	$(bin_cabal) install -v0 -O2 -p stm
-	$(bin_cabal) install -v0 -O2 -p quickcheck
-	$(bin_cabal) install -v0 -O2 -p hslogger
-	$(bin_cabal) install -v0 -O2 -p hspec
+	$(bin_cabal) install -v0 -O2 attoparsec
+	$(bin_cabal) install -v0 -O2 blaze-builder
+	$(bin_cabal) install -v0 -O2 double-conversion
+	$(bin_cabal) install -v0 -O2 regex-tdfa
+	$(bin_cabal) install -v0 -O2 stm
+	$(bin_cabal) install -v0 -O2 quickcheck
+	$(bin_cabal) install -v0 -O2 hslogger
+	$(bin_cabal) install -v0 -O2 hspec
 
 clean:
 	$(bin_find) . -type f -name \*.o -exec $(bin_rm) -f \{\} \;
