@@ -107,6 +107,12 @@ Testing
 
 Golden Tests
 ------------
+
+Functional tests. You will need the following up and running:
+
+* cassandra [bind to localhost:9160];
+* redis [bind to localhost:6379];
+
 ::
   
   make -f dev.makefile golden-test
