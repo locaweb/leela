@@ -1,28 +1,58 @@
 srcroot=$(CURDIR)
 
-bin_find      = find
-bin_ghc       = ghc
-bin_rm        = rm
-bin_nosetests = nosetests
-nosetestsargs = 
-ghcargs       = 
-pyenv         = env PYTHONPATH=$(srcroot)/src/server
-userfile     := $(shell test -f $$HOME/leela/user.mk && echo $$HOME/leela/user.mk)
+userfile      := $(shell test -f $$HOME/.leela-server/dev.mk && echo $$HOME/.leela-server/dev.mk)
+
+bin_find       = find
+bin_ghc        = ghc
+bin_rm         = rm
+bin_virtualenv = virtualenv
+bin_cabal      = cabal
+bin_nosetests  = nosetests
+pyenv          = env PYTHONPATH=$(srcroot)/src/server
+
+nosetestsargs  = 
+ghcargs        = 
 
 ifneq ($(userfile),"")
 include $(userfile)
 endif
 
 default:
-	@echo "dev.makefile"
-	@echo "============"
-	@echo "Helps you performing various developets tasks."
+	@echo "dev.makefile                                   "
+	@echo "============                                   "
+	@echo "Helps you performing various developets tasks. "
 	@echo
-	@echo "  * clean         Removes all temporary files"
-	@echo "  * compile       Compiles the dmproc code"
-	@echo "  * test_dmproc   Run dmproc tests"
-	@echo "  * test_server   Run server tests"
-	@echo "  * test          Run all tests"
+	@echo "  * bootstrap     Bootstrap the dev environment"
+	@echo "  * clean         Removes all temporary files  "
+	@echo "  * compile       Compiles the dmproc code     "
+	@echo "  * test_dmproc   Run dmproc tests             "
+	@echo "  * test_server   Run server tests             "
+	@echo "  * test          Run all tests                "
+
+bootstrap:
+	test -d $(HOME)/.leela-server || mkdir $(HOME)/.leela-server
+	echo "bin_nosetests  = $(HOME)/pyenv/leela-server/bin/nosetests" >$(HOME)/.leela-server/dev.mk
+	echo "bin_virtualenv = $(bin_virtualenv)"                       >>$(HOME)/.leela-server/dev.mk
+	echo "bin_cabal      = $(bin_cabal)"                            >>$(HOME)/.leela-server/dev.mk
+
+	test -d $(HOME)/pyenv/leela-server || $(bin_virtualenv) $(HOME)/pyenv/leela-server
+	$(HOME)/pyenv/leela-server/bin/pip install -q argparse
+	$(HOME)/pyenv/leela-server/bin/pip install -q twisted
+	$(HOME)/pyenv/leela-server/bin/pip install -q wokkel
+	$(HOME)/pyenv/leela-server/bin/pip install -q telephus
+	$(HOME)/pyenv/leela-server/bin/pip install -q txredisapi
+	$(HOME)/pyenv/leela-server/bin/pip install -q nose
+	$(HOME)/pyenv/leela-server/bin/pip install -q mock
+
+	test -d $(HOME)/.cabal || $(bin_cabal) update
+	$(bin_cabal) install -v0 -O2 -p attoparsec
+	$(bin_cabal) install -v0 -O2 -p blaze-builder
+	$(bin_cabal) install -v0 -O2 -p double-conversion
+	$(bin_cabal) install -v0 -O2 -p regex-tdfa
+	$(bin_cabal) install -v0 -O2 -p stm
+	$(bin_cabal) install -v0 -O2 -p quickcheck
+	$(bin_cabal) install -v0 -O2 -p hslogger
+	$(bin_cabal) install -v0 -O2 -p hspec
 
 clean:
 	$(bin_find) . -type f -name \*.o -exec $(bin_rm) -f \{\} \;
