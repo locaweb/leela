@@ -1,3 +1,25 @@
-./try/golden/lib/run leela_trystorage_1
+# syntax: http://hub.darcs.net/simon/shelltestrunner
+
+./try/golden/lib/run leela_trystorage_write_to_fifo_and_enum_from_cassandra
+<<<
+event 6|foobar 1351101449.0 0.75;
 >>>/column=850468416, value=0.75, timestamp=/
+>>>= 0
+
+./try/golden/lib/run leela_trystorage_write_to_fifo_and_enum_from_cassandra
+<<<
+event 6|foobar 1351101449.0 nan;
+>>>/column=850468416, value=NaN, timestamp=/
+>>>= 0
+
+./try/golden/lib/run leela_trystorage_write_to_fifo_and_enum_from_cassandra
+<<<
+event 6|foobar 1351101449.0 inf;
+>>>/column=850468416, value=Infinity, timestamp=/
+>>>= 0
+
+./try/golden/lib/run leela_trystorage_write_to_fifo_and_enum_from_cassandra
+<<<
+event 6|foobar 1351101449.0 -inf;
+>>>/column=850468416, value=-Infinity, timestamp=/
 >>>= 0

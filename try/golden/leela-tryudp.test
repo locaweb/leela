@@ -1,4 +1,29 @@
-./try/golden/lib/run leela_tryudp_1
+# syntax: http://hub.darcs.net/simon/shelltestrunner
+
+./try/golden/lib/run leela_tryudp_write_to_socket_and_read_from_fifo
+<<<
+foobar: 0.75 1351101449
 >>>
 event 6|foobar 1351101449.0 0.75;
+>>>= 0
+
+./try/golden/lib/run leela_tryudp_write_to_socket_and_read_from_fifo
+<<<
+foobar: nan 1351101449
+>>>
+event 6|foobar 1351101449.0 nan;
+>>>= 0
+
+./try/golden/lib/run leela_tryudp_write_to_socket_and_read_from_fifo
+<<<
+foobar: inf 1351101449
+>>>
+event 6|foobar 1351101449.0 inf;
+>>>= 0
+
+./try/golden/lib/run leela_tryudp_write_to_socket_and_read_from_fifo
+<<<
+foobar: -inf 1351101449
+>>>
+event 6|foobar 1351101449.0 -inf;
 >>>= 0
