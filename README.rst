@@ -39,17 +39,17 @@ Dev Bootstrap
 Dependencies
 ------------
 
-* python              [2.6.x     ]
+* python              [2.6 <= x < 3]
 
   * argparse
 
-  * telephus          [>= 1.0    ]
+  * telephus          [>= 1.0      ]
 
-  * wokkel            [>= 0.7.0  ]
+  * wokkel            [>= 0.7.0    ]
 
-  * txredisapi        [>= 0.9    ]
+  * txredisapi        [>= 0.9      ]
 
-  * twisted           [>= 10.1   ]
+  * twisted           [>= 10.1     ]
 
 * python-testing
 
@@ -59,17 +59,17 @@ Dependencies
 
 * haskell
 
-  * attoparsec        [>= 0.10.2 ]
+  * attoparsec        [>= 0.10.2   ]
 
-  * blaze-builder     [>= 0.3.1  ]
+  * blaze-builder     [>= 0.3.1    ]
 
-  * double-conversion [>= 0.2.0.5]
+  * double-conversion [>= 0.2.0.5  ]
 
-  * regex-tdfa        [>= 1.1.8  ]
+  * regex-tdfa        [>= 1.1.8    ]
 
-  * stm               [>= 2.4    ]
+  * stm               [>= 2.4      ]
 
-  * hslogger          [>= 1.2.1  ]
+  * hslogger          [>= 1.2.1    ]
 
 * haskell-testing
 
@@ -80,10 +80,17 @@ Dependencies
 Bootstrapping
 -------------
 
-Prepares the development environment. Uses cabal for haskell and
-virtualenv for python::
+Prepares the development environment. Make sure you have ``ghc [>=
+7]``, ``cabal``, ``python [>= 2.6]`` and *python header files*. If you
+are using debian, the following should suffice::
+  
+  $ apt-get install ghc=7.* cabal python=2.7.* python-dev=2.7.* python-virtualenv
+
+Make sure you get these right for your platform. Now, issue::
 
   $ make -f dev.makefile bootstrap
+
+And you are done.
 
 Compiling
 ---------
