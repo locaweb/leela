@@ -14,22 +14,19 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
+#
 
-import time
+from twisted.internet import protocol
+from leela.server.data.parser import *
 
-class RateLimit(object):
+class UDP(protocol.DatagramProtocol):
 
-    def __init__(self, timeout):
-        self.timeout = timeout
-        self.memory  = {}
-
-    def should_emit(self, k):
-        if (k not in self.memory):
-            self.memory[k] = 0
-        elapsed = time.time() - self.memory[k]
-        if (elapsed > self.timeout):
-            self.memory[k] = time.time()
-            return(True)
-        else:
-            return(False)
-        
+    def datagramReceived(self, string, peer):
+        tmp = []
+        for l in string.splitlines():
+            try:
+                tmp.append(parse_event_legacy(l))
+            except:
+                logger.exception()
+        if (len(tmp) > 0):
+            self.recv_event(tmp)

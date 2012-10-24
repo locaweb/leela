@@ -20,20 +20,6 @@ import re
 import json
 from leela.server.data import event
 
-def render_event(e):
-    return("event %d|%s %d.0 %s;" % (len(e.name()), e.name(), e.unixtimestamp(), repr(e.value())))
-
-def render_events(es):
-    if (len(es) == 0):
-        return("")
-    return("".join(map(render_event, es)))
-
-def render_event_to_json(e):
-    return({"name": e.name(), "value": e.value(), "timestamp": e.unixtimestamp()})
-
-def render_event_to_json_(e):
-    return(json.dumps(render_event_to_json(e)))
-
 def parse_string(s, w):
     if (s.startswith(w)):
         return(s[len(w):])
@@ -69,20 +55,22 @@ def parse_double(s):
         return(float("-inf"), s[9:])
     else:
         (d, s) = parse_takewhile(s, lambda c: c in "0123456789.e-+")
-        return(float(d), s)
+        try:
+            return(float(d), s)
+        except ValueError:
+            raise(RuntimeError())
 
-def parse_int(s, signed=False):
+def parse_int(s):
     tmp = []
     for c in s:
         if (not c.isdigit()):
-            if (not (signed and c in "+-")):
-                break
+            break
         tmp.append(c)
     if (len(tmp) == 0):
         raise(RuntimeError())
     try:
         return(int("".join(tmp), 10), s[len(tmp):])
-    except:
+    except ValueError:
         raise(RuntimeError())
 
 def parse_event(s):
@@ -108,7 +96,7 @@ def parse_status(s):
         raise(RuntimeError())
 
 def parse_event_legacy(s):
-    (name, value) = string.split(": ", 2)
+    (name, value) = s.split(": ", 2)
     if (" " in value):
         (lval, tval) = value.split(" ", 2)
         tval = long(tval, 10)
@@ -127,17 +115,12 @@ def parse_select(s):
                })
     raise(RuntimeError())
 
-def parse_show(s):
-    m = re.match(r"^SHOW (COMMANDS);$", s.strip(), re.I)
-    if (m):
-        return({"show": m.group(1).lower()})
-    raise(RuntimeError())
-
 def parse_delete(s):
     m = re.match(r"^DELETE FROM leela.xmpp(?: WHERE key=(.+?))?;$", s.strip(), re.I)
     r = {}
     if (m):
-        return({ "delete": {"key": m.group(1)}
+        tmp = (m.group(1) or "").strip()
+        return({ "delete": {"key": tmp}
                })
     raise(RuntimeError())
 
@@ -145,10 +128,7 @@ def parse_sql(s):
     if (s[0] in "dD"):
         return(parse_delete(s))
     elif (s[0] in "sS"):
-        if (s[1] in "eE"):
-            return(parse_select(s))
-        elif (s[1] in "hH"):
-            return(parse_show(s))
+        return(parse_select(s))
     raise(RuntimeError())
 
 def parse_sql_(s):

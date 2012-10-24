@@ -16,12 +16,8 @@
 #    limitations under the License.
 #
 
-import os
 import time
-import pwd
-import pycassa
 import calendar
-from multiprocessing import Process
 from datetime import datetime
 from leela.server import logger
 from leela.server import tzutil
@@ -34,10 +30,6 @@ def suppress(f):
             pass
     g.__name__ = f.__name__
     return(g)
-
-def suppress_notfound(f, default):
-    g = lambda e: isinstance(e, pycassa.NotFoundException)
-    return(suppress_e(g, default)(f))
 
 def suppress_e(p, default):
     def suppress_f(f):
@@ -63,14 +55,6 @@ def logerrors(logger):
         g.__name__ = f.__name__
         return(g)
     return(proxy_f)
-
-def start_process(target, *args):
-    cont = lambda: os.getppid() != 1
-    args = [cont] + list(args)
-    proc = Process(target=target, args=args)
-    proc.daemon = True
-    proc.start()
-    return(proc)
 
 def retry_on_fail(f, retries=3, wait=0.3):
     def g(*args, **kwargs):
@@ -144,15 +128,6 @@ def timer_start():
 
 def timer_stop(t):
     return(time.time() - t)
-
-def drop_privileges(uid, gid):
-    if (os.getuid() == 0):
-        logger.debug("dropping privileges [user=%s, group=%s]" % (uid, gid))
-        user = pwd.getpwnam(uid)
-        os.setgid(user.pw_gid)
-        os.setuid(user.pw_uid)
-    else:
-        logger.debug("ignoring user/group altogether")
 
 def norm_key(k):
     return(k.lower())

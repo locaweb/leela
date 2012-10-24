@@ -24,13 +24,6 @@ import mock
 from nose.tools import *
 from leela.server.data import event
 
-def test_sort_function_uses_timestamp():
-    events  = [event.Event("foobar", 0, random.randint(0, 100)) for _ in range(random.randint(30, 100))]
-    events1 = event.sort(events)
-    eq_(len(events), len(events1))
-    for k in range(len(events) - 1):
-        ok_(events1[k].timestamp() <= events1[k+1].timestamp())
-
 def test_event_treats_timestamp_as_utc():
     e = event.Event("foobar", 0, 3661)
     eq_(1970, e.year())

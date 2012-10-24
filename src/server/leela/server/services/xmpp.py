@@ -28,13 +28,11 @@ from twisted.internet import reactor
 from twisted.internet.protocol import Factory
 from twisted.internet.endpoints import UNIXClientEndpoint
 from twisted.words.protocols.jabber.xmlstream import toResponse
-from leela.server.network import parsing
-from leela.server.network import protocols
+from leela.server.network import dmproc_proto
+from leela.server.data import parser
+from leela.server.data import pp
 from leela.server import funcs
 from leela.server import logger
-
-def render_select(proc, regex):
-    return("SELECT %s FROM %s;" % (proc, regex))
 
 class PresenceHandler(xmppim.PresenceProtocol):
 
@@ -68,7 +66,7 @@ class Connection(object):
         self.query = query
         self.xmpp  = xmpp
         self.key   = key
-        self.core  = protocols.DMProcProtocol()
+        self.core  = dmproc_proto.DMProc()
         self.core.recv_event     = self.on_core_recv_event
         self.core.recv_status    = self.on_core_recv_status
         self.core.connectionLost = self.on_core_connection_lost
@@ -76,14 +74,14 @@ class Connection(object):
 
     def _sendmsg(self, status, msg):
         xml = xmppim.Message(recipient=self.peer).toElement()
-        sql = render_select(self.query["proc"], self.query["regex"])
+        sql = pp.render_select(self.query["proc"], self.query["regex"])
         dbg = {"request": {"cmd": sql, "key": self.key}}
         self.xmpp.mkcc(xml, dbg)(status, msg)
 
     def on_core_recv_event(self, e):
         logger.debug("core_recv_event: %s" % e)
-        msg = {"results": {"event": parsing.render_event_to_json(e)}}
-        msg.update(parsing.render_event_to_json(e)) # do not break compatibility with previous version
+        msg = {"results": {"event": pp.render_event_to_json(e)}}
+        msg.update(pp.render_event_to_json(e)) # do not break compatibility with previous versions
         self._sendmsg(200, msg)
 
     def on_core_connection_lost(self, _):
@@ -145,8 +143,8 @@ class XmppService(xmppim.MessageProtocol):
                 tmp   = []
                 for (key, data1) in data0.iteritems():
                     data = json.loads(data1)
-                    sql  = render_select(data["request"]["select"]["proc"],
-                                         data["request"]["select"]["regex"])
+                    sql  = pp.render_select(data["request"]["select"]["proc"],
+                                            data["request"]["select"]["regex"])
                     if (data["sender"] == sender.userhost()):
                         tmp.append({"key": key,
                                     "cmd": sql
@@ -221,13 +219,13 @@ class XmppService(xmppim.MessageProtocol):
         if (message.getAttribute("type") != "chat" or message.body is None):
             return
         sender = xmppim.JID(message.getAttribute("from"))
-        req    = parsing.parse_sql_(unicode(message.body))
+        req    = parser.parse_sql_(unicode(message.body))
         debug  = {"request": unicode(message.body)}
         resp   = toResponse(message, message.getAttribute("type"))
         cc     = self.mkcc(resp, debug)
         if (req is None):
             logger.debug("message [%s] - 400" % message.body)
-            cc(400, {"reason": "parsing error"})
+            cc(400, {"reason": "parse error"})
         else:
             logger.debug("message [%s] %s - 200" % (message.getAttribute("from"), message.body))
             self.handle_request(req, sender, cc)

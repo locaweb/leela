@@ -19,7 +19,8 @@
 from twisted.internet import reactor
 from twisted.application.service import Service
 from leela.server import logger
-from leela.server.network import protocols
+from leela.server.network import udp_proto
+from leela.server.network import databus
 from leela.server.storage import cassandra
 
 class RoundRobin(object):
@@ -35,14 +36,14 @@ class RoundRobin(object):
     def fmap(self, f):
         return(map(f, self.ring))
 
-class UdpService(Service, protocols.UdpProtocol):
+class UdpService(Service, udp_proto.UDP):
 
     def mkbus(self, string):
         result = []
         for group in string.split(","):
             tmp = map(lambda s: s.strip(), group.split(";"))
             logger.warn("creating new broadcast group (RR): " + ", ".join(tmp))
-            result.append(RoundRobin(map(lambda f: protocols.LeelaBus(f, "w"), tmp)))
+            result.append(RoundRobin(map(lambda f: databus.Databus(f, "w"), tmp)))
         return(result)
             
     def __init__(self, cfg):

@@ -16,13 +16,23 @@
 #    limitations under the License.
 #
 
+import re
 import json
-import time
-from leela.server import funcs
-from leela.server.data.event import Event
+from leela.server.data import event
 
-def serialize_json(event):
-    return(json.dumps({"name": event.name(),
-                       "value": event.value(),
-                       "timestamp": event.unixtimestamp()
-                      }))
+def render_event(e):
+    return("event %d|%s %d.0 %s;" % (len(e.name()), e.name(), e.unixtimestamp(), repr(e.value())))
+
+def render_events(es):
+    if (len(es) == 0):
+        return("")
+    return("".join(map(render_event, es)))
+
+def render_event_to_json(e):
+    return({"name": e.name(), "value": e.value(), "timestamp": e.unixtimestamp()})
+
+def render_event_to_json_(e):
+    return(json.dumps(render_event_to_json(e)))
+
+def render_select(proc, regex):
+    return("SELECT %s FROM %s;" % (proc, regex))

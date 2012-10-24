@@ -21,8 +21,8 @@ from twisted.internet import defer
 from telephus.pool import CassandraClusterPool
 from leela.server import funcs
 from leela.server import logger
-from leela.server.network import protocols
-from leela.server.storage import cassandra
+from leela.server.network import databus
+from leela.server.data import marshall
 
 def scale(e):
     e.set_time((e.year(), e.month(), e.day(), e.hour(), e.minute(), 0))
@@ -44,7 +44,7 @@ class StorageService(CassandraClusterPool):
 
     def __init__(self, cfg, pipe):
         self.cfg   = cfg
-        self.bus   = protocols.LeelaBus(pipe, "r")
+        self.bus   = databus.Databus(pipe, "r")
         self.bus.attach("cassandra", self)
         parse_addr = lambda s: s.split(":")
         servers    = map(parse_srvaddr, self.cfg.get("storage", "server").split(","))
@@ -55,10 +55,10 @@ class StorageService(CassandraClusterPool):
         t = funcs.timer_start()
         for e in events:
             scale(e)
-            (k0, v0) = cassandra.serialize_event(e, cassandra.DEFAULT_EPOCH)
+            (k0, v0) = marshall.serialize_event(e, marshall.DEFAULT_EPOCH)
             k = struct.pack(">i", k0)
             v = struct.pack(">d", v0)
-            self.insert(key=encode_string(e.name()), column_family=cassandra.COLFAMILY, value=v, column=k)
+            self.insert(key=encode_string(e.name()), column_family="events", value=v, column=k)
         logger.debug("wrote %d events [walltime: %s]" % (len(events), funcs.timer_stop(t)))
 
     def startService(self):

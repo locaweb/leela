@@ -17,15 +17,12 @@
 #
 
 import struct
-import uuid
-import time
 from twisted.internet import protocol
-from leela.server.unix import pipe
-from leela.server.data import event
-from leela.server.network.parsing import *
+from leela.server.data.parser import *
+from leela.server.data.pp import *
 from leela.server import logger
 
-class DMProcProtocol(protocol.Protocol):
+class DMProc(protocol.Protocol):
 
     @classmethod
     def proc_match(self, regex):
@@ -112,70 +109,3 @@ class DMProcProtocol(protocol.Protocol):
         """
         Invoked whenever the servers sends a status message
         """
-
-class UdpProtocol(protocol.DatagramProtocol):
-
-    def parse1(self, string):
-        (name, value) = string.split(": ", 2)
-        if (" " in value):
-            (lval, tval) = value.split(" ", 2)
-            tval = long(tval, 10)
-        else:
-            lval = value
-            tval = long(time.time())
-        return(event.Event(name[:255], float(lval), tval))
-
-    def datagramReceived(self, string, peer):
-        tmp = []
-        for l in string.splitlines():
-            try:
-                tmp.append(self.parse1(l))
-            except:
-                logger.exception()
-        if (len(tmp) > 0):
-            self.recv_event(tmp)
-
-class LeelaBus(pipe.UnixPipe):
-
-    def __init__(self, fname, mode="r"):
-        pipe.UnixPipe.__init__(self, fname, mode)
-        self._rlimit   = 42*1024*1024
-        self.residue   = ""
-        self.callbacks = {}
-
-    def attach(self, gid, cc):
-        self.callbacks[gid] = cc
-        logger.info("registering new cc: %s/%d" % (gid, len(self.callbacks)))
-
-    def detach(self, gid):
-        if (gid in self.callbacks):
-            del(self.callbacks[gid])
-        logger.info("unregistering cc: %s/%d" % (gid, len(self.callbacks)))
-
-    def set_residue(self, data):
-        if (len(data) < self._rlimit):
-            self.residue = data
-        else:
-            self.residue = ""
-
-    def send_broadcast(self, events):
-        self.write_chunks(map(render_event, events))
-
-    def recv_data(self, data0):
-        data = self.residue + data0
-        tmp  = []
-        msgs = []
-        for c in data:
-            tmp.append(c)
-            if (c == ';'):
-                e = parse_event_("".join(tmp))
-                if (e is None):
-                    logger.debug("error parsing: %s" % "".join(tmp))
-                    tmp = []
-                else:
-                    tmp = []
-                    msgs.append(e)
-        self.set_residue("".join(tmp))
-        if (len(msgs) > 0):
-            for cc in self.callbacks.values():
-                cc.recv_broadcast(msgs)

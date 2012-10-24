@@ -18,21 +18,19 @@
 #    limitations under the License.
 #
 
+import random
+import mock
+import collections
 from nose.tools import *
-from leela.server.data import netprotocol
+from leela.server.data import event
+from leela.server.data import marshall
 
-def test_parse1_should_create_an_event_with_the_correct_name():
-    e = netprotocol.parse1("foobar: 1")
-    eq_("foobar", e.name())
+def test_serialize_unserialize_is_identity():
+    e = event.Event("foobar", random.random(), random.randint(0, 86400))
+    (k, v) = marshall.serialize_event(e, epoch=1970)
+    e1 = marshall.unserialize_event("foobar", k, v, epoch=1970)
+    eq_(e.name(), e1.name())
+    eq_(e.unixtimestamp(), e1.unixtimestamp())
+    eq_(e.timestamp(), e1.timestamp())
+    eq_(e.value(), e1.value())
 
-def test_parse1_should_create_an_event_with_the_correct_value():
-    e = netprotocol.parse1("foobar: 0.123456789")
-    eq_(float("0.123456789"), e.value())
-
-def test_parse1_should_create_an_event_with_the_correct_timestamp():
-    e = netprotocol.parse1("foobar: 1 60")
-    eq_(60, e.unixtimestamp())
-
-def test_parse_should_read_multiple_events():
-    es = netprotocol.parse("foobar: 0\nfoobar: 1\nfoobar: 2")
-    eq_(3, len(es))
