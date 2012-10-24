@@ -21,7 +21,6 @@ from twisted.application.service import Service
 from leela.server import logger
 from leela.server.network import udp_proto
 from leela.server.network import databus
-from leela.server.storage import cassandra
 
 class RoundRobin(object):
 
