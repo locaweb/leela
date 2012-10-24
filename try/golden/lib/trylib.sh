@@ -25,7 +25,7 @@ leela_trylib_service_start () {
   srv=$1
   env PYTHONPATH=${srcroot}/src/server \
     $bin_twistd                        \
-    --logfile=/tmp/try-leela.log       \
+    --logfile=/dev/null                \
     --pidfile=$pidfile                 \
     leela                              \
     --service=$1                       \
