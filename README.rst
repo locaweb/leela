@@ -105,3 +105,8 @@ Testing
   $ make -f dev.makefile test
 
 
+Golden Tests
+------------
+::
+  
+  make -f dev.makefile golden-test

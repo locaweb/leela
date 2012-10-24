@@ -1,4 +1,4 @@
-./try/golden/run_test.sh leela_try_udp_writes_to_pipe
+./try/golden/lib/run leela_tryudp_1
 >>>
 event 6|foobar 1351101449.0 0.75;
 >>>= 0

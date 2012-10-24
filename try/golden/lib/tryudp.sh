@@ -1,6 +1,6 @@
 #!/bin/sh
 
-leela_try_udp_writes_to_pipe () {
+leela_tryudp_1 () {
   leela_trylib_setup
   leela_trylib_start udp >/dev/null
 
