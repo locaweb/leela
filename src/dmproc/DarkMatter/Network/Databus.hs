@@ -26,7 +26,7 @@ module DarkMatter.Network.Databus
        , attach
        , detach
        -- * Wire operations
-       , close
+       , term
        , wireRead
        , wireWrite
        ) where
@@ -73,7 +73,7 @@ ifStateOrElse w f a b = do { s <- readTVar (state w)
                            }
 
 -- | Read an item from the wire. May block if the queue is empty. If
--- the wire has been close and the queue is empty, this function
+-- the wire has been closed and the queue is empty, this function
 -- returns EOF.
 wireRead :: Wire a -> IO (Chunk a)
 wireRead w = atomically $ ifStateOrElse w (== ReadWrite) doRead checkRead
@@ -85,18 +85,18 @@ wireRead w = atomically $ ifStateOrElse w (== ReadWrite) doRead checkRead
                        }
 
 -- | Write something into the wire. May block if the queue is full. If
--- the wire has been close, this function does nothing.
+-- the wire has been closed, this function does nothing.
 wireWrite :: Wire a -> a -> IO ()
 wireWrite w a = atomically $ ifStateOrElse w (== ReadWrite) doWrite (return ())
   where doWrite = writeTBQueue (queue w) (Chunk a)
 
 -- | Shutdown any writes into this wire. Remember you still must
 -- invoke detach.
-close :: Wire a -> IO ()
-close = atomically . closeT
+term :: Wire a -> IO ()
+term = atomically . termT
 
-closeT :: Wire a -> STM ()
-closeT w = writeTVar (state w) Read
+termT :: Wire a -> STM ()
+termT w = writeTVar (state w) Read
 
 -- | Version of connect that works with a FilePath.
 connectTo :: Databus a -> Proc B.ByteString a -> FilePath -> IO ()
@@ -142,7 +142,7 @@ attach db f = atomically $ doAttach
 
 -- | Destroy an wire previously created using attach.
 detach :: Databus a -> Wire a -> IO ()
-detach db w = atomically (closeT w >> drain >> destroy)
+detach db w = atomically (termT w >> drain >> destroy)
   where drain = do { mv <- tryReadTBQueue (queue w)
                    ; case mv
                      of Nothing -> writeTBQueue (queue w) Empty

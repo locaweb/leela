@@ -69,7 +69,7 @@ handleRequest s bus (Match m) p =
                            (detach bus wire >> signal sem)
      ; asm <- recvAsm s
      ; when (asm /= [Close]) (warn "error: `close;' was expected")
-     ; close wire
+     ; term wire
      ; wait sem
      }
 handleRequest s _ _ _ = sendStatus s Failure
