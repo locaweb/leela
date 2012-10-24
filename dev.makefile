@@ -39,7 +39,8 @@ bootstrap:
 	$(HOME)/pyenv/leela-server/bin/pip install -q argparse
 	$(HOME)/pyenv/leela-server/bin/pip install -q twisted
 	$(HOME)/pyenv/leela-server/bin/pip install -q wokkel
-	$(HOME)/pyenv/leela-server/bin/pip install -q telephus
+	$(HOME)/pyenv/leela-server/bin/pip install -q thrift
+	$(HOME)/pyenv/leela-server/bin/pip install -q https://github.com/driftx/Telephus/tarball/releases/1.0.0_beta1
 	$(HOME)/pyenv/leela-server/bin/pip install -q txredisapi
 	$(HOME)/pyenv/leela-server/bin/pip install -q nose
 	$(HOME)/pyenv/leela-server/bin/pip install -q mock
