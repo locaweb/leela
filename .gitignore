@@ -5,5 +5,5 @@
 /dist/
 /doc/build/
 /src/server/twisted/plugins/dropin.cache
-/try/dmproc/Test/DarkMatter/dmtry
+/try/dmproc/dmtry
 /src/dmproc/DarkMatter/dmproc

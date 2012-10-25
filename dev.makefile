@@ -9,6 +9,7 @@ bin_virtualenv = virtualenv
 bin_cabal      = cabal
 bin_nosetests  = nosetests
 pyenv          = env PYTHONPATH=$(srcroot)/src/server
+hsenv          = env PATH=$$PATH:$(HOME)/.cabal/bin
 
 nosetestsargs  = 
 ghcargs        = 
@@ -68,17 +69,16 @@ clean:
 	$(bin_find) . -type f -name \*.pyc -exec $(bin_rm) -f \{\} \;
 
 compile_dmtry:
-	$(bin_ghc) $(ghcargs) -v0 -i$(srcroot)/src/dmproc -threaded -i$(srcroot)/try/dmproc -O2 --make -static -optc-static -optl-static $(srcroot)/try/dmproc/Test/DarkMatter/dmtry.hs -optl-pthread
+	$(bin_ghc) $(ghcargs) -v0 -i$(srcroot)/src/dmproc -threaded -i$(srcroot)/try/dmproc -O2 --make -static -optc-static -optl-static $(srcroot)/try/dmproc/dmtry.hs -optl-pthread
 
 compile_dmproc:
 	$(bin_ghc) $(ghcargs) -v0 -W -Wall -fforce-recomp -threaded -i$(srcroot)/src/dmproc -O2 --make -static -optc-static -optl-static $(srcroot)/src/dmproc/DarkMatter/dmproc.hs -optl-pthread
 
-compile: compile_dmproc compile_dmtry
+compile: compile_dmproc
 	cp -p $(srcroot)/src/dmproc/DarkMatter/dmproc $(srcroot)/usr/bin/dmproc
-	cp -p $(srcroot)/try/dmproc/Test/DarkMatter/dmtry $(srcroot)/usr/bin/dmtry
 
 test_dmproc: compile_dmtry
-	$(srcroot)/try/dmproc/Test/DarkMatter/dmtry
+	$(srcroot)/try/dmproc/dmtry
 
 test_server:
 	$(pyenv) $(bin_nosetests) $(nosetestsargs) $(srcroot)/try/server
