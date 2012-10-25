@@ -1,0 +1,28 @@
+#!/bin/sh
+
+[ -r /etc/default/leela-storage   ] && . /etc/default/leela-storage
+[ -r /usr/libexec/leela-functions ] && . /usr/libexec/leela-functions
+
+check_leela_storage () {
+  pidfile=/var/run/leela/storage.pid-$1
+  fifo=/var/run/leela/storage-$1
+
+  if ! leela_check_pid $pidfile >/dev/null
+  then
+    nagios_critical "Critical: missing pid file: $pidfile"
+  fi
+
+  pid=$(cat $pidfile)
+  if ! leela_check_file $pid $fifo >/dev/null
+  then
+    nagios_critical "Critical: proc not connected to fifo: $fifo"
+  fi
+
+  if ! leela_check_inet $pid tcp:9160 >/dev/null
+  then
+    nagios_critical "Critical: not connected to cassandra: tcp:9160"
+  fi
+}
+
+repeat ${NPROCS:-1} check_leela_storage
+nagios_ok "Ok: check_leela_storage"

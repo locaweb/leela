@@ -25,3 +25,55 @@ repeat () {
     n=$(expr $n - 1)
   done
 }
+
+nagios_critical () {
+  echo "$1"
+  exit 2
+}
+
+nagios_ok () {
+  echo "$1"
+  exit 0
+}
+
+leela_check_pid () {
+  test -f "$1"
+}
+
+leela_check_inet () {
+  pid=$1
+  addr=$2
+  lsof -t -a -i4 -i$addr -p $pid
+}
+
+leela_check_file () {
+  pid=$1
+  file=$2
+  lsof -t -a -p $pid $file
+}
+
+leela_check_xsock () {
+  pid=$1
+  file=$2
+  lsof -U -t -a -p $pid $file
+}
+
+leela_read_udp_broadcast () {
+  cat <<EOF | python -
+from leela.server import config
+
+def write(s):
+  print(s.strip())
+
+broadcast = config.read_config().get("udp", "broadcast")
+map(lambda g: map(write, g.split(";")), broadcast.split(","))
+EOF
+}
+
+leela_read_udp_port () {
+  cat <<EOF | python -
+from leela.server import config
+
+print(config.read_config().get("udp", "port"))
+EOF
+}

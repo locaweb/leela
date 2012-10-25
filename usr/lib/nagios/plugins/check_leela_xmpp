@@ -1,0 +1,22 @@
+#!/bin/sh
+
+[ -r /etc/default/leela-xmpp      ] && . /etc/default/leela-xmpp
+[ -r /usr/libexec/leela-functions ] && . /usr/libexec/leela-functions
+
+check_leela_xmpp () {
+  pidfile=/var/run/leela/xmpp.pid-$1
+
+  if ! leela_check_pid $pidfile >/dev/null
+  then
+    nagios_critical "Critical: missing pid file: $pidfile"
+  fi
+
+  pid=$(cat $pidfile)
+  if ! leela_check_inet $pid tcp:5222 >/dev/null
+  then
+    nagios_critical "Critical: not connected to ejabberd: tcp:5222"
+  fi
+}
+
+repeat ${NPROCS:-1} check_leela_xmpp
+nagios_ok "Ok: check_leela_xmpp"
