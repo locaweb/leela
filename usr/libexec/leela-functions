@@ -12,7 +12,6 @@ fixpipe () {
 
   [ -p "$pipefile" ] || mkfifo "$pipefile"
   chown leela:leela "$pipefile"
-  test -p "$pipefile"
 }
 
 repeat () {

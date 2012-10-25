@@ -26,9 +26,10 @@ start_service () {
   logfile=$LOGFILE-$proc_id
   pipefile=$PIPE-$proc_id
   fixfile $pidfile
+  fixfile $logfile
   fixpipe $pipefile
   log_daemon_msg "starting $DAEMON [$SERVICE/$proc_id]"
-  start-stop-daemon -Sq -p $pidfile -x $DAEMON -- --uid=leela --gid=leela --logfile=$logfile --pidfile=$pidfile leela --service=$SERVICE --setenv=pipe:$pipefile $DAEMON_OPTS
+  start-stop-daemon -Sq -c leela:leela -p $pidfile -x $DAEMON -- --logfile=$logfile --pidfile=$pidfile leela --service=$SERVICE --setenv=pipe:$pipefile $DAEMON_OPTS
   log_end_msg $?
 }
 
