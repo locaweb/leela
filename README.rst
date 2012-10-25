@@ -108,11 +108,30 @@ Testing
 Golden Tests
 ------------
 
-Functional tests. You will need the following up and running:
+Acceptance testing.
 
-* cassandra [bind to localhost:9160];
-* redis [bind to localhost:6379];
-* ejabberd [bind to localhost:5222];
+For these to work, you will need the following
+up and running:
+
+* cassandra /localhost:9160;
+
+* ejabberd  /localhost:5222;
+
+* redis     /localhost:6379;
+
+Additionally:
+
+1. Use cassandra with no authentication;
+
+2. Use redis with no authentication;
+
+3. Register two ejabberd users:
+
+   a. foobar@localhost (pass: foobar)
+
+   b. foobaz@localhost (pass: foobaz)
+
+GoOd LuCk!
 
 ::
   

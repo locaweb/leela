@@ -23,11 +23,17 @@ default:
 	@echo "Helps you performing various developets tasks. "
 	@echo
 	@echo "  * bootstrap     Bootstrap the dev environment"
+	@echo
 	@echo "  * clean         Removes all temporary files  "
+	@echo
 	@echo "  * compile       Compiles the dmproc code     "
+	@echo
 	@echo "  * test_dmproc   Run dmproc tests             "
+	@echo
 	@echo "  * test_server   Run server tests             "
+	@echo
 	@echo "  * test          Run all tests                "
+	@echo "==============================================="
 
 bootstrap:
 	test -d $(HOME)/.leela-server || mkdir $(HOME)/.leela-server
@@ -80,4 +86,4 @@ test_server:
 test: test_dmproc test_server
 
 golden-test:
-	cd $(srcroot); $(HOME)/.cabal/bin/shelltest -c -p $(srcroot)/try/golden
+	cd $(srcroot); $(HOME)/.cabal/bin/shelltest -c -p $(srcroot)/try/golden -- --timeout=60
