@@ -77,3 +77,11 @@ from leela.server import config
 print(config.read_config().get("udp", "port"))
 EOF
 }
+
+leela_read_redis_port () {
+  cat <<EOF | python -
+from leela.server import config
+
+print(config.read_config().get("redis", "port"))
+EOF
+}

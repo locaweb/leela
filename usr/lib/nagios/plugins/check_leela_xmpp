@@ -16,6 +16,12 @@ check_leela_xmpp () {
   then
     nagios_critical "Critical: not connected to ejabberd: tcp:5222"
   fi
+
+  port=$(leela_read_redis_port)
+  if ! leela_check_inet $pid tcp:$port >/dev/null
+  then
+    nagios_critical "Critical: not connected to redis: tcp:$port"
+  fi
 }
 
 repeat ${NPROCS:-1} check_leela_xmpp
