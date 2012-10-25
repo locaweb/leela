@@ -31,12 +31,30 @@ leela_trylib_service_start () {
     --service=$1                       \
     --log-level=debug                  \
     --config=${srcroot}/try/golden/cnf/leela.conf
-  sleep 1
+
+  if [ $srv = "udp" ]
+  then
+    while ! lsof -t -a -i4 -iudp:6968 -p $(cat $pidfile)
+    do sleep 0.1; done
+  fi
+
+  if [ $srv = "storage" ]
+  then
+    while ! lsof -t -a -p $(cat $pidfile) /tmp/try-leela.pipe
+    do sleep 0.1; done
+  fi
+
+  if [ $srv = "xmpp" ]
+  then
+    while ! lsof -t -a -i4 -itcp:5222 -p $(cat $pidfile)
+    do sleep 0.1; done
+  fi
 }
 
 leela_trylib_service_stop () {
   test -f $pidfile && kill $(cat $pidfile)
-  sleep 1
+  while [ -f $pidfile ]
+  do sleep 0.1; done
 }
 
 leela_trylib_udp_write () {

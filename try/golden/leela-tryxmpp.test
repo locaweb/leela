@@ -6,3 +6,10 @@
 >>>
 foobar: {"status": 200, "debug": {"request": "select * from leela.xmpp;"}, "results": []}
 >>>= 0
+
+./try/golden/lib/run leela_tryxmpp_interact
+<<<
+{"read": 1, "write": [{"msg": "delete from leela.xmpp;", "to": "foobar@localhost"}]}
+>>>
+foobar: {"status": 404, "debug": {"request": "delete from leela.xmpp;"}, "reason": "not found"}
+>>>= 0
