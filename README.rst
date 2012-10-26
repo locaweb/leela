@@ -1,5 +1,4 @@
-![Logo Restfolia][logo_readme]
-[logo_readme]: http://locastyle.locaweb.com.br/img/logoLocaweb.png
+.. image:: http://locastyle.locaweb.com.br/img/logoLocaweb.png
 
 =====
 LEELA
