@@ -2,69 +2,70 @@
 
 srcroot=${srcroot:-$(pwd)}
 pidfile=${pidfile:-/tmp/try-leela.pid}
+logfile=${logfile:-/tmp/try-leela.log}
+dbusfile=${dbusfile:-/tmp/try-leela.dbus}
 
 bin_twistd=${bin_twistd:-$HOME/pyenv/leela-server/bin/twistd}
+bin_lsof=${bin_lsof:-lsof}
 
-leela_trylib_fifo_creat () {
-  mkfifo /tmp/try-leela.pipe
+leela_trylib_xsock_read () {
+  socat UNIX-RECVFROM:$1 STDOUT
 }
 
-leela_trylib_fifo_drop () {
-  rm -f /tmp/try-leela.pipe
+leela_trylib_xsock_write () {
+  socat STDIN UNIX-SENDTO:$1
 }
 
-leela_trylib_fifo_read () {
-  dd status=noxfer iflag=nonblock if=/tmp/try-leela.pipe bs=4096 count=1 2>/dev/null
+leela_trylib_wait_xsock () {
+  pidf=$1
+  sock=$2
+  while ! $bin_lsof -t -U -a -p $(cat $pidf) $sock
+  do sleep 1; done
 }
 
-leela_trylib_fifo_write () {
-  dd status=noxfer oflag=nonblock of=/tmp/try-leela.pipe bs=4096 count=1 2>/dev/null
+leela_trylib_wait_inet () {
+  pidf=$1
+  inet=$2
+  while ! $bin_lsof -t -a -i$inet -p $(cat $pidf)
+  do sleep 1; done
+}
+
+leela_trylib_wait_file () {
+  file=$1
+  while ! test -e $file
+  do sleep 1; done
 }
 
 leela_trylib_service_start () {
+  test -f $pidfile && leela_trylib_service_stop
   srv=$1
   env PYTHONPATH=${srcroot}/src/server \
     $bin_twistd                        \
-    --logfile=/dev/null                \
+    --logfile=$logfile                 \
     --pidfile=$pidfile                 \
     leela                              \
     --service=$1                       \
     --log-level=debug                  \
     --config=${srcroot}/try/golden/cnf/leela.conf
 
-  if [ $srv = "udp" ]
-  then
-    while ! lsof -t -a -i4 -iudp:6968 -p $(cat $pidfile)
-    do sleep 0.1; done
-  fi
-
-  if [ $srv = "storage" ]
-  then
-    while ! lsof -t -a -p $(cat $pidfile) /tmp/try-leela.pipe
-    do sleep 0.1; done
-  fi
-
-  if [ $srv = "xmpp" ]
-  then
-    while ! lsof -t -a -i4 -itcp:5222 -p $(cat $pidfile)
-    do sleep 0.1; done
-  fi
+  leela_trylib_wait_file $pidfile
 }
 
 leela_trylib_service_stop () {
   test -f $pidfile && kill $(cat $pidfile)
-  while [ -f $pidfile ]
-  do sleep 0.1; done
+  while test -f $pidfile
+  do sleep 1; done
 }
 
 leela_trylib_udp_write () {
-  nc -q1 -u localhost 6968
+  socat -t1  STDIN UDP4-SENDTO:localhost:6968
 }
 
 leela_trylib_xmpp_singleshot () {
   env PYTHONPATH=${srcroot}/src/server \
     $bin_twistd                        \
-    --logfile=/dev/null                \
+    --logfile=$logfile                 \
+    --pidfile=$pidfile-1               \
     -n -o -y                           \
     ${srcroot}/try/golden/lib/xmpp_singleshot.py
 }

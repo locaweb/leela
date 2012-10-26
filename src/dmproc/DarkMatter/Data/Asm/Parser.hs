@@ -1,3 +1,4 @@
+-- -*- mode: haskell; -*-
 {-# LANGUAGE OverloadedStrings #-}
 -- All Rights Reserved.
 --

@@ -1,3 +1,4 @@
+-- -*- mode: haskell; -*-
 -- All Rights Reserved.
 --
 --    Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,8 +22,8 @@ module DarkMatter.Network.Databus
        -- * Constructors
        , newDatabus
        -- * Databus operations
-       , connect
-       , connectTo
+       , connectF
+       , connectS
        , attach
        , detach
        -- * Wire operations
@@ -34,8 +35,10 @@ module DarkMatter.Network.Databus
 import           Control.Monad
 import           Control.Exception
 import           Control.Concurrent.STM
+import           System.Directory
 import qualified Data.ByteString as B
-import           System.IO
+import           Network.Socket hiding (recv)
+import           Network.Socket.ByteString
 import           DarkMatter.Data.Proc
 
 type Databus a = TVar (DatabusT a)
@@ -52,7 +55,7 @@ data State = Read
 -- | This represents a connection to the databus.
 data Wire a = Wire { uid    :: Int
                    , queue  :: TBQueue (Chunk a)
-                   , accept :: a -> Maybe a
+                   , select :: a -> Maybe a
                    , state  :: TVar State
                    }
 
@@ -99,12 +102,15 @@ termT :: Wire a -> STM ()
 termT w = writeTVar (state w) Read
 
 -- | Version of connect that works with a FilePath.
-connectTo :: Databus a -> Proc B.ByteString a -> FilePath -> IO ()
-connectTo db p f = bracket open hClose (connect db p)
-  where open = do { fh <- openBinaryFile f ReadMode
-                  ; hSetBuffering fh NoBuffering
-                  ; return fh
-                  }
+connectF :: Databus a -> Proc B.ByteString a -> FilePath -> IO ()
+connectF db p f = bracket cOpen cClose (connectS db p)
+  where cOpen = do { s <- socket AF_UNIX Datagram 0
+                   ; mapM_ (uncurry (setSocketOption s)) [(SendBuffer, 65536)]
+                   ; bindSocket s (SockAddrUnix f)
+                   ; return s
+                   }
+
+        cClose s = sClose s >> removeFile f
 
 -- | This effectively starts the databus. This function should block
 -- indefinitely, at least if no errors nor an EOF happens.
@@ -112,17 +118,15 @@ connectTo db p f = bracket open hClose (connect db p)
 -- Each item that is produced by the parser is broadcasted over
 -- current attached wires. Notice that if the queue is full, this
 -- function blocks.
-connect :: Databus a -> Proc B.ByteString a -> Handle -> IO ()
-connect db parse fh = fetch parse
-  where fetch p = do { (a, p1) <- fmap (run1 p) (B.hGet fh 512)
+connectS :: Databus a -> Proc B.ByteString a -> Socket -> IO ()
+connectS db parse fh = fetch parse
+  where fetch p = do { (a, p1) <- fmap (run1 p) (recv fh 65536)
                      ; broadcast a
-                     ; ifStillOpen (fetch p1)
+                     ; fetch p1
                      }
 
-        ifStillOpen cc = fmap not (hIsEOF fh) >>= flip when cc
-
         broadcast a = fmap connections (readTVarIO db) >>= mapM_ doWrite
-          where doWrite w = case (accept w a)
+          where doWrite w = case (select w a)
                             of Nothing -> return ()
                                Just b  -> wireWrite w b
 

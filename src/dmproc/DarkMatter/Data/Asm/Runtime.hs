@@ -1,3 +1,4 @@
+-- -*- mode: haskell; -*-
 {-# LANGUAGE TupleSections #-}
 -- All Rights Reserved.
 --

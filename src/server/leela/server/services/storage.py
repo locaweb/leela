@@ -18,6 +18,8 @@
 
 import struct
 from twisted.internet import defer
+from twisted.internet import reactor
+from twisted.internet.endpoints import UNIXServerEndpoint
 from telephus.pool import CassandraClusterPool
 from leela.server import funcs
 from leela.server import logger
@@ -42,16 +44,16 @@ def encode_string(s):
 
 class StorageService(CassandraClusterPool):
 
-    def __init__(self, cfg, pipe):
+    def __init__(self, cfg, sock):
         self.cfg   = cfg
-        self.bus   = databus.Databus(pipe, "r")
-        self.bus.attach("cassandra", self)
+        self.dbus  = databus.listen_from(sock)
         parse_addr = lambda s: s.split(":")
         servers    = map(parse_srvaddr, self.cfg.get("storage", "server").split(","))
         keyspace   = self.cfg.get("storage", "keyspace")
         CassandraClusterPool.__init__(self, seed_list=servers, keyspace=keyspace, conn_timeout=60)
 
     def recv_broadcast(self, events):
+        logger.debug("recv_broadcast: %d" % len(events))
         t = funcs.timer_start()
         for e in events:
             scale(e)
@@ -63,13 +65,10 @@ class StorageService(CassandraClusterPool):
 
     def startService(self):
         logger.warn("starting cassandra service")
+        self.dbus.attach("storage", self)
         CassandraClusterPool.startService(self)
-        self.bus.connect()
-        self.bus.startReading()
-        self.bus.autoretry(True)
 
     def stopService(self):
         logger.warn("stoppping cassandra service")
-        self.bus.autoretry(False)
-        self.bus.disconnect()
+        self.dbus.detach("storage")
         CassandraClusterPool.stopService(self)

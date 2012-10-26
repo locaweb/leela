@@ -1,3 +1,4 @@
+-- -*- mode: haskell; -*-
 {-# OPTIONS_GHC -F -pgmF ./try/dmproc/discover.sh #-}
 
 --- All Rights Reserved.

@@ -1,6 +1,6 @@
 srcroot=$(CURDIR)
 
-userfile      := $(shell test -f $$HOME/.leela-server/dev.mk && echo $$HOME/.leela-server/dev.mk)
+userfile       = $(HOME)/.leela-dev.makefile
 
 bin_find       = find
 bin_ghc        = ghc
@@ -8,15 +8,14 @@ bin_rm         = rm
 bin_virtualenv = virtualenv
 bin_cabal      = cabal
 bin_nosetests  = nosetests
+bin_lsof       = lsof
 pyenv          = env PYTHONPATH=$(srcroot)/src/server
 hsenv          = env PATH=$$PATH:$(HOME)/.cabal/bin
 
 nosetestsargs  = 
 ghcargs        = 
 
-ifneq ($(userfile),"")
-include $(userfile)
-endif
+-include $(userfile)
 
 default:
 	@echo "dev.makefile                                   "
@@ -37,10 +36,13 @@ default:
 	@echo "==============================================="
 
 bootstrap:
-	test -d $(HOME)/.leela-server || mkdir $(HOME)/.leela-server
-	echo "bin_nosetests  = $(HOME)/pyenv/leela-server/bin/nosetests" >$(HOME)/.leela-server/dev.mk
-	echo "bin_virtualenv = $(bin_virtualenv)"                       >>$(HOME)/.leela-server/dev.mk
-	echo "bin_cabal      = $(bin_cabal)"                            >>$(HOME)/.leela-server/dev.mk
+	$(bin_lsof) -v           >/dev/null
+	$(bin_virtual) --version >/dev/null
+	$(bin_cabal) --version   >/dev/null
+	echo "bin_nosetests  = $(HOME)/pyenv/leela-server/bin/nosetests" >$(userfile)
+	echo "bin_virtualenv = $(bin_virtualenv)"                       >>$(userfile)
+	echo "bin_cabal      = $(bin_cabal)"                            >>$(userfile)
+	echo "bin_lsof       = $(bin_lsof)"                             >>$(userfile)
 
 	test -d $(HOME)/pyenv/leela-server || $(bin_virtualenv) $(HOME)/pyenv/leela-server
 	$(HOME)/pyenv/leela-server/bin/pip install -q argparse
@@ -86,4 +88,5 @@ test_server:
 test: test_dmproc test_server
 
 golden-test:
-	cd $(srcroot); $(HOME)/.cabal/bin/shelltest -c -p $(srcroot)/try/golden -- --timeout=60
+	cd $(srcroot); env bin_lsof=$(bin_lsof) $(HOME)/.cabal/bin/shelltest -c -p $(srcroot)/try/golden -- --timeout=10
+

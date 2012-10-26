@@ -3,13 +3,7 @@
 addgroup --system --quiet leela
 adduser --system --quiet --disabled-login --home /var/run/leela --no-create-home --disabled-password --ingroup leela leela
 
-[ -d /var/log/leela           ] || { mkdir /var/log/leela; chown leela /var/log/leela;                      }
-[ -d /var/run/leela           ] || { mkdir /var/run/leela; chown leela /var/run/leela;                      }
-
-update-rc.d leela-web defaults
-update-rc.d leela-udp defaults
-update-rc.d leela-xmpp defaults
-update-rc.d leela-dmproc defaults
-update-rc.d leela-storage defaults
+[ -d /var/log/leela ] || { mkdir /var/log/leela; chown -R leela /var/log/leela; }
+[ -d /var/run/leela ] || { mkdir /var/run/leela; chown -R leela /var/run/leela; }
 
 exit 0

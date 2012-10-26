@@ -1,3 +1,4 @@
+-- -*- mode: haskell; -*-
 -- All Rights Reserved.
 --
 --    Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +20,6 @@ import Control.Monad
 import Control.Concurrent.MVar
 import Control.Concurrent
 import System.Environment
-import System.Directory
 import System.Exit
 import System.Posix.Signals
 import DarkMatter.Logger
@@ -43,18 +43,17 @@ getopts argv = case (getOpt Permute options argv)
   where header = "USAGE: dmproc [-v|--verbose] [--version] PIPE-FILE SOCKET-FILE"
 
 main :: IO ()
-main = do { (opts, pipe, socket) <- fmap getopts getArgs
+main = do { (opts, dgram, stream) <- fmap getopts getArgs
           ; setopts INFO opts
           ; wait <- newEmptyMVar
           ; warn "starting server (^C to terminate)"
           ; db   <- newDatabus
-          ; _    <- forkIO (forever $ threadDelay 500000 >> connectTo db databusParser pipe)
-          ; _    <- forkIO (start db socket)
+          ; _    <- forkIO (forever $ threadDelay 500000 >> connectF db databusParser dgram)
+          ; _    <- forkIO (start db stream)
           ; _    <- installHandler sigINT (Catch $ putMVar wait ()) Nothing
           ; _    <- installHandler sigTERM (Catch $ putMVar wait ()) Nothing
           ; takeMVar wait
           ; warn "/bye"
-          ; removeFile socket
           ; exitSuccess
           }
   where setopts _ []               = return ()

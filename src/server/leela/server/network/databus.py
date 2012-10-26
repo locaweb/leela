@@ -16,19 +16,36 @@
 #    limitations under the License.
 #
 
+import random
+import socket
+import errno
+from twisted.internet import protocol
+from twisted.internet import reactor
+from twisted.internet.endpoints import UNIXClientEndpoint
+from twisted.internet.endpoints import UNIXServerEndpoint
 from leela.server import logger
 from leela.server.data.pp import *
-from leela.server.unix import pipe
 from leela.server.data import event
 from leela.server.data.parser import *
 
-class Databus(pipe.UnixPipe):
+def connect_to(sock):
+    conn = lambda proto: reactor.connectUNIXDatagram(sock, proto, 32*1024)
+    dbus = Databus(conn)
+    dbus.connect()
+    return(dbus)
 
-    def __init__(self, fname, mode="r"):
-        pipe.UnixPipe.__init__(self, fname, mode)
-        self._rlimit   = 42*1024*1024
-        self.residue   = ""
+def listen_from(sock):
+    conn = lambda proto: reactor.listenUNIXDatagram(sock, proto, 32*1024)
+    dbus = Databus(conn)
+    dbus.connect()
+    return(dbus)
+
+class Databus(protocol.ConnectedDatagramProtocol):
+
+    def __init__(self, connect):
         self.callbacks = {}
+        self.connect   = lambda: connect(self)
+        self.wqueue    = []
 
     def attach(self, gid, cc):
         self.callbacks[gid] = cc
@@ -39,17 +56,39 @@ class Databus(pipe.UnixPipe):
             del(self.callbacks[gid])
         logger.info("unregistering cc: %s/%d" % (gid, len(self.callbacks)))
 
-    def set_residue(self, data):
-        if (len(data) < self._rlimit):
-            self.residue = data
-        else:
-            self.residue = ""
-
     def send_broadcast(self, events):
-        self.write_chunks(map(render_event, events))
+        self.wqueue.extend(events)
+        logger.debug("send_broadcast: [qlen=%d]" % len(self.wqueue))
+        while (len(self.wqueue) > 0 and self.transport is not None):
+            e = self.wqueue[:10]
+            try:
+                self.transport.write(render_events(e))
+                del(self.wqueue[:10])
+            except socket.error, se:
+                map(lambda x: self.wqueue.insert(0, x), reversed(e))
+                if (se.args[0] not in (errno.EWOULDBLOCK, errno.EAGAIN)):
+                    self.transport.loseConnection()
+                break
 
-    def recv_data(self, data0):
-        data = self.residue + data0
+    def connectionLost(self, reason):
+        logger.warn("connectionLost: %s" % reason.getErrorMessage())
+        reactor.callLater(1, self.connect)
+
+    def connectionFailed(self, reason):
+        logger.warn("connectionLost: %s" % reason.getErrorMessage())
+        reactor.callLater(1, self.connect)
+
+    def connectionRefused(self):
+        logger.warn("connectionRefused")
+        reactor.callLater(1, self.connect)
+
+    def stopProtocol(self):
+        logger.warn("stopProtocol")
+
+    def startProtocol(self):
+        logger.warn("starProtocol")
+
+    def datagramReceived(self, data, *args):
         tmp  = []
         msgs = []
         for c in data:
@@ -62,7 +101,6 @@ class Databus(pipe.UnixPipe):
                 else:
                     tmp = []
                     msgs.append(e)
-        self.set_residue("".join(tmp))
         if (len(msgs) > 0):
             for cc in self.callbacks.values():
                 cc.recv_broadcast(msgs)

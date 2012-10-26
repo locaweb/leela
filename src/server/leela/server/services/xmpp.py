@@ -118,7 +118,7 @@ class XmppService(xmppim.MessageProtocol):
         self.cfg     = cfg
         self.active  = {}
         self.redis   = None
-        self.core    = UNIXClientEndpoint(reactor, self.cfg.get("xmpp", "dmproc"), 30, False)
+        self.core    = UNIXClientEndpoint(reactor, self.cfg.get("xmpp", "dmproc"))
         self.pooling = task.LoopingCall(self.redis_pooling)
 
     @defer.inlineCallbacks
