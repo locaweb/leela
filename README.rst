@@ -1,3 +1,6 @@
+![Logo Restfolia][logo_readme]
+[logo_readme]: http://locastyle.locaweb.com.br/img/logoLocaweb.png
+
 =====
 LEELA
 =====
@@ -83,7 +86,7 @@ Bootstrapping
 Prepares the development environment. Make sure you have ``ghc [>=
 7]``, ``cabal``, ``python [>= 2.6]`` and *python header files*. If you
 are using debian, the following should suffice::
-  
+
   $ apt-get install ghc=7.* cabal python=2.7.* python-dev=2.7.* python-virtualenv
 
 Make sure you get these right for your platform. Now, issue::
@@ -95,13 +98,13 @@ And you are done.
 Compiling
 ---------
 ::
-  
+
   $ make -f dev.makefile compile
 
 Testing
 -------
 ::
-  
+
   $ make -f dev.makefile test
 
 
@@ -134,5 +137,5 @@ Additionally:
 GoOd LuCk!
 
 ::
-  
+
   make -f dev.makefile golden-test
