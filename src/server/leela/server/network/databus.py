@@ -94,7 +94,7 @@ class Databus(protocol.ConnectedDatagramProtocol):
         for c in data:
             tmp.append(c)
             if (c == ';'):
-                e = parse_event_("".join(tmp))
+                e = parse_event_("".join(tmp))[0]
                 if (e is None):
                     logger.debug("error parsing: %s" % "".join(tmp))
                     tmp = []

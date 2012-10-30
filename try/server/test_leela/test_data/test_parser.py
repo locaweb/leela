@@ -99,10 +99,18 @@ def test_parse_event():
     t = random.random()
     v = random.random()
     e0 = event.Event("foobar", v, t)
-    e1 = parser.parse_event("event 6|foobar %s %s;" % (repr(t), repr(v)))
+    (e1, s) = parser.parse_event("event 6|foobar %s %s;" % (repr(t), repr(v)))
     eq_(e0.name(), e1.name())
     eq_(e0.value(), e1.value())
     eq_(e0.unixtimestamp(), e1.unixtimestamp())
+    eq_("", s)
+
+def test_parse_event_returns_leftover():
+    t = random.random()
+    v = random.random()
+    e0 = event.Event("foobar", v, t)
+    (_, s) = parser.parse_event("event 6|foobar %s %s;foobar" % (repr(t), repr(v)))
+    eq_("foobar", s)
 
 @raises(RuntimeError)
 def test_parse_event_must_raise_on_error():
@@ -110,7 +118,7 @@ def test_parse_event_must_raise_on_error():
 
 def test_parse_status():
     tmp = random.randint(0, 10)
-    eq_(tmp, parser.parse_status("status %d;" % tmp))
+    eq_((tmp, ""), parser.parse_status("status %d;" % tmp))
 
 @raises(RuntimeError)
 def test_parse_status_must_raise_on_error():
@@ -157,7 +165,12 @@ def test_parse_sql__never_fails():
     eq_({}, parser.parse_sql_("foobar"))
 
 def test_parse_event__never_fails():
-    eq_(None, parser.parse_event_("foobar"))
+    eq_((None, ""), parser.parse_event_("foobar"))
 
 def test_parse_status__never_fails():
-    eq_(-1, parser.parse_status_("foobar"))
+    eq_((-1, ""), parser.parse_status_("foobar"))
+
+def test_parse_status_return_leftover():
+    x = random.randint(0, 10)
+    eq_((x, "foobar"), parser.parse_status("status %d;foobar" % x))
+    

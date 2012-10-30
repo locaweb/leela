@@ -83,16 +83,31 @@ def parse_event(s):
     (t, s) = parse_double(s)
     s      = parse_string(s, " ")
     (v, s) = parse_double(s)
-    if (s == ";"):
-        return(event.Event(n, v, t))
+    if (s[0] == ";"):
+        return(event.Event(n, v, t), s[1:])
     else:
         raise(RuntimeError())
+
+# def parse_data(s):
+#     s      = parse_string(s, "data ")
+#     (l, s) = parse_int(s)
+#     s      = parse_string(s, "|")
+#     (n, s) = parse_take(s, l)
+#     s      = parse_string(s, " ")
+#     (t, s) = parse_double(s)
+#     s      = parse_string(s, " ")
+#     (l, s) = parse_int(s)
+#     (v, s) = parse_take(s, l)
+#     if (s[0] == ";"):
+#         return(data.Data(n, json.loads(v), t), s)
+#     else:
+#         raise(RuntimeError())
 
 def parse_status(s):
     s      = parse_string(s, "status ")
     (l, s) = parse_int(s)
-    if (s == ";"):
-        return(l)
+    if (s[0] == ";"):
+        return(l, s[1:])
     else:
         raise(RuntimeError())
 
@@ -142,10 +157,16 @@ def parse_event_(s):
     try:
         return(parse_event(s))
     except:
-        return(None)
+        return(None, "")
+
+def parse_data_(s):
+    try:
+        return(parse_data(s))
+    except:
+        return(None, "")
 
 def parse_status_(s):
     try:
         return(parse_status(s))
     except:
-        return(-1)
+        return(-1, "")

@@ -52,9 +52,9 @@ class DMProc(protocol.Protocol):
             for l in frame.split(";"):
                 c = l[:1]
                 if (c == 'e'):
-                    self.recv_event(parse_event(l + ";"))
+                    self.recv_event(parse_event(l + ";")[0])
                 elif (c == 's'):
-                    self.recv_status(parse_status(l + ";"))
+                    self.recv_status(parse_status(l + ";")[0])
                 elif (c == 'c'):
                     parse_string(l, "close")
                     self.recv_close()
