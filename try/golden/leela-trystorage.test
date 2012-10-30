@@ -1,25 +1,43 @@
 # syntax: http://hub.darcs.net/simon/shelltestrunner
 
-./try/golden/lib/run leela_trystorage_write_to_fifo_and_enum_from_cassandra
+./try/golden/lib/run leela_trystorage_write_to_socket_and_enum_events_from_cassandra
 <<<
 event 6|foobar 1351101449.0 0.75;
 >>>/column=850468416, value=0.75, timestamp=/
 >>>= 0
 
-./try/golden/lib/run leela_trystorage_write_to_fifo_and_enum_from_cassandra
+./try/golden/lib/run leela_trystorage_write_to_socket_and_enum_events_from_cassandra
 <<<
 event 6|foobar 1351101449.0 nan;
 >>>/column=850468416, value=NaN, timestamp=/
 >>>= 0
 
-./try/golden/lib/run leela_trystorage_write_to_fifo_and_enum_from_cassandra
+./try/golden/lib/run leela_trystorage_write_to_socket_and_enum_events_from_cassandra
 <<<
 event 6|foobar 1351101449.0 inf;
 >>>/column=850468416, value=Infinity, timestamp=/
 >>>= 0
 
-./try/golden/lib/run leela_trystorage_write_to_fifo_and_enum_from_cassandra
+./try/golden/lib/run leela_trystorage_write_to_socket_and_enum_events_from_cassandra
 <<<
 event 6|foobar 1351101449.0 -inf;
 >>>/column=850468416, value=-Infinity, timestamp=/
+>>>= 0
+
+./try/golden/lib/run leela_trystorage_write_to_socket_and_enum_events_from_cassandra
+<<<
+event 6|foobar 1351101449.0 0.75;event 6|foobar 1351101449.0 0.75;event 6|foobar 1351101449.0 0.75;
+>>>/column=850468416, value=0.75, timestamp=/
+>>>= 0
+
+./try/golden/lib/run leela_trystorage_write_to_socket_and_enum_data_from_cassandra
+<<<
+data 6|foobar 1351101449.0 10|{"one": 1};
+>>>/column=850468416, value={"one": 1}, timestamp=/
+>>>= 0
+
+./try/golden/lib/run leela_trystorage_write_to_socket_and_enum_data_from_cassandra
+<<<
+data 6|foobar 1351101449.0 10|{"one": 1};data 6|foobar 1351101449.0 10|{"one": 1};data 6|foobar 1351101449.0 10|{"one": 1};
+>>>/column=850468416, value={"one": 1}, timestamp=/
 >>>= 0

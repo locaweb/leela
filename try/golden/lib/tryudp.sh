@@ -1,6 +1,6 @@
 #!/bin/sh
 
-leela_tryudp_write_to_socket_and_read_from_fifo () {
+leela_tryudp_write_to_socket_and_read_from_socket () {
   rm -f $dbusfile
 
   (leela_trylib_xsock_read $dbusfile; echo)&

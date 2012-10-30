@@ -94,13 +94,18 @@ class Databus(protocol.ConnectedDatagramProtocol):
         for c in data:
             tmp.append(c)
             if (c == ';'):
-                e = parse_event_("".join(tmp))[0]
-                if (e is None):
-                    logger.debug("error parsing: %s" % "".join(tmp))
+                tmp = "".join(tmp)
+                x   = None
+                if (tmp[0] == 'e'):
+                    x = parse_event_(tmp)[0]
+                elif (tmp[0] == 'd'):
+                    x = parse_data_(tmp)[0]
+                if (x is None):
+                    logger.debug("error parsing: %s" % tmp)
                     tmp = []
                 else:
                     tmp = []
-                    msgs.append(e)
+                    msgs.append(x)
         if (len(msgs) > 0):
             for cc in self.callbacks.values():
                 cc.recv_broadcast(msgs)

@@ -20,9 +20,11 @@
 
 import math
 import random
+import json
 from nose.tools import *
 from leela.server.data import parser
 from leela.server.data import event
+from leela.server.data import data
 
 @raises(RuntimeError)
 def test_parse_string_raise_if_string_does_not_starts_with():
@@ -105,6 +107,16 @@ def test_parse_event():
     eq_(e0.unixtimestamp(), e1.unixtimestamp())
     eq_("", s)
 
+def test_parse_data():
+    t = random.random()
+    v = "{\"one\": 1}"
+    d0 = data.Data("foobar", v, t)
+    (d1, s) = parser.parse_data("data 6|foobar %s %d|%s;" % (repr(t), len(v), v))
+    eq_(d0.name(), d1.name())
+    eq_(json.loads(d0.value()), d1.value())
+    eq_(d0.unixtimestamp(), d1.unixtimestamp())
+    eq_("", s)
+
 def test_parse_event_returns_leftover():
     t = random.random()
     v = random.random()
@@ -112,9 +124,20 @@ def test_parse_event_returns_leftover():
     (_, s) = parser.parse_event("event 6|foobar %s %s;foobar" % (repr(t), repr(v)))
     eq_("foobar", s)
 
+def test_parse_data_returns_leftover():
+    t = random.random()
+    v = "{\"one\": 1}"
+    d0 = data.Data("foobar", v, t)
+    (_, s) = parser.parse_data("data 6|foobar %s %d|%s;foobar" % (repr(t), len(v), v))
+    eq_("foobar", s)
+
 @raises(RuntimeError)
 def test_parse_event_must_raise_on_error():
     parser.parse_event("foobar")
+
+@raises(RuntimeError)
+def test_parse_data_must_raise_on_error():
+    parser.parse_data("foobar")
 
 def test_parse_status():
     tmp = random.randint(0, 10)
@@ -170,7 +193,9 @@ def test_parse_event__never_fails():
 def test_parse_status__never_fails():
     eq_((-1, ""), parser.parse_status_("foobar"))
 
+def test_parse_data__never_fails():
+    eq_((None, ""), parser.parse_data_("foobar"))
+
 def test_parse_status_return_leftover():
     x = random.randint(0, 10)
     eq_((x, "foobar"), parser.parse_status("status %d;foobar" % x))
-    

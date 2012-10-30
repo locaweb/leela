@@ -18,8 +18,8 @@
 from leela.server.data import storable
 from leela.server.data.storable import Timestamp
 
-class Event(storable.Storable):
+class Data(storable.Storable):
 
     @classmethod
     def kind(self):
-        return("event")
+        return("data")

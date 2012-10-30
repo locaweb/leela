@@ -20,6 +20,7 @@ import re
 import json
 import time
 from leela.server.data import event
+from leela.server.data import data
 
 def parse_string(s, w):
     if (s.startswith(w)):
@@ -88,20 +89,21 @@ def parse_event(s):
     else:
         raise(RuntimeError())
 
-# def parse_data(s):
-#     s      = parse_string(s, "data ")
-#     (l, s) = parse_int(s)
-#     s      = parse_string(s, "|")
-#     (n, s) = parse_take(s, l)
-#     s      = parse_string(s, " ")
-#     (t, s) = parse_double(s)
-#     s      = parse_string(s, " ")
-#     (l, s) = parse_int(s)
-#     (v, s) = parse_take(s, l)
-#     if (s[0] == ";"):
-#         return(data.Data(n, json.loads(v), t), s)
-#     else:
-#         raise(RuntimeError())
+def parse_data(s):
+    s      = parse_string(s, "data ")
+    (l, s) = parse_int(s)
+    s      = parse_string(s, "|")
+    (n, s) = parse_take(s, l)
+    s      = parse_string(s, " ")
+    (t, s) = parse_double(s)
+    s      = parse_string(s, " ")
+    (l, s) = parse_int(s)
+    s      = parse_string(s, "|")
+    (v, s) = parse_take(s, l)
+    if (s[0] == ";"):
+        return(data.Data(n, json.loads(v), t), s[1:])
+    else:
+        raise(RuntimeError())
 
 def parse_status(s):
     s      = parse_string(s, "status ")
