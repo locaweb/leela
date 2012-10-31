@@ -1,13 +1,14 @@
 # syntax: http://hub.darcs.net/simon/shelltestrunner
 
-./try/golden/lib/run leela_trydmproc_interact "proc match 1|. id;"
+./try/golden/lib/run leela_trydmproc_interact -n 3 "proc match 1|. id;"
 <<<
-event 6|foobar 0.0 0.75;
+event 6|foobar 0.0 1;
+event 6|foobaz 0.1 2;
 >>>
-status 0;event 6|foobar 0.0 0.75;
+status 0;event 6|foobar 0.0 1;event 6|foobaz 0.1 2;
 >>>= 0
 
-./try/golden/lib/run leela_trydmproc_interact "proc match 1|. window 5 (mean);"
+./try/golden/lib/run leela_trydmproc_interact -n 2 "proc match 1|. window 5 (mean);"
 <<<
 event 6|foobar 0.1 1;
 event 6|foobar 0.2 2;
@@ -16,4 +17,12 @@ event 6|foobar 0.4 4;
 event 6|foobar 0.5 5;
 >>>
 status 0;event 6|foobar 0.5 3;
+>>>= 0
+
+./try/golden/lib/run leela_trydmproc_interact -n 2 "proc match 6|foobar id;"
+<<<
+event 6|foobar 0.1 1;
+event 6|foobaz 0.2 2;
+>>>
+status 0;event 6|foobar 0.1 1;
 >>>= 0

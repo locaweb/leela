@@ -25,6 +25,14 @@ leela_trylib_wait_xsock () {
   do sleep 1; done
 }
 
+leela_trylib_waitpidfile () {
+  for _ in 1 2 3 4 5
+  do
+    if ! test -f $pidfile; then break; fi
+  done
+  rm -f $pidfile
+}
+
 leela_trylib_wait_inet () {
   pidf=$1
   inet=$2
@@ -55,12 +63,13 @@ leela_trylib_service_start () {
 
 leela_trylib_dmproc_stop () {
   test -f $pidfile && kill $(cat $pidfile)
+  sleep 1; rm -f $pidfile
 }
 
 leela_trylib_dmproc_start () {
   rm -f $dbusfile
   rm -f $sockfile
-  ./usr/bin/dmproc -vvv $dbusfile $sockfile&
+  ./usr/bin/dmproc $dbusfile $sockfile &
   echo -n "$!" >$pidfile
   leela_trylib_wait_file $dbusfile
   leela_trylib_wait_file $sockfile
@@ -68,8 +77,7 @@ leela_trylib_dmproc_start () {
 
 leela_trylib_service_stop () {
   test -f $pidfile && kill $(cat $pidfile)
-  while test -f $pidfile
-  do sleep 1; done
+  leela_trylib_waitpidfile $pidfile
 }
 
 leela_trylib_udp_write () {
