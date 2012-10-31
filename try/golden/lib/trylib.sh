@@ -4,6 +4,7 @@ srcroot=${srcroot:-$(pwd)}
 pidfile=${pidfile:-/tmp/try-leela.pid}
 logfile=${logfile:-/tmp/try-leela.log}
 dbusfile=${dbusfile:-/tmp/try-leela.dbus}
+sockfile=${sockfile:-/tmp/try-leela.sock}
 
 bin_twistd=${bin_twistd:-$HOME/pyenv/leela-server/bin/twistd}
 bin_python=${bin_python:-$HOME/pyenv/leela-server/bin/python}
@@ -52,6 +53,19 @@ leela_trylib_service_start () {
   leela_trylib_wait_file $pidfile
 }
 
+leela_trylib_dmproc_stop () {
+  test -f $pidfile && kill $(cat $pidfile)
+}
+
+leela_trylib_dmproc_start () {
+  rm -f $dbusfile
+  rm -f $sockfile
+  ./usr/bin/dmproc -vvv $dbusfile $sockfile&
+  echo -n "$!" >$pidfile
+  leela_trylib_wait_file $dbusfile
+  leela_trylib_wait_file $sockfile
+}
+
 leela_trylib_service_stop () {
   test -f $pidfile && kill $(cat $pidfile)
   while test -f $pidfile
@@ -65,7 +79,13 @@ leela_trylib_udp_write () {
 leela_trylib_xmpp_interact () {
   env PYTHONPATH=${srcroot}/src/server \
     $bin_python                        \
-    ${srcroot}/try/golden/lib/xmpp_interact.py
+    ${srcroot}/try/golden/lib/xmpp_interact.py "$@"
+}
+
+leela_trylib_dmproc_interact () {
+  env PYTHONPATH=${srcroot}/src/server \
+    $bin_python                        \
+    ${srcroot}/try/golden/lib/dmproc_interact.py --databus $dbusfile --socket $sockfile "$@"
 }
 
 leela_trylib_cassandra_execute () {
