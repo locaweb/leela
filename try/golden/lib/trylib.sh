@@ -6,6 +6,7 @@ logfile=${logfile:-/tmp/try-leela.log}
 dbusfile=${dbusfile:-/tmp/try-leela.dbus}
 
 bin_twistd=${bin_twistd:-$HOME/pyenv/leela-server/bin/twistd}
+bin_python=${bin_python:-$HOME/pyenv/leela-server/bin/python}
 bin_lsof=${bin_lsof:-lsof}
 
 leela_trylib_xsock_read () {
@@ -61,13 +62,10 @@ leela_trylib_udp_write () {
   socat -t1  STDIN UDP4-SENDTO:localhost:6968
 }
 
-leela_trylib_xmpp_singleshot () {
+leela_trylib_xmpp_interact () {
   env PYTHONPATH=${srcroot}/src/server \
-    $bin_twistd                        \
-    --logfile=$logfile                 \
-    --pidfile=$pidfile-1               \
-    -n -o -y                           \
-    ${srcroot}/try/golden/lib/xmpp_singleshot.py
+    $bin_python                        \
+    ${srcroot}/try/golden/lib/xmpp_interact.py
 }
 
 leela_trylib_cassandra_execute () {
