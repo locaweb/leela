@@ -28,38 +28,40 @@ def print_obj(xs):
             _stdout.write(pp.render_data(x))
         _stdout.write("\n")
 
-def seq(f, err, *cc):
-    d = f()
-    d.addErrback(err)
-    map(d.addCallback, cc)
-    return(d)
-
+@defer.inlineCallbacks
 def write(storage):
-    for l in _stdin.readlines():
-        if (l[0] == 'e'):
-            d = storage.store(parser.parse_event(l.strip())[0])
-        elif (l[0] == 'd'):
-            d = storage.store(parser.parse_data(l.strip())[0])
-    d.addCallback(lambda _: storage.stopService())
-    d.addCallback(lambda _: reactor.callLater(1, reactor.stop))
-    d.addErrback(error_cc)
+    try:
+        for l in _stdin.readlines():
+            if (l[0] == 'e'):
+                yield storage.store(parser.parse_event(l.strip())[0])
+            elif (l[0] == 'd'):
+                yield storage.store(parser.parse_data(l.strip())[0])
+        storage.stopService()
+        reactor.callLater(1, reactor.stop)
+    except:
+        reactor.stop()
 
+@defer.inlineCallbacks
 def enum(storage):
-    t0 = lambda: event.Event.enum(storage)
-    t1 = lambda: data.Data.enum(storage)
-    d = defer.Deferred()
-    d.addCallback(lambda _: storage.stopService())
-    d.addCallback(lambda _: reactor.callLater(1, reactor.stop))
-    seq(t0, d.errback, print_obj, lambda _: seq(t1, d.errback, print_obj, d.callback))
+    try:
+        v = yield event.Event.enum(storage)
+        print_obj(v)
+        v = yield data.Data.enum(storage)
+        print_obj(v)
+        storage.stopService()
+        reactor.callLater(1, reactor.stop)
+    except:
+        reactor.stop()
 
+@defer.inlineCallbacks
 def truncate(storage):
-    t0 = lambda: storage.truncate("data")
-    t1 = lambda: storage.truncate("events")
-    d  = defer.Deferred()
-    d.addCallback(lambda _: storage.stopService())
-    d.addCallback(lambda _: reactor.callLater(1, reactor.stop))
-    d.addErrback(error_cc)
-    seq(t0, d.errback, lambda _: seq(t1, d.errback, d.callback))
+    try:
+        yield storage.truncate("data")
+        yield storage.truncate("events")
+        storage.stopService()
+        reactor.callLater(1, reactor.stop)
+    except:
+        reactor.stop()
 
 if __name__ == "__main__":
     log.startLogging(_stderr)
