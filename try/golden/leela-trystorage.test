@@ -1,43 +1,57 @@
 # syntax: http://hub.darcs.net/simon/shelltestrunner
 
+# 1.
 ./try/golden/lib/run leela_trystorage_write_to_socket_and_enum_events_from_cassandra
 <<<
 event 6|foobar 1351101449.0 0.75;
->>>/column=850468416, value=0.75, timestamp=/
+>>>
+event 6|foobar 1351101420.0 0.75;
 >>>= 0
 
+# 2.
 ./try/golden/lib/run leela_trystorage_write_to_socket_and_enum_events_from_cassandra
 <<<
 event 6|foobar 1351101449.0 nan;
->>>/column=850468416, value=NaN, timestamp=/
+>>>
+event 6|foobar 1351101420.0 nan;
 >>>= 0
 
+# 3.
 ./try/golden/lib/run leela_trystorage_write_to_socket_and_enum_events_from_cassandra
 <<<
 event 6|foobar 1351101449.0 inf;
->>>/column=850468416, value=Infinity, timestamp=/
+>>>
+event 6|foobar 1351101420.0 inf;
 >>>= 0
 
+# 4.
 ./try/golden/lib/run leela_trystorage_write_to_socket_and_enum_events_from_cassandra
 <<<
 event 6|foobar 1351101449.0 -inf;
->>>/column=850468416, value=-Infinity, timestamp=/
+>>>
+event 6|foobar 1351101420.0 -inf;
 >>>= 0
 
+# 5.
 ./try/golden/lib/run leela_trystorage_write_to_socket_and_enum_events_from_cassandra
 <<<
 event 6|foobar 1351101449.0 0.75;event 6|foobar 1351101449.0 0.75;event 6|foobar 1351101449.0 0.75;
->>>/column=850468416, value=0.75, timestamp=/
+>>>
+event 6|foobar 1351101420.0 0.75;
 >>>= 0
 
+# 6.
 ./try/golden/lib/run leela_trystorage_write_to_socket_and_enum_data_from_cassandra
 <<<
 data 6|foobar 1351101449.0 10|{"one": 1};
->>>/column=850468416, value={"one": 1}, timestamp=/
+>>>
+data 6|foobar 1351101420.0 10|{"one": 1};
 >>>= 0
 
+# 7.
 ./try/golden/lib/run leela_trystorage_write_to_socket_and_enum_data_from_cassandra
 <<<
 data 6|foobar 1351101449.0 10|{"one": 1};data 6|foobar 1351101449.0 10|{"one": 1};data 6|foobar 1351101449.0 10|{"one": 1};
->>>/column=850468416, value={"one": 1}, timestamp=/
+>>>
+data 6|foobar 1351101420.0 10|{"one": 1};
 >>>= 0

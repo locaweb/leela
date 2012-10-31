@@ -54,7 +54,7 @@ def serialize_data(e, epoch):
     k = serialize_key(*timestamp, epoch=epoch)
     v = json.dumps(e.value())
     return((k, v))
-    
+
 def unserialize_event(name, k, v, epoch):
     timetuple = list(unserialize_key(k, epoch=epoch))
     timestamp = funcs.timetuple_timestamp(timetuple)

@@ -96,53 +96,8 @@ leela_trylib_dmproc_interact () {
     ${srcroot}/try/golden/lib/dmproc_interact.py --databus $dbusfile --socket $sockfile "$@"
 }
 
-leela_trylib_cassandra_execute () {
-  cassandra-cli -h localhost -k leela
-}
-
-leela_trylib_cassandra_drop () {
-  cat <<EOF | cassandra-cli -B -h localhost
-drop keyspace leela;
-EOF
-}
-
-leela_trylib_cassandra_creat () {
-  cat <<EOF | cassandra-cli -B -h localhost
-create keyspace leela
-  with placement_strategy = 'SimpleStrategy'
-  and strategy_options = {replication_factor : 1}
-  and durable_writes = true;
-
-use leela;
-
-create column family events
-  with column_type = 'Standard'
-  and comparator = 'ReversedType(org.apache.cassandra.db.marshal.Int32Type)'
-  and default_validation_class = 'DoubleType'
-  and key_validation_class = 'UTF8Type'
-  and read_repair_chance = 1.0
-  and dclocal_read_repair_chance = 0.0
-  and gc_grace = 864000
-  and min_compaction_threshold = 4
-  and max_compaction_threshold = 32
-  and replicate_on_write = true
-  and compaction_strategy = 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy'
-  and caching = 'KEYS_ONLY'
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
-
-create column family data
-  with column_type = 'Standard'
-  and comparator = 'ReversedType(org.apache.cassandra.db.marshal.Int32Type)'
-  and default_validation_class = 'UTF8Type'
-  and key_validation_class = 'UTF8Type'
-  and read_repair_chance = 1.0
-  and dclocal_read_repair_chance = 0.0
-  and gc_grace = 864000
-  and min_compaction_threshold = 4
-  and max_compaction_threshold = 32
-  and replicate_on_write = true
-  and compaction_strategy = 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy'
-  and caching = 'KEYS_ONLY'
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
-EOF
+leela_trylib_cassandra_interact () {
+  env PYTHONPATH=${srcroot}/src/server \
+    $bin_python                        \
+    ${srcroot}/try/golden/lib/cassandra_interact.py "$@"
 }

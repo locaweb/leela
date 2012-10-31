@@ -23,6 +23,10 @@ from leela.server.data import event
 def render_event(e):
     return("event %d|%s %d.0 %s;" % (len(e.name()), e.name(), e.unixtimestamp(), repr(e.value())))
 
+def render_data(e):
+    value = json.dumps(e.value())
+    return("data %d|%s %d.0 %d|%s;" % (len(e.name()), e.name(), e.unixtimestamp(), len(value), value))
+
 def render_events(es):
     if (len(es) == 0):
         return("")

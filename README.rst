@@ -123,11 +123,13 @@ up and running:
 
 Additionally:
 
-1. Use cassandra with no authentication;
+1. Create the schema on cassandra (refer to doc/cassandra.schema);
 
-2. Use redis with no authentication;
+2. Use cassandra with no authentication;
 
-3. Register two ejabberd users:
+3. Use redis with no authentication;
+
+4. Register two ejabberd users:
 
    a. foobar@localhost (pass: foobar)
 

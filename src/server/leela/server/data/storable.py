@@ -17,6 +17,7 @@
 
 import collections
 import time
+from twisted.internet import defer
 from datetime import datetime
 from datetime import timedelta
 from leela.server import funcs
@@ -65,6 +66,10 @@ class Storable(object):
         start    = Timestamp._make((pasttime.year, pasttime.month, pasttime.day, pasttime.hour, pasttime.minute, pasttime.second))
         finish   = Timestamp._make((currtime.year, currtime.month, currtime.day, currtime.hour, currtime.minute, currtime.second))
         return(storage.load(self.kind(), k, start, finish, 7*24*60*60))
+
+    @classmethod
+    def enum(self, storage, klimit=100, limit=100):
+        return(storage.enum(self.kind(), klimit, limit))
 
     def __init__(self, name, value, timestamp):
         d = funcs.datetime_fromtimestamp(timestamp)
