@@ -117,7 +117,7 @@ up and running:
 
 * cassandra /localhost:9160;
 
-* ejabberd  /localhost:5222;
+* prosody   /localhost:5222;
 
 * redis     /localhost:6379;
 
@@ -129,7 +129,7 @@ Additionally:
 
 3. Use redis with no authentication;
 
-4. Register two ejabberd users:
+4. Register two xmpp users:
 
    a. foobar@localhost (pass: foobar)
 
@@ -139,4 +139,4 @@ GoOd LuCk!
 
 ::
 
-  make -f dev.makefile golden-test
+  make -f dev.makefile test-golden

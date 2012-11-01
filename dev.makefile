@@ -52,12 +52,14 @@ default:
 	@echo
 	@echo "  * compile       Compiles the dmproc code     "
 	@echo
-	@echo "  * test_dmproc   Run dmproc tests             "
+	@echo "  * test-dmproc   Run dmproc tests             "
 	@echo
-	@echo "  * test_server   Run server tests             "
+	@echo "  * test-server   Run server tests             "
 	@echo
 	@echo "  * test          Run all tests                "
-	@echo "==============================================="
+	@echo
+	@echo "  * golden        Run all function tests       "
+	@echo
 
 bootstrap:
 	$(call check_bin,virtualenv,--version)
@@ -104,33 +106,48 @@ clean:
 	$(bin_find) . -type f -name \*.hi -exec rm -f \{\} \;
 	$(bin_find) . -type f -name \*.pyc -exec rm -f \{\} \;
 
-compile_dmtry:
+compile-dmtry:
 	$(call check_bin,ghc,--version)
 	$(call check_bin2,/bin/dash,-c "exit 0")
 	env bin_dash=$(bin_dash) $(bin_ghc) $(ghcargs) -v0 -i$(srcroot)/src/dmproc -threaded -i$(srcroot)/try/dmproc -O2 --make -static -optc-static -optl-static $(srcroot)/try/dmproc/dmtry.hs -optl-pthread
 
-compile_dmproc:
+compile-dmproc:
 	$(call check_bin,ghc,--version)
 	$(bin_ghc) $(ghcargs) -v0 -W -Wall -fforce-recomp -threaded -i$(srcroot)/src/dmproc -O2 --make -static -optc-static -optl-static $(srcroot)/src/dmproc/DarkMatter/dmproc.hs -optl-pthread
 
 compile: compile_dmproc
 	cp -p $(srcroot)/src/dmproc/DarkMatter/dmproc $(srcroot)/usr/bin/dmproc
 
-test_dmproc: compile_dmtry
+test-dmproc: compile_dmtry
 	$(srcroot)/try/dmproc/dmtry
 
-test_server:
+test-server:
 	$(call check_bin,python,-V)
 	env $(pyenv) $(bin_nosetests) $(nosetestsargs) $(srcroot)/try/server
 
-test: test_dmproc test_server
+test: test-dmproc test-server
 
-golden-test:
+test-golden:
 	$(call check_bin,lsof,-v)
 	$(call check_bin,python,-V)
 	$(call check_bin,shelltest,--version)
 	$(call check_bin,twistd,--version)
 	$(call check_bin,socat,-V)
+	@echo "Acceptance testing                 " >&2
+	@echo "==================                 " >&2
+	@echo                                       >&2
+	@echo "Testing with the followign env:    " >&2
+	@echo "---------------------------------- " >&2
+	@echo "  bin_twisted: $(bin_twistd)       " >&2
+	@echo "   bin_python: $(bin_python)       " >&2
+	@echo "    bin_socat: $(bin_socat)        " >&2
+	@echo "     bin_lsof: $(bin_lsof)         " >&2
+	@echo "bin_shelltest: $(bin_shelltest)    " >&2
+	@echo                                       >&2
+	@echo "Using the following leela.cfg:     " >&2
+	@echo "---------------------------------- " >&2
+	@cat $(srcroot)/try/golden/cnf/leela.conf   >&2
+	@echo                                       >&2
 	cd $(srcroot); env bin_twistd=$(bin_twistd) \
                            bin_lsof=$(bin_lsof)     \
                            bin_python=$(bin_python) \
