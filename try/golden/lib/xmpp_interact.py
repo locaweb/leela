@@ -7,6 +7,7 @@ import os
 import time
 import argparse
 import logging
+from leela.server import config
 from twisted.python import usage
 from twisted.python import log
 from twisted.internet import reactor

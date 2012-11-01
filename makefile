@@ -1,6 +1,7 @@
-srcroot=$(CURDIR)
 
-userfile       = $(HOME)/.leela-dev.makefile
+srcroot        = $(CURDIR)
+
+userfile       = $(HOME)/.leela-server.makefile
 
 bin_find       = find
 bin_ghc        = ghc
@@ -9,6 +10,7 @@ bin_cabal      = cabal
 bin_lsof       = lsof
 bin_socat      = socat
 
+bin_which      = which
 bin_twistd     = twistd
 bin_nosetests  = nosetests
 bin_shelltest  = shelltest
@@ -21,30 +23,12 @@ nosetestsargs  =
 ghcargs        =
 shelltestargs  =
 
-check_bin      = @$(bin_$(1)) $(2) >/dev/null 2>/dev/null || {                               \
-                        echo "bin_$(1) not found!!!";                                        \
-                        echo;                                                                \
-                        echo "Use bin_$(1) variable to fix this, as follows: ";              \
-                        echo "  $$ $(MAKE) ... bin_$(1)=/path/to/file";                      \
-                        echo;                                                                \
-                        echo "Additionally, you also change the file:";                      \
-                        echo "  $(userfile)";                                                \
-                        echo;                                                                \
-                        echo "so that it gets remembered next time";                         \
-                        exit 1; }
-
-check_bin2     = @$(1) $(2) >/dev/null 2>/dev/null || {                                      \
-                        echo "$(1) not found!!!";                                            \
-                        echo;                                                                \
-                        exit 1; }
-
-
 -include $(userfile)
 
 default:
 	@echo "dev.makefile                                   "
 	@echo "============                                   "
-	@echo "Helps you performing various developets tasks. "
+	@echo "Helps you performing various development tasks "
 	@echo
 	@echo "  * bootstrap     Bootstrap the dev environment"
 	@echo
@@ -58,16 +42,17 @@ default:
 	@echo
 	@echo "  * test          Run all tests                "
 	@echo
-	@echo "  * golden        Run all function tests       "
+	@echo "  * test-golden   Run all acceptance tests     "
 	@echo
 
 bootstrap:
-	$(call check_bin,virtualenv,--version)
-	$(call check_bin,cabal,--version)
-	$(call check_bin,ghc,--version)
-	$(call check_bin,find,--version)
-	$(call check_bin,lsof,-v)
-	$(call check_bin,socat,-V)
+	$(call check_bin,which)
+	$(call check_bin,virtualenv)
+	$(call check_bin,cabal)
+	$(call check_bin,ghc)
+	$(call check_bin,find)
+	$(call check_bin,lsof)
+	$(call check_bin,socat)
 	echo "bin_nosetests  = $(HOME)/pyenv/leela-server/bin/nosetests"   >$(userfile)
 	echo "bin_virtualenv = $(bin_virtualenv)"                         >>$(userfile)
 	echo "bin_twistd     = $(HOME)/pyenv/leela-server/bin/twistd"     >>$(userfile)
@@ -78,6 +63,7 @@ bootstrap:
 	echo "bin_lsof       = $(bin_lsof)"                               >>$(userfile)
 	echo "bin_find       = $(bin_find)"                               >>$(userfile)
 	echo "bin_socat      = $(bin_socat)"                              >>$(userfile)
+	echo "bin_which      = $(bin_which)"                              >>$(userfile)
 
 	test -d $(HOME)/pyenv/leela-server || $(bin_virtualenv) $(HOME)/pyenv/leela-server
 	$(HOME)/pyenv/leela-server/bin/pip install -q argparse
@@ -101,38 +87,38 @@ bootstrap:
 	$(bin_cabal) install -v0 -O2 shelltestrunner
 
 clean:
-	$(call check_bin,find,--version)
+	$(call check_bin,find)
 	$(bin_find) . -type f -name \*.o -exec rm -f \{\} \;
 	$(bin_find) . -type f -name \*.hi -exec rm -f \{\} \;
 	$(bin_find) . -type f -name \*.pyc -exec rm -f \{\} \;
 
 compile-dmtry:
-	$(call check_bin,ghc,--version)
-	$(call check_bin2,/bin/dash,-c "exit 0")
+	$(call check_bin,ghc)
+	$(call check_bin2,/bin/dash)
 	env bin_dash=$(bin_dash) $(bin_ghc) $(ghcargs) -v0 -i$(srcroot)/src/dmproc -threaded -i$(srcroot)/try/dmproc -O2 --make -static -optc-static -optl-static $(srcroot)/try/dmproc/dmtry.hs -optl-pthread
 
 compile-dmproc:
-	$(call check_bin,ghc,--version)
+	$(call check_bin,ghc)
 	$(bin_ghc) $(ghcargs) -v0 -W -Wall -fforce-recomp -threaded -i$(srcroot)/src/dmproc -O2 --make -static -optc-static -optl-static $(srcroot)/src/dmproc/DarkMatter/dmproc.hs -optl-pthread
 
-compile: compile_dmproc
+compile: compile-dmproc
 	cp -p $(srcroot)/src/dmproc/DarkMatter/dmproc $(srcroot)/usr/bin/dmproc
 
-test-dmproc: compile_dmtry
+test-dmproc: compile-dmtry
 	$(srcroot)/try/dmproc/dmtry
 
 test-server:
-	$(call check_bin,python,-V)
+	$(call check_bin,python)
 	env $(pyenv) $(bin_nosetests) $(nosetestsargs) $(srcroot)/try/server
 
 test: test-dmproc test-server
 
 test-golden:
-	$(call check_bin,lsof,-v)
-	$(call check_bin,python,-V)
-	$(call check_bin,shelltest,--version)
-	$(call check_bin,twistd,--version)
-	$(call check_bin,socat,-V)
+	$(call check_bin,lsof)
+	$(call check_bin,python)
+	$(call check_bin,shelltest)
+	$(call check_bin,twistd)
+	$(call check_bin,socat)
 	@echo "Acceptance testing                 " >&2
 	@echo "==================                 " >&2
 	@echo                                       >&2
@@ -153,3 +139,20 @@ test-golden:
                            bin_python=$(bin_python) \
                            bin_socat=$(bin_socat)   \
                            $(bin_shelltest) $(shelltestargs) -c $(srcroot)/try/golden -- --timeout=10
+
+check_bin      = @(test -x $(bin_$(1)) || $(bin_which) $(bin_$(1)) >/dev/null) || {          \
+                        echo "bin_$(1) not found!!!";                                        \
+                        echo;                                                                \
+                        echo "Use bin_$(1) variable to fix this, as follows: ";              \
+                        echo "  $$ $(MAKE) ... bin_$(1)=/path/to/file";                      \
+                        echo;                                                                \
+                        echo "Additionally, you also change the file:";                      \
+                        echo "  $(userfile)";                                                \
+                        echo;                                                                \
+                        echo "so that it gets remembered next time";                         \
+                        exit 1; }
+
+check_bin2     = @(test -x $(1) || $(bin_which) $(1)) >/dev/null || {                        \
+                        echo "$(1) not found!!!";                                            \
+                        echo;                                                                \
+                        exit 1; }
