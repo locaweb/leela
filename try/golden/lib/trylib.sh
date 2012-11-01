@@ -8,14 +8,15 @@ sockfile=/tmp/try-leela.sock
 
 bin_twistd=${bin_twistd:-twistd}
 bin_python=${bin_python:-python}
+bin_socat=${bin_socat:-socat}
 bin_lsof=${bin_lsof:-lsof}
 
 leela_trylib_xsock_read () {
-  socat UNIX-RECVFROM:$1 STDOUT
+  $bin_socat UNIX-RECVFROM:$1 STDOUT
 }
 
 leela_trylib_xsock_write () {
-  socat STDIN UNIX-SENDTO:$1
+  $bin_socat STDIN UNIX-SENDTO:$1
 }
 
 leela_trylib_wait_xsock () {
@@ -81,7 +82,7 @@ leela_trylib_service_stop () {
 }
 
 leela_trylib_udp_write () {
-  socat -t1  STDIN UDP4-SENDTO:localhost:6968
+  $bin_socat -t1  STDIN UDP4-SENDTO:localhost:6968
 }
 
 leela_trylib_xmpp_interact () {

@@ -7,6 +7,7 @@ bin_ghc        = ghc
 bin_virtualenv = virtualenv
 bin_cabal      = cabal
 bin_lsof       = lsof
+bin_socat      = socat
 
 bin_twistd     = twistd
 bin_nosetests  = nosetests
@@ -26,6 +27,10 @@ check_bin      = @$(bin_$(1)) $(2) >/dev/null 2>/dev/null || {                  
                         echo "Use bin_$(1) variable to fix this, as follows: ";              \
                         echo "  $$ $(MAKE) ... bin_$(1)=/path/to/file";                      \
                         echo;                                                                \
+                        echo "Additionally, you also change the file:";                      \
+                        echo "  $(userfile)";                                                \
+                        echo;                                                                \
+                        echo "so that it gets remembered next time";                         \
                         exit 1; }
 
 check_bin2     = @$(1) $(2) >/dev/null 2>/dev/null || {                                      \
@@ -60,6 +65,7 @@ bootstrap:
 	$(call check_bin,ghc,--version)
 	$(call check_bin,find,--version)
 	$(call check_bin,lsof,-v)
+	$(call check_bin,socat,-V)
 	echo "bin_nosetests  = $(HOME)/pyenv/leela-server/bin/nosetests"   >$(userfile)
 	echo "bin_virtualenv = $(bin_virtualenv)"                         >>$(userfile)
 	echo "bin_twistd     = $(HOME)/pyenv/leela-server/bin/twistd"     >>$(userfile)
@@ -69,6 +75,7 @@ bootstrap:
 	echo "bin_shelltest  = $(HOME)/.cabal/bin/shelltest"              >>$(userfile)
 	echo "bin_lsof       = $(bin_lsof)"                               >>$(userfile)
 	echo "bin_find       = $(bin_find)"                               >>$(userfile)
+	echo "bin_socat      = $(bin_socat)"                              >>$(userfile)
 
 	test -d $(HOME)/pyenv/leela-server || $(bin_virtualenv) $(HOME)/pyenv/leela-server
 	$(HOME)/pyenv/leela-server/bin/pip install -q argparse
@@ -123,7 +130,9 @@ golden-test:
 	$(call check_bin,python,-V)
 	$(call check_bin,shelltest,--version)
 	$(call check_bin,twistd,--version)
+	$(call check_bin,socat,-V)
 	cd $(srcroot); env bin_twistd=$(bin_twistd) \
                            bin_lsof=$(bin_lsof)     \
                            bin_python=$(bin_python) \
+                           bin_socat=$(bin_socat)   \
                            $(bin_shelltest) $(shelltestargs) -c $(srcroot)/try/golden -- --timeout=10
