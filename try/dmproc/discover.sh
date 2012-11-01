@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/dash
 
 spec_files () {
   find . -type f -name \*Spec.hs
@@ -38,9 +38,10 @@ imports
 specs
 
 [ -n "$3" ] && exec >$3
-echo "module Main (main) where\n"
+echo "module Main (main) where"
 echo
 echo "$imports"
 echo
 echo "main :: IO ()"
 echo "main = $specs"
+

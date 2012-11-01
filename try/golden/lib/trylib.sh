@@ -1,13 +1,13 @@
 #!/bin/sh
 
 srcroot=${srcroot:-$(pwd)}
-pidfile=${pidfile:-/tmp/try-leela.pid}
-logfile=${logfile:-/tmp/try-leela.log}
-dbusfile=${dbusfile:-/tmp/try-leela.dbus}
-sockfile=${sockfile:-/tmp/try-leela.sock}
+pidfile=/tmp/try-leela.pid
+logfile=/tmp/try-leela.log
+dbusfile=/tmp/try-leela.dbus
+sockfile=/tmp/try-leela.sock
 
-bin_twistd=${bin_twistd:-$HOME/pyenv/leela-server/bin/twistd}
-bin_python=${bin_python:-$HOME/pyenv/leela-server/bin/python}
+bin_twistd=${bin_twistd:-twistd}
+bin_python=${bin_python:-python}
 bin_lsof=${bin_lsof:-lsof}
 
 leela_trylib_xsock_read () {
