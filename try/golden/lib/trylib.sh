@@ -8,6 +8,7 @@ sockfile=/tmp/try-leela.sock
 
 http_endpoint=http://127.0.0.1:4080
 
+bin_dmproc=${bin_dmproc:-./src/dmproc/DarkMatter/dmproc}
 bin_twistd=${bin_twistd:-twistd}
 bin_python=${bin_python:-python}
 bin_socat=${bin_socat:-socat}
@@ -72,7 +73,7 @@ leela_trylib_dmproc_stop () {
 leela_trylib_dmproc_start () {
   rm -f $dbusfile
   rm -f $sockfile
-  ./usr/bin/dmproc $dbusfile $sockfile &
+  $bin_dmproc $dbusfile $sockfile &
   echo -n "$!" >$pidfile
   leela_trylib_wait_file $dbusfile
   leela_trylib_wait_file $sockfile
