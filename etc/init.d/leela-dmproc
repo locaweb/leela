@@ -6,18 +6,19 @@
 # Required-Stop:
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Collect and chart anything
+# Short-Description: Distributed, real time event processor and monitoring engine
 ### END INIT INFO
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
+FSROOT=${FSROOT:-/}
 DAEMON=/usr/bin/dmproc
 PIDFILE=/var/run/leela/dmproc.pid
 LOGFILE=/var/log/leela/dmproc.log
 
-[ -x "$DAEMON" ]                    || exit 0
-[ -r /etc/default/leela-dmproc ]    && . /etc/default/leela-dmproc
-[ -r /lib/lsb/init-functions ]      && . /lib/lsb/init-functions
-[ -r /usr/libexec/leela-functions ] && . /usr/libexec/leela-functions
+[ -x "$DAEMON" ]                            || exit 0
+[ -r lib/lsb/init-functions ]               && . /lib/lsb/init-functions
+[ -r ${FSROOT}etc/default/leela-dmproc ]    && . ${FSROOT}etc/default/leela-dmproc
+[ -r ${FSROOT}usr/libexec/leela-functions ] && . ${FSROOT}usr/libexec/leela-functions
 
 start_service() {
   pipefile=${DMPROC_DATABUS:-/var/run/leela/dmproc-databus}
