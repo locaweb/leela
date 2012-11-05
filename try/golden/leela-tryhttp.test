@@ -1,8 +1,12 @@
 # syntax: http://hub.darcs.net/simon/shelltestrunner
 
-./try/golden/lib/run leela_tryhttp_write_to_socket_and_read_http /v1/past24/foobar
+./try/golden/lib/run leela_tryhttp_read_http /v1/past24/foobar
+>>>
+{"error": 404, "message": "not found"}
+>>>= 0
+
+./try/golden/lib/run leela_tryhttp_read_http /v1/past24/foobar
 <<<
 foobar: 0.75
->>>
-{"results": {"foobar": {"series": [[0, 0.75]]}}}
+>>>/{"results": {"foobar": {"series": [[\d+, 0.75]]}}}/
 >>>= 0

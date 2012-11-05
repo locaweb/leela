@@ -96,6 +96,8 @@ clean:
 	$(bin_find) . -type f -name \*.o -exec rm -f \{\} \;
 	$(bin_find) . -type f -name \*.hi -exec rm -f \{\} \;
 	$(bin_find) . -type f -name \*.pyc -exec rm -f \{\} \;
+	$(bin_find) . -type f -name \*.hi -exec rm -f \{\} \;
+	rm -f ./src/dmproc/DarkMatter/dmproc
 
 compile-dmtry:
 	$(call check_bin,ghc)
