@@ -1,0 +1,7 @@
+argparse
+twisted
+wokkel
+thrift
+https://github.com/driftx/Telephus/tarball/releases/1.0.0_beta1
+txredisapi
+cyclone

@@ -70,13 +70,7 @@ bootstrap:
 	echo "bin_curl       = $(bin_curl)"                               >>$(userfile)
 
 	test -d $(HOME)/pyenv/leela-server || $(bin_virtualenv) $(HOME)/pyenv/leela-server
-	$(HOME)/pyenv/leela-server/bin/pip install -q argparse
-	$(HOME)/pyenv/leela-server/bin/pip install -q twisted
-	$(HOME)/pyenv/leela-server/bin/pip install -q wokkel
-	$(HOME)/pyenv/leela-server/bin/pip install -q thrift
-	$(HOME)/pyenv/leela-server/bin/pip install -q https://github.com/driftx/Telephus/tarball/releases/1.0.0_beta1
-	$(HOME)/pyenv/leela-server/bin/pip install -q txredisapi
-	$(HOME)/pyenv/leela-server/bin/pip install -q cyclone
+	$(HOME)/pyenv/leela-server/bin/pip install -q -r $(srcroot)/PYDEPS.txt
 	$(HOME)/pyenv/leela-server/bin/pip install -q nose
 	$(HOME)/pyenv/leela-server/bin/pip install -q mock
 
