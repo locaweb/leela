@@ -16,12 +16,25 @@
 #    limitations under the License.
 #
 
-import cyclone.web
-from twisted.application import service
-from leela.server import logger
+from twisted.internet import defer
+from cyclone import web
+from leela.server.network import webhandler
+from leela.server.data import event
 
-class HttpProto(cyclone.web.RequestHandler):
+def render_series(events):
+    results = []
+    for e in events:
+        results.append([e.unixtimestamp(), e.value()])
+    return(results)
 
-    def __init__(self):
-        pass
+class Past24(webhandler.LeelaWebHandler):
 
+    @web.asynchronous
+    @defer.inlineCallbacks
+    def get(self, key):
+        events = yield event.Event.load_past24(self.storage, key)
+        if (events == []):
+            raise(web.HTTPError(404))
+        self.finish({"status": 200,
+                     "results": {key: {"series": render_series(events)}}
+                    })

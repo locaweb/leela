@@ -16,14 +16,21 @@
 #    limitations under the License.
 #
 
-import cyclone.web
-from twisted.internet import reactor
+from cyclone import web
 from twisted.application import service
 from twisted.application import internet
+from leela.server.network import cassandra_proto
 from leela.server.network import http_proto
+from leela.server.network import webhandler
 
 def http_service(cfg):
-    app = cyclone.web.Application([ (r"/", http_proto.HttpProto())
-                                  ])
-    srv = internet.TCPServer(cfg.getint("http", "port"), app, interface=cfg.get("http", "address"))
-    return(service.IService(srv))
+    sto = cassandra_proto.CassandraProto(cfg)
+    app = web.Application([ (r"/v1/past24/(.*)", http_proto.Past24, {"storage": sto}),
+                            (r".*"             , webhandler.Always404)
+                          ])
+    srv = service.MultiService()
+    srv.addService(service.IService(internet.TCPServer(cfg.getint("http", "port"),
+                                                       app,
+                                                       interface=cfg.get("http", "address"))))
+    srv.addService(sto)
+    return(srv)

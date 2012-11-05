@@ -12,6 +12,8 @@ bin_cabal      = cabal
 bin_lsof       = lsof
 bin_socat      = socat
 bin_curl       = curl
+bin_date       = date
+bin_sed        = sed
 
 bin_twistd     = twistd
 bin_nosetests  = nosetests
@@ -56,6 +58,8 @@ bootstrap:
 	$(call check_bin,lsof)
 	$(call check_bin,socat)
 	$(call check_bin,curl)
+	$(call check_bin,date)
+	$(call check_bin,sed)
 	echo "bin_nosetests  = $(HOME)/pyenv/leela-server/bin/nosetests"   >$(userfile)
 	echo "bin_virtualenv = $(bin_virtualenv)"                         >>$(userfile)
 	echo "bin_twistd     = $(HOME)/pyenv/leela-server/bin/twistd"     >>$(userfile)
@@ -68,6 +72,8 @@ bootstrap:
 	echo "bin_socat      = $(bin_socat)"                              >>$(userfile)
 	echo "bin_which      = $(bin_which)"                              >>$(userfile)
 	echo "bin_curl       = $(bin_curl)"                               >>$(userfile)
+	echo "bin_date       = $(bin_date)"                               >>$(userfile)
+	echo "bin_sed        = $(bin_sed)"                                 >>$(userfile)
 
 	test -d $(HOME)/pyenv/leela-server || $(bin_virtualenv) $(HOME)/pyenv/leela-server
 	$(HOME)/pyenv/leela-server/bin/pip install -q -r $(srcroot)/PYDEPS.txt
@@ -121,6 +127,8 @@ test-golden:
 	$(call check_bin,twistd)
 	$(call check_bin,socat)
 	$(call check_bin,curl)
+	$(call check_bin,date)
+	$(call check_bin,sed)
 	@echo "Acceptance testing                 " >&2
 	@echo "==================                 " >&2
 	@echo                                       >&2
@@ -132,6 +140,8 @@ test-golden:
 	@echo "     bin_lsof: $(bin_lsof)         " >&2
 	@echo "bin_shelltest: $(bin_shelltest)    " >&2
 	@echo "     bin_curl: $(bin_curl)         " >&2
+	@echo "     bin_date: $(bin_date)         " >&2
+	@echo "      bin_sed: $(bin_sed)          " >&2
 	@echo                                       >&2
 	@echo "Using the following leela.cfg:     " >&2
 	@echo "---------------------------------- " >&2
@@ -142,6 +152,8 @@ test-golden:
                            bin_python=$(bin_python) \
                            bin_socat=$(bin_socat)   \
                            bin_curl=$(bin_curl)     \
+                           bin_sed=$(bin_sed)       \
+                           bin_date=$(bin_date)     \
                            $(bin_shelltest) $(shelltestargs) -c $(srcroot)/try/golden -- --timeout=10
 
 check_bin      = @(test -x $(bin_$(1)) || $(bin_which) $(bin_$(1)) >/dev/null) || {          \

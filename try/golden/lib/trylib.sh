@@ -13,6 +13,9 @@ bin_twistd=${bin_twistd:-twistd}
 bin_python=${bin_python:-python}
 bin_socat=${bin_socat:-socat}
 bin_lsof=${bin_lsof:-lsof}
+bin_curl=${bin_curl:-curl}
+bin_date=${bin_date:-date}
+bin_sed=${bin_sed:-sed}
 
 leela_trylib_xsock_read () {
   $bin_socat UNIX-RECVFROM:$1 STDOUT
@@ -89,7 +92,7 @@ leela_trylib_udp_write () {
 }
 
 leela_trylib_curl () {
-  $bin_curl "$@"
+  $bin_curl -s "$@"; echo
 }
 
 leela_trylib_xmpp_interact () {

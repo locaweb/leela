@@ -9,7 +9,7 @@ exec 2>>/tmp/try-leela.stderr
 . ./try/golden/lib/tryhttp.sh
 . ./try/golden/lib/trystorage.sh
 
-test -f $pidfile && kill $(cat $pidfile)
+test -f $pidfile && { kill $(cat $pidfile); sleep 1; }
 rm -f $sockfile $dbusfile
 
 "$@"

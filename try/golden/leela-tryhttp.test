@@ -1,12 +1,13 @@
 # syntax: http://hub.darcs.net/simon/shelltestrunner
 
-./try/golden/lib/run leela_tryhttp_read_http /v1/past24/foobar
+./try/golden/lib/run leela_tryhttp_read_http /not_found
 >>>
-{"error": 404, "message": "not found"}
+{"reason": "Not Found", "status": 404}
 >>>= 0
 
-./try/golden/lib/run leela_tryhttp_read_http /v1/past24/foobar
+./try/golden/lib/run leela_tryhttp_write_to_socket_and_read_http /v1/past24/foobar
 <<<
-foobar: 0.75
->>>/{"results": {"foobar": {"series": [[\d+, 0.75]]}}}/
+event 6|foobar __NOWUXTIME__ 0.75;
+>>>
+{"results": {"foobar": {"series": [[__NOWUXTIME__, 0.75]]}}, "status": 200}
 >>>= 0
