@@ -6,6 +6,8 @@ logfile=/tmp/try-leela.log
 dbusfile=/tmp/try-leela.dbus
 sockfile=/tmp/try-leela.sock
 
+http_endpoint=http://127.0.0.1:4080
+
 bin_twistd=${bin_twistd:-twistd}
 bin_python=${bin_python:-python}
 bin_socat=${bin_socat:-socat}
@@ -83,6 +85,10 @@ leela_trylib_service_stop () {
 
 leela_trylib_udp_write () {
   $bin_socat -t1  STDIN UDP4-SENDTO:localhost:6968
+}
+
+leela_trylib_curl () {
+  $bin_curl "$@"
 }
 
 leela_trylib_xmpp_interact () {

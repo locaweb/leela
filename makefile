@@ -3,14 +3,16 @@ srcroot        = $(CURDIR)
 
 userfile       = $(HOME)/.leela-server.makefile
 
+bin_which      = which
+
 bin_find       = find
 bin_ghc        = ghc
 bin_virtualenv = virtualenv
 bin_cabal      = cabal
 bin_lsof       = lsof
 bin_socat      = socat
+bin_curl       = curl
 
-bin_which      = which
 bin_twistd     = twistd
 bin_nosetests  = nosetests
 bin_shelltest  = shelltest
@@ -53,6 +55,7 @@ bootstrap:
 	$(call check_bin,find)
 	$(call check_bin,lsof)
 	$(call check_bin,socat)
+	$(call check_bin,curl)
 	echo "bin_nosetests  = $(HOME)/pyenv/leela-server/bin/nosetests"   >$(userfile)
 	echo "bin_virtualenv = $(bin_virtualenv)"                         >>$(userfile)
 	echo "bin_twistd     = $(HOME)/pyenv/leela-server/bin/twistd"     >>$(userfile)
@@ -64,6 +67,7 @@ bootstrap:
 	echo "bin_find       = $(bin_find)"                               >>$(userfile)
 	echo "bin_socat      = $(bin_socat)"                              >>$(userfile)
 	echo "bin_which      = $(bin_which)"                              >>$(userfile)
+	echo "bin_curl       = $(bin_curl)"                               >>$(userfile)
 
 	test -d $(HOME)/pyenv/leela-server || $(bin_virtualenv) $(HOME)/pyenv/leela-server
 	$(HOME)/pyenv/leela-server/bin/pip install -q argparse
@@ -120,6 +124,7 @@ test-golden:
 	$(call check_bin,shelltest)
 	$(call check_bin,twistd)
 	$(call check_bin,socat)
+	$(call check_bin,curl)
 	@echo "Acceptance testing                 " >&2
 	@echo "==================                 " >&2
 	@echo                                       >&2
@@ -130,6 +135,7 @@ test-golden:
 	@echo "    bin_socat: $(bin_socat)        " >&2
 	@echo "     bin_lsof: $(bin_lsof)         " >&2
 	@echo "bin_shelltest: $(bin_shelltest)    " >&2
+	@echo "     bin_curl: $(bin_curl)         " >&2
 	@echo                                       >&2
 	@echo "Using the following leela.cfg:     " >&2
 	@echo "---------------------------------- " >&2
@@ -139,6 +145,7 @@ test-golden:
                            bin_lsof=$(bin_lsof)     \
                            bin_python=$(bin_python) \
                            bin_socat=$(bin_socat)   \
+                           bin_curl=$(bin_curl)     \
                            $(bin_shelltest) $(shelltestargs) -c $(srcroot)/try/golden -- --timeout=10
 
 check_bin      = @(test -x $(bin_$(1)) || $(bin_which) $(bin_$(1)) >/dev/null) || {          \
