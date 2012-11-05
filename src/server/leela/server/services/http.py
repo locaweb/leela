@@ -18,22 +18,12 @@
 
 import cyclone.web
 from twisted.internet import reactor
-from leela.server import logger
+from twisted.application import service
+from twisted.application import internet
 from leela.server.network import http_proto
-from twisted.application import service, internet
 
-class HttpService(service.Service):
-
-    def __init__(self, cfg):
-        self.cfg = cfg
-        self.webapp = cyclone.web.Application([ (r"/", http_proto.HttpProto()) ])
-
-    def startService(self):
-        logger.warn("starting http service")
-        application = service.Application("http")
-        server = internet.TCPServer(self.cfg.get("port"), self.webapp, interface=self.cfg.get("host"))
-        server.setServiceParent(application)
-
-    def stopService(self):
-        logger.warn("stoppping http service")
-        service.Service.stopService(self)
+def http_service(cfg):
+    app = cyclone.web.Application([ (r"/", http_proto.HttpProto())
+                                  ])
+    srv = internet.TCPServer(cfg.getint("http", "port"), app, interface=cfg.get("http", "address"))
+    return(service.IService(srv))

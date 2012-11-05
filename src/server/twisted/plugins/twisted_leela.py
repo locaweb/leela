@@ -26,6 +26,7 @@ from wokkel.client import XMPPClient
 from wokkel.xmppim import JID
 from leela.server.services import xmpp
 from leela.server.services import storage
+from leela.server.services import http
 from leela.server.services import udp
 from leela.server import logger
 from leela.server import config
@@ -41,7 +42,7 @@ def read_env(envstr):
 
 class LeelaOption(usage.Options):
     optParameters = [ ["config"   , "", config.default_config_file(), "Leela config file to use"                             ],
-                      ["service"  , "", "xmpp"                      , "What leela service to start (xmpp|storage|udp)"       ],
+                      ["service"  , "", "xmpp"                      , "What leela service to start (xmpp|storage|udp|http)"  ],
                       ["log-level", "", "warn"                      , "The log level (debug|info|warn|error)"                ],
                       ["setenv"   , "", ""                          , "Provides options to the service (e.g. setenv=a:b,b:c)"]
                     ]
@@ -78,6 +79,9 @@ class LeelaServiceMk(object):
     def udp_service(self, cfg, env):
         return(udp.UdpService(cfg))
 
+    def http_service(self, cfg, env):
+        return(http.http_service(cfg))
+
     def makeService(self, options):
         logmap = {"debug": logger.DEBUG,
                   "info": logger.INFO,
@@ -93,6 +97,8 @@ class LeelaServiceMk(object):
             return(self.storage_service(cfg, env))
         elif (options["service"] == "udp"):
             return(self.udp_service(cfg, env))
+        elif (options["service"] == "http"):
+            return(self.http_service(cfg, env))
         else:
             raise(RuntimeError("error: unknown service"))
 
