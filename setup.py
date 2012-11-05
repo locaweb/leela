@@ -3,6 +3,7 @@
 import os
 import sys
 from distutils.core import setup
+from distutils import log
 
 def find_packages(root, path_f):
     result = []
@@ -41,7 +42,8 @@ setup(
 # because in a site-wide install, dropin.cache cannot be rewritten by
 # normal users.
 try:
+    from leela.server.services import *
     from twisted.plugin import IPlugin, getPlugins
     list(getPlugins(IPlugin))
-except ImportError:
-    pass
+except:
+    log.warn("[WARN] Failed to update Twisted plugin cache")
