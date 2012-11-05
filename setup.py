@@ -26,7 +26,7 @@ datafiles += find_datafiles("./usr", lambda f: f[2:])
 
 setup(
     name               = "leela-server",
-    version            = "1.0.0",
+    version            = "2.0.0",
     description        = "Collect, Monitor and Analyze anything - server module",
     author             = "Juliano Martinez, Diego Souza",
     author_email       = "juliano@martinez.io",

@@ -84,5 +84,5 @@ check_environ
 echo "version: $version"
 update_version "$leela_root/README.rst"
 update_version "$leela_root/setup.py"
-write_pyversion "$leela_root/src/leela/server/version.py"
+write_pyversion "$leela_root/src/server/leela/server/version.py"
 

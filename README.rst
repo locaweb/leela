@@ -14,6 +14,13 @@ Documentation
 
 * http://leela.rtfd.org/
 
+Installing from source
+======================
+::
+
+  $ pip install -r https://raw.github.com/locaweb/leela-server/master/PYDEPS.txt
+  $ pip install https://github.com/locaweb/leela-server/archive/v2.0.0.tar.gz
+
 API Stability
 =============
 
@@ -28,7 +35,7 @@ API Stability
 Version
 =======
 
-* $version 1.0.0$
+* $version 2.0.0$
 
 License
 =======
