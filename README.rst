@@ -16,10 +16,13 @@ Documentation
 
 Installing from source
 ======================
+
+unstable
+--------
 ::
 
   $ pip install -r https://raw.github.com/locaweb/leela-server/master/PYDEPS.txt
-  $ pip install https://github.com/locaweb/leela-server/archive/v2.0.0.tar.gz
+  $ pip install https://github.com/locaweb/leela-server/archive/master.tar.gz
 
 API Stability
 =============
