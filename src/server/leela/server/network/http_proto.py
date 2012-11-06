@@ -20,8 +20,6 @@ from twisted.internet import defer
 from cyclone import web
 from leela.server.network import webhandler
 from leela.server.data import event
-import re
-import datetime
 
 def render_series(events):
     results = []
@@ -45,6 +43,29 @@ class PastWeek(webhandler.LeelaWebHandler):
     @defer.inlineCallbacks
     def get(self, key):
         events = yield event.Event.load_pastweek(self.storage, key)
+        if (events == []):
+            raise(web.HTTPError(404))
+        self.finish({"status": 200,
+                     "results": {key: {"series": render_series(events)}}
+                    })
+
+class Range(webhandler.LeelaWebHandler):
+    @web.asynchronous
+    @defer.inlineCallbacks
+    def get(self, key):
+        start = self.get_argument("start")
+        finish = self.get_argument("finish")
+        ys =   int(start[:4], 10)
+        ms =   int(start[4:6], 10)
+        ds =   int(start[6:8], 10)
+        hs =   int(start[9:11], 10)
+        mins = int(start[11:], 10)
+        yf =   int(finish[:4], 10)
+        mf =   int(finish[4:6], 10)
+        df =   int(finish[6:8], 10)
+        hf =   int(finish[9:11], 10)
+        minf = int(finish[11:], 10)
+        events = yield event.Event.load_range(self.storage, key, ys, ms, ds, hs, mins, yf, mf, df, hf, minf)
         if (events == []):
             raise(web.HTTPError(404))
         self.finish({"status": 200,

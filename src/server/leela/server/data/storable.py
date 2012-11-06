@@ -17,8 +17,6 @@
 
 import collections
 import time
-from twisted.internet import defer
-from datetime import datetime
 from datetime import timedelta
 from leela.server import funcs
 
@@ -30,6 +28,12 @@ class Storable(object):
     @classmethod
     def kind(self):
         raise(RuntimeError("abstract method"))
+
+    @classmethod
+    def load_range(self, storage, k, ys, ms, ds, hs, mins, yf, mf, df, hf, minf):
+        start  = Timestamp._make((ys, ms, ds, hs, mins, 0))
+        finish = Timestamp._make((yf, mf, df, hf, minf, 60))
+        return(storage.load(self.kind(), k, start, finish, 60*60))
 
     @classmethod
     def load_time(self, storage, k, y, m, d, h):
