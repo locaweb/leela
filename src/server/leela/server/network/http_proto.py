@@ -54,14 +54,11 @@ class PastWeek(webhandler.LeelaWebHandler):
 class YearMonthDay(webhandler.LeelaWebHandler):
     @web.asynchronous
     @defer.inlineCallbacks
-    def get(self, key):
-        uri_date = re.search(r'(\d{4}/\d{2}/\d{2})',self.request.uri)
-        try:
-            date = datetime.datetime.strptime(uri_date.group(1),"%Y/%m/%d")
-        except ValueError:
-            raise(web.HTTPError(404))
-
-        events = yield event.Event.load_day(self.storage, key, date.year, date.month, date.day)
+    def get(self, year, month, day, key):
+        year = int(year, 10)
+        month = int(month, 10)
+        day = int(day, 10)
+        events = yield event.Event.load_day(self.storage, key, year, month, day)
         if (events == []):
             raise(web.HTTPError(404))
         self.finish({"status": 200,
@@ -71,14 +68,10 @@ class YearMonthDay(webhandler.LeelaWebHandler):
 class YearMonth(webhandler.LeelaWebHandler):
     @web.asynchronous
     @defer.inlineCallbacks
-    def get(self, key):
-        uri_date = re.search(r'(\d{4}/\d{2})',self.request.uri)
-        try:
-            date = datetime.datetime.strptime(uri_date.group(1),"%Y/%m")
-        except ValueError:
-            raise(web.HTTPError(404))
-
-        events = yield event.Event.load_month(self.storage, key, date.year, date.month)
+    def get(self, year, month, key):
+        year = int(year, 10)
+        month = int(month, 10)
+        events = yield event.Event.load_month(self.storage, key, year, month)
         if (events == []):
             raise(web.HTTPError(404))
         self.finish({"status": 200,

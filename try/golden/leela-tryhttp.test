@@ -1,5 +1,12 @@
 # syntax: http://hub.darcs.net/simon/shelltestrunner
 
+./try/golden/lib/run leela_tryhttp_write_to_socket_and_read_http /v1/2012/foobar
+<<<
+event 6|foobar 1352220178.0 0.75;
+>>>
+{"reason": "Not Found", "status": 404}
+>>>= 0
+
 ./try/golden/lib/run leela_tryhttp_read_http /not_found
 >>>
 {"reason": "Not Found", "status": 404}
@@ -21,7 +28,14 @@ event 6|foobar __NOWUXTIME__ 0.75;
 
 ./try/golden/lib/run leela_tryhttp_write_to_socket_and_read_http /v1/2012/11/06/foobar
 <<<
-event 6|foobar __NOWUXTIME__ 0.75;
+event 6|foobar 1352220178.0 0.75;
 >>>
-{"results": {"foobar": {"series": [[__NOWUXTIME__, 0.75]]}}, "status": 200}
+{"results": {"foobar": {"series": [[1352220178, 0.75]]}}, "status": 200}
+>>>= 0
+
+./try/golden/lib/run leela_tryhttp_write_to_socket_and_read_http /v1/2012/11/foobar
+<<<
+event 6|foobar 1352220178.0 0.75;
+>>>
+{"results": {"foobar": {"series": [[1352220178, 0.75]]}}, "status": 200}
 >>>= 0
