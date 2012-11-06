@@ -34,13 +34,11 @@ class LeelaWebHandler(web.RequestHandler):
 
     def _write_debug(self, chunk):
         if (isinstance(chunk, dict)):
-            debug = {}
             if (isinstance(chunk.get("debug"), dict)):
                 debug = dict(chunk["debug"])
-            if (self.request.query):
-                debug["request_uri"] = "%s?%s" % (self.request.uri, self.request.query)
             else:
-                debug["request_uri"] = self.request.uri
+                debug = {}
+            debug["request_uri"]  = self.request.uri
             debug["request_time"] = self.walltime()
             if (self.get_argument("debug", None) is None):
                 if ("debug" in chunk):
