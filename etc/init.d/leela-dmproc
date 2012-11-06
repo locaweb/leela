@@ -14,9 +14,11 @@ FSROOT=${FSROOT:-/}
 DAEMON=/usr/bin/dmproc
 PIDFILE=/var/run/leela/dmproc.pid
 LOGFILE=/var/log/leela/dmproc.log
+USER=leela
+GROUP=leela
 
 [ -x "$DAEMON" ]                            || exit 0
-[ -r lib/lsb/init-functions ]               && . /lib/lsb/init-functions
+[ -r /lib/lsb/init-functions ]              && . /lib/lsb/init-functions
 [ -r ${FSROOT}etc/default/leela-dmproc ]    && . ${FSROOT}etc/default/leela-dmproc
 [ -r ${FSROOT}usr/libexec/leela-functions ] && . ${FSROOT}usr/libexec/leela-functions
 
@@ -24,7 +26,7 @@ start_service() {
   pipefile=${DMPROC_DATABUS:-/var/run/leela/dmproc-databus}
   sockfile=${DMPROC_SOCKET:-/var/run/leela/dmproc}
   log_daemon_msg "starting $DAEMON"
-  start-stop-daemon -N-5 -Sq -p $PIDFILE -x /usr/bin/daemon -- -u leela:leela $DAEMON_OPTS -F $PIDFILE -o $LOGFILE -- $DAEMON +RTS -N${DMPROC_THREADS} -RTS -vvv $pipefile $sockfile
+  start-stop-daemon -N-5 -Sq -p $PIDFILE -x /usr/bin/daemon -- -u $USER:$GROUP $DAEMON_OPTS -F $PIDFILE -o $LOGFILE -- $DAEMON +RTS -N${DMPROC_THREADS} -RTS -vvv $pipefile $sockfile
   log_end_msg $?
 }
 
