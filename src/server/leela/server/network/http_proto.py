@@ -20,6 +20,8 @@ from twisted.internet import defer
 from cyclone import web
 from leela.server.network import webhandler
 from leela.server.data import event
+import re
+import datetime
 
 def render_series(events):
     results = []
@@ -28,11 +30,55 @@ def render_series(events):
     return(results)
 
 class Past24(webhandler.LeelaWebHandler):
-
     @web.asynchronous
     @defer.inlineCallbacks
     def get(self, key):
         events = yield event.Event.load_past24(self.storage, key)
+        if (events == []):
+            raise(web.HTTPError(404))
+        self.finish({"status": 200,
+                     "results": {key: {"series": render_series(events)}}
+                    })
+
+class PastWeek(webhandler.LeelaWebHandler):
+    @web.asynchronous
+    @defer.inlineCallbacks
+    def get(self, key):
+        events = yield event.Event.load_pastweek(self.storage, key)
+        if (events == []):
+            raise(web.HTTPError(404))
+        self.finish({"status": 200,
+                     "results": {key: {"series": render_series(events)}}
+                    })
+
+class YearMonthDay(webhandler.LeelaWebHandler):
+    @web.asynchronous
+    @defer.inlineCallbacks
+    def get(self, key):
+        uri_date = re.search(r'(\d{4}/\d{2}/\d{2})',self.request.uri)
+        try:
+            date = datetime.datetime.strptime(uri_date.group(1),"%Y/%m/%d")
+        except ValueError:
+            raise(web.HTTPError(404))
+
+        events = yield event.Event.load_day(self.storage, key, date.year, date.month, date.day)
+        if (events == []):
+            raise(web.HTTPError(404))
+        self.finish({"status": 200,
+                     "results": {key: {"series": render_series(events)}}
+                    })
+
+class YearMonth(webhandler.LeelaWebHandler):
+    @web.asynchronous
+    @defer.inlineCallbacks
+    def get(self, key):
+        uri_date = re.search(r'(\d{4}/\d{2})',self.request.uri)
+        try:
+            date = datetime.datetime.strptime(uri_date.group(1),"%Y/%m")
+        except ValueError:
+            raise(web.HTTPError(404))
+
+        events = yield event.Event.load_month(self.storage, key, date.year, date.month)
         if (events == []):
             raise(web.HTTPError(404))
         self.finish({"status": 200,

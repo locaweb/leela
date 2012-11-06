@@ -26,7 +26,10 @@ from leela.server.network import webhandler
 def http_service(cfg):
     sto = cassandra_proto.CassandraProto(cfg)
     app = web.Application([ (r"/v1/past24/(.*)", http_proto.Past24, {"storage": sto}),
-                            (r".*"             , webhandler.Always404)
+                            (r"/v1/pastweek/(.*)", http_proto.PastWeek, {"storage": sto}),
+                            (r"/v1/(/^\d+$/)/(/^\d+$/)/(/^\d+$/)/(.*)", http_proto.YearMonthDay, {"storage": sto}),
+                            (r"/v1/(/^\d+$/)/(/^\d+$/)/(.*)", http_proto.YearMonth, {"storage": sto}),
+                            (r".*", webhandler.Always404)
                           ])
     srv = service.MultiService()
     srv.addService(service.IService(internet.TCPServer(cfg.getint("http", "port"),

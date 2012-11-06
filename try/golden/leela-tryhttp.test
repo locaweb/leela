@@ -11,3 +11,17 @@ event 6|foobar __NOWUXTIME__ 0.75;
 >>>
 {"results": {"foobar": {"series": [[__NOWUXTIME__, 0.75]]}}, "status": 200}
 >>>= 0
+
+./try/golden/lib/run leela_tryhttp_write_to_socket_and_read_http /v1/pastweek/foobar
+<<<
+event 6|foobar __NOWUXTIME__ 0.75;
+>>>
+{"results": {"foobar": {"series": [[__NOWUXTIME__, 0.75]]}}, "status": 200}
+>>>= 0
+
+./try/golden/lib/run leela_tryhttp_write_to_socket_and_read_http /v1/2012/11/06/foobar
+<<<
+event 6|foobar __NOWUXTIME__ 0.75;
+>>>
+{"results": {"foobar": {"series": [[__NOWUXTIME__, 0.75]]}}, "status": 200}
+>>>= 0
