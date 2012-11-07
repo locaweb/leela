@@ -29,8 +29,9 @@ class LeelaWebHandler(web.RequestHandler):
     no_keep_alive = True
     no_xsrf       = True
 
-    def initialize(self, storage=None):
+    def initialize(self, storage=None, class_data=None):
         self.storage = storage
+        self.class_data = class_data
 
     def _write_debug(self, chunk):
         if (isinstance(chunk, dict)):

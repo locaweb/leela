@@ -22,14 +22,21 @@ from twisted.application import internet
 from leela.server.network import cassandra_proto
 from leela.server.network import http_proto
 from leela.server.network import webhandler
+from leela.server.data import event
+from leela.server.data import data
 
 def http_service(cfg):
     sto = cassandra_proto.CassandraProto(cfg)
-    app = web.Application([ (r"^/v1/past24/(.*)", http_proto.Past24, {"storage": sto}),
-                            (r"^/v1/pastweek/(.*)", http_proto.PastWeek, {"storage": sto}),
-                            (r"^/v1/range/(.*)", http_proto.Range, {"storage": sto}),
-                            (r"^/v1/(\d+)/(\d+)/(\d+)/(.*)", http_proto.YearMonthDay, {"storage": sto}),
-                            (r"^/v1/(\d+)/(\d+)/(.*)", http_proto.YearMonth, {"storage": sto}),
+    app = web.Application([ (r"^/v1/past24/(.*)", http_proto.Past24, {"storage": sto, "class_data": event.Event}),
+                            (r"^/v1/pastweek/(.*)", http_proto.PastWeek, {"storage": sto, "class_data": event.Event}),
+                            (r"^/v1/range/(.*)", http_proto.Range, {"storage": sto, "class_data": event.Event}),
+                            (r"^/v1/(\d+)/(\d+)/(\d+)/(.*)", http_proto.YearMonthDay, {"storage": sto, "class_data": event.Event}),
+                            (r"^/v1/(\d+)/(\d+)/(.*)", http_proto.YearMonth, {"storage": sto, "class_data": event.Event}),
+                            (r"^/v1/data/past24/(.*)", http_proto.Past24, {"storage": sto, "class_data": data.Data}),
+                            (r"^/v1/data/pastweek/(.*)", http_proto.PastWeek, {"storage": sto, "class_data": data.Data}),
+                            (r"^/v1/data/range/(.*)", http_proto.Range, {"storage": sto, "class_data": data.Data}),
+                            (r"^/v1/data/(\d+)/(\d+)/(\d+)/(.*)", http_proto.YearMonthDay, {"storage": sto, "class_data": data.Data}),
+                            (r"^/v1/data/(\d+)/(\d+)/(.*)", http_proto.YearMonth, {"storage": sto, "class_data": data.Data}),
                             (r".*", webhandler.Always404)
                           ])
     srv = service.MultiService()
