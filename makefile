@@ -26,6 +26,7 @@ hsenv          = PATH=$$PATH:$(HOME)/.cabal/bin
 nosetestsargs  =
 ghcargs        =
 shelltestargs  =
+shelltestpath  = $(srcroot)/try/golden
 
 -include $(userfile)
 
@@ -154,7 +155,10 @@ test-golden:
                            bin_curl=$(bin_curl)     \
                            bin_sed=$(bin_sed)       \
                            bin_date=$(bin_date)     \
-                           $(bin_shelltest) $(shelltestargs) -c $(srcroot)/try/golden -- --timeout=10
+                           $(bin_shelltest) $(shelltestargs) -c $(shelltestpath) -- --timeout=10
+
+%: %.test
+	$(MAKE) $(MAKEARGS) test-golden shelltestpath=$^
 
 check_bin      = @(test -x $(bin_$(1)) || $(bin_which) $(bin_$(1)) >/dev/null) || {          \
                         echo "bin_$(1) not found!!!";                                        \
@@ -172,3 +176,5 @@ check_bin2     = @(test -x $(1) || $(bin_which) $(1)) >/dev/null || {           
                         echo "$(1) not found!!!";                                            \
                         echo;                                                                \
                         exit 1; }
+
+.SUFFIXES: .test
