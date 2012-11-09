@@ -19,13 +19,13 @@ then
 fi
 
 # 3. check it is writing to all fifo files
-leela_read_udp_broadcast | \
-    while read fifo
-    do
-      if ! leela_check_file $pid $fifo >/dev/null
-      then
-        nagios_critical "Critical: not connected to fifo: $fifo"
-      fi
-    done || exit $?
+# leela_read_udp_broadcast | \
+#     while read fifo
+#     do
+#       if ! leela_check_file $pid $fifo >/dev/null
+#       then
+#         nagios_critical "Critical: not connected to fifo: $fifo"
+#       fi
+#     done || exit $?
 
 nagios_ok "Ok: check_leela_udp"
