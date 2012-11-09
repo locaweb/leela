@@ -24,24 +24,39 @@ from leela.server.network import http_proto
 from leela.server.network import webhandler
 from leela.server.data import event
 from leela.server.data import data
+from leela.server.network.databus import mkbus
 
-def http_service(cfg):
-    sto = cassandra_proto.CassandraProto(cfg)
-    app = web.Application([ (r"^/v1/past24/(.*)", http_proto.Past24, {"storage": sto, "class_data": event.Event}),
-                            (r"^/v1/pastweek/(.*)", http_proto.PastWeek, {"storage": sto, "class_data": event.Event}),
-                            (r"^/v1/range/(.*)", http_proto.Range, {"storage": sto, "class_data": event.Event}),
-                            (r"^/v1/(\d+)/(\d+)/(\d+)/(.*)", http_proto.YearMonthDay, {"storage": sto, "class_data": event.Event}),
-                            (r"^/v1/(\d+)/(\d+)/(.*)", http_proto.YearMonth, {"storage": sto, "class_data": event.Event}),
-                            (r"^/v1/data/past24/(.*)", http_proto.Past24, {"storage": sto, "class_data": data.Data}),
-                            (r"^/v1/data/pastweek/(.*)", http_proto.PastWeek, {"storage": sto, "class_data": data.Data}),
-                            (r"^/v1/data/range/(.*)", http_proto.Range, {"storage": sto, "class_data": data.Data}),
-                            (r"^/v1/data/(\d+)/(\d+)/(\d+)/(.*)", http_proto.YearMonthDay, {"storage": sto, "class_data": data.Data}),
-                            (r"^/v1/data/(\d+)/(\d+)/(.*)", http_proto.YearMonth, {"storage": sto, "class_data": data.Data}),
-                            (r".*", webhandler.Always404)
-                          ])
-    srv = service.MultiService()
-    srv.addService(service.IService(internet.TCPServer(cfg.getint("http", "port"),
-                                                       app,
-                                                       interface=cfg.get("http", "address"))))
-    srv.addService(sto)
-    return(srv)
+def x(*args):
+    print(args)
+
+class HttpService(service.Service):
+
+    def __init__(self, cfg):
+        self.cfg = cfg
+        self.bus = mkbus(cfg.get("http", "broadcast"))
+        self.sto = cassandra_proto.CassandraProto(self.cfg)
+        self.databus = mkbus(cfg.get("http", "broadcast"))
+        self.app = web.Application([
+            (r"^/v1/past24/(.*)", http_proto.Past24, {"storage": self.sto, "class_data": event.Event}),
+            (r"^/v1/pastweek/(.*)", http_proto.PastWeek, {"storage": self.sto, "class_data": event.Event}),
+            (r"^/v1/range/(.*)", http_proto.Range, {"storage": self.sto, "class_data": event.Event}),
+            (r"^/v1/(\d+)/(\d+)/(\d+)/(.*)", http_proto.YearMonthDay, {"storage": self.sto, "class_data": event.Event}),
+            (r"^/v1/(\d+)/(\d+)/(.*)", http_proto.YearMonth, {"storage": self.sto, "class_data": event.Event}),
+            (r"^/v1/data/past24/(.*)", http_proto.Past24, {"storage": self.sto, "class_data": data.Data}),
+            (r"^/v1/data/pastweek/(.*)", http_proto.PastWeek, {"storage": self.sto, "class_data": data.Data}),
+            (r"^/v1/data/range/(.*)", http_proto.Range, {"storage": self.sto, "class_data": data.Data}),
+            (r"^/v1/data/(\d+)/(\d+)/(\d+)/(.*)", http_proto.YearMonthDay, {"storage": self.sto, "class_data": data.Data}),
+            (r"^/v1/data/(\d+)/(\d+)/(.*)", http_proto.YearMonth, {"storage": self.sto, "class_data": data.Data}),
+            (r"/post", http_proto.CreateData, {"databus": self.databus}),
+            (r".*", webhandler.Always404)
+            ])
+        self.srv = service.MultiService()
+        self.srv.addService(service.IService(internet.TCPServer(self.cfg.getint("http", "port"),
+                                                           self.app,
+                                                           interface=self.cfg.get("http", "address"))))
+        self.srv.addService(self.sto)
+
+
+    def get(self):
+        return self.srv
+

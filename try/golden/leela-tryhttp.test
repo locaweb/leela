@@ -1,5 +1,12 @@
 # syntax: http://hub.darcs.net/simon/shelltestrunner
 
+./try/golden/lib/run leela_tryhttp_write_to_socket_and_read_http
+<<<
+foobar: 0.75 1351101449
+>>>
+event 6|foobar 1351101449.0 0.75;
+>>>= 0
+
 ./try/golden/lib/run leela_tryhttp_write_to_socket_and_read_http '/v1/data/range/foobar?start=20121106T0002&finish=20121106T0002'
 <<<
 data 6|foobar 1352160000.0 10|{"one": 1};

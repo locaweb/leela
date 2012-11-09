@@ -16,16 +16,12 @@
 #    limitations under the License.
 #
 
-import random
 import socket
 import errno
 from twisted.internet import protocol
 from twisted.internet import reactor
-from twisted.internet.endpoints import UNIXClientEndpoint
-from twisted.internet.endpoints import UNIXServerEndpoint
 from leela.server import logger
 from leela.server.data.pp import *
-from leela.server.data import event
 from leela.server.data.parser import *
 
 def connect_to(sock):
@@ -39,6 +35,27 @@ def listen_from(sock):
     dbus = Databus(conn)
     dbus.connect()
     return(dbus)
+
+def x(*args):
+    print(args)
+
+def mkbus(string):
+    result = []
+    for group in string.split(","):
+        tmp = map(lambda s: s.strip(), group.split(";"))
+        logger.warn("creating new broadcast group (RR): " + ", ".join(tmp))
+        result.append(RoundRobin(map(lambda f: connect_to(f), tmp)))
+    return(result)
+
+class RoundRobin(object):
+
+    def __init__(self, ring):
+        self.ring = ring
+
+    def getnext(self):
+        x = self.ring.pop(0)
+        self.ring.append(x)
+        return(x)
 
 class Databus(protocol.ConnectedDatagramProtocol):
 

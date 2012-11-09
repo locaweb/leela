@@ -20,34 +20,13 @@ from twisted.internet import reactor
 from twisted.application.service import Service
 from leela.server import logger
 from leela.server.network import udp_proto
-from leela.server.network import databus
-
-def x(*args):
-    print(args)
-
-class RoundRobin(object):
-
-    def __init__(self, ring):
-        self.ring = ring
-
-    def getnext(self):
-        x = self.ring.pop(0)
-        self.ring.append(x)
-        return(x)
+from leela.server.network.databus import mkbus
 
 class UdpService(Service, udp_proto.UDP):
 
-    def mkbus(self, string):
-        result = []
-        for group in string.split(","):
-            tmp = map(lambda s: s.strip(), group.split(";"))
-            logger.warn("creating new broadcast group (RR): " + ", ".join(tmp))
-            result.append(RoundRobin(map(lambda f: databus.connect_to(f), tmp)))
-        return(result)
-
     def __init__(self, cfg):
         self.cfg = cfg
-        self.bus = self.mkbus(cfg.get("udp", "broadcast"))
+        self.bus = mkbus(cfg.get("udp", "broadcast"))
 
     def broadcast(self, events):
         for rr in self.bus:

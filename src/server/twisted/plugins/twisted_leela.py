@@ -80,7 +80,8 @@ class LeelaServiceMk(object):
         return(udp.UdpService(cfg))
 
     def http_service(self, cfg, env):
-        return(http.http_service(cfg))
+        srv = http.HttpService(cfg)
+        return(srv.get())
 
     def makeService(self, options):
         logmap = {"debug": logger.DEBUG,

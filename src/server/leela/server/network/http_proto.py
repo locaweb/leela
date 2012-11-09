@@ -97,3 +97,12 @@ class YearMonth(webhandler.LeelaWebHandler):
         self.finish({"status": 200,
                      "results": {key: {"series": render_series(events)}}
                     })
+
+class CreateData(webhandler.LeelaWebHandler):
+  def put(self, databus):
+      events = parse_json_events(self.request.body)
+      databus.broadcast(events)
+
+#curl -X PUT -d'{data: {}, timestamp: xxxxx}' /v1/data/foobar
+#{status: 201, results: [{data: ...}]}
+
