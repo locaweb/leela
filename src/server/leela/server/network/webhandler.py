@@ -17,13 +17,13 @@
 #
 
 import re
-import json
 import httplib
 import traceback
 import time
-from twisted.python.failure import Failure
 from cyclone import web
+from twisted.python.failure import Failure
 from leela.server import logger
+from leela.server.data import pp
 
 class LeelaWebHandler(web.RequestHandler):
 
@@ -51,7 +51,7 @@ class LeelaWebHandler(web.RequestHandler):
     def write(self, chunk):
         self._write_debug(chunk)
         cc  = self.get_argument("callback", "")
-        bdy = json.dumps(chunk, allow_nan=True, sort_keys=True)
+        bdy = pp.render_json(chunk)
         if (re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", cc)):
             self.set_header("Content-Type", "text/javascript; charset=utf-8")
             bdy = u"%s(%s);" % (cc, bdy)

@@ -18,7 +18,6 @@
 
 import fnmatch
 import uuid
-import json
 import txredisapi as redis
 import hashlib
 from wokkel import xmppim
@@ -129,7 +128,7 @@ class XmppService(xmppim.MessageProtocol):
                 logger.warn("reaping connection: %s" % (key,))
                 conn.shutdown()
         for (key, data1) in data0.iteritems():
-            data = json.loads(data1)
+            data = parser.parse_json(data1)
             if (key not in self.active):
                 logger.debug("spawning connection: %s: %s" % (key, data["sender"]))
                 conn = Connection(key, xmppim.JID(data["sender"]), data["request"]["select"], self)
@@ -142,7 +141,7 @@ class XmppService(xmppim.MessageProtocol):
                 data0 = yield self.redis.hgetall("leela.xmpp")
                 tmp   = []
                 for (key, data1) in data0.iteritems():
-                    data = json.loads(data1)
+                    data = parser.parse_json(data1)
                     sql  = pp.render_select(data["request"]["select"]["proc"],
                                             data["request"]["select"]["regex"])
                     if (data["sender"] == sender.userhost()):
@@ -156,7 +155,7 @@ class XmppService(xmppim.MessageProtocol):
                 hcode.update(request["select"]["proc"])
                 hcode.update(request["select"]["regex"])
                 key   = hcode.hexdigest()
-                self.redis.hsetnx("leela.xmpp", key, json.dumps({"request": request, "sender": sender.userhost()}))
+                self.redis.hsetnx("leela.xmpp", key, pp.render_json({"request": request, "sender": sender.userhost()}))
         except:
             logger.exception()
             cc(500, {"reason": "internal server error"})
@@ -166,7 +165,7 @@ class XmppService(xmppim.MessageProtocol):
         data0 = yield self.redis.hgetall("leela.xmpp")
         keys  = []
         for (key, data1) in data0.iteritems():
-            data = json.loads(data1)
+            data = parser.parse_json(data1)
             if (data["sender"] == sender.userhost()):
                 keys.append({"key": key})
                 self.redis.hdel("leela.xmpp", key)
@@ -176,7 +175,7 @@ class XmppService(xmppim.MessageProtocol):
     def handle_delete_one(self, key, sender, cc):
         data0 = yield self.redis.hget("leela.xmpp", key)
         if (data0 is not None):
-            data = json.loads(data0)
+            data = parser.parse_json(data0)
             if (data["sender"] == sender.userhost()):
                 yield self.redis.hdel("leela.xmpp", key)
                 cc(200, {"results": {"key": key}})
@@ -207,11 +206,11 @@ class XmppService(xmppim.MessageProtocol):
     def mkcc(self, envelope, debug={}):
         def f(status, results=None):
             if (results is None):
-                envelope.addElement("body", content=json.dumps({"status": status, "debug": debug}))
+                envelope.addElement("body", content=pp.render_json({"status": status, "debug": debug}))
             else:
                 msg = dict(results)
                 msg.update({"status": status, "debug": debug})
-                envelope.addElement("body", content=json.dumps(msg))
+                envelope.addElement("body", content=pp.render_json(msg))
             self.send(envelope)
         return(f)
 

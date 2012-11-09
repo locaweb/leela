@@ -17,8 +17,9 @@
 #
 
 import time
-import json
 from leela.server import funcs
+from leela.server.data import pp
+from leela.server.data import parser
 from leela.server.data import event
 from leela.server.data import data
 
@@ -52,7 +53,7 @@ def serialize_event(e, epoch):
 def serialize_data(e, epoch):
     timestamp = (e.year(), e.month(), e.day(), e.hour(), e.minute(), e.second())
     k = serialize_key(*timestamp, epoch=epoch)
-    v = json.dumps(e.value())
+    v = pp.render_json(e.value())
     return((k, v))
 
 def unserialize_event(name, k, v, epoch):
@@ -63,4 +64,4 @@ def unserialize_event(name, k, v, epoch):
 def unserialize_data(name, k, v, epoch):
     timetuple = list(unserialize_key(k, epoch=epoch))
     timestamp = funcs.timetuple_timestamp(timetuple)
-    return(data.Data(name, json.loads(v), timestamp))
+    return(data.Data(name, parser.parse_json(v), timestamp))

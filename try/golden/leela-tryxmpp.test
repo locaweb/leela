@@ -4,12 +4,12 @@
 <<<
 foobar@localhost: select * from leela.xmpp;
 >>>
-foobar: {"status": 200, "debug": {"request": "select * from leela.xmpp;\n"}, "results": []}
+foobar: {"debug": {"request": "select * from leela.xmpp;\n"}, "results": [], "status": 200}
 >>>= 0
 
 ./try/golden/lib/run leela_tryxmpp_interact -n 1
 <<<
 foobar@localhost: delete from leela.xmpp;
 >>>
-foobar: {"status": 404, "debug": {"request": "delete from leela.xmpp;\n"}, "reason": "not found"}
+foobar: {"debug": {"request": "delete from leela.xmpp;\n"}, "reason": "not found", "status": 404}
 >>>= 0

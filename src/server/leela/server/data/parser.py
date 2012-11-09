@@ -22,6 +22,9 @@ import time
 from leela.server.data import event
 from leela.server.data import data
 
+def parse_json(x):
+    return(json.loads(x))
+
 def parse_string(s, w):
     if (s.startswith(w)):
         return(s[len(w):])
@@ -101,7 +104,7 @@ def parse_data(s):
     s      = parse_string(s, "|")
     (v, s) = parse_take(s, l)
     if (s[0] == ";"):
-        return(data.Data(n, json.loads(v), t), s[1:])
+        return(data.Data(n, parse_json(v), t), s[1:])
     else:
         raise(RuntimeError())
 
@@ -175,7 +178,7 @@ def parse_status_(s):
 
 def parse_json_data(s):
     try:
-        result = json.loads(s)
+        result = parse_json(s)
         if not isinstance(result, dict):
             raise(RuntimeError())
         return data.Data(result["name"], result["value"], result["timestamp"])

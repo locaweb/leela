@@ -20,11 +20,14 @@ import json
 from leela.server.data import event
 from leela.server.data import data
 
+def render_json(x):
+    return(json.dumps(x, allow_nan=True, sort_keys=True))
+
 def render_event(e):
     return("event %d|%s %d.0 %s;" % (len(e.name()), e.name(), e.unixtimestamp(), repr(e.value())))
 
 def render_data(e):
-    value = json.dumps(e.value())
+    value = render_json(e.value())
     return("data %d|%s %d.0 %d|%s;" % (len(e.name()), e.name(), e.unixtimestamp(), len(value), value))
 
 def render_events(es):
@@ -42,11 +45,10 @@ def render_storable_to_json(e):
     return({"name": e.name(), "value": e.value(), "timestamp": e.unixtimestamp()})
 
 def render_storable_to_json_(e):
-    return(json.dumps(render_storable_to_json(e)))
+    return(render_json(render_storable_to_json(e)))
 
 def render_select(proc, regex):
     return("SELECT %s FROM %s;" % (proc, regex))
 
 def render_storables(ss):
     return("".join(map(render_storable, ss)))
-            
