@@ -28,13 +28,9 @@ class UdpService(Service, udp_proto.UDP):
         self.cfg = cfg
         self.bus = mkbus(cfg.get("udp", "broadcast"))
 
-    def broadcast(self, events):
-        for rr in self.bus:
-            rr.getnext().send_broadcast(events)
-
     def recv_event(self, events):
         logger.debug("recv_events: %d" % len(events))
-        self.broadcast(events)
+        self.bus.broadcast(events)
 
     def startService(self):
         reactor.listenUDP(self.cfg.getint("udp", "port"), self, self.cfg.get("udp", "address"))

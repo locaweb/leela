@@ -1,6 +1,9 @@
 *.pyc
 *.hi
+*.swp
 *.o
+/tags
+/etags
 /build/
 /dist/
 /doc/build/

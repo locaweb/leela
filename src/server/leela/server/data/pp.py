@@ -16,9 +16,9 @@
 #    limitations under the License.
 #
 
-import re
 import json
 from leela.server.data import event
+from leela.server.data import data
 
 def render_event(e):
     return("event %d|%s %d.0 %s;" % (len(e.name()), e.name(), e.unixtimestamp(), repr(e.value())))
@@ -28,15 +28,25 @@ def render_data(e):
     return("data %d|%s %d.0 %d|%s;" % (len(e.name()), e.name(), e.unixtimestamp(), len(value), value))
 
 def render_events(es):
-    if (len(es) == 0):
-        return("")
     return("".join(map(render_event, es)))
 
-def render_event_to_json(e):
+def render_storable(s):
+    if isinstance(s, event.Event):
+        return(render_event(s))
+    elif isinstance(s, data.Data):
+        return(render_data(s))
+    else:
+        raise(RuntimeError())
+
+def render_storable_to_json(e):
     return({"name": e.name(), "value": e.value(), "timestamp": e.unixtimestamp()})
 
-def render_event_to_json_(e):
-    return(json.dumps(render_event_to_json(e)))
+def render_storable_to_json_(e):
+    return(json.dumps(render_storable_to_json(e)))
 
 def render_select(proc, regex):
     return("SELECT %s FROM %s;" % (proc, regex))
+
+def render_storables(ss):
+    return("".join(map(render_storable, ss)))
+            

@@ -23,15 +23,16 @@ import traceback
 import time
 from twisted.python.failure import Failure
 from cyclone import web
+from leela.server import logger
 
 class LeelaWebHandler(web.RequestHandler):
 
     no_keep_alive = True
     no_xsrf       = True
 
-    def initialize(self, storage=None, class_data=None):
-        self.storage = storage
-        self.class_data = class_data
+    def initialize(self, **kwargs):
+        for (k, v) in kwargs.iteritems():
+            setattr(self, k, v)
 
     def _write_debug(self, chunk):
         if (isinstance(chunk, dict)):
@@ -100,3 +101,13 @@ class Always404(LeelaWebHandler):
 
     def options(self):
         raise(web.HTTPError(404))
+
+def logexceptions(f):
+    def g (*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except:
+            logger.exception()
+            raise
+    g.__name__ = f.__name__
+    return g

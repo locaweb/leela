@@ -47,7 +47,7 @@ class HttpService(service.Service):
             (r"^/v1/data/range/(.*)", http_proto.Range, {"storage": self.sto, "class_data": data.Data}),
             (r"^/v1/data/(\d+)/(\d+)/(\d+)/(.*)", http_proto.YearMonthDay, {"storage": self.sto, "class_data": data.Data}),
             (r"^/v1/data/(\d+)/(\d+)/(.*)", http_proto.YearMonth, {"storage": self.sto, "class_data": data.Data}),
-            (r"/post", http_proto.CreateData, {"databus": self.databus}),
+            (r"^/v1/data/(.*)", http_proto.CreateData, {"databus": self.databus}),
             (r".*", webhandler.Always404)
             ])
         self.srv = service.MultiService()

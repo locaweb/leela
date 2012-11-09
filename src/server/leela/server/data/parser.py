@@ -172,3 +172,13 @@ def parse_status_(s):
         return(parse_status(s))
     except:
         return(-1, "")
+
+
+def parse_json_data(s):
+    try:
+        result = json.loads(s)
+        if not isinstance(result, dict):
+            raise(RuntimeError())
+        return data.Data(result["name"], result["data"], result["timestamp"])
+    except:
+        raise(RuntimeError())

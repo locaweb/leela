@@ -36,16 +36,21 @@ def listen_from(sock):
     dbus.connect()
     return(dbus)
 
-def x(*args):
-    print(args)
-
 def mkbus(string):
     result = []
     for group in string.split(","):
         tmp = map(lambda s: s.strip(), group.split(";"))
         logger.warn("creating new broadcast group (RR): " + ", ".join(tmp))
         result.append(RoundRobin(map(lambda f: connect_to(f), tmp)))
-    return(result)
+    return(DatabusGroup(result))
+
+class DatabusGroup(object):
+    def __init__(self, group):
+        self.group = group
+
+    def broadcast(self, events):
+        for rr in self.group:
+            rr.getnext().send_broadcast(events)
 
 class RoundRobin(object):
 
@@ -79,7 +84,7 @@ class Databus(protocol.ConnectedDatagramProtocol):
         while (len(self.wqueue) > 0 and self.transport is not None):
             e = self.wqueue[:10]
             try:
-                self.transport.write(render_events(e))
+                self.transport.write(render_storables(e))
                 del(self.wqueue[:10])
             except socket.error, se:
                 map(lambda x: self.wqueue.insert(0, x), reversed(e))

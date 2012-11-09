@@ -19,6 +19,8 @@
 from twisted.internet import defer
 from cyclone import web
 from leela.server.network import webhandler
+from leela.server.data import parser
+from leela.server.data import pp
 
 def render_series(events):
     results = []
@@ -27,8 +29,10 @@ def render_series(events):
     return(results)
 
 class Past24(webhandler.LeelaWebHandler):
+
     @web.asynchronous
     @defer.inlineCallbacks
+    @webhandler.logexceptions
     def get(self, key):
         events = yield self.class_data.load_past24(self.storage, key)
         if (events == []):
@@ -38,8 +42,10 @@ class Past24(webhandler.LeelaWebHandler):
                     })
 
 class PastWeek(webhandler.LeelaWebHandler):
+        
     @web.asynchronous
     @defer.inlineCallbacks
+    @webhandler.logexceptions
     def get(self, key):
         events = yield self.class_data.load_pastweek(self.storage, key)
         if (events == []):
@@ -49,8 +55,10 @@ class PastWeek(webhandler.LeelaWebHandler):
                     })
 
 class Range(webhandler.LeelaWebHandler):
+
     @web.asynchronous
     @defer.inlineCallbacks
+    @webhandler.logexceptions
     def get(self, key):
         start = self.get_argument("start")
         finish = self.get_argument("finish")
@@ -72,8 +80,10 @@ class Range(webhandler.LeelaWebHandler):
                     })
 
 class YearMonthDay(webhandler.LeelaWebHandler):
+
     @web.asynchronous
     @defer.inlineCallbacks
+    @webhandler.logexceptions
     def get(self, year, month, day, key):
         year = int(year, 10)
         month = int(month, 10)
@@ -86,8 +96,10 @@ class YearMonthDay(webhandler.LeelaWebHandler):
                     })
 
 class YearMonth(webhandler.LeelaWebHandler):
+
     @web.asynchronous
     @defer.inlineCallbacks
+    @webhandler.logexceptions
     def get(self, year, month, key):
         year = int(year, 10)
         month = int(month, 10)
@@ -99,10 +111,16 @@ class YearMonth(webhandler.LeelaWebHandler):
                     })
 
 class CreateData(webhandler.LeelaWebHandler):
-  def put(self, databus):
-      events = parse_json_events(self.request.body)
-      databus.broadcast(events)
 
-#curl -X PUT -d'{data: {}, timestamp: xxxxx}' /v1/data/foobar
-#{status: 201, results: [{data: ...}]}
+    @webhandler.logexceptions
+    def put(self, key):
+        try:
+            data = parser.parse_json_data(self.request.body)
+        except RuntimeError:
+            raise web.HTTPError(400)
+        if data.name() != key:
+            raise web.HTTPError(400)
 
+        self.databus.broadcast([data])
+        self.set_status(201)
+        self.finish({"status": 201, "results" : pp.render_storable_to_json(data)})
