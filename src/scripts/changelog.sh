@@ -22,7 +22,7 @@ payload () {
     echo "$hdr"
     echo "$hdr" | sed s/./-/g
 
-    for commit in $(gitlog --pretty=format:"%H" $tag0..$tag)
+    for commit in $tag0 $(gitlog --pretty=format:"%H" $tag0..$tag)
     do
       prefix=$(gitlog -n1 --pretty=format:%s $commit | sed s,/,,g)
       suffix=$(gitlog -n1 --pretty=format:"| %aN <%aE> (%ai)" $commit | sed s,/,,g)
