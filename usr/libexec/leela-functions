@@ -69,11 +69,31 @@ map(lambda g: map(write, g.split(";")), broadcast.split(","))
 EOF
 }
 
+leela_read_http_broadcast () {
+  cat <<EOF | python -
+from leela.server import config
+
+def write(s):
+  print(s.strip())
+
+broadcast = config.read_config().get("http", "broadcast")
+map(lambda g: map(write, g.split(";")), broadcast.split(","))
+EOF
+}
+
 leela_read_udp_port () {
   cat <<EOF | python -
 from leela.server import config
 
 print(config.read_config().get("udp", "port"))
+EOF
+}
+
+leela_read_http_port () {
+  cat <<EOF | python -
+from leela.server import config
+
+print(config.read_config().get("http", "port"))
 EOF
 }
 

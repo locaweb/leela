@@ -1,6 +1,6 @@
 #!/bin/sh
 
-pidfile=/var/run/leela/udp.pid
+pidfile=/var/run/leela/http.pid
 
 [ -r /usr/libexec/leela-functions ] && . /usr/libexec/leela-functions
 
@@ -10,22 +10,22 @@ then
   nagios_critical "Critical: missing pid file: $pidfile"
 fi
 
-# 2. check it is listening on correct udp port
+# 2. check it is listening on correct tcp port
 pid=$(cat $pidfile)
-port=$(leela_read_udp_port)
-if ! leela_check_inet $pid udp:$port >/dev/null
+port=$(leela_read_http_port)
+if ! leela_check_inet $pid tcp:$port >/dev/null
 then
-  nagios_critical "Critical: proc not connected to udp port: $port"
+  nagios_critical "Critical: proc not connected to tcp port: $port"
 fi
 
 # 3. check it is writing to all fifo files
-leela_read_udp_broadcast | \
+leela_read_http_broadcast | \
     while read fifo
     do
       if ! leela_check_file $pid $fifo >/dev/null
       then
         nagios_critical "Critical: not connected to fifo: $fifo"
       fi
-    done || exit $?
+    done
 
-nagios_ok "Ok: check_leela_udp"
+nagios_ok "Ok: check_leela_http"
