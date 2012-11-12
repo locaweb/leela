@@ -36,7 +36,7 @@ nagios_ok () {
 }
 
 leela_check_pid () {
-  test -f "$1"
+  test -f "$1" && ps -o comm= -p $(cat "$1")
 }
 
 leela_check_inet () {
