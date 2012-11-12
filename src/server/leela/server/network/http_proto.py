@@ -125,3 +125,4 @@ class CreateData(webhandler.LeelaWebHandler):
         self.databus.broadcast([data])
         self.set_status(201)
         self.finish({"status": 201, "results" : pp.render_storable_to_json(data)})
+

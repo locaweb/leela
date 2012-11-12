@@ -79,8 +79,8 @@ class Connection(object):
 
     def on_core_recv_event(self, e):
         logger.debug("core_recv_event: %s" % e)
-        msg = {"results": {"event": pp.render_event_to_json(e)}}
-        msg.update(pp.render_event_to_json(e)) # do not break compatibility with previous versions
+        msg = {"results": {"event": pp.render_storable_to_json(e)}}
+        msg.update(pp.render_storable_to_json(e)) # do not break compatibility with previous versions
         self._sendmsg(200, msg)
 
     def on_core_connection_lost(self, _):

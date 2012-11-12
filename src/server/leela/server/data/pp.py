@@ -44,9 +44,6 @@ def render_storable(s):
 def render_storable_to_json(e):
     return({"name": e.name(), "value": e.value(), "timestamp": e.unixtimestamp()})
 
-def render_storable_to_json_(e):
-    return(render_json(render_storable_to_json(e)))
-
 def render_select(proc, regex):
     return("SELECT %s FROM %s;" % (proc, regex))
 
