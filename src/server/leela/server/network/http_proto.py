@@ -114,13 +114,14 @@ class CreateData(webhandler.LeelaWebHandler):
 
     @webhandler.logexceptions
     def put(self, key):
+        if (len(self.request.body) > 8192):
+            raise(web.HTTPError(400))
         try:
             data = parser.parse_json_data(self.request.body)
         except RuntimeError:
             raise web.HTTPError(400)
         if data.name() != key:
             raise web.HTTPError(400)
-
         self.databus.broadcast([data])
         self.set_status(201)
         self.finish({"status": 201, "results" : pp.render_storable_to_json(data)})
