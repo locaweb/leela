@@ -180,7 +180,7 @@ def parse_timespec(s):
     h = int(s[9:11], 10)
     M = int(s[11:], 10)
     if (m<1 or m>12 or d<1 or d>31 or h<0 or h>23 or M<0 or M>59):
-        raise(RuntimeError())
+        raise(RuntimeError("parse_timespec: syntax error"))
     return((y, m, d, h, M))
 
 def parse_status_(s):
@@ -189,11 +189,8 @@ def parse_status_(s):
     except:
         return(-1, "")
 
-def parse_json_data(s):
-    try:
-        result = parse_json(s)
-        if not isinstance(result, dict):
-            raise(RuntimeError())
-        return data.Data(result["name"], result["value"], result["timestamp"])
-    except:
-        raise(RuntimeError())
+def parse_json_data(s, name=None):
+    result = parse_json(s)
+    if not isinstance(result, dict):
+        raise(RuntimeError("json must be an object"))
+    return(data.Data(result.get("name", name), result["value"], result["timestamp"]))

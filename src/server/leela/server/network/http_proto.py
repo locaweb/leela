@@ -97,10 +97,10 @@ class CreateData(webhandler.LeelaWebHandler):
     @webhandler.logexceptions
     def put(self, key):
         if (len(self.request.body) > config.MAXPACKET):
-            raise(web.HTTPError(400))
-        data = parser.parse_json_data(self.request.body)
+            raise(web.HTTPError(400, "payload exceeds maxpacket [>= %d]" % config.MAXPACKET))
+        data = parser.parse_json_data(self.request.body, key)
         if data.name() != key:
-            raise web.HTTPError(400)
+            raise web.HTTPError(400, "name must match the one given on URL: [%s /= %s]" % (data.name(), key))
         self.databus.broadcast([data])
         self.set_status(201)
         self.finish({"status": 201, "results" : pp.render_storable_to_json(data)})

@@ -59,18 +59,16 @@ class LeelaWebHandler(web.RequestHandler):
         super(LeelaWebHandler, self).write(bdy)
 
     def write_error(self, status_code, **kwargs):
-        debug = kwargs.get("debug", {})
+        debug  = kwargs.get("debug", {})
         if (not isinstance(debug, dict)):
             debug = {}
         if ("exception" in kwargs):
             e = kwargs["exception"]
-            if (isinstance(e, Failure)):
-                debug["exception"] = e.getTraceback()
-            elif (isinstance(e, Exception)):
-                if (not isinstance(e, web.HTTPError)):
-                    debug["exception"] = traceback.format_exc()
+            debug["exception"] = str(e)
+            if (hasattr(e, "getTraceback")):
+                debug["stacktrace"] = e.getTraceback()
             else:
-                debug["exception"] = str(e)
+                debug["stacktrace"] = traceback.format_exc()
         rply = { "status": status_code,
                  "reason": httplib.responses[status_code],
                  "debug": debug
