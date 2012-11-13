@@ -40,8 +40,7 @@ class LeelaWebHandler(web.RequestHandler):
                 debug = dict(chunk["debug"])
             else:
                 debug = {}
-            debug["request_uri"]  = self.request.uri
-            debug["request_time"] = self.walltime()
+            debug["uri"] = self.request.uri
             if (self.get_argument("debug", None) is None):
                 if ("debug" in chunk):
                     del(chunk["debug"])
@@ -60,7 +59,9 @@ class LeelaWebHandler(web.RequestHandler):
         super(LeelaWebHandler, self).write(bdy)
 
     def write_error(self, status_code, **kwargs):
-        debug = {}
+        debug = kwargs.get("debug", {})
+        if (not isinstance(debug, dict)):
+            debug = {}
         if ("exception" in kwargs):
             e = kwargs["exception"]
             if (isinstance(e, Failure)):
@@ -76,14 +77,6 @@ class LeelaWebHandler(web.RequestHandler):
                }
         self.write(rply)
         self.finish()
-
-    def walltime(self):
-        past_walltime  = self._walltime
-        self._walltime = time.time()
-        return(self._walltime - past_walltime)
-
-    def prepare(self):
-        self._walltime = time.time()
 
 class Always404(LeelaWebHandler):
 

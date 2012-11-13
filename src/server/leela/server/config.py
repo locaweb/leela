@@ -19,6 +19,8 @@
 import os
 import ConfigParser
 
+MAXPACKET = 8192
+
 def default_config_file():
     config = ConfigParser.ConfigParser()
     if ("LEELA_CFG" in os.environ):

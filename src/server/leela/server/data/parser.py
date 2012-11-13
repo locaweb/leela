@@ -170,6 +170,19 @@ def parse_data_(s):
     except:
         return(None, "")
 
+def parse_timespec(s):
+    """
+    %Y%m%dT%H%M
+    """
+    y = int(s[:4], 10)
+    m = int(s[4:6], 10)
+    d = int(s[6:8], 10)
+    h = int(s[9:11], 10)
+    M = int(s[11:], 10)
+    if (m<1 or m>12 or d<1 or d>31 or h<0 or h>23 or M<0 or M>59):
+        raise(RuntimeError())
+    return((y, m, d, h, M))
+
 def parse_status_(s):
     try:
         return(parse_status(s))

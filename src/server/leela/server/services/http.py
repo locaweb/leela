@@ -37,18 +37,20 @@ class HttpService(service.Service):
         self.sto = cassandra_proto.CassandraProto(self.cfg)
         self.databus = mkbus(cfg.get("http", "broadcast"))
         self.app = web.Application([
-            (r"^/v1/past24/(.*)", http_proto.Past24, {"storage": self.sto, "class_data": event.Event}),
-            (r"^/v1/pastweek/(.*)", http_proto.PastWeek, {"storage": self.sto, "class_data": event.Event}),
-            (r"^/v1/range/(.*)", http_proto.Range, {"storage": self.sto, "class_data": event.Event}),
-            (r"^/v1/(\d+)/(\d+)/(\d+)/(.*)", http_proto.YearMonthDay, {"storage": self.sto, "class_data": event.Event}),
-            (r"^/v1/(\d+)/(\d+)/(.*)", http_proto.YearMonth, {"storage": self.sto, "class_data": event.Event}),
-            (r"^/v1/data/past24/(.*)", http_proto.Past24, {"storage": self.sto, "class_data": data.Data}),
-            (r"^/v1/data/pastweek/(.*)", http_proto.PastWeek, {"storage": self.sto, "class_data": data.Data}),
-            (r"^/v1/data/range/(.*)", http_proto.Range, {"storage": self.sto, "class_data": data.Data}),
-            (r"^/v1/data/(\d+)/(\d+)/(\d+)/(.*)", http_proto.YearMonthDay, {"storage": self.sto, "class_data": data.Data}),
-            (r"^/v1/data/(\d+)/(\d+)/(.*)", http_proto.YearMonth, {"storage": self.sto, "class_data": data.Data}),
-            (r"^/v1/data/(.*)", http_proto.CreateData, {"databus": self.databus}),
-            (r".*", webhandler.Always404)
+            (r"^/v1/past24/(.*)"                , http_proto.Past24      , {"storage": self.sto, "class_": event.Event}),
+            (r"^/v1/pastweek/(.*)"              , http_proto.PastWeek    , {"storage": self.sto, "class_": event.Event}),
+            (r"^/v1/range/(.*)"                 , http_proto.Range       , {"storage": self.sto, "class_": event.Event}),
+            (r"^/v1/(\d+)/(\d+)/(\d+)/(.*)"     , http_proto.YearMonthDay, {"storage": self.sto, "class_": event.Event}),
+            (r"^/v1/(\d+)/(\d+)/(.*)"           , http_proto.YearMonth   , {"storage": self.sto, "class_": event.Event}),
+
+            (r"^/v1/data/past24/(.*)"           , http_proto.Past24      , {"storage": self.sto, "class_": data.Data}),
+            (r"^/v1/data/pastweek/(.*)"         , http_proto.PastWeek    , {"storage": self.sto, "class_": data.Data}),
+            (r"^/v1/data/range/(.*)"            , http_proto.Range       , {"storage": self.sto, "class_": data.Data}),
+            (r"^/v1/data/(\d+)/(\d+)/(\d+)/(.*)", http_proto.YearMonthDay, {"storage": self.sto, "class_": data.Data}),
+            (r"^/v1/data/(\d+)/(\d+)/(.*)"      , http_proto.YearMonth   , {"storage": self.sto, "class_": data.Data}),
+            
+            (r"^/v1/data/(.*)"                  , http_proto.CreateData  , {"databus": self.databus}),
+            (r".*"                              , webhandler.Always404)
             ])
         self.srv = service.MultiService()
         self.srv.addService(service.IService(internet.TCPServer(self.cfg.getint("http", "port"),
@@ -59,4 +61,3 @@ class HttpService(service.Service):
 
     def get(self):
         return self.srv
-
