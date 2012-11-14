@@ -65,7 +65,10 @@ class LeelaWebHandler(web.RequestHandler):
             debug = {}
         if ("exception" in kwargs):
             e = kwargs["exception"]
-            debug["exception"] = str(e)
+            if (hasattr(e, "getErrorMessage")):
+                debug["exception"] = e.getErrorMessage()
+            else:
+                debug["exception"] = str(e)
             if (hasattr(e, "getTraceback")):
                 debug["stacktrace"] = e.getTraceback()
             else:
