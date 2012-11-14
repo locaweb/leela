@@ -41,6 +41,7 @@ class LeelaWebHandler(web.RequestHandler):
             else:
                 debug = {}
             debug["uri"] = self.request.uri
+            debug["now"] = time.strftime("%Y%m%dT%H%M%S%z")
             if (self.get_argument("debug", None) is None):
                 if ("debug" in chunk):
                     del(chunk["debug"])
