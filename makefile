@@ -26,7 +26,7 @@ hsenv          = PATH=$$PATH:$(HOME)/.cabal/bin
 nosetestsargs  =
 ghcargs        =
 shelltestargs  =
-shelltestpath  = $(srcroot)/try/golden
+shelltestpath  = $(srcroot)/try/smoke
 
 -include $(userfile)
 
@@ -47,7 +47,7 @@ default:
 	@echo
 	@echo "  * test          Run all tests                "
 	@echo
-	@echo "  * test-golden   Run all acceptance tests     "
+	@echo "  * test-smoke   Run all acceptance tests      "
 	@echo
 
 bootstrap:
@@ -121,7 +121,7 @@ test-server:
 
 test: test-dmproc test-server
 
-test-golden: compile-dmproc
+test-smoke: compile-dmproc
 	$(call check_bin,lsof)
 	$(call check_bin,python)
 	$(call check_bin,shelltest)
@@ -146,7 +146,7 @@ test-golden: compile-dmproc
 	@echo                                       >&2
 	@echo "Using the following leela.cfg:     " >&2
 	@echo "---------------------------------- " >&2
-	@cat $(srcroot)/try/golden/cnf/leela.conf   >&2
+	@cat $(srcroot)/try/smoke/cnf/leela.conf    >&2
 	@echo                                       >&2
 	cd $(srcroot); env bin_twistd=$(bin_twistd) \
                            bin_lsof=$(bin_lsof)     \
@@ -158,7 +158,7 @@ test-golden: compile-dmproc
                            $(bin_shelltest) $(shelltestargs) -c $(shelltestpath) -- --timeout=10
 
 %: %.test
-	$(MAKE) $(MAKEARGS) test-golden shelltestpath=$^
+	$(MAKE) $(MAKEARGS) test-smoke shelltestpath=$^
 
 check_bin      = @(test -x $(bin_$(1)) || $(bin_which) $(bin_$(1)) >/dev/null) || {          \
                         echo "bin_$(1) not found!!!";                                        \

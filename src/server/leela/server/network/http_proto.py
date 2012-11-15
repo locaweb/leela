@@ -65,7 +65,7 @@ class PastWeek(resthandler.RestHandler):
         f = lambda: self.class_.load_pastweek(self.storage, key)
         sequece_load(f, key, self.finish, self.send_error)
 
-class Range(resthandler.RestHandler):
+class RangeRdonly(resthandler.RestHandler):
 
     @web.asynchronous
     @resthandler.logexceptions
@@ -75,6 +75,19 @@ class Range(resthandler.RestHandler):
         args   = list(start) + list(finish)
         f      = lambda: self.class_.load_range(self.storage, key, *args)
         sequece_load(f, key, self.finish, self.send_error)
+
+class RangeRdwr(RangeRdonly):
+
+    @resthandler.logexceptions
+    def put(self, key):
+        if (len(self.request.body) > config.MAXPACKET):
+            raise(web.HTTPError(400, "payload exceeds maxpacket [>= %d]" % config.MAXPACKET))
+        data = parser.parse_json_data(self.request.body, key)
+        if data.name() != key:
+            raise web.HTTPError(400, "name must match the one given on URL: [%s /= %s]" % (data.name(), key))
+        self.databus.broadcast([data])
+        self.set_status(201)
+        self.finish({"status": 201, "results" : pp.render_storable_to_json(data)})
 
 class YearMonthDay(resthandler.RestHandler):
 
@@ -91,16 +104,3 @@ class YearMonth(resthandler.RestHandler):
     def get(self, year, month, key):
         f = lambda: self.class_.load_month(self.storage, key, int(year, 10), int(month, 10))
         sequece_load(f, key, self.finish, self.send_error)
-
-class CreateData(resthandler.RestHandler):
-
-    @resthandler.logexceptions
-    def put(self, key):
-        if (len(self.request.body) > config.MAXPACKET):
-            raise(web.HTTPError(400, "payload exceeds maxpacket [>= %d]" % config.MAXPACKET))
-        data = parser.parse_json_data(self.request.body, key)
-        if data.name() != key:
-            raise web.HTTPError(400, "name must match the one given on URL: [%s /= %s]" % (data.name(), key))
-        self.databus.broadcast([data])
-        self.set_status(201)
-        self.finish({"status": 201, "results" : pp.render_storable_to_json(data)})

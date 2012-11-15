@@ -64,8 +64,8 @@ Testing
   $ make test
 
 
-Golden Tests
-------------
+Smoke Tests
+-----------
 
 Acceptance testing.
 
@@ -96,4 +96,4 @@ GoOd LuCk!
 
 ::
 
-  $ make test-golden
+  $ make test-smoke

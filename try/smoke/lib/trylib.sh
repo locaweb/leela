@@ -63,7 +63,7 @@ leela_trylib_service_start () {
     leela                              \
     --service=$1                       \
     --log-level=debug                  \
-    --config=${srcroot}/try/golden/cnf/leela.conf
+    --config=${srcroot}/try/smoke/cnf/leela.conf
 
   leela_trylib_wait_file $pidfile
 }
@@ -98,17 +98,17 @@ leela_trylib_curl () {
 leela_trylib_xmpp_interact () {
   env PYTHONPATH=${srcroot}/src/server \
     $bin_python                        \
-    ${srcroot}/try/golden/lib/xmpp_interact.py "$@"
+    ${srcroot}/try/smoke/lib/xmpp_interact.py "$@"
 }
 
 leela_trylib_dmproc_interact () {
   env PYTHONPATH=${srcroot}/src/server \
     $bin_python                        \
-    ${srcroot}/try/golden/lib/dmproc_interact.py --databus $dbusfile --socket $sockfile "$@"
+    ${srcroot}/try/smoke/lib/dmproc_interact.py --databus $dbusfile --socket $sockfile "$@"
 }
 
 leela_trylib_cassandra_interact () {
   env PYTHONPATH=${srcroot}/src/server \
     $bin_python                        \
-    ${srcroot}/try/golden/lib/cassandra_interact.py "$@"
+    ${srcroot}/try/smoke/lib/cassandra_interact.py "$@"
 }
