@@ -20,7 +20,7 @@ from twisted.internet import defer
 from cyclone import web
 from leela.server import config
 from leela.server import funcs
-from leela.server.network import webhandler
+from leela.server.network import resthandler
 from leela.server.data import parser
 from leela.server.data import pp
 
@@ -31,7 +31,7 @@ def render_series(events):
     return(results)
 
 @defer.inlineCallbacks
-@webhandler.logexceptions
+@resthandler.logexceptions
 def sequece_load(f, key, success, failure):
     t = funcs.timer_start()
     d = lambda: {"walltime": funcs.timer_stop(t)}
@@ -49,26 +49,26 @@ def sequece_load(f, key, success, failure):
     except Exception, e:
         failure(500, exception=e, debug=d())
 
-class Past24(webhandler.LeelaWebHandler):
+class Past24(resthandler.RestHandler):
 
     @web.asynchronous
-    @webhandler.logexceptions
+    @resthandler.logexceptions
     def get(self, key):
         f = lambda: self.class_.load_past24(self.storage, key)
         sequece_load(f, key, self.finish, self.send_error)
 
-class PastWeek(webhandler.LeelaWebHandler):
+class PastWeek(resthandler.RestHandler):
 
     @web.asynchronous
-    @webhandler.logexceptions
+    @resthandler.logexceptions
     def get(self, key):
         f = lambda: self.class_.load_pastweek(self.storage, key)
         sequece_load(f, key, self.finish, self.send_error)
 
-class Range(webhandler.LeelaWebHandler):
+class Range(resthandler.RestHandler):
 
     @web.asynchronous
-    @webhandler.logexceptions
+    @resthandler.logexceptions
     def get(self, key):
         start  = parser.parse_timespec(self.get_argument("start"))
         finish = parser.parse_timespec(self.get_argument("finish"))
@@ -76,25 +76,25 @@ class Range(webhandler.LeelaWebHandler):
         f      = lambda: self.class_.load_range(self.storage, key, *args)
         sequece_load(f, key, self.finish, self.send_error)
 
-class YearMonthDay(webhandler.LeelaWebHandler):
+class YearMonthDay(resthandler.RestHandler):
 
     @web.asynchronous
-    @webhandler.logexceptions
+    @resthandler.logexceptions
     def get(self, year, month, day, key):
         f = lambda: self.class_.load_day(self.storage, key, int(year, 10), int(month, 10), int(day, 10))
         sequece_load(f, key, self.finish, self.send_error)
 
-class YearMonth(webhandler.LeelaWebHandler):
+class YearMonth(resthandler.RestHandler):
 
     @web.asynchronous
-    @webhandler.logexceptions
+    @resthandler.logexceptions
     def get(self, year, month, key):
         f = lambda: self.class_.load_month(self.storage, key, int(year, 10), int(month, 10))
         sequece_load(f, key, self.finish, self.send_error)
 
-class CreateData(webhandler.LeelaWebHandler):
+class CreateData(resthandler.RestHandler):
 
-    @webhandler.logexceptions
+    @resthandler.logexceptions
     def put(self, key):
         if (len(self.request.body) > config.MAXPACKET):
             raise(web.HTTPError(400, "payload exceeds maxpacket [>= %d]" % config.MAXPACKET))

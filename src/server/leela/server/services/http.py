@@ -21,7 +21,7 @@ from twisted.application import service
 from twisted.application import internet
 from leela.server.network import cassandra_proto
 from leela.server.network import http_proto
-from leela.server.network import webhandler
+from leela.server.network import resthandler
 from leela.server.data import event
 from leela.server.data import data
 from leela.server.network.databus import mkbus
@@ -50,7 +50,7 @@ class HttpService(service.Service):
             (r"^/v1/data/(\d+)/(\d+)/(.*)"      , http_proto.YearMonth   , {"storage": self.sto, "class_": data.Data}),
             
             (r"^/v1/data/(.*)"                  , http_proto.CreateData  , {"databus": self.databus}),
-            (r".*"                              , webhandler.Always404)
+            (r".*"                              , resthandler.Always404)
             ])
         self.srv = service.MultiService()
         self.srv.addService(service.IService(internet.TCPServer(self.cfg.getint("http", "port"),

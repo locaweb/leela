@@ -25,7 +25,7 @@ from twisted.python.failure import Failure
 from leela.server import logger
 from leela.server.data import pp
 
-class LeelaWebHandler(web.RequestHandler):
+class RestHandler(web.RequestHandler):
 
     no_keep_alive = True
     no_xsrf       = True
@@ -57,7 +57,7 @@ class LeelaWebHandler(web.RequestHandler):
             bdy = u"%s(%s);" % (cc, bdy)
         else:
             self.set_header("Content-Type", "application/json")
-        super(LeelaWebHandler, self).write(bdy)
+        super(RestHandler, self).write(bdy)
 
     def write_error(self, status_code, **kwargs):
         debug  = kwargs.get("debug", {})
@@ -80,7 +80,7 @@ class LeelaWebHandler(web.RequestHandler):
         self.write(rply)
         self.finish()
 
-class Always404(LeelaWebHandler):
+class Always404(RestHandler):
 
     def get(self):
         raise(web.HTTPError(404))
