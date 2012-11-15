@@ -39,7 +39,9 @@ import           System.Directory
 import qualified Data.ByteString as B
 import           Network.Socket hiding (recv)
 import           Network.Socket.ByteString
-import           DarkMatter.Data.Proc
+
+maxpacket :: Int
+maxpacket = 65536
 
 type Databus a = TVar (DatabusT a)
 
@@ -102,10 +104,11 @@ termT :: Wire a -> STM ()
 termT w = writeTVar (state w) Read
 
 -- | Version of connect that works with a FilePath.
-connectF :: Databus a -> Proc B.ByteString a -> FilePath -> IO ()
+connectF :: Databus a -> (B.ByteString -> a) -> FilePath -> IO ()
 connectF db p f = bracket cOpen cClose (connectS db p)
   where cOpen = do { s <- socket AF_UNIX Datagram 0
-                   ; mapM_ (uncurry (setSocketOption s)) [(SendBuffer, 65536)]
+                   ; mapM_ (uncurry (setSocketOption s)) [(RecvBuffer, maxpacket)]
+                   ; mapM_ (uncurry (setSocketOption s)) [(SendBuffer, maxpacket)]
                    ; bindSocket s (SockAddrUnix f)
                    ; return s
                    }
@@ -118,14 +121,9 @@ connectF db p f = bracket cOpen cClose (connectS db p)
 -- Each item that is produced by the parser is broadcasted over
 -- current attached wires. Notice that if the queue is full, this
 -- function blocks.
-connectS :: Databus a -> Proc B.ByteString a -> Socket -> IO ()
-connectS db parse fh = fetch parse
-  where fetch p = do { (a, p1) <- fmap (run1 p) (recv fh 65536)
-                     ; broadcast a
-                     ; fetch p1
-                     }
-
-        broadcast a = fmap connections (readTVarIO db) >>= mapM_ doWrite
+connectS :: Databus a -> (B.ByteString -> a) -> Socket -> IO ()
+connectS db parse fh = forever (fmap parse (recv fh maxpacket) >>= broadcast)
+  where broadcast a = fmap connections (readTVarIO db) >>= mapM_ doWrite
           where doWrite w = case (select w a)
                             of Nothing -> return ()
                                Just b  -> wireWrite w b

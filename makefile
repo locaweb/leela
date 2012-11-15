@@ -24,6 +24,7 @@ pyenv          = PYTHONPATH=$(srcroot)/src/server
 hsenv          = PATH=$$PATH:$(HOME)/.cabal/bin
 
 nosetestsargs  =
+# ghcargs        = -optc-O3 -fexcess-precision -optc-march=corei7
 ghcargs        =
 shelltestargs  =
 shelltestpath  = $(srcroot)/try/smoke
@@ -83,6 +84,7 @@ bootstrap:
 
 	test -d $(HOME)/.cabal || $(bin_cabal) update
 	$(bin_cabal) install -v0 -O2 attoparsec
+	$(bin_cabal) install -v0 -O2 vector
 	$(bin_cabal) install -v0 -O2 blaze-builder
 	$(bin_cabal) install -v0 -O2 double-conversion
 	$(bin_cabal) install -v0 -O2 regex-tdfa
@@ -98,7 +100,7 @@ clean:
 	$(bin_find) . -type f -name \*.hi -exec rm -f \{\} \;
 	$(bin_find) . -type f -name \*.pyc -exec rm -f \{\} \;
 	$(bin_find) . -type f -name \*.hi -exec rm -f \{\} \;
-	rm -f ./src/dmproc/DarkMatter/dmproc
+	rm -f ./src/dmproc/DarkMatter/dmproc ./try/dmproc/dmtry
 
 compile-dmtry:
 	$(call check_bin,ghc)

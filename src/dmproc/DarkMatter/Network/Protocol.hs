@@ -26,7 +26,6 @@ import           Network.Socket.ByteString
 import           DarkMatter.Data.Asm.Types (Key)
 import           DarkMatter.Data.Asm.Parser
 import           DarkMatter.Data.Event
-import           DarkMatter.Data.Proc
 
 data Status = Success
             | Failure
@@ -58,9 +57,6 @@ sendStatus s Failure = sendFrame s (B8.pack "status 1;")
 eol :: B.ByteString
 eol = B8.singleton ';'
 
-databusParser :: Proc B.ByteString [(Key, Event)]
-databusParser = Auto $ f B.empty
-  where f l r = let (frame, leftover) = B8.breakEnd (== ';') (B.append l r)
-                    events            = runAll eventParser frame
-                in leftover `seq` (events , Auto $ f leftover)
+databusParser :: B.ByteString -> [(Key, Event)]
+databusParser = runAll eventParser
 
