@@ -24,17 +24,6 @@ unstable
   $ pip install -r https://raw.github.com/locaweb/leela-server/master/PYDEPS.txt
   $ pip install https://github.com/locaweb/leela-server/archive/master.tar.gz
 
-API Stability
-=============
-
-* testing [2]_
-
-.. [2] Possible values:
-
-       * stable: production ready;
-       * testing: somehow ready, but not yet ready for production;
-       * unstable: do not use, untested, API changing very often;
-
 Version
 =======
 
