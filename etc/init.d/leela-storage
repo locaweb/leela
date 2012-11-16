@@ -12,9 +12,10 @@ PATH=/sbin:/usr/sbin:/bin:/usr/bin
 FSROOT=${FSROOT:-/}
 DAEMON=/usr/bin/twistd
 SERVICE=storage
-PIDFILE=/var/run/leela/$SERVICE.pid
+RUNDIR=/var/run/leela
+PIDFILE=$RUNDIR/$SERVICE.pid
 LOGFILE=/var/log/leela/$SERVICE.log
-SOCKFILE=/var/run/leela/storage
+SOCKFILE=$RUNDIR/storage
 USER=leela
 GROUP=leela
 
@@ -24,6 +25,8 @@ GROUP=leela
 [ -r ${FSROOT}usr/libexec/leela-functions ] && . ${FSROOT}usr/libexec/leela-functions
 
 start_service () {
+  mkdir -p $RUNDIR
+  chown $USER:$GROUP $RUNDIR
   proc_id=$1
   pidfile=$PIDFILE-$proc_id
   logfile=$LOGFILE-$proc_id

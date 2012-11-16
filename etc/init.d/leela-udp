@@ -12,7 +12,8 @@ PATH=/sbin:/usr/sbin:/bin:/usr/bin
 FSROOT=${FSROOT:-/}
 DAEMON=/usr/bin/twistd
 SERVICE=udp
-PIDFILE=/var/run/leela/udp.pid
+RUNDIR=/var/run/leela
+PIDFILE=$RUNDIR/udp.pid
 LOGFILE=/var/log/leela/$SERVICE.log
 USER=leela
 GROUP=leela
@@ -23,6 +24,8 @@ GROUP=leela
 [ -r ${FSROOT}usr/libexec/leela-functions ] && . ${FSROOT}usr/libexec/leela-functions
 
 start_service () {
+  mkdir -p $RUNDIR
+  chown $USER:$GROUP $RUNDIR
   log_daemon_msg "starting $DAEMON [$SERVICE]"
   start-stop-daemon -N-5 -c $USER:$GROUP -Sq -p $PIDFILE -x $DAEMON -- --logfile=$LOGFILE --pidfile=$PIDFILE leela --service=$SERVICE $DAEMON_OPTS
   log_end_msg $?
