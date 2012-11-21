@@ -193,4 +193,6 @@ def parse_json_data(s, name=None):
     result = parse_json(s)
     if not isinstance(result, dict):
         raise(RuntimeError("json must be an object"))
-    return(data.Data(result.get("name", name), result["value"], result["timestamp"]))
+    n = result.get("name", name)
+    t = result.get("timestamp", time.time())
+    return(data.Data(n, result["value"], t))
