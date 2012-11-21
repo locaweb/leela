@@ -1,9 +1,8 @@
 CHANGELOG
 =========
 
-v2.1.0 | (2012-11-21 11:48:15 -0200)
+v2.1.0 | (2012-11-21 11:50:32 -0200)
 ------------------------------------
-  * removing the "frame" protocol in databus | diego souza (2012-11-15 14:38:52 -0200)
   * dealing with NaN on the server: default is now to remove them out from the response | dgvncsz0f (2012-11-21 11:48:15 -0200)
   * changelog prints in reverse order now | dgvncsz0f (2012-11-15 15:38:29 -0200)
 
