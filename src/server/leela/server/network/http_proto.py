@@ -28,10 +28,10 @@ from leela.server.data import pp
 NAN_ALLOW = 0
 NAN_PURGE = 1
 
-def read_nan(x):
+def read_nanopt(x, d=NAN_PURGE):
     return({ "allow": NAN_ALLOW,
              "purge": NAN_PURGE,
-           }.get(x, NAN_PURGE))
+           }.get(x, d))
 
 def render_series(events, nan=NAN_ALLOW):
     results = []
@@ -68,7 +68,7 @@ class Past24(resthandler.RestHandler):
     @resthandler.logexceptions
     def get(self, key):
         f = lambda: self.class_.load_past24(self.storage, key)
-        n = read_nan(self.get_argument("nan", "purge"))
+        n = read_nanopt(self.get_argument("nan", "purge"))
         sequence_load(f, key, self.finish, self.send_error, nan=n)
 
 class PastWeek(resthandler.RestHandler):
@@ -77,7 +77,7 @@ class PastWeek(resthandler.RestHandler):
     @resthandler.logexceptions
     def get(self, key):
         f = lambda: self.class_.load_pastweek(self.storage, key)
-        n = read_nan(self.get_argument("nan", "purge"))
+        n = read_nanopt(self.get_argument("nan", "purge"))
         sequence_load(f, key, self.finish, self.send_error, nan=n)
 
 class RangeRdonly(resthandler.RestHandler):
@@ -89,7 +89,7 @@ class RangeRdonly(resthandler.RestHandler):
         finish = parser.parse_timespec(self.get_argument("finish"))
         args   = list(start) + list(finish)
         f      = lambda: self.class_.load_range(self.storage, key, *args)
-        n      = read_nan(self.get_argument("nan", "purge"))
+        n      = read_nanopt(self.get_argument("nan", "purge"))
         sequence_load(f, key, self.finish, self.send_error, nan=n)
 
 class RangeRdwr(RangeRdonly):
@@ -111,7 +111,7 @@ class YearMonthDay(resthandler.RestHandler):
     @resthandler.logexceptions
     def get(self, year, month, day, key):
         f = lambda: self.class_.load_day(self.storage, key, int(year, 10), int(month, 10), int(day, 10))
-        n = read_nan(self.get_argument("nan", "purge"))
+        n = read_nanopt(self.get_argument("nan", "purge"))
         sequence_load(f, key, self.finish, self.send_error, nan=n)
 
 class YearMonth(resthandler.RestHandler):
@@ -120,5 +120,5 @@ class YearMonth(resthandler.RestHandler):
     @resthandler.logexceptions
     def get(self, year, month, key):
         f = lambda: self.class_.load_month(self.storage, key, int(year, 10), int(month, 10))
-        n = read_nan(self.get_argument("nan", "purge"))
+        n = read_nanopt(self.get_argument("nan", "purge"))
         sequence_load(f, key, self.finish, self.send_error, nan=n)
