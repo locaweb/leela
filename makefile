@@ -123,6 +123,11 @@ test-server:
 
 test: test-dmproc test-server
 
+.PHONY: tags
+tags:
+	rm -f $(srcroot)/TAGS; $(bin_find) $(srcroot)/src \( -name '*.py' -or -name '*.hs' \) -exec etags -a $(srcroot)/TAGS \{\} \;
+	ctags -R
+
 test-smoke: compile-dmproc
 	$(call check_bin,lsof)
 	$(call check_bin,python)

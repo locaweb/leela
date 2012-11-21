@@ -3,7 +3,7 @@
 *.swp
 *.o
 /tags
-/etags
+/TAGS
 /build/
 /dist/
 /doc/build/
