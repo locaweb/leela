@@ -16,6 +16,7 @@
 #    limitations under the License.
 #
 
+import math
 from twisted.internet import defer
 from cyclone import web
 from leela.server import config
@@ -24,15 +25,27 @@ from leela.server.network import resthandler
 from leela.server.data import parser
 from leela.server.data import pp
 
-def render_series(events):
+NAN_ALLOW = 0
+NAN_PURGE = 1
+
+def read_nan(x):
+    return({ "allow": NAN_ALLOW,
+             "purge": NAN_PURGE,
+           }.get(x, NAN_PURGE))
+
+def render_series(events, nan=NAN_ALLOW):
     results = []
+    accept  = lambda x: not isinstance(x, float) or (not (math.isnan(x) or math.isinf(x)))
     for e in events:
-        results.append([e.unixtimestamp(), e.value()])
+        if (accept(e.value()) or nan == NAN_ALLOW):
+            results.append([e.unixtimestamp(), e.value()])
+        elif (nan != NAN_PURGE):
+            raise(RuntimeError("unknonw value"))
     return(results)
 
 @defer.inlineCallbacks
 @resthandler.logexceptions
-def sequece_load(f, key, success, failure):
+def sequence_load(f, key, success, failure, nan=NAN_ALLOW):
     t = funcs.timer_start()
     d = lambda: {"walltime": funcs.timer_stop(t)}
     try:
@@ -41,7 +54,7 @@ def sequece_load(f, key, success, failure):
             failure(404, debug=d())
         else:
             success({"status" : 200,
-                     "results": {key: {"series": render_series(r)}},
+                     "results": {key: {"series": render_series(r, nan)}},
                      "debug"  : d()
                     })
     except web.HTTPError, e:
@@ -55,7 +68,8 @@ class Past24(resthandler.RestHandler):
     @resthandler.logexceptions
     def get(self, key):
         f = lambda: self.class_.load_past24(self.storage, key)
-        sequece_load(f, key, self.finish, self.send_error)
+        n = read_nan(self.get_argument("nan", "purge"))
+        sequence_load(f, key, self.finish, self.send_error, nan=n)
 
 class PastWeek(resthandler.RestHandler):
 
@@ -63,7 +77,8 @@ class PastWeek(resthandler.RestHandler):
     @resthandler.logexceptions
     def get(self, key):
         f = lambda: self.class_.load_pastweek(self.storage, key)
-        sequece_load(f, key, self.finish, self.send_error)
+        n = read_nan(self.get_argument("nan", "purge"))
+        sequence_load(f, key, self.finish, self.send_error, nan=n)
 
 class RangeRdonly(resthandler.RestHandler):
 
@@ -74,7 +89,8 @@ class RangeRdonly(resthandler.RestHandler):
         finish = parser.parse_timespec(self.get_argument("finish"))
         args   = list(start) + list(finish)
         f      = lambda: self.class_.load_range(self.storage, key, *args)
-        sequece_load(f, key, self.finish, self.send_error)
+        n      = read_nan(self.get_argument("nan", "purge"))
+        sequence_load(f, key, self.finish, self.send_error, nan=n)
 
 class RangeRdwr(RangeRdonly):
 
@@ -95,7 +111,8 @@ class YearMonthDay(resthandler.RestHandler):
     @resthandler.logexceptions
     def get(self, year, month, day, key):
         f = lambda: self.class_.load_day(self.storage, key, int(year, 10), int(month, 10), int(day, 10))
-        sequece_load(f, key, self.finish, self.send_error)
+        n = read_nan(self.get_argument("nan", "purge"))
+        sequence_load(f, key, self.finish, self.send_error, nan=n)
 
 class YearMonth(resthandler.RestHandler):
 
@@ -103,4 +120,5 @@ class YearMonth(resthandler.RestHandler):
     @resthandler.logexceptions
     def get(self, year, month, key):
         f = lambda: self.class_.load_month(self.storage, key, int(year, 10), int(month, 10))
-        sequece_load(f, key, self.finish, self.send_error)
+        n = read_nan(self.get_argument("nan", "purge"))
+        sequence_load(f, key, self.finish, self.send_error, nan=n)
