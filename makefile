@@ -6,6 +6,7 @@ userfile       = $(HOME)/.leela-server.makefile
 bin_which      = which
 
 bin_find       = find
+bin_xargs      = xargs
 bin_ghc        = ghc
 bin_virtualenv = virtualenv
 bin_cabal      = cabal
@@ -14,6 +15,8 @@ bin_socat      = socat
 bin_curl       = curl
 bin_date       = date
 bin_sed        = sed
+bin_ctags      = ctags
+bin_etags      = etags
 
 bin_twistd     = twistd
 bin_nosetests  = nosetests
@@ -62,6 +65,7 @@ bootstrap:
 	$(call check_bin,curl)
 	$(call check_bin,date)
 	$(call check_bin,sed)
+	$(call check_bin,xargs)
 	echo "bin_nosetests  = $(HOME)/pyenv/leela-server/bin/nosetests"   >$(userfile)
 	echo "bin_virtualenv = $(bin_virtualenv)"                         >>$(userfile)
 	echo "bin_twistd     = $(HOME)/pyenv/leela-server/bin/twistd"     >>$(userfile)
@@ -75,7 +79,8 @@ bootstrap:
 	echo "bin_which      = $(bin_which)"                              >>$(userfile)
 	echo "bin_curl       = $(bin_curl)"                               >>$(userfile)
 	echo "bin_date       = $(bin_date)"                               >>$(userfile)
-	echo "bin_sed        = $(bin_sed)"                                 >>$(userfile)
+	echo "bin_sed        = $(bin_sed)"                                >>$(userfile)
+	echo "bin_xargs      = $(bin_xargs)"                              >>$(userfile)
 
 	test -d $(HOME)/pyenv/leela-server || $(bin_virtualenv) $(HOME)/pyenv/leela-server
 	$(HOME)/pyenv/leela-server/bin/pip install -q -r $(srcroot)/PYDEPS.txt
@@ -125,8 +130,10 @@ test: test-dmproc test-server
 
 .PHONY: tags
 tags:
-	rm -f $(srcroot)/TAGS; $(bin_find) $(srcroot)/src \( -name '*.py' -or -name '*.hs' \) -exec etags -a $(srcroot)/TAGS \{\} \;
-	ctags -R
+	$(call check_bin, ctags)
+	$(call check_bin, etags)
+	$(bin_find) $(srcroot)/src/ \( -name '*.py' -or -name '*.hs' \) -print0 | $(bin_xargs) -0 $(bin_etags) -o $(srcroot)/TAGS
+	$(bin_find) $(srcroot)/src/ \( -name '*.py' -or -name '*.hs' \) -print0 | $(bin_xargs) -0 $(bin_ctags) -o $(srcroot)/tags
 
 test-smoke: compile-dmproc
 	$(call check_bin,lsof)
