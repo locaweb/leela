@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8; -*-
 
 import sys; _stdout = sys.stdout; _stdin = sys.stdin; _stderr = sys.stderr;
