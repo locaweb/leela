@@ -32,7 +32,7 @@ class Storable(object):
     def load_range(self, storage, k, ys, ms, ds, hs, mins, yf, mf, df, hf, minf):
         start  = Timestamp._make((ys, ms, ds, hs, mins, 0))
         finish = Timestamp._make((yf, mf, df, hf, minf, 60))
-        return(storage.load(self.kind(), k, start, finish, 60*60))
+        return(storage.load(self.kind(), k, start, finish, 31*24*60*60))
 
     @classmethod
     def load_time(self, storage, k, y, m, d, h):
