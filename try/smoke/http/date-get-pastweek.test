@@ -1,0 +1,8 @@
+# syntax: http://hub.darcs.net/simon/shelltestrunner
+
+./try/smoke/lib/run leela_tryhttp_write_to_cassandra_and_read_http /v1/data/pastweek/foobar
+<<<
+data 6|foobar __NOWUXTIME__ 10|{"one": 1};
+>>>
+{"results": {"foobar": {"series": [[__NOWUXTIME__, {"one": 1}]]}}, "status": 200}
+>>>= 0

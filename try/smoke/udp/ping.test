@@ -1,0 +1,8 @@
+# syntax: http://hub.darcs.net/simon/shelltestrunner
+
+./try/smoke/lib/run leela_tryudp_write_to_socket
+<<<
+ping
+>>>
+pong
+>>>= 0

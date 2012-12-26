@@ -1,0 +1,8 @@
+# syntax: http://hub.darcs.net/simon/shelltestrunner
+
+./try/smoke/lib/run leela_trystorage_write_to_socket_and_enum_events_from_cassandra
+<<<
+event 6|foobar 1351101449.0 0.75;
+>>>
+event 6|foobar 1351101420.0 0.75;
+>>>= 0

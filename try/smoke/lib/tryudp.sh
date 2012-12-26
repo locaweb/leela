@@ -9,8 +9,19 @@ leela_tryudp_write_to_socket_and_read_from_socket () {
   leela_trylib_service_start udp >/dev/null
   leela_trylib_wait_inet $pidfile udp:6968 >/dev/null
 
-  leela_trylib_udp_write $dbusfile
+  leela_trylib_udp_write
   wait
+
+  leela_trylib_service_stop
+}
+
+leela_tryudp_write_to_socket () {
+  rm -f $dbusfile
+
+  leela_trylib_service_start udp >/dev/null
+  leela_trylib_wait_inet $pidfile udp:6968 >/dev/null
+
+  leela_trylib_udp_write $dbusfile
 
   leela_trylib_service_stop
 }

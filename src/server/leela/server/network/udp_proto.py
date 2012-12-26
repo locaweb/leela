@@ -22,11 +22,20 @@ from leela.server.data.parser import *
 class UDP(protocol.DatagramProtocol):
 
     def datagramReceived(self, string, peer):
+        try:
+            if (string == "ping\n"):
+                self.handle_ping(peer)
+            else:
+                self.handle_event(string)
+        except:
+            logger.exception()
+
+    def handle_ping(self, peer):
+        self.transport.write("pong\n", peer)
+
+    def handle_event(self, string):
         tmp = []
         for l in string.splitlines():
-            try:
-                tmp.append(parse_event_legacy(l))
-            except:
-                logger.exception()
+            tmp.append(parse_event_legacy(l))
         if (len(tmp) > 0):
             self.recv_event(tmp)

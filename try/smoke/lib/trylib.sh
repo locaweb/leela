@@ -22,7 +22,7 @@ leela_trylib_xsock_read () {
 }
 
 leela_trylib_xsock_write () {
-  $bin_socat STDIN UNIX-SENDTO:$1
+  $bin_socat STDIO UNIX-SENDTO:$1
 }
 
 leela_trylib_wait_xsock () {
@@ -88,7 +88,7 @@ leela_trylib_service_stop () {
 }
 
 leela_trylib_udp_write () {
-  $bin_socat -t1  STDIN UDP4-SENDTO:localhost:6968
+  $bin_socat -t2 STDIO UDP4:localhost:6968
 }
 
 leela_trylib_curl () {

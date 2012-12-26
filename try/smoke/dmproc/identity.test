@@ -1,0 +1,9 @@
+# syntax: http://hub.darcs.net/simon/shelltestrunner
+
+./try/smoke/lib/run leela_trydmproc_interact -n 3 "proc match 1|. id;"
+<<<
+event 6|foobar 0.0 1;
+event 6|foobaz 0.1 2;
+>>>
+status 0;event 6|foobar 0.0 1;event 6|foobaz 0.1 2;
+>>>= 0

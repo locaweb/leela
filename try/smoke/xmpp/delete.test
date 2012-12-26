@@ -1,0 +1,8 @@
+# syntax: http://hub.darcs.net/simon/shelltestrunner
+
+./try/smoke/lib/run leela_tryxmpp_interact -n 1
+<<<
+foobar@localhost: delete from leela.xmpp;
+>>>
+foobar: {"debug": {"request": "delete from leela.xmpp;\n"}, "reason": "not found", "status": 404}
+>>>= 0
