@@ -19,6 +19,9 @@ module DarkMatter.Data.ProcLib where
 
 import DarkMatter.Data.Proc
 
+imean :: (Fractional a) => Int -> a -> a -> a
+imean n m0 e = m0 + ((e - m0) / (fromIntegral n))
+
 -- | Computes the mean using an numerically stable algorithm:
 -- @
 --    meanₙ₊₁ = meanₙ + aₖ₊₁ - meanₙ
@@ -37,18 +40,22 @@ import DarkMatter.Data.Proc
 -- @ 
 mean :: (Fractional a) => Proc a a
 mean = Auto (f 0 1)
-  where f m0 n e = let m1 = m0 + (e - m0)/n
+  where f m0 n e = let m1 = imean n m0 e
                    in (m1, Auto (f m1 (n + 1)))
 
 -- | Simple moving average
 sma :: (Fractional a) => Int -> Proc a (Maybe a)
-sma n = Auto (f [])
-  where f acc i
-          | length acc == n = g acc i
-          | otherwise       = i `seq` (Nothing, Auto $ f (i : acc))
+sma n = Auto (f 0 1)
+  where f mean0 k e
+          | k == n    = (Just mean1, Auto $ g mean1 0 1)
+          | otherwise = mean1 `seq` (Nothing, Auto $ f mean1 (k+1))
+            where mean1 = imean k mean0 e
 
-        g acc i = let m = fst $ run_ mean acc
-                  in (Just m, Auto $ g (i : init acc))
+        g o_mean c_mean k e
+          | k == n      = (Just o_mean1, Auto $ g c_mean1 0 1)
+          | otherwise   = c_mean1 `seq` (Just o_mean1, Auto $ g o_mean1 c_mean1 (k+1))
+            where o_mean1 = imean (n+k) o_mean e
+                  c_mean1 = imean k c_mean e
 
 -- | Drops the first n items
 dropProc :: Int -> Proc a (Maybe a)

@@ -114,9 +114,12 @@ sma_spec = do
                       ; return (size, vals)
                       }
         
-        refImpl n xs
-          | length xs >= n = sum (take n xs) / (fromIntegral n) : refImpl n (tail xs)
-          | otherwise      = []
+        refImpl n xs = map (\ys -> sum ys / fromIntegral (length ys)) (build xs)
+            where build ys = take n ys : go 1 ys
+                    where go k zs
+                            | length zs < (n+k) = []
+                            | k == n            = take (n+k) zs : go 1 (drop n zs)
+                            | otherwise         = take (n+k) zs : go (k+1) zs
 
 
 instance Show (Op a) where
