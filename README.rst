@@ -21,7 +21,7 @@ unstable
 --------
 ::
 
-  $ pip install -r https://raw.github.com/locaweb/leela-server/master/PYDEPS.txt
+  $ pip install -r https://raw.github.com/locaweb/leela-server/master/pip-requires.txt
   $ pip install https://github.com/locaweb/leela-server/archive/master.tar.gz
 
 Version

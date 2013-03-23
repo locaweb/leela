@@ -6,7 +6,7 @@ include $(srcroot)/makefile.lib
 
 bootstrap: .saverc
 	test -d $(HOME)/pyenv/leela-server || $(bin_virtualenv) $(HOME)/pyenv/leela-server
-	$(HOME)/pyenv/leela-server/bin/pip install -q -r $(srcroot)/PYDEPS.txt
+	$(HOME)/pyenv/leela-server/bin/pip install -q -r $(srcroot)/pip-requires.txt
 	$(HOME)/pyenv/leela-server/bin/pip install -q nose
 	$(HOME)/pyenv/leela-server/bin/pip install -q mock
 	$(bin_cabal) update
