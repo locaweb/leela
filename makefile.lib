@@ -11,8 +11,7 @@ bin_socat      = socat
 bin_curl       = curl
 bin_date       = date
 bin_sed        = sed
-bin_ctags      = ctags
-bin_etags      = etags
+bin_install    = install
 
 bin_twistd     = twistd
 bin_nosetests  = nosetests
@@ -52,6 +51,7 @@ shelltestpath  = $(srcroot)/try/smoke
 	echo "bin_date       = $(bin_date)"                               >>$(userfile)
 	echo "bin_sed        = $(bin_sed)"                                >>$(userfile)
 	echo "bin_xargs      = $(bin_xargs)"                              >>$(userfile)
+	echo "bin_install    = $(bin_install)"                            >>$(userfile)
 	echo "bin_nosetests  = $(HOME)/pyenv/leela-server/bin/nosetests"  >>$(userfile)
 	echo "bin_twistd     = $(HOME)/pyenv/leela-server/bin/twistd"     >>$(userfile)
 	echo "bin_python     = $(HOME)/pyenv/leela-server/bin/python"     >>$(userfile)

@@ -38,8 +38,9 @@ compile-dmproc:
 	$(call .check_bin,ghc)
 	$(bin_ghc) $(ghcargs) -v0 -W -Wall -fforce-recomp -threaded -i$(srcroot)/src/dmproc -O2 --make -static -optc-static -optl-static $(srcroot)/src/dmproc/DarkMatter/dmproc.hs -optl-pthread
 
-compile: compile-dmproc
-	cp -p $(srcroot)/src/dmproc/DarkMatter/dmproc $(srcroot)/usr/bin/dmproc
+build-dmproc: compile-dmproc
+	mkdir -p $(srcroot)/usr/bin
+	$(bin_install) -m 0755 $(srcroot)/src/dmproc/DarkMatter/dmproc $(srcroot)/usr/bin/dmproc
 
 test-dmproc: compile-dmtry
 	$(srcroot)/try/dmproc/dmtry

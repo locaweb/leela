@@ -2,6 +2,7 @@
 *.hi
 *.swp
 *.o
+/usr/bin/dmproc
 /tags
 /TAGS
 /build/
