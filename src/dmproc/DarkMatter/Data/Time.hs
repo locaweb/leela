@@ -31,13 +31,15 @@ nseconds :: Time -> Int
 nseconds = snd . unTime
 
 mktime :: Int -> Int -> Time
-mktime s n = Time (s, n)
+mktime s n = let (s1, n1) = n `quotRem` nmax
+             in Time (s+s1, n1)
 {-# INLINE mktime #-}
 
 nmax :: Int
-nmax = 10 ^ (9 :: Int)
+nmax = 1000000000
 
+-- | Computes the absolute difference
 diff :: Time -> Time -> Time
 diff t0 t1 = let s      = seconds t1 - seconds t0
-                 (r, n) = (nseconds t1 - nseconds t0) `divMod` nmax
-             in mktime (s - r) n
+                 (r, n) = (nseconds t1 - nseconds t0) `quotRem` nmax
+             in mktime (abs (s - abs r)) (abs n)
