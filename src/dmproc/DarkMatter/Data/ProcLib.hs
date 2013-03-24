@@ -43,19 +43,23 @@ mean = Auto (f 0 1)
   where f m0 n e = let m1 = imean n m0 e
                    in (m1, Auto (f m1 (n + 1)))
 
--- | Simple moving average
-sma :: (Fractional a) => Int -> Proc a (Maybe a)
-sma n = Auto (f 0 1)
-  where f mean0 k e
-          | k == n    = (Just mean1, Auto $ g mean1 0 1)
-          | otherwise = mean1 `seq` (Nothing, Auto $ f mean1 (k+1))
-            where mean1 = imean k mean0 e
+-- | Exponential weighted moving average
+ewma :: (Fractional a) => a -> Proc a (Maybe a)
+ewma k = Auto (f False 0)
+  where f t m0 e
+          | t         = (Just m1, Auto $ f t m1)
+          | otherwise = (Nothing, Auto $ f True e)
+            where m1 = k * m0 + (1 - k) * e
 
-        g o_mean c_mean k e
-          | k == n      = (Just o_mean1, Auto $ g c_mean1 0 1)
-          | otherwise   = c_mean1 `seq` (Just o_mean1, Auto $ g o_mean1 c_mean1 (k+1))
-            where o_mean1 = imean (n+k) o_mean e
-                  c_mean1 = imean k c_mean e
+-- | Approximates the SMA implementation by using EWMA with an alpha
+-- value of `1-2/(n+1)`. As the ewma starts producing data right away,
+-- we warmup the ewma by waiting (n+1)/2 (roughly the cycle of SMA)
+-- events to arrive.
+sma :: (Fractional a) => Int  -> Proc a (Maybe a)
+sma n = Auto (f ((n+1) `div` 2) (ewma (1 - 2 / fromIntegral (n+1))))
+  where f 0 p0 e = run1 p0 e
+        f t p0 e = let (v, p1) = run1 p0 e
+                   in v `seq` (Nothing, Auto $ f (t-1) p1)
 
 -- | Drops the first n items
 dropProc :: Int -> Proc a (Maybe a)

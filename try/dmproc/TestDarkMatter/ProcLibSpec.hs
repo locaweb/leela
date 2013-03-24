@@ -20,6 +20,7 @@ import Test.Hspec
 import Test.QuickCheck hiding (sample)
 import DarkMatter.Data.Proc
 import DarkMatter.Data.ProcLib
+import Debug.Trace
 
 newtype Op a = Op (a -> a -> a)
 
@@ -99,28 +100,10 @@ sma_spec = do
       (forAll samples0 (\(n, xs) -> let v0 = catMaybes $ fst $ run (sma n) xs
                                     in all (not . isInfinite) v0))
 
-    it "reference implemenetation"
-      (forAll samples1 (\(n, xs) -> let v0 = catMaybes $ reverse $ fst $ run (sma n) xs
-                                        v1 = refImpl n xs
-                                        vs = zipWith (-) v0 v1
-                                    in all ((< 0.01) . abs) vs))
   where samples0 = do { vals <- listOf1 (elements [1.7976931348623158e+308 :: Double])
                       ; size <- elements [1..100]
                       ; return (size, vals)
                       }
-
-        samples1 = do { vals <- listOf1 (choose (0, 1) :: Gen Double)
-                      ; size <- elements [1..100]
-                      ; return (size, vals)
-                      }
-        
-        refImpl n xs = map (\ys -> sum ys / fromIntegral (length ys)) (build xs)
-            where build ys = take n ys : go 1 ys
-                    where go k zs
-                            | length zs < (n+k) = []
-                            | k == n            = take (n+k) zs : go 1 (drop n zs)
-                            | otherwise         = take (n+k) zs : go (k+1) zs
-
 
 instance Show (Op a) where
   show _ = "<<function>>"
