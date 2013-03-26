@@ -110,3 +110,15 @@ absolute_spec =
       time e        `shouldBe` (mktime 60 0)
       val e         `shouldBe` 2
 
+gc_spec :: Spec
+gc_spec = do
+  describe "gc" $ do
+    it "should keep elements with time - now < ttl" $ do
+      let (w, _)  = publish emptyWall (M.Gauge 0 (mktime 0 0) 0)
+          w1      = gc (mktime 0 0) w
+      tKeys w1 `shouldBe` [0]
+
+    it "should purge elements with time + now >= ttl" $ do
+      let (w, _)  = publish emptyWall (M.Gauge 0 ttl 0)
+          w1      = gc (mktime 0 0) w
+      tKeys w1 `shouldBe` []

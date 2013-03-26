@@ -16,14 +16,19 @@ module DarkMatter.Data.Wall.Timeline
        ( Wall()
        , empty
        , publish
+       , tKeys
+       , tLookup
+       , ttl
+       , gc
        ) where
 
+import           Data.List (foldl')
 import qualified Data.HashMap as M
 import           Data.Hashable
 import           Data.Either
 import           DarkMatter.Data.Time
 import qualified DarkMatter.Data.Metric as M
-import           DarkMatter.Data.Event as E
+import           DarkMatter.Data.Event
 
 -- | The wall is capable of accepting all kinds of events. I think
 -- this makes the use of it easier and gives more flexibility.
@@ -48,23 +53,40 @@ elapsed e0 e1
   | otherwise  = Just (diff (time e0) (time e1))
     where older = time e0 >= time e1
 
-insert :: (Hashable k, Ord k) => Wall k -> k -> Event -> Wall k
-insert w k e = w { history = M.insert k e (history w) }
+tKeys :: (Hashable k, Ord k) => Wall k -> [k]
+tKeys w = M.keys (history w)
+
+tLookup :: (Hashable k, Ord k) => Wall k -> k -> Maybe Event
+tLookup w = flip M.lookup (history w)
+
+tUpdate :: (Hashable k, Ord k) => Wall k -> (Event -> Maybe Event) -> k -> Wall k
+tUpdate w f k = w { history = M.update f k (history w) }
+
+tInsert :: (Hashable k, Ord k) => Wall k -> k -> Event -> Wall k
+tInsert w k e = w { history = M.insert k e (history w) }
 
 timeline :: (Hashable k, Ord k) => Wall k -> (Event -> Event -> Event) -> k -> Event -> (Maybe (Either Event Event), Wall k)
-timeline w f k e1 = case (M.lookup k m)
+timeline w f k e1 = case (tLookup w k)
                     of Nothing
-                         -> (Nothing, insert w k e1)
+                         -> (Nothing, tInsert w k e1)
                        Just e0
                          -> replace (elapsed e0 e1) e0
-  where m = history w
-
-        replace Nothing _ = (Nothing, w)
+  where replace Nothing _ = (Nothing, w)
         replace (Just t) e0
-          | t >= ttl   = (Nothing, insert w k e1)
-          | t >= clock = (Just (Right e0), insert w k e1)
+          | t >= ttl   = (Nothing, tInsert w k e1)
+          | t >= clock = (Just (Right e0), tInsert w k e1)
           | otherwise  = let e = e0 `f` e1
-                         in (Just (Left e), insert w k e)
+                         in (Just (Left e), tInsert w k e)
+
+gc :: (Hashable k, Ord k) => Time -> Wall k -> Wall k
+gc now w = foldl' adjust w (tKeys w)
+  where adjust w k = tUpdate w maybeExpire k
+
+        maybeExpire e
+          | t >= ttl   = Nothing
+          | otherwise  = Just e
+            where t = diff now (time e)
+          
 
 combineSum :: Event -> Event -> Event
 combineSum e0 e1 = event (time e0) (val e0 + val e1)
