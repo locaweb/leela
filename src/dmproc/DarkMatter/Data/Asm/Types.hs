@@ -40,6 +40,7 @@ data SyncFunc = Sum
 
 data AsyncFunc = Window Int [SyncFunc]
                | SMA Int
+               | EWMA Double
                | Sample Int Int
                | ComparisonL ComparisonOp Double
                | ComparisonR ComparisonOp Double

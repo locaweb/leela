@@ -48,6 +48,7 @@
 --            / "prod"
 --   AFUNC    = "window" SP 1*DIGIT SP "(" SFUNC *(SP "|" SP SFUNC) ")"
 --            / "sma" SP 1*DIGIT
+--            / "ewma" SP VAL
 --            / "sample" SP 1*DIGIT SP 1*DIGIT
 --            / "[" LOP SP VAL "]"
 --            / "[" ROP SP VAL "]"
@@ -69,7 +70,6 @@ import           Data.Attoparsec.ByteString as P
 import qualified Data.Attoparsec.ByteString.Char8 as P8
 import           Text.Regex.TDFA
 import           Text.Regex.TDFA.ByteString
-import qualified Data.ByteString as B
 import           DarkMatter.Data.Parsers.Helpers
 import           DarkMatter.Data.Asm.Types
 import qualified DarkMatter.Data.Event as E
@@ -165,6 +165,7 @@ parseAsyncFunc = do { mc <- P8.peekChar
                       of Just 's' -> choice [ parseSMA
                                             , parseSample
                                             ]
+                         Just 'e' -> parseEWMA
                          Just 'w' -> parseWindow
                          Just '[' -> parseComparison
                          _        -> fail "parseAsyncFunc: s|w were expected"
@@ -176,6 +177,7 @@ parseFunction = do { c <- P8.peekChar
                      of Just 's' -> choice [ fmap Left parseAsyncFunc
                                            , fmap Right parseSyncFunc
                                            ]
+                        Just 'e' -> fmap Left parseAsyncFunc
                         Just 'w' -> fmap Left parseAsyncFunc
                         Just '[' -> fmap Left parseAsyncFunc
                         _        -> fmap Right parseSyncFunc
@@ -188,6 +190,14 @@ parseSMA = do { _ <- string "sma "
                 then return (SMA n)
                 else fail "parseSMA: n <= 0"
               }
+
+parseEWMA :: Parser AsyncFunc
+parseEWMA = do { _ <- string "ewma "
+               ; v <- parseVal
+               ; if (v >= 0)
+                 then return (EWMA v)
+                 else fail "parseEWMA: n < 0"
+               }
 
 parseSample :: Parser AsyncFunc
 parseSample = do { _ <- string "sample "

@@ -102,6 +102,8 @@ renderAsyncFunc (Sample n m)       = fromString "sample "
                                      <> fromShow m
 renderAsyncFunc (SMA n)            = fromString "sma "
                                      <> fromShow n
+renderAsyncFunc (EWMA a)           = fromString "ewma "
+                                     <> renderDouble a
 renderAsyncFunc (ComparisonL o v)  = fromChar '['
                                    <> renderDouble v
                                    <> fromChar ' '

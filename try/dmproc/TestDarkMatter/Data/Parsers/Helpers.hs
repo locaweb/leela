@@ -60,13 +60,15 @@ genSyncFunc = do { f <- arbitrary
                   }
 
 genAsyncFunc :: Gen AsyncFunc
-genAsyncFunc = do { n <- arbitrary `suchThat` (> 0)
-                  ; m <- arbitrary `suchThat` (>= n)
-                  ; f <- arbitrary `suchThat` ((> 0) . length)
-                  ; g <- arbitrary
-                  ; v <- arbitrary
+genAsyncFunc = do { n  <- arbitrary `suchThat` (> 0)
+                  ; m  <- arbitrary `suchThat` (>= n)
+                  ; f  <- arbitrary `suchThat` ((> 0) . length)
+                  ; g  <- arbitrary
+                  ; v  <- arbitrary
+                  ; v1 <- arbitrary `suchThat` (>= 0)
                   ; elements [ Window n f
                              , SMA n
+                             , EWMA v1
                              , Sample n m
                              , ComparisonL g v
                              , ComparisonR g v
