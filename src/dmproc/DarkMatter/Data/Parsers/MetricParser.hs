@@ -15,7 +15,7 @@
 
 -- | The sole datatype that the core deals with.
 module DarkMatter.Data.Parser.Metrics
-       ( parseMetric
+       ( metricParser
        ) where
 
 import           Control.Monad
@@ -49,9 +49,9 @@ parseAbsolute = string "absolute " >> parseMetric Absolute
 
 parseMetric :: (B.ByteString -> Double -> Time -> Metric) -> Parser Metric
 parseMetric metric = do { k <- parseStr
-                         ; _ <- P8.space
-                         ; v <- parseVal
-                         ; _ <- P8.space
-                         ; t <- parseTime
-                         ; return (metric k v t)
-                         }
+                        ; _ <- P8.space
+                        ; v <- parseVal
+                        ; _ <- P8.space
+                        ; t <- parseTime
+                        ; return (metric k v t)
+                        }
