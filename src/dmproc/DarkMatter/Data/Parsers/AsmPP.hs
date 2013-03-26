@@ -15,7 +15,7 @@
 
 -- | The sole purpose of this module is to provide a [byte] string
 -- represetation of the Asm type such as `parse . render == id`.
-module DarkMatter.Data.Asm.Render where
+module DarkMatter.Data.Parsers.AsmPP where
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as B8

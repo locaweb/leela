@@ -24,7 +24,7 @@ import qualified Data.ByteString.Char8 as B8
 import           Network.Socket (Socket)
 import           Network.Socket.ByteString
 import           DarkMatter.Data.Asm.Types (Key)
-import           DarkMatter.Data.Asm.Parser
+import           DarkMatter.Data.Parsers.AsmParser
 import           DarkMatter.Data.Event
 
 data Status = Success

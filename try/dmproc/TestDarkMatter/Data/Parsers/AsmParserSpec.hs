@@ -14,15 +14,16 @@
 --    See the License for the specific language governing permissions and
 --    limitations under the License.
 
-module TestDarkMatter.Data.Asm.ParserSpec where
+module TestDarkMatter.Data.Parsers.AsmParserSpec where
 
 import Blaze.ByteString.Builder
 import Test.Hspec
 import Test.QuickCheck
-import TestDarkMatter.Helpers ()
+import TestDarkMatter.Data.Parsers.Helpers ()
 import DarkMatter.Data.Asm.Types
-import DarkMatter.Data.Asm.Parser
-import DarkMatter.Data.Asm.Render
+import DarkMatter.Data.Parsers.Helpers
+import DarkMatter.Data.Parsers.AsmParser
+import DarkMatter.Data.Parsers.AsmPP
 
 parseOneShouldBeOk :: Asm -> Bool
 parseOneShouldBeOk asm = let f = runOne asmParser . toByteString . render

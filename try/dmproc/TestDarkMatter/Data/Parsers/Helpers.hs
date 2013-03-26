@@ -14,14 +14,14 @@
 --    See the License for the specific language governing permissions and
 --    limitations under the License.
 
-module TestDarkMatter.Helpers where
+module TestDarkMatter.Data.Parsers.Helpers where
 
 import           Control.Monad
 import qualified Data.ByteString.Char8 as B8
 import           Test.QuickCheck
 import           DarkMatter.Data.Time
 import           DarkMatter.Data.Asm.Types
-import           DarkMatter.Data.Asm.Render
+import           DarkMatter.Data.Parsers.AsmPP
 
 genStr :: Gen B8.ByteString
 genStr = fmap B8.pack (listOf1 $ elements $ ['a'..'z'] ++ ['0'..'9'] ++ ['.'])

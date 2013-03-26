@@ -60,28 +60,19 @@
 --            / "="
 --            / ">="
 --            / "<="
-module DarkMatter.Data.Asm.Parser
-       ( runOne
-       , runAll
-       , asmParser
+module DarkMatter.Data.Parsers.AsmParser
+       ( asmParser
        , eventParser
        ) where
 
-import           Control.Monad
 import           Data.Attoparsec.ByteString as P
 import qualified Data.Attoparsec.ByteString.Char8 as P8
 import           Text.Regex.TDFA
 import           Text.Regex.TDFA.ByteString
 import qualified Data.ByteString as B
+import           DarkMatter.Data.Parsers.Helpers
 import           DarkMatter.Data.Asm.Types
 import qualified DarkMatter.Data.Event as E
-import           DarkMatter.Data.Time
-
-nan :: Double
-nan = 0 / 0
-
-inf :: Double
-inf = 1 / 0
 
 asmParser :: Parser Asm
 asmParser = do { mc <- P8.peekChar
@@ -96,51 +87,6 @@ eventParser :: Parser (Key, E.Event)
 eventParser = fmap cast parseEvent
   where cast (Event k t d) = (k, E.event t d)
         cast _             = error "eventParser: event was expected"
-
-endBy :: Parser a -> Parser () -> Parser a
-endBy m s = do { r <- m
-               ; _ <- s
-               ; return r
-               }
-
-runOne :: Parser a -> B.ByteString -> Maybe a
-runOne p i = either (const Nothing) Just (parseOnly (p `endBy` eol) i)
-
-runAll :: Parser a -> B.ByteString -> [a]
-runAll p i = either (const []) id (parseOnly parser i)
-  where parser = do { eof <- atEnd
-                    ; if eof
-                      then return []
-                      else liftM2 (:) (p `endBy` eol) parser
-                    }
-
-eol :: Parser ()
-eol = P8.char ';' >> return ()
-
-parseInt :: Parser Int
-parseInt = P8.decimal
-
-parseStr :: Parser B.ByteString
-parseStr = do { n <- parseInt
-              ; _ <- P8.char '|'
-              ; P.take n
-              }
-
-parseTime :: Parser Time
-parseTime = do { s <- parseInt
-               ; _ <- P8.char '.'
-               ; n <- parseInt
-               ; return (mktime s n)
-               }
-
-parseVal :: Parser Double
-parseVal = do { c <- P8.peekChar
-              ; case c
-                of Just 'n' -> string "nan"  >> return nan
-                   Just 'i' -> string "inf"  >> return inf
-                   Just '-' -> P8.char '-' >> fmap negate parseVal
-                   _        -> choice [P8.double, P8.rational]
-              }
 
 parseClose :: Parser Asm
 parseClose = P8.string "close" >> return Close

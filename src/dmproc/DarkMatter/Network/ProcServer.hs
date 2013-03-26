@@ -35,9 +35,9 @@ import Network.Socket
 import DarkMatter.Logger (debug, info, warn, crit)
 import DarkMatter.Data.Event
 import DarkMatter.Data.Asm.Types hiding (Stream)
-import DarkMatter.Data.Asm.Parser
 import DarkMatter.Data.Asm.Runtime
-import DarkMatter.Data.Asm.Render
+import DarkMatter.Data.Parsers.AsmParser
+import DarkMatter.Data.Parsers.AsmPP
 import DarkMatter.Network.Protocol
 import DarkMatter.Network.Databus
 
