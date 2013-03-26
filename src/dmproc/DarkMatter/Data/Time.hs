@@ -22,6 +22,7 @@ module DarkMatter.Data.Time
        , mktime
        , diff
        , add
+       , mul
        ) where
 
 newtype Time = Time { unTime :: (Int, Int) }
@@ -57,3 +58,6 @@ diff t0 t1 = let s0     = abs $ seconds t1 - seconds t0
 
 add :: Time -> Time -> Time
 add t0 t1 = mktime (seconds t0 + seconds t1) (nseconds t0 + nseconds t1)
+
+mul :: Time -> Int -> Time
+mul t x = mktime (x * seconds t) (nseconds t)

@@ -30,9 +30,14 @@ import           DarkMatter.Data.Event as E
 data Wall k = Timeline { history :: M.Map k Event }
 
 -- | Controls the global sync rate. The minimum rate at wich we
--- produce events.
+-- produce events
 clock :: Time
 clock = mktime 60 0
+
+-- | The expiration time of events in timeline. If no event arrives
+-- before this frequency, it is marked as invalid and not used.
+ttl :: Time
+ttl = clock `mul` 5
 
 empty :: Wall k
 empty = Timeline M.empty
@@ -56,9 +61,10 @@ timeline w f k e1 = case (M.lookup k m)
 
         replace Nothing _ = (Nothing, w)
         replace (Just t) e0
-          | t >= clock    = (Just (Right e0), insert w k e1)
-          | otherwise     = let e = e0 `f` e1
-                            in (Just (Left e), insert w k e)
+          | t >= ttl   = (Nothing, insert w k e1)
+          | t >= clock = (Just (Right e0), insert w k e1)
+          | otherwise  = let e = e0 `f` e1
+                         in (Just (Left e), insert w k e)
 
 combineSum :: Event -> Event -> Event
 combineSum e0 e1 = event (time e0) (val e0 + val e1)
