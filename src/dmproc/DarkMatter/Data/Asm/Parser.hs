@@ -94,7 +94,7 @@ asmParser = do { mc <- P8.peekChar
 
 eventParser :: Parser (Key, E.Event)
 eventParser = fmap cast parseEvent
-  where cast (Event k t d) = (k, E.temporal t d)
+  where cast (Event k t d) = (k, E.event t d)
         cast _             = error "eventParser: event was expected"
 
 endBy :: Parser a -> Parser () -> Parser a

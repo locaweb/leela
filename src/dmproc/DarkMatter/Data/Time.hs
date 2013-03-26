@@ -17,8 +17,11 @@ module DarkMatter.Data.Time
        ( Time
        , seconds
        , nseconds
+       , toDouble
+       , zero
        , mktime
        , diff
+       , add
        ) where
 
 newtype Time = Time { unTime :: (Int, Int) }
@@ -30,16 +33,27 @@ seconds = fst . unTime
 nseconds :: Time -> Int
 nseconds = snd . unTime
 
+toDouble :: (Fractional a) => Time -> a
+toDouble t = let s = fromIntegral (seconds t)
+                 n = fromIntegral (nseconds t)
+             in s + n / nmax
+
 mktime :: Int -> Int -> Time
-mktime s n = let (s1, n1) = n `quotRem` nmax
+mktime s n = let (s1, n1) = n `divMod` nmax
              in Time (s+s1, n1)
 {-# INLINE mktime #-}
 
-nmax :: Int
+zero :: Time -> Bool
+zero t = seconds t == 0 && nseconds t == 0
+
+nmax :: (Num a) => a
 nmax = 1000000000
 
--- | Computes the absolute difference
 diff :: Time -> Time -> Time
-diff t0 t1 = let s      = seconds t1 - seconds t0
-                 (r, n) = (nseconds t1 - nseconds t0) `quotRem` nmax
-             in mktime (abs (s - abs r)) (abs n)
+diff t0 t1 = let s0     = abs $ seconds t1 - seconds t0
+                 (r, n) = fmap abs $ (nseconds t1 - nseconds t0) `quotRem` nmax
+                 s      = abs $ s0 - r
+             in mktime s n
+
+add :: Time -> Time -> Time
+add t0 t1 = mktime (seconds t0 + seconds t1) (nseconds t0 + nseconds t1)

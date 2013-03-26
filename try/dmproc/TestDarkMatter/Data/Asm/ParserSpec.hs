@@ -14,7 +14,7 @@
 --    See the License for the specific language governing permissions and
 --    limitations under the License.
 
-module TestDarkMatter.ParserSpec where
+module TestDarkMatter.Data.Asm.ParserSpec where
 
 import Blaze.ByteString.Builder
 import Test.Hspec
@@ -24,43 +24,47 @@ import DarkMatter.Data.Asm.Types
 import DarkMatter.Data.Asm.Parser
 import DarkMatter.Data.Asm.Render
 
-myRunOne :: Asm -> Bool
-myRunOne asm = let f = runOne asmParser . toByteString . render
-               in f asm /= Nothing
+parseOneShouldBeOk :: Asm -> Bool
+parseOneShouldBeOk asm = let f = runOne asmParser . toByteString . render
+                         in f asm /= Nothing
 
-myRunAll :: [Asm] -> Bool
-myRunAll asms = let f = runAll asmParser . toByteString . renderList
+parseAllShouldBeOk :: [Asm] -> Bool
+parseAllShouldBeOk asms = let f = runAll asmParser . toByteString . renderList
                 in length (f asms) == length asms
 
 event_spec :: Spec
 event_spec = do
-    it "\"event\" instruction"
-      (forAll samples0 myRunOne)
+  describe "event" $ do
 
-    it "\"event\" instructions"
-      (forAll samples1 myRunAll)
+    it "runOne"
+      (forAll samples0 parseOneShouldBeOk)
+
+    it "runAll"
+      (forAll samples1 parseAllShouldBeOk)
 
   where samples0 = arbitrary `suchThat` isEvent
         samples1 = arbitrary `suchThat` \xs -> all isEvent xs && length xs > 0
 
 proc_spec :: Spec
 proc_spec = do
-    it "\"proc\" instruction"
-      (forAll samples0 $ myRunOne)
+  describe "proc" $ do
+    it "runOne"
+      (forAll samples0 $ parseOneShouldBeOk)
 
-    it "\"proc\" instructions"
-      (forAll samples1 $ myRunAll)
+    it "runAll"
+      (forAll samples1 $ parseAllShouldBeOk)
 
   where samples0 = arbitrary `suchThat` isProc
         samples1 = arbitrary `suchThat` \xs -> all isProc xs && length xs > 0
 
 close_spec :: Spec
 close_spec = do
-    it "\"close\" instruction"
-      (forAll samples0 myRunOne)
+  describe "close" $ do
+    it "runOne"
+      (forAll samples0 parseOneShouldBeOk)
 
-    it "\"close\" instructions"
-      (forAll samples1 myRunAll)
+    it "runAll"
+      (forAll samples1 parseAllShouldBeOk)
 
   where samples0 = arbitrary `suchThat` isClose
         samples1 = arbitrary `suchThat` \xs -> all isClose xs && length xs > 0

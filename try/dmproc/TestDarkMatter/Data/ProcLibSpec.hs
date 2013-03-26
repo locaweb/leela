@@ -13,7 +13,7 @@
 --    See the License for the specific language governing permissions and
 --    limitations under the License.
 
-module TestDarkMatter.ProcLibSpec where
+module TestDarkMatter.Data.ProcLibSpec where
 
 import Data.Maybe
 import Test.Hspec
@@ -26,6 +26,7 @@ newtype Op a = Op (a -> a -> a)
 
 mean_spec :: Spec
 mean_spec = do
+  describe "mean" $ do
     it "numerical stability"
       (forAll samples0 $ not . isInfinite . fst . run_ mean)
 
@@ -40,6 +41,7 @@ mean_spec = do
 
 count_spec :: Spec
 count_spec = 
+  describe "count" $ do
     it "counting elements"
       (forAll samples (\xs -> let l0 = length xs
                                   l1 = fst (run_ count xs)
@@ -48,6 +50,7 @@ count_spec =
 
 binary_spec :: Spec
 binary_spec =
+  describe "binary" $ do
     it "against reference implementation"
       (forAll samples (\(Op f, xs) -> let v0 = foldr1 f xs
                                           v1 = fst (run_ (binary f) xs)
@@ -59,6 +62,7 @@ binary_spec =
 
 select_spec :: Spec
 select_spec =
+  describe "select" $ do
     it "against reference implementation"
       (forAll samples (\xs -> let f  = (> 0)
                                   v0 = reverse $ filter f xs
@@ -68,12 +72,14 @@ select_spec =
 
 window_spec :: Spec
 window_spec =
+  describe "window" $ do
     it "honor the buffer size"
       (forAll samples ((all (== 10)) . catMaybes . fst . run (window 10 count)))
   where samples = arbitrary :: Gen [()]
 
 takeProc_spec :: Spec
 takeProc_spec =
+  describe "take" $ do
     it "against reference implementation"
       (forAll samples (\n -> let v0 = fst $ runWhile isJust (takeProc n) [1..]
                              in length v0 == n))
@@ -81,6 +87,7 @@ takeProc_spec =
 
 dropProc_spec :: Spec
 dropProc_spec =
+  describe "drop" $ do
     it "against reference implementation"
       (forAll samples (\n -> let v0 = fst $ runWhile isNothing (dropProc n) [1..]
                              in length v0 == n))
@@ -88,6 +95,7 @@ dropProc_spec =
 
 sample_spec :: Spec
 sample_spec =
+  describe "sample" $ do
     it "honor the documented frequency"
       (forAll samples (\(n, m) -> let vs = catMaybes $ fst $ run (sample n m) [1..100]
                                       ex = n * (100 `div` m) + min n (100 `mod` m)
@@ -96,6 +104,7 @@ sample_spec =
 
 sma_spec :: Spec
 sma_spec = do
+  describe "sma" $ do
     it "numerical stability"
       (forAll samples0 (\(n, xs) -> let v0 = catMaybes $ fst $ run (sma n) xs
                                     in all (not . isInfinite) v0))

@@ -14,27 +14,26 @@
 --    limitations under the License.
 
 -- | The sole datatype that the core deals with.
-module DarkMatter.Data.Event
-       ( Event()
-       , time
-       , val
-       , event
-       , update
+module DarkMatter.Data.Metric
+       ( Metric(..)
        ) where
 
 import DarkMatter.Data.Time
 
-newtype Event = Event (Time, Double)
+data Metric k = Gauge    { key  :: k
+                         , time :: Time
+                         , val  :: Double
+                         }
+              | Counter  { key  :: k
+                         , time :: Time
+                         , val  :: Double
+                         }
+              | Derive   { key  :: k
+                         , time :: Time
+                         , val  :: Double
+                         }
+              | Absolute { key  :: k
+                         , time :: Time
+                         , val  :: Double
+                         }
               deriving (Show)
-
-time :: Event -> Time
-time (Event t) = fst t
-
-val :: Event -> Double
-val (Event t) = snd t
-
-event :: Time -> Double -> Event
-event = curry Event
-
-update :: (Time -> Time) -> (Double -> Double) -> Event -> Event
-update f g (Event (a,b)) = Event (f a, g b)

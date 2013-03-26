@@ -24,25 +24,33 @@ module DarkMatter.Logger
 
 import System.Log
 import System.Log.Logger
+import System.Time
+import System.Locale
 
 myname :: String
-myname = "DARKMATTER"
+myname = "darkmatter"
 
 setlevel :: Priority -> IO ()
 setlevel p = updateGlobalLogger myname (setLevel p)
 
-logprefix :: String -> String
-logprefix = ("[DARKMATTER] " ++)
+logfmt :: String -> IO String
+logfmt s = do { when <- datetime
+              ; return ("[darkmatter|" ++ when ++ "] " ++ s)
+              }
+  where datetime = do { clock    <- getClockTime
+                      ; calendar <- toCalendarTime clock
+                      ; return (formatCalendarTime defaultTimeLocale "%Y%m%dT%H%M%s%S %Z" calendar)
+                      }
 
 debug :: String -> IO ()
-debug = debugM myname . logprefix
+debug s = logfmt s >>= debugM myname
 
 info :: String -> IO ()
-info = infoM myname . logprefix
+info s = logfmt s >>= infoM myname
 
 warn :: String -> IO ()
-warn = warningM myname . logprefix
+warn s = logfmt s >>= warningM myname
 
 crit :: String -> IO ()
-crit = errorM myname . logprefix
+crit s = logfmt s >>= errorM myname
 

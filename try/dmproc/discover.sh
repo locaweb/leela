@@ -9,7 +9,7 @@ read_module () {
 }
 
 read_specs () {
-  grep '[^ ].*:: *Spec *$' $1 | cut -d":" -f1
+  grep '[^ ].*:: *Spec *$' $1 | grep -v '^\s*--' | cut -d":" -f1
 }
 
 imports () {
