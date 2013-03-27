@@ -13,8 +13,11 @@
 --    See the License for the specific language governing permissions and
 --    limitations under the License.
 
--- | This modules reads from a file handle allows threads to be
--- attached to read items out of the bus.
+-- | This modules reads data from a single socket (in fact an unix
+-- domain) and allows threads (wires) to be attached to read items out
+-- of the bus.
+--
+-- All attached threads receives a copy of the data, thus the name.
 module DarkMatter.Network.Databus
        ( Databus()
        , Wire()
@@ -45,7 +48,6 @@ maxpacket = 65536
 
 type Databus a = TVar (DatabusT a)
 
--- | The event bus.
 data DatabusT a = Databus { connections :: [Wire a]
                           , wsequence   :: Int
                           }
@@ -54,7 +56,7 @@ data State = Read
            | ReadWrite
            deriving (Eq)
 
--- | This represents a connection to the databus.
+-- | This represents a connection to the databus (usually a new thread).
 data Wire a = Wire { uid    :: Int
                    , queue  :: TBQueue (Chunk a)
                    , select :: a -> Maybe a
@@ -103,12 +105,14 @@ term = atomically . termT
 termT :: Wire a -> STM ()
 termT w = writeTVar (state w) Read
 
--- | Version of connect that works with a FilePath.
+-- | Version of connect that works with a FilePath. This opens a new
+-- unix domain socket and invokes `connectS` function.
 connectF :: Databus a -> (B.ByteString -> a) -> FilePath -> IO ()
 connectF db p f = bracket cOpen cClose (connectS db p)
   where cOpen = do { s <- socket AF_UNIX Datagram 0
-                   ; mapM_ (uncurry (setSocketOption s)) [(RecvBuffer, maxpacket)]
-                   ; mapM_ (uncurry (setSocketOption s)) [(SendBuffer, maxpacket)]
+                   ; mapM_ (uncurry (setSocketOption s)) [(RecvBuffer, maxpacket),
+                                                          (SendBuffer, maxpacket)
+                                                         ]
                    ; bindSocket s (SockAddrUnix f)
                    ; return s
                    }

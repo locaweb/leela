@@ -76,7 +76,6 @@ handleRequest s bus (Match m) p =
      }
 handleRequest s _ _ _ = sendStatus s Failure
 
-
 sockWrite :: Socket -> Output -> IO ()
 sockWrite s (k, e) = let msg = renderEvent (renderStr k) e
                      in toByteStringIO (sendFrame s) msg
