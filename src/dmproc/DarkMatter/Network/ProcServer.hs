@@ -18,7 +18,6 @@
 -- connection is made another one is created to handle the request.
 module DarkMatter.Network.ProcServer ( start ) where
 
-import Prelude
 import Control.Concurrent
 import Control.Monad
 import Control.Exception
