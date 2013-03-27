@@ -14,15 +14,8 @@
 --    limitations under the License.
 
 -- | This module creates a new unix socket to listen for
--- connections. On each connection, three threads are forked:
--- 
---   1. the `proc' thread, which executes the an arbitrary function
---      over the data;
---
---   2. the `sync' thread, which sends output back to the client;
---
---   3. the `fetch' thread, which reads client's input and feed the
---   proc thread;
+-- connections. The main thread accepts the requests and one new
+-- connection is made another one is created to handle the request.
 module DarkMatter.Network.ProcServer ( start ) where
 
 import Prelude
