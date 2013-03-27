@@ -21,7 +21,6 @@ module DarkMatter.Network.ProcServer ( start ) where
 import Control.Concurrent
 import Control.Monad
 import Control.Exception
-import Data.Function
 import Blaze.ByteString.Builder
 import Network.Socket
 import DarkMatter.Logger (debug, info, warn, crit)
@@ -77,11 +76,11 @@ start bus f = do { warn ("binding server on: " ++ f)
                  ; s <- socket AF_UNIX Stream 0
                  ; bindSocket s (SockAddrUnix f)
                  ; listen s 1
-                 ; fix (\loop -> do { s1 <- fmap fst $ accept s
-                                    ; info "creating new connection"
-                                    ; _ <- forkfinally (go s1) (info "droppping connection" >> sClose s1)
-                                    ; loop
-                                    })
+                 ; forever $ do { s1 <- fmap fst $ accept s
+                                ; info "creating new connection"
+                                ; _ <- forkfinally (go s1) (info "droppping connection" >> sClose s1)
+                                ; return ()
+                                }
                  }
   where go s = do { asm <- recvAsm s
                   ; case asm
