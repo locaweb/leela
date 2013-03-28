@@ -37,6 +37,7 @@ import qualified Data.HashMap as M
 import           System.Mem.Weak (addFinalizer)
 import           Network.Socket hiding (sendTo)
 import           Network.Socket.ByteString (sendTo)
+import           DarkMatter.Logger (info)
 
 data Multicast = Multicast { peers   :: TVar (M.Map FilePath Int)
                            , channel :: Socket
@@ -61,7 +62,9 @@ connectS :: Multicast -> Socket -> IO ()
 connectS g fh = forever $  do { (msg, _, peerAddr) <- recvFrom fh maxpacket
                               ; case (peerAddr)
                                 of SockAddrUnix peer
-                                     | msg == "attach\n" -> addPeer g peer
+                                     | msg == "attach\n" -> do { info ("attaching new peer: " ++ peer)
+                                                               ; addPeer g peer
+                                                               }
                                      | otherwise         -> return ()
                                    _                     -> return ()
                               }

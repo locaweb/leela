@@ -52,7 +52,7 @@ main = do { (opts, pipe, bcast) <- fmap getopts getArgs
           ; group <- newMulticast
           ; _     <- forkIO (forever $ threadDelay 500000 >> D.connectF dbus databusMetricParser pipe)
           ; _     <- forkIO (forever $ threadDelay 500000 >> M.connectF group bcast)
-          ; start dbus group 1
+          ; start dbus group 1 5
           ; _     <- installHandler sigINT (Catch $ putMVar wait ()) Nothing
           ; _     <- installHandler sigTERM (Catch $ putMVar wait ()) Nothing
           ; takeMVar wait

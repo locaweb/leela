@@ -17,6 +17,7 @@
 -- connection is made another one is created to handle the request.
 module DarkMatter.Network.TimelineServer ( start ) where
 
+import           Control.Monad
 import           Control.Concurrent
 import           Control.Concurrent.STM
 import           Control.Exception
@@ -48,7 +49,7 @@ drainWire tw input group = do { mc <- wireRead input
                                 of EOF     -> return ()
                                    Empty   -> drainWire tw input group
                                    Chunk c -> do { events <- fmap catMaybes (mapM (updateTimeline tw) c)
-                                                 ; broadcast events
+                                                 ; when (length events > 0) (broadcast events)
                                                  ; drainWire tw input group
                                                  }
                               }
@@ -61,18 +62,19 @@ updateTimeline tw m = atomically $ do { (w, me) <- fmap (flip publish m) (readTV
                                       ; return me
                                       }
 
-start :: Databus Input -> Multicast -> Int -> IO ()
-start input group instances = do { info $ "starting " ++ show instances ++ " timeline threads: "
-                                 ; forks <- mapM (\myid -> newTVarIO empty >>= fire myid) [0..(instances-1)]
-                                 ; mapM_ wait forks
-                                 }
-  where select myid = filter ((== myid) . (`mod` instances) . hash)
+start :: Databus Input -> Multicast -> Int -> Int -> IO ()
+start input group queues tpq = do { info $ "starting " ++ show queues ++ " timeline queues"
+                                  ; forks <- mapM (\myid -> newTVarIO empty >>= fire myid) [0..(queues-1)]
+                                  ; _     <- mapM_ (mapM_ wait) forks
+                                  ; info $ "timeline working!"
+                                  }
+  where select myid = filter ((== myid) . (`mod` queues) . hash)
 
-        fire myid wall = do { info $ "firing new timeline thread (" ++ show myid ++ ")"
-                            ; mutex <- newEmptyMVar
-                            ; wire  <- attach input (Just . select myid)
-                            ; _     <- forkfinally (drainWire wall wire group) (signal mutex)
-                            ; return mutex
+        fire myid wall = do { info $ "creating threads for queue (" ++ show myid ++ "/" ++ show tpq ++ ")"
+                            ; mutexes <- replicateM tpq newEmptyMVar
+                            ; wire    <- attach input (Just . select myid)
+                            ; mapM_ (forkfinally (drainWire wall wire group) . signal) mutexes
+                            ; return mutexes
                             }
   
 forkfinally :: IO () -> IO () -> IO ThreadId
