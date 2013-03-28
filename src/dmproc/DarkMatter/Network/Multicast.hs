@@ -1,0 +1,99 @@
+-- -*- mode: haskell; -*-
+-- All Rights Reserved.
+--
+--    Licensed under the Apache License, Version 2.0 (the "License");
+--    you may not use this file except in compliance with the License.
+--    You may obtain a copy of the License at
+--
+--        http://www.apache.org/licenses/LICENSE-2.0
+--
+--    Unless required by applicable law or agreed to in writing, software
+--    distributed under the License is distributed on an "AS IS" BASIS,
+--    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+--    See the License for the specific language governing permissions and
+--    limitations under the License.
+
+-- | This modules exposes some sort of broadcast service through unix
+-- sockets. Everyone that wants to hear from it must send a message
+-- periodically (ideally every sec). The peer addr is used to broadcat
+-- the message.
+module DarkMatter.Network.Databus
+       ( Multicast()
+       , connectF
+       , connectS
+       , newMulticast
+       , addPeer
+       , delPeer
+       , multicast
+       ) where
+
+import qualified Data.ByteString as B
+import           System.Directory
+import           Control.Monad
+import           Control.Exception
+import           Control.Concurrent
+import           Control.Concurrent.STM
+import qualified Data.HashMap as M
+import           System.Mem.Weak (addFinalizer)
+import           Network.Socket hiding (sendTo)
+import           Network.Socket.ByteString (sendTo)
+
+data Multicast = Multicast { peers   :: TVar (M.Map FilePath Int)
+                           , channel :: Socket
+                           }
+
+maxpacket :: Int
+maxpacket = 65536
+
+connectF :: Multicast -> FilePath -> IO ()
+connectF g f = bracket cOpen cClose (connectS g)
+  where cOpen = do { s <- socket AF_UNIX Datagram 0
+                   ; mapM_ (uncurry (setSocketOption s)) [(RecvBuffer, maxpacket),
+                                                          (SendBuffer, maxpacket)
+                                                         ]
+                   ; return s
+                   }
+
+        cClose s = sClose s >> removeFile f
+
+connectS :: Multicast -> Socket -> IO ()
+connectS g fh = forever (recv fh maxpacket >>= addPeer g)
+
+newMulticast :: IO Multicast
+newMulticast = do { s <- socket AF_UNIX Datagram 0
+                  ; mapM_ (uncurry (setSocketOption s)) [(RecvBuffer, maxpacket),
+                                                         (SendBuffer, maxpacket)
+                                                        ]
+                  ; group    <- fmap (flip Multicast s) (newTVarIO M.empty)
+                  ; reaperId <- forkIO $ reaper group
+                  ; addFinalizer group (killThread reaperId)
+                  ; return group
+                  }
+
+addPeerT :: Multicast -> FilePath -> STM ()
+addPeerT g k = modifyTVar (peers g) (M.insert k 5)
+
+addPeer :: Multicast -> FilePath -> IO ()
+addPeer g = atomically . addPeerT g
+
+delPeerT :: Multicast -> FilePath -> STM ()
+delPeerT g k = modifyTVar (peers g) (M.delete k)
+
+delPeer :: Multicast -> FilePath -> IO ()
+delPeer g = atomically . delPeerT g
+
+multicast :: Multicast -> B.ByteString -> IO ()
+multicast g msg = atomically (readTVar (peers g)) >>= mapM_ runIO . M.keys
+  where runIO peer = let addr = SockAddrUnix peer
+                     in sendTo (channel g) msg addr `onException` delPeer g peer
+
+reaper :: Multicast -> IO ()
+reaper m = forever $ do { threadDelay (1 * 1000000)
+                        ; atomically (gc m)
+                        }
+
+gc :: Multicast -> STM ()
+gc g = modifyTVar (peers g) (M.foldWithKey expire M.empty)
+  where expire k v m
+          | v <= 0    = m
+          | otherwise = M.insert k (v-1) m
