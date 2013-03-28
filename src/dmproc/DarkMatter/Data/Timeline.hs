@@ -16,6 +16,7 @@ module DarkMatter.Data.Timeline
        ( Timeline()
        , empty
        , publish
+       , publishMany
        , tKeys
        , tLookup
        , ttl
@@ -85,7 +86,7 @@ gc now w0 = foldl' adjust w0 (tKeys w0)
           | t >= ttl   = Nothing
           | otherwise  = Just e
             where t = diff now (time e)
-          
+
 
 combineSum :: Event -> Event -> Event
 combineSum e0 e1 = event (time e0) (val e0 + val e1)
@@ -107,6 +108,14 @@ publish w m = case (m)
                  (M.Absolute k _ _)
                    -> absolute w k e
   where e = event (M.time m) (M.val m)
+
+publishMany :: (Hashable k, Ord k) => Timeline k -> [M.Metric k] -> (Timeline k, [(k, Event)])
+publishMany w0 = go [] w0
+  where go acc w []     = (w, acc)
+        go acc w (m:ms) = let (w1, me) = publish w m
+                          in case me
+                             of Nothing -> go acc w1 ms
+                                Just e  -> go (e:acc) w1 ms
 
 -- | We simply store the most recent value in the timeline. In the
 -- future we want to use this to retrieve an instant snapshot of the

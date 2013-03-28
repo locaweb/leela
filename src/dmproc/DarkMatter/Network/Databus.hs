@@ -84,7 +84,7 @@ ifStateOrElse w f a b = do { s <- readTVar (state w)
 -- returns EOF.
 wireRead :: Wire a -> IO (Chunk a)
 wireRead w = atomically $ ifStateOrElse w (== ReadWrite) doRead checkRead
-  where doRead    = readTBQueue $ queue w
+  where doRead    = readTBQueue (queue w)
         checkRead = do { mv <- tryReadTBQueue (queue w)
                        ; case (mv)
                          of Nothing -> return $ EOF

@@ -17,17 +17,14 @@
 -- connection is made another one is created to handle the request.
 module DarkMatter.Network.TimelineServer ( start ) where
 
-import           Control.Monad
+import           Data.Bits
 import           Control.Concurrent
-import           Control.Concurrent.STM
 import           Control.Exception
 import           Blaze.ByteString.Builder
 import qualified Data.ByteString as B
-import           Data.Hashable
-import           Data.Maybe
+import           Data.Hashable (hash)
 import           DarkMatter.Logger (info, crit)
 import           DarkMatter.Data.Metric
-import           DarkMatter.Data.Event
 import           DarkMatter.Data.Timeline
 import           DarkMatter.Data.Parsers.Helpers
 import           DarkMatter.Network.Databus
@@ -43,38 +40,38 @@ wait = takeMVar
 signal :: MVar () -> IO ()
 signal = flip putMVar ()
 
-drainWire :: TVar (Timeline Key) -> Wire Input -> Multicast -> IO ()
-drainWire tw input group = do { mc <- wireRead input
-                              ; case (mc)
-                                of EOF     -> return ()
-                                   Empty   -> drainWire tw input group
-                                   Chunk c -> do { events <- fmap catMaybes (mapM (updateTimeline tw) c)
-                                                 ; when (length events > 0) (broadcast events)
-                                                 ; drainWire tw input group
-                                                 }
-                              }
-  where broadcast events = let msg = renderList (\(k, e) -> renderEvent (fromByteString k) e) events
+drainWire :: Timeline Key -> Wire Input -> Multicast -> IO ()
+drainWire w input group = do { mc <- wireRead input
+                             ; case (mc)
+                               of EOF      -> return ()
+                                  Empty    -> drainWire w input group
+                                  Chunk [] -> drainWire w input group
+                                  Chunk c  -> let (w1, events) = publishMany w c
+                                              in do { broadcast events
+                                                    ; w1 `seq` drainWire w1 input group
+                                                    }
+                             }
+  where broadcast []     = return ()
+        broadcast events = let msg = renderList (\(k, e) -> renderEvent (fromByteString k) e) events
                            in multicast group (toByteString msg)
 
-updateTimeline :: TVar (Timeline Key) -> Metric Key -> IO (Maybe (Key, Event))
-updateTimeline tw m = atomically $ do { (w, me) <- fmap (flip publish m) (readTVar tw)
-                                      ; writeTVar tw w
-                                      ; return me
-                                      }
+start :: Databus Input -> Multicast -> Int -> IO ()
+start input group queues = do { info $ "starting " ++ show queues ++ " timeline queues"
+                              ; forks <- mapM (\myid -> fire myid empty) [0..(queues-1)]
+                              ; info $ "timeline working!"
+                              ; mapM_ wait forks
+                              }
+  where select myid
+          | queues == 1 = Just
+          | otherwise   = fixup . filter (\x -> (hash x .&. (queues-1)) == myid)
+            where fixup [] = Nothing
+                  fixup xs = Just xs
 
-start :: Databus Input -> Multicast -> Int -> Int -> IO ()
-start input group queues tpq = do { info $ "starting " ++ show queues ++ " timeline queues"
-                                  ; forks <- mapM (\myid -> newTVarIO empty >>= fire myid) [0..(queues-1)]
-                                  ; _     <- mapM_ (mapM_ wait) forks
-                                  ; info $ "timeline working!"
-                                  }
-  where select myid = filter ((== myid) . (`mod` queues) . hash)
-
-        fire myid wall = do { info $ "creating threads for queue (" ++ show myid ++ "/" ++ show tpq ++ ")"
-                            ; mutexes <- replicateM tpq newEmptyMVar
-                            ; wire    <- attach input (Just . select myid)
-                            ; mapM_ (forkfinally (drainWire wall wire group) . signal) mutexes
-                            ; return mutexes
+        fire myid wall = do { info $ "creating threads for queue (" ++ show myid ++ ")"
+                            ; mutex <- newEmptyMVar
+                            ; wire  <- attach input (select myid)
+                            ; _     <- forkfinally (drainWire wall wire group) (signal mutex)
+                            ; return mutex
                             }
   
 forkfinally :: IO () -> IO () -> IO ThreadId

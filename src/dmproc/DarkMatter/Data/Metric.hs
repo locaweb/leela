@@ -60,5 +60,5 @@ isAbsolute (Absolute _ _ _) = True
 isAbsolute _               = False
 
 instance (Hashable k) => Hashable (Metric k) where
-  hash m = hash (key m)
   hashWithSalt k m = hashWithSalt k (key m)
+

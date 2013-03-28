@@ -30,11 +30,14 @@ import DarkMatter.Network.TimelineServer
 
 data OptFlag = Verbose
              | Version
+             | Queues Int
+             | Threads Int
              deriving (Show)
 
 options :: [OptDescr OptFlag]
-options = [ Option "v" ["verbose"] (NoArg Verbose) "increase verbosity"
-          , Option ""  ["version"] (NoArg Version) "show version and exit"
+options = [ Option "v" ["verbose"] (NoArg Verbose)                     "increase verbosity"
+          , Option "q" ["queues"]  (ReqArg (Queues . read) "QUEUES")   "number of queue"
+          , Option ""  ["version"] (NoArg Version)                     "show version and exit"
           ]
 
 getopts :: [String] -> ([OptFlag], String, String)
@@ -52,7 +55,7 @@ main = do { (opts, pipe, bcast) <- fmap getopts getArgs
           ; group <- newMulticast
           ; _     <- forkIO (forever $ threadDelay 500000 >> D.connectF dbus databusMetricParser pipe)
           ; _     <- forkIO (forever $ threadDelay 500000 >> M.connectF group bcast)
-          ; start dbus group 1 5
+          ; start dbus group (getQueues 1 opts)
           ; _     <- installHandler sigINT (Catch $ putMVar wait ()) Nothing
           ; _     <- installHandler sigTERM (Catch $ putMVar wait ()) Nothing
           ; takeMVar wait
@@ -61,4 +64,8 @@ main = do { (opts, pipe, bcast) <- fmap getopts getArgs
           }
   where setopts _ []               = return ()
         setopts level (Verbose:xs) = setlevel level >> setopts DEBUG xs
-        setopts _ (Version:_)      = error "todo:fixme"
+        setopts level (_:xs)       = setopts level xs
+
+        getQueues x []             = x
+        getQueues _ (Queues x:_)   = x
+        getQueues x (_:xs)         = getQueues x xs

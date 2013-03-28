@@ -37,10 +37,12 @@ compile-dmtry:
 compile-dmproc:
 	$(call .check_bin,ghc)
 	$(bin_ghc) $(ghcargs) -v0 -W -Wall -fforce-recomp -threaded -i$(srcroot)/src/dmproc -O2 --make -static -optc-static -optl-static $(srcroot)/src/dmproc/DarkMatter/dmproc.hs -optl-pthread
+	$(bin_ghc) $(ghcargs) -v0 -W -Wall -fforce-recomp -threaded -i$(srcroot)/src/dmproc -O2 --make -static -optc-static -optl-static $(srcroot)/src/dmproc/DarkMatter/timeline.hs -optl-pthread
 
 build-dmproc: compile-dmproc
 	mkdir -p $(srcroot)/usr/bin
 	$(bin_install) -m 0755 $(srcroot)/src/dmproc/DarkMatter/dmproc $(srcroot)/usr/bin/dmproc
+	$(bin_install) -m 0755 $(srcroot)/src/dmproc/DarkMatter/dmproc $(srcroot)/usr/bin/timeline
 
 test-dmproc: compile-dmtry
 	$(srcroot)/try/dmproc/dmtry

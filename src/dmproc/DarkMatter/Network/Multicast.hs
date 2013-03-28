@@ -59,14 +59,9 @@ connectF g f = bracket cOpen cClose (connectS g)
         cClose s = sClose s >> removeFile f
 
 connectS :: Multicast -> Socket -> IO ()
-connectS g fh = forever $  do { (msg, _, peerAddr) <- recvFrom fh maxpacket
-                              ; case (peerAddr)
-                                of SockAddrUnix peer
-                                     | msg == "attach\n" -> do { info ("attaching new peer: " ++ peer)
-                                                               ; addPeer g peer
-                                                               }
-                                     | otherwise         -> return ()
-                                   _                     -> return ()
+connectS g fh = forever $  do { peer <- recv fh maxpacket
+                              ; info ("attaching new peer: " ++ peer)
+                              ; addPeer g peer
                               }
 
 newMulticast :: IO Multicast
@@ -88,7 +83,7 @@ delPeer :: Multicast -> FilePath -> IO ()
 delPeer g k = atomically $ modifyTVar (peers g) (M.delete k)
 
 multicast :: Multicast -> B.ByteString -> IO ()
-multicast g msg = atomically (readTVar (peers g)) >>= mapM_ runIO . M.keys
+multicast g msg = readTVarIO (peers g) >>= mapM_ runIO . M.keys
   where runIO peer = send_ (SockAddrUnix peer) `catch` (\(_ :: SomeException) -> delPeer g peer)
         send_ peer = sendTo (channel g) msg peer >> return ()
 

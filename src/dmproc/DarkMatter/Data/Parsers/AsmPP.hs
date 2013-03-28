@@ -17,12 +17,11 @@
 -- represetation of the Asm type such as `parse . render == id`.
 module DarkMatter.Data.Parsers.AsmPP where
 
-import qualified Data.ByteString as B
-import           Data.Monoid ((<>), mempty)
-import           Blaze.ByteString.Builder
-import           Blaze.ByteString.Builder.Char8
-import           DarkMatter.Data.Parsers.Helpers
-import           DarkMatter.Data.Asm.Types
+import Data.Monoid ((<>), mempty)
+import Blaze.ByteString.Builder
+import Blaze.ByteString.Builder.Char8
+import DarkMatter.Data.Parsers.Helpers
+import DarkMatter.Data.Asm.Types
 
 renderPipeline :: [Function] -> Builder
 renderPipeline []     = mempty

@@ -40,9 +40,10 @@ toDouble t = let s = fromIntegral (seconds t)
              in s + n / nmax
 
 mktime :: Int -> Int -> Time
-mktime s n = let (s1, n1) = n `divMod` nmax
-             in Time (s+s1, n1)
-{-# INLINE mktime #-}
+mktime s n
+  | s < 0 || n < 0 = error "mktime: negative numbers"
+  | otherwise      = let (s1, n1) = n `quotRem` nmax
+                     in Time (s+s1, n1)
 
 zero :: Time -> Bool
 zero t = seconds t == 0 && nseconds t == 0
