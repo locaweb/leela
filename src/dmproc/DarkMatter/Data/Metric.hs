@@ -16,24 +16,49 @@
 -- | The sole datatype that the core deals with.
 module DarkMatter.Data.Metric
        ( Metric(..)
+       , isGauge
+       , isDerive
+       , isCounter
+       , isAbsolute
        ) where
 
+import Data.Hashable
 import DarkMatter.Data.Time
 
 data Metric k = Gauge    { key  :: k
-                         , time :: Time
                          , val  :: Double
+                         , time :: Time
                          }
               | Counter  { key  :: k
-                         , time :: Time
                          , val  :: Double
+                         , time :: Time
                          }
               | Derive   { key  :: k
-                         , time :: Time
                          , val  :: Double
+                         , time :: Time
                          }
               | Absolute { key  :: k
-                         , time :: Time
                          , val  :: Double
+                         , time :: Time
                          }
-              deriving (Show)
+              deriving (Show, Eq)
+
+isGauge :: Metric k -> Bool
+isGauge (Gauge _ _ _) = True
+isGauge _             = False
+
+isCounter :: Metric k -> Bool
+isCounter (Counter _ _ _) = True
+isCounter _               = False
+
+isDerive :: Metric k -> Bool
+isDerive (Derive _ _ _) = True
+isDerive _              = False
+
+isAbsolute :: Metric k -> Bool
+isAbsolute (Absolute _ _ _) = True
+isAbsolute _               = False
+
+instance (Hashable k) => Hashable (Metric k) where
+  hash m = hash (key m)
+  hashWithSalt k m = hashWithSalt k (key m)

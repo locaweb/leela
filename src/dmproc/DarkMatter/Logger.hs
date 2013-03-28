@@ -39,7 +39,7 @@ logfmt s = do { when <- datetime
               }
   where datetime = do { clock    <- getClockTime
                       ; calendar <- toCalendarTime clock
-                      ; return (formatCalendarTime defaultTimeLocale "%Y%m%dT%H%M%s%S %Z" calendar)
+                      ; return (formatCalendarTime defaultTimeLocale "%Y%m%dT%H%M%s %Z" calendar)
                       }
 
 debug :: String -> IO ()

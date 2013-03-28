@@ -26,6 +26,8 @@ import           Network.Socket.ByteString
 import           DarkMatter.Data.Asm.Types (Key)
 import           DarkMatter.Data.Parsers.Helpers
 import           DarkMatter.Data.Parsers.AsmParser
+import           DarkMatter.Data.Parsers.MetricParser
+import           DarkMatter.Data.Metric
 import           DarkMatter.Data.Event
 
 data Status = Success
@@ -58,6 +60,9 @@ sendStatus s Failure = sendFrame s (B8.pack "status 1;")
 eol :: B.ByteString
 eol = B8.singleton ';'
 
-databusParser :: B.ByteString -> [(Key, Event)]
-databusParser = runAll eventParser
+databusEventParser :: B.ByteString -> [(Key, Event)]
+databusEventParser = runAll eventParser
+
+databusMetricParser :: B.ByteString -> [Metric Key]
+databusMetricParser = runAll metricParser
 

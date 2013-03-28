@@ -15,12 +15,45 @@
 --    limitations under the License.
 
 module DarkMatter.Data.Parsers.Helpers where
-
 import           Control.Monad
+import           Data.Monoid ((<>))
+import           Data.Double.Conversion.ByteString
 import           Data.Attoparsec.ByteString as P
 import qualified Data.Attoparsec.ByteString.Char8 as P8
+import           Blaze.ByteString.Builder
+import           Blaze.ByteString.Builder.Char8
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as B8
+import           DarkMatter.Data.Event
 import           DarkMatter.Data.Time
+
+renderList :: (a -> Builder) -> [a] -> Builder
+renderList f = foldr1 (<>) . map f
+
+toString :: Builder -> String
+toString = B8.unpack . toByteString
+
+renderDouble :: Double -> Builder
+renderDouble = fromByteString . toShortest
+
+renderTime :: Time -> Builder
+renderTime t = fromShow (seconds t)
+               <> fromChar '.'
+               <> fromShow (nseconds t)
+
+renderStr :: B.ByteString -> Builder
+renderStr k = fromShow (B.length k)
+              <> fromString "|"
+              <> fromByteString k
+
+renderEvent :: Builder -> Event -> Builder
+renderEvent k e = fromString "event "
+                  <> k
+                  <> fromChar ' '
+                  <> renderTime (time e)
+                  <> fromChar ' '
+                  <> renderDouble (val e)
+                  <> fromChar ';'
 
 runOne :: Parser a -> B.ByteString -> Maybe a
 runOne p i = either (const Nothing) Just (parseOnly (p `endBy` eol) i)

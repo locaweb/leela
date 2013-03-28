@@ -1,4 +1,4 @@
--- -*- mode: haskell; -*-
+{-# LANGUAGE OverloadedStrings #-}
 -- All Rights Reserved.
 --
 --    Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,40 +14,40 @@
 --    limitations under the License.
 
 -- | The sole datatype that the core deals with.
-module DarkMatter.Data.Parser.Metrics
+module DarkMatter.Data.Parsers.MetricParser
        ( metricParser
        ) where
 
-import           Control.Monad
 import           Data.Attoparsec.ByteString as P
 import qualified Data.Attoparsec.ByteString.Char8 as P8
 import           Data.ByteString as B
 import           DarkMatter.Data.Parsers.Helpers
-import           DarkMatter.Data.Metrics
+import           DarkMatter.Data.Time
+import           DarkMatter.Data.Metric
 
-metricParser :: Parser Metric
+metricParser :: Parser (Metric B.ByteString)
 metricParser = do { c <- P8.peekChar
                   ; case (c)
-                    of 'g' -> parseGauge
-                       'c' -> parseCounter
-                       'd' -> parseDerive
-                       'a' -> parseAbsolute
-                       _   -> fail "parseMetric: g|c|d|a were expected"
+                    of Just 'g' -> parseGauge
+                       Just 'c' -> parseCounter
+                       Just 'd' -> parseDerive
+                       Just 'a' -> parseAbsolute
+                       _        -> fail "parseMetric: g|c|d|a were expected"
                   }
 
-parseGauge :: Parser Metric
+parseGauge :: Parser (Metric B.ByteString)
 parseGauge = string "gauge " >> parseMetric Gauge
 
-parseCounter :: Parser Metric
+parseCounter :: Parser (Metric B.ByteString)
 parseCounter = string "counter " >> parseMetric Counter
 
-parseDerive :: Parser Metric
+parseDerive :: Parser (Metric B.ByteString)
 parseDerive = string "derive " >> parseMetric Derive
 
-parseAbsolute :: Parser Metric
+parseAbsolute :: Parser (Metric B.ByteString)
 parseAbsolute = string "absolute " >> parseMetric Absolute
 
-parseMetric :: (B.ByteString -> Double -> Time -> Metric) -> Parser Metric
+parseMetric :: (B.ByteString -> Double -> Time -> (Metric B.ByteString)) -> Parser (Metric B.ByteString)
 parseMetric metric = do { k <- parseStr
                         ; _ <- P8.space
                         ; v <- parseVal

@@ -1,4 +1,4 @@
--- -*- mode: haskell; -*-
+{-# LANGUAGE ScopedTypeVariables #-}
 -- All Rights Reserved.
 --
 --    Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 -- sockets. Everyone that wants to hear from it must send a `attach`
 -- message periodically (ideally every sec). The peer address is the
 -- one registered in the broadcast group.
-module DarkMatter.Network.Databus
+module DarkMatter.Network.Multicast
        ( Multicast()
        , connectF
        , connectS

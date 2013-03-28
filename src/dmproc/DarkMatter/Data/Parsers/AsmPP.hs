@@ -18,13 +18,10 @@
 module DarkMatter.Data.Parsers.AsmPP where
 
 import qualified Data.ByteString as B
-import qualified Data.ByteString.Char8 as B8
-import           Data.Double.Conversion.ByteString
 import           Data.Monoid ((<>), mempty)
 import           Blaze.ByteString.Builder
 import           Blaze.ByteString.Builder.Char8
-import           DarkMatter.Data.Time
-import           DarkMatter.Data.Event
+import           DarkMatter.Data.Parsers.Helpers
 import           DarkMatter.Data.Asm.Types
 
 renderPipeline :: [Function] -> Builder
@@ -47,23 +44,6 @@ renderLOp Lt = fromChar '<'
 renderLOp Ge = fromString ">="
 renderLOp Gt = fromChar '>'
 renderLOp Ne = fromString "/="
-
-renderDouble :: Double -> Builder
-renderDouble = fromByteString . toShortest
-
-renderTime :: Time -> Builder
-renderTime t = fromShow (seconds t)
-               <> fromChar '.'
-               <> fromShow (nseconds t)
-
-renderEvent :: Builder -> Event -> Builder
-renderEvent k e = fromString "event "
-                  <> k
-                  <> fromChar ' '
-                  <> renderTime (time e)
-                  <> fromChar ' '
-                  <> renderDouble (val e)
-                  <> fromChar ';'
 
 renderSyncFunc :: SyncFunc -> Builder
 renderSyncFunc Mean              = fromString "mean"
@@ -119,11 +99,6 @@ renderFunction :: Function -> Builder
 renderFunction (Left f)  = renderAsyncFunc f
 renderFunction (Right f) = renderSyncFunc f
 
-renderStr :: B.ByteString -> Builder
-renderStr k = fromShow (B.length k)
-              <> fromString "|"
-              <> fromByteString k
-
 renderMode :: Mode -> Builder
 renderMode Stream    = fromString "stream"
 renderMode (Match k) = fromString "match " <> renderStr (fst k)
@@ -142,9 +117,3 @@ render (Proc m f)    = fromString "proc "
                        <> fromChar ' '
                        <> renderPipeline f
                        <> fromChar ';'
-
-renderList :: [Asm] -> Builder
-renderList = foldr1 (<>) . map render
-
-toString :: Builder -> String
-toString = B8.unpack . toByteString

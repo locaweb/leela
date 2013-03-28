@@ -30,7 +30,7 @@ parseOneShouldBeOk asm = let f = runOne asmParser . toByteString . render
                          in f asm /= Nothing
 
 parseAllShouldBeOk :: [Asm] -> Bool
-parseAllShouldBeOk asms = let f = runAll asmParser . toByteString . renderList
+parseAllShouldBeOk asms = let f = runAll asmParser . toByteString . (renderList render)
                 in length (f asms) == length asms
 
 event_spec :: Spec

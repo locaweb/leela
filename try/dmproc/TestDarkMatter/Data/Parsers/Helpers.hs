@@ -1,5 +1,5 @@
--- -*- mode: haskell; -*-
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleInstances #-}
 -- All Rights Reserved.
 --
 --    Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,9 @@ import           Control.Monad
 import qualified Data.ByteString.Char8 as B8
 import           Test.QuickCheck
 import           DarkMatter.Data.Time
+import           DarkMatter.Data.Metric
 import           DarkMatter.Data.Asm.Types
+import           DarkMatter.Data.Parsers.Helpers
 import           DarkMatter.Data.Parsers.AsmPP
 
 genStr :: Gen B8.ByteString
@@ -38,6 +40,13 @@ genEvent = do { k <- genStr
               ; v <- arbitrary
               ; return (Event k c v)
               }
+
+genMetric :: Gen (Metric B8.ByteString)
+genMetric = do { k <- genStr
+               ; t <- arbitrary
+               ; v <- arbitrary `suchThat` (>= 0)
+               ; elements [Gauge k v t, Counter k v t, Derive k v t, Absolute k v t]
+               }
 
 genSyncFunc :: Gen SyncFunc
 genSyncFunc = do { f <- arbitrary
@@ -108,6 +117,10 @@ instance Arbitrary ArithOp where
 instance Arbitrary ComparisonOp where
 
   arbitrary = elements [Eq, Lt, Le, Gt, Ge, Ne]
+
+instance Arbitrary (Metric B8.ByteString) where
+
+  arbitrary = genMetric
 
 instance Show Asm where
 

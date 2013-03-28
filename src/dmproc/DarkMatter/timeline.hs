@@ -23,9 +23,10 @@ import System.Environment
 import System.Exit
 import System.Posix.Signals
 import DarkMatter.Logger
-import DarkMatter.Network.Databus
 import DarkMatter.Network.Protocol
-import DarkMatter.Network.ProcServer
+import DarkMatter.Network.Databus as D
+import DarkMatter.Network.Multicast as M
+import DarkMatter.Network.TimelineServer
 
 data OptFlag = Verbose
              | Version
@@ -40,18 +41,20 @@ getopts :: [String] -> ([OptFlag], String, String)
 getopts argv = case (getOpt Permute options argv)
                of (o, [p, s], []) -> (o, p, s)
                   (_, _, msg)  -> error (concat msg ++ usageInfo header options)
-  where header = "USAGE: dmproc [-v|--verbose] [--version] PIPE-FILE SOCKET-FILE"
+  where header = "USAGE: wall [-v|--verbose] [--version] PIPE-FILE BROADCAST-FILE"
 
 main :: IO ()
-main = do { (opts, dgram, stream) <- fmap getopts getArgs
+main = do { (opts, pipe, bcast) <- fmap getopts getArgs
           ; setopts INFO opts
-          ; wait <- newEmptyMVar
+          ; wait  <- newEmptyMVar
           ; warn "starting server (^C to terminate)"
-          ; db   <- newDatabus
-          ; _    <- forkIO (forever $ threadDelay 500000 >> connectF db databusEventParser dgram)
-          ; _    <- forkIO (start db stream)
-          ; _    <- installHandler sigINT (Catch $ putMVar wait ()) Nothing
-          ; _    <- installHandler sigTERM (Catch $ putMVar wait ()) Nothing
+          ; dbus  <- newDatabus
+          ; group <- newMulticast
+          ; _     <- forkIO (forever $ threadDelay 500000 >> D.connectF dbus databusMetricParser pipe)
+          ; _     <- forkIO (forever $ threadDelay 500000 >> M.connectF group bcast)
+          ; start dbus group 1
+          ; _     <- installHandler sigINT (Catch $ putMVar wait ()) Nothing
+          ; _     <- installHandler sigTERM (Catch $ putMVar wait ()) Nothing
           ; takeMVar wait
           ; warn "/bye"
           ; exitSuccess

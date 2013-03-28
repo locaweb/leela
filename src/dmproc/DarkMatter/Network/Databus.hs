@@ -126,11 +126,14 @@ connectF db p f = bracket cOpen cClose (connectS db p)
 -- current attached wires. Notice that if the queue is full, this
 -- function blocks.
 connectS :: Databus a -> (B.ByteString -> a) -> Socket -> IO ()
-connectS db parse fh = forever (fmap parse (recv fh maxpacket) >>= broadcast)
-  where broadcast a = fmap connections (readTVarIO db) >>= mapM_ doWrite
-          where doWrite w = case (select w a)
-                            of Nothing -> return ()
-                               Just b  -> wireWrite w b
+connectS db parse fh = forever (fmap parse (recv fh maxpacket) >>= broadcast db)
+
+-- | Sends a message to all connected wires.
+broadcast :: Databus a -> a -> IO ()
+broadcast db a = fmap connections (readTVarIO db) >>= mapM_ doWrite
+  where doWrite w = case (select w a)
+                    of Nothing -> return ()
+                       Just b  -> wireWrite w b
 
 -- | Attachs a new listener to the bus. This function returns queue
 -- that will get all the contents of the input bus.
