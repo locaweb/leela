@@ -70,17 +70,11 @@ newMulticast = do { s <- socket AF_UNIX Datagram 0
                   ; return group
                   }
 
-addPeerT :: Multicast -> FilePath -> STM ()
-addPeerT g k = modifyTVar (peers g) (M.insert k 5)
-
 addPeer :: Multicast -> FilePath -> IO ()
-addPeer g = atomically . addPeerT g
-
-delPeerT :: Multicast -> FilePath -> STM ()
-delPeerT g k = modifyTVar (peers g) (M.delete k)
+addPeer g k = atomically $ modifyTVar (peers g) (M.insert k 5)
 
 delPeer :: Multicast -> FilePath -> IO ()
-delPeer g = atomically . delPeerT g
+delPeer g k = atomically $ modifyTVar (peers g) (M.delete k)
 
 multicast :: Multicast -> B.ByteString -> IO ()
 multicast g msg = atomically (readTVar (peers g)) >>= mapM_ runIO . M.keys
