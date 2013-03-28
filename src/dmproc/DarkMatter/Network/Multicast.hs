@@ -14,9 +14,9 @@
 --    limitations under the License.
 
 -- | This modules exposes some sort of broadcast service through unix
--- sockets. Everyone that wants to hear from it must send a message
--- periodically (ideally every sec). The peer addr is used to broadcat
--- the message.
+-- sockets. Everyone that wants to hear from it must send a `attach`
+-- message periodically (ideally every sec). The peer address is the
+-- one registered in the broadcast group.
 module DarkMatter.Network.Databus
        ( Multicast()
        , connectF
@@ -51,20 +51,28 @@ connectF g f = bracket cOpen cClose (connectS g)
                    ; mapM_ (uncurry (setSocketOption s)) [(RecvBuffer, maxpacket),
                                                           (SendBuffer, maxpacket)
                                                          ]
+                   ; bind s (SockAddrUnix f)
                    ; return s
                    }
 
         cClose s = sClose s >> removeFile f
 
 connectS :: Multicast -> Socket -> IO ()
-connectS g fh = forever (recv fh maxpacket >>= addPeer g)
+connectS g fh = forever $  do { (msg, _, peerAddr) <- recvFrom fh maxpacket
+                              ; case (peerAddr)
+                                of SockAddrUnix peer
+                                     | msg == "attach\n" -> addPeer g peer
+                                     | otherwise         -> return ()
+                                   _                     -> return ()
+                              }
 
 newMulticast :: IO Multicast
 newMulticast = do { s <- socket AF_UNIX Datagram 0
+                  ; g <- newTVarIO M.empty
+                  ; let group = Multicast g s
                   ; mapM_ (uncurry (setSocketOption s)) [(RecvBuffer, maxpacket),
                                                          (SendBuffer, maxpacket)
                                                         ]
-                  ; group    <- fmap (flip Multicast s) (newTVarIO M.empty)
                   ; reaperId <- forkIO $ reaper group
                   ; addFinalizer group (killThread reaperId)
                   ; return group
@@ -78,8 +86,8 @@ delPeer g k = atomically $ modifyTVar (peers g) (M.delete k)
 
 multicast :: Multicast -> B.ByteString -> IO ()
 multicast g msg = atomically (readTVar (peers g)) >>= mapM_ runIO . M.keys
-  where runIO peer = let addr = SockAddrUnix peer
-                     in sendTo (channel g) msg addr `onException` delPeer g peer
+  where runIO peer = send_ (SockAddrUnix peer) `catch` (\(_ :: SomeException) -> delPeer g peer)
+        send_ peer = sendTo (channel g) msg peer >> return ()
 
 reaper :: Multicast -> IO ()
 reaper m = forever $ do { threadDelay (1 * 1000000)
