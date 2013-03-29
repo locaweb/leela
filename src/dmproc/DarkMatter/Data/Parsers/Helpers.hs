@@ -16,7 +16,6 @@
 
 module DarkMatter.Data.Parsers.Helpers where
 
-import           Control.Applicative
 import           Control.Monad
 import           Data.Monoid ((<>))
 import           Data.Double.Conversion.ByteString
@@ -100,8 +99,10 @@ parseTime = do { s <- parseInt
                }
 
 parseVal :: Parser Double
-parseVal = string "nan"  *> pure nan
-       <|> string "inf"  *> pure inf
-       <|> P8.char '-'   *> fmap negate parseVal
-       <|> P8.double
-                   
+parseVal = do { c <- P8.peekChar
+              ; case c
+                of Just 'n' -> string "nan" >> return nan
+                   Just 'i' -> string "inf" >> return inf
+                   Just '-' -> P8.char '-' >> fmap negate parseVal
+                   _        -> P8.double
+              }
