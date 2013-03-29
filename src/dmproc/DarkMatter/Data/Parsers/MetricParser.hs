@@ -21,31 +21,20 @@ module DarkMatter.Data.Parsers.MetricParser
 import           Data.Attoparsec.ByteString as P
 import qualified Data.Attoparsec.ByteString.Char8 as P8
 import           Data.ByteString as B
+import           Data.ByteString.Char8 as B8
 import           DarkMatter.Data.Parsers.Helpers
 import           DarkMatter.Data.Time
 import           DarkMatter.Data.Metric
 
 metricParser :: Parser (Metric B.ByteString)
-metricParser = do { c <- P8.peekChar
+metricParser = do { c <- P8.satisfy (`B8.elem` "gcda")
                   ; case (c)
-                    of Just 'g' -> parseGauge
-                       Just 'c' -> parseCounter
-                       Just 'd' -> parseDerive
-                       Just 'a' -> parseAbsolute
-                       _        -> fail "parseMetric: g|c|d|a were expected"
+                    of 'g' -> string "auge "    >> parseMetric Gauge
+                       'c' -> string "ounter "  >> parseMetric Counter
+                       'd' -> string "erive "   >> parseMetric Derive
+                       'a' -> string "bsolute " >> parseMetric Absolute
+                       _   -> fail "parseMetric: g|c|d|a were expected"
                   }
-
-parseGauge :: Parser (Metric B.ByteString)
-parseGauge = string "gauge " >> parseMetric Gauge
-
-parseCounter :: Parser (Metric B.ByteString)
-parseCounter = string "counter " >> parseMetric Counter
-
-parseDerive :: Parser (Metric B.ByteString)
-parseDerive = string "derive " >> parseMetric Derive
-
-parseAbsolute :: Parser (Metric B.ByteString)
-parseAbsolute = string "absolute " >> parseMetric Absolute
 
 parseMetric :: (B.ByteString -> Double -> Time -> (Metric B.ByteString)) -> Parser (Metric B.ByteString)
 parseMetric metric = do { k <- parseStr
