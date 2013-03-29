@@ -45,7 +45,7 @@ toDouble_spec = do
     it "test conversion" $ property $
       (forAll samples (\(s, n) -> toDouble (mktime s n) == fromIntegral s + fromIntegral n/1e9))
 
-  where samples = do { s <- arbitrary
+  where samples = do { s <- arbitrary `suchThat` (>= 0)
                      ; n <- arbitrary
                      ; return (s, n `mod` 10^9)
                      }

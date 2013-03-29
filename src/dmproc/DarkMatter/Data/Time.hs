@@ -42,6 +42,7 @@ toDouble t = let s = fromIntegral (seconds t)
 mktime :: Int -> Int -> Time
 mktime s n
   | s < 0 || n < 0 = error "mktime: negative numbers"
+  | n < nmax       = Time (s, n)
   | otherwise      = let (s1, n1) = n `quotRem` nmax
                      in Time (s+s1, n1)
 
