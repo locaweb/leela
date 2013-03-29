@@ -27,7 +27,7 @@ module DarkMatter.Data.Asm.Runtime
        , evalStateT
        ) where
 
-import qualified Data.Map as M
+import qualified Data.HashMap as M
 import           Control.Monad.Trans
 import           Control.Applicative
 import           Control.Monad.Trans.State
