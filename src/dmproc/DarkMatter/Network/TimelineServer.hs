@@ -57,22 +57,23 @@ drainWire w input group = do { mc <- wireRead input
 
 start :: Databus Input -> Multicast -> Int -> IO ()
 start input group queues = do { info $ "starting " ++ show queues ++ " timeline queues"
-                              ; forks <- mapM (\myid -> fire myid empty) [0..(queues-1)]
+                              ; forks <- mapM (\myid -> fire myid empty) [0..(size-1)]
                               ; info $ "timeline working!"
                               ; mapM_ wait forks
                               }
-  where select myid
-          | queues == 1 = Just
-          | otherwise   = fixup . filter (\x -> (hash x .&. (queues-1)) == myid)
-            where fixup [] = Nothing
-                  fixup xs = Just xs
+  where select myid = pack . filter (\x -> (hash x .&. (size-1)) == myid)
+            where pack [] = Nothing
+                  pack xs = Just xs
 
-        fire myid wall = do { info $ "creating threads for queue (" ++ show myid ++ ")"
+        fire myid wall = do { info $ "creating timeline queue (" ++ show myid ++ ")"
                             ; mutex <- newEmptyMVar
-                            ; wire  <- attach input (select myid)
+                            ; wire  <- attach input (if (size == 1) then Just else select myid)
                             ; _     <- forkfinally (drainWire wall wire group) (signal mutex)
                             ; return mutex
                             }
+
+        size :: Int
+        size = 2 ^ queues
   
 forkfinally :: IO () -> IO () -> IO ThreadId
 forkfinally action after =
