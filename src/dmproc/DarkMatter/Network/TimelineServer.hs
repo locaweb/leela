@@ -54,7 +54,7 @@ drainWire w input group = do { mc <- wireRead input
                        in multicast group (toByteString doc)
 
 start :: Databus Input -> Multicast -> Int -> IO ()
-start input group queues = do { info $ "starting " ++ show queues ++ " timeline queues"
+start input group queues = do { info $ "starting " ++ show size ++ " timeline queues"
                               ; forks <- mapM (flip fire empty) [0..(size-1)]
                               ; info $ "timeline working!"
                               ; mapM_ wait forks
