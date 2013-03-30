@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 -- All Rights Reserved.
 --
 --    Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +25,7 @@ module DarkMatter.Data.Timeline
        ) where
 
 import           Data.List (foldl')
-import qualified Data.HashMap as M
+import qualified Data.Map as M
 import           Data.Hashable
 import           DarkMatter.Data.Time
 import qualified DarkMatter.Data.Metric as M
@@ -32,7 +33,7 @@ import           DarkMatter.Data.Event
 
 -- | The wall is capable of accepting all kinds of events. I think
 -- this makes the use of it easier and gives more flexibility.
-data Timeline k = Timeline { history :: M.Map k Event }
+newtype Timeline k = Timeline { history :: M.Map k Event }
 
 -- | Controls the global sync rate. The minimum rate at wich we
 -- produce events
@@ -98,20 +99,20 @@ combineSnd :: Event -> Event -> Event
 combineSnd = flip const
 
 publish :: (Hashable k, Ord k) => Timeline k -> M.Metric k -> (Timeline k, Maybe (k, Event))
-publish w m = case (m)
-              of (M.Gauge k _ _)
-                   -> gauge w k e
-                 (M.Derive k _ _)
-                   -> derive w k e
-                 (M.Counter k _ _)
-                   -> counter w k e
-                 (M.Absolute k _ _)
-                   -> absolute w k e
-  where e = event (M.time m) (M.val m)
+publish w m
+  | M.isGauge m    = strict $ gauge w (M.key m) e
+  | M.isDerive m   = strict $ derive w (M.key m) e
+  | M.isCounter m  = strict $ counter w (M.key m) e
+  | M.isAbsolute m = strict $ absolute w (M.key m) e
+  | otherwise      = error "the impossible happened!"
+    where e = event (M.time m) (M.val m)
+
+          strict (a, b) = a `seq` (a, b)
 
 publishMany :: (Hashable k, Ord k) => Timeline k -> [M.Metric k] -> (Timeline k, [(k, Event)])
 publishMany w0 = go [] w0
-  where go acc w []     = (w, acc)
+  where go acc w []     = let r = reverse acc
+                          in (w, r)
         go acc w (m:ms) = let (w1, me) = publish w m
                           in case me
                              of Nothing -> go acc w1 ms
@@ -121,7 +122,7 @@ publishMany w0 = go [] w0
 -- future we want to use this to retrieve an instant snapshot of the
 -- whole thing. Regardless, the new event is always returned as-is.
 gauge :: (Hashable k, Ord k) => Timeline k -> k -> Event -> (Timeline k, Maybe (k, Event))
-gauge w k e1 = let w1 = snd $ timeline w combineSnd k e1
+gauge w k e1 = let (_, w1) = timeline w combineSnd k e1
                in (w1, Just (k, e1))
 
 -- | Compute the `(e1 - e0) / time_delta` of two events. Older events

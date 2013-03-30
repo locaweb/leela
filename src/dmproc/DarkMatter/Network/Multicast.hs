@@ -33,7 +33,7 @@ import           Control.Monad
 import           Control.Exception
 import           Control.Concurrent
 import           Control.Concurrent.STM
-import qualified Data.HashMap as M
+import qualified Data.Map as M
 import           System.Mem.Weak (addFinalizer)
 import           Network.Socket hiding (sendTo)
 import           Network.Socket.ByteString (sendTo)

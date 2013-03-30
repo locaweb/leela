@@ -1,4 +1,4 @@
--- -*- mode: haskell; -*-
+{-# LANGUAGE BangPatterns #-}
 -- All Rights Reserved.
 --
 --    Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,21 +25,21 @@ module DarkMatter.Data.Metric
 import Data.Hashable
 import DarkMatter.Data.Time
 
-data Metric k = Gauge    { key  :: k
-                         , val  :: Double
-                         , time :: Time
+data Metric k = Gauge    { key  :: !k
+                         , val  :: !Double
+                         , time :: !Time
                          }
-              | Counter  { key  :: k
-                         , val  :: Double
-                         , time :: Time
+              | Counter  { key  :: !k
+                         , val  :: !Double
+                         , time :: !Time
                          }
-              | Derive   { key  :: k
-                         , val  :: Double
-                         , time :: Time
+              | Derive   { key  :: !k
+                         , val  :: !Double
+                         , time :: !Time
                          }
-              | Absolute { key  :: k
-                         , val  :: Double
-                         , time :: Time
+              | Absolute { key  :: !k
+                         , val  :: !Double
+                         , time :: !Time
                          }
               deriving (Show, Eq)
 

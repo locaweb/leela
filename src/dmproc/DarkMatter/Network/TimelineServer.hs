@@ -47,17 +47,15 @@ drainWire w input group = do { mc <- wireRead input
                                   Empty    -> drainWire w input group
                                   Chunk [] -> drainWire w input group
                                   Chunk c  -> let (w1, events) = publishMany w c
-                                              in do { broadcast events
-                                                    ; w1 `seq` drainWire w1 input group
-                                                    }
-                             }
-  where broadcast []     = return ()
-        broadcast events = let msg = renderList (\(k, e) -> renderEvent (fromByteString k) e) events
-                           in multicast group (toByteString msg)
+                                              in broadcast events >> drainWire w1 input group
+                              }
+  where broadcast [] = return ()
+        broadcast es = let doc = renderList (\(k, e) -> renderEvent (fromByteString k) e) es
+                       in multicast group (toByteString doc)
 
 start :: Databus Input -> Multicast -> Int -> IO ()
 start input group queues = do { info $ "starting " ++ show queues ++ " timeline queues"
-                              ; forks <- mapM (\myid -> fire myid empty) [0..(size-1)]
+                              ; forks <- mapM (flip fire empty) [0..(size-1)]
                               ; info $ "timeline working!"
                               ; mapM_ wait forks
                               }
@@ -67,12 +65,11 @@ start input group queues = do { info $ "starting " ++ show queues ++ " timeline 
 
         fire myid wall = do { info $ "creating timeline queue (" ++ show myid ++ ")"
                             ; mutex <- newEmptyMVar
-                            ; wire  <- attach input (if (size == 1) then Just else select myid)
+                            ; wire  <- attach input (select myid)
                             ; _     <- forkfinally (drainWire wall wire group) (signal mutex)
                             ; return mutex
                             }
 
-        size :: Int
         size = 2 ^ queues
   
 forkfinally :: IO () -> IO () -> IO ThreadId
