@@ -112,12 +112,7 @@ parseMatch = do { _   <- string "match "
         xopts = defaultExecOpt { captureGroups  = False }
 
 parseMode :: Parser Mode
-parseMode = do { mc <- P8.peekChar
-               ; case mc
-                 of -- Just 's' -> string "stream" >> return Stream
-                    Just 'm' -> parseMatch
-                    _        -> fail "parseMode: s|b were expected"
-               }
+parseMode = parseMatch
 
 parseProc :: Parser Asm
 parseProc = do { _         <- string "proc "

@@ -4,6 +4,7 @@ import contextlib
 import itertools
 import argparse
 import tempfile
+import struct
 import random
 import socket
 import time
@@ -20,6 +21,12 @@ def fmt(n, units=[("%.0f"), ("%.0f K"), ("%.0f M"), ("%.2f G"), ("%.3f T")]):
 def debug(x):
     sys.stderr.write(x)
     sys.stderr.flush()
+
+def frame(s):
+    return(struct.pack(">H", len(s)) + s)
+
+def framelen(s):
+    return(struct.unpack(">H", s)[0])
 
 def strings(seed, count):
     def take(n, i):
@@ -83,7 +90,7 @@ class progress(object):
                   "avg": fmt(self.state["mean"][0] or 0, units=self.units),
                   "max": fmt(self.state["max"] or 0, units=self.units),
                   "min": fmt(self.state["min"] or 0, units=self.units),
-                  "dot": dot,
+                  "dot": dot
                 }
             l = "%(dot)s | %(label)s: %(avg)s | total: %(total)s | max: %(max)s | min: %(min)s" % d
             self.width = max(len(l), self.width)

@@ -25,7 +25,7 @@ import Blaze.ByteString.Builder
 import Network.Socket
 import DarkMatter.Logger (debug, info, warn, crit)
 import DarkMatter.Data.Event
-import DarkMatter.Data.Asm.Types hiding (Stream)
+import DarkMatter.Data.Asm.Types
 import DarkMatter.Data.Asm.Runtime
 import DarkMatter.Data.Parsers.Helpers
 import DarkMatter.Data.Parsers.AsmParser
@@ -65,7 +65,6 @@ handleRequest s bus (Match m) p =
      ; term wire
      ; wait sem
      }
-handleRequest s _ _ _ = sendStatus s Failure
 
 sockWrite :: Socket -> Output -> IO ()
 sockWrite s (k, e) = let msg = renderEvent (renderStr k) e

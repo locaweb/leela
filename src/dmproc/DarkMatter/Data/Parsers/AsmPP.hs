@@ -99,7 +99,6 @@ renderFunction (Left f)  = renderAsyncFunc f
 renderFunction (Right f) = renderSyncFunc f
 
 renderMode :: Mode -> Builder
-renderMode Stream    = fromString "stream"
 renderMode (Match k) = fromString "match " <> renderStr (fst k)
 
 render :: Asm -> Builder

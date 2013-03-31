@@ -63,7 +63,6 @@ data ComparisonOp = Lt
 type Key = B.ByteString
 
 data Mode = Match (B.ByteString, Key -> Bool)
-          | Stream
 
 -- | The available instructions to execute
 data Asm = Event Key Time Double
@@ -85,6 +84,4 @@ isClose _     = False
 
 instance Eq Mode where
 
-  Stream    == Stream    = True
   (Match x) == (Match y) = fst x == fst y
-  _         == _         = False
