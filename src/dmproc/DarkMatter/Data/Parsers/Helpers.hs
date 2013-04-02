@@ -51,9 +51,9 @@ renderEvent :: Builder -> Event -> Builder
 renderEvent k e = fromString "event "
                   <> k
                   <> fromChar ' '
-                  <> renderTime (time e)
-                  <> fromChar ' '
                   <> renderDouble (val e)
+                  <> fromChar ' '
+                  <> renderTime (time e)
                   <> fromChar ';'
 
 runOne :: Parser a -> B.ByteString -> Maybe a

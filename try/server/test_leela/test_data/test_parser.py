@@ -100,7 +100,7 @@ def test_parse_event():
     t = random.random()
     v = random.random()
     e0 = event.Event("foobar", v, t)
-    (e1, s) = parser.parse_event("event 6|foobar %s %s;" % (repr(t), repr(v)))
+    (e1, s) = parser.parse_event("event 6|foobar %s %s;" % (repr(v), repr(t)))
     eq_(e0.name(), e1.name())
     eq_(e0.value(), e1.value())
     eq_(e0.unixtimestamp(), e1.unixtimestamp())
@@ -110,7 +110,7 @@ def test_parse_data():
     t = random.random()
     v = "{\"one\": 1}"
     d0 = data.Data("foobar", v, t)
-    (d1, s) = parser.parse_data("data 6|foobar %s %d|%s;" % (repr(t), len(v), v))
+    (d1, s) = parser.parse_data("data 6|foobar %d|%s %s;" % (len(v), v, repr(t)))
     eq_(d0.name(), d1.name())
     eq_(json.loads(d0.value()), d1.value())
     eq_(d0.unixtimestamp(), d1.unixtimestamp())
@@ -127,7 +127,7 @@ def test_parse_data_returns_leftover():
     t = random.random()
     v = "{\"one\": 1}"
     d0 = data.Data("foobar", v, t)
-    (_, s) = parser.parse_data("data 6|foobar %s %d|%s;foobar" % (repr(t), len(v), v))
+    (_, s) = parser.parse_data("data 6|foobar %d|%s %s;foobar" % (len(v), v, repr(t)))
     eq_("foobar", s)
 
 @raises(RuntimeError)

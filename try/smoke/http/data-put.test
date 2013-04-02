@@ -1,6 +1,6 @@
 # syntax: http://hub.darcs.net/simon/shelltestrunner
 
-./try/smoke/lib/run leela_tryhttp_read_http /v1/data/foobar -X PUT -d '{"name": "foobar", "value": {}, "timestamp": 1352160000}'
+./try/smoke/lib/run leela_tryhttp_write_to_relay_and_read_http /v1/data/foobar -X PUT -d '{"name": "foobar", "value": {}, "timestamp": 1352160000}'
 >>>
 {"results": {"name": "foobar", "timestamp": 1352160000, "value": {}}, "status": 201}
 >>>=0

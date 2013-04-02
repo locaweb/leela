@@ -106,9 +106,9 @@ render Close         = fromString "close;"
 render (Event k t v) = fromString "event "
                        <> renderStr k
                        <> fromChar ' '
-                       <> renderTime t
-                       <> fromChar ' '
                        <> renderDouble v
+                       <> fromChar ' '
+                       <> renderTime t
                        <> fromChar ';'
 render (Proc m f)    = fromString "proc "
                        <> renderMode m

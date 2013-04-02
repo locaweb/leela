@@ -95,9 +95,9 @@ parseEvent :: Parser Asm
 parseEvent = do { _   <- string "event "
                 ; key <- parseStr
                 ; _   <- P8.space
-                ; col <- parseTime
-                ; _   <- P8.space
                 ; val <- parseVal
+                ; _   <- P8.space
+                ; col <- parseTime
                 ; return (Event key col val)
                 }
 

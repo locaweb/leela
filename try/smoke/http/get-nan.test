@@ -2,20 +2,20 @@
 
 ./try/smoke/lib/run leela_tryhttp_write_to_cassandra_and_read_http /v1/2012/11/foobar?nan=purge
 <<<
-event 6|foobar 1352220298.0 NaN;
-event 6|foobar 1352220358.0 0.75;
-event 6|foobar 1352220418.0 Infinity;
-event 6|foobar 1352220478.0 -Infinity;
+event 6|foobar NaN 1352220298.0;
+event 6|foobar 0.75 1352220358.0;
+event 6|foobar Infinity 1352220418.0;
+event 6|foobar -Infinity 1352220478.0;
 >>>
 {"results": {"foobar": {"series": [[1352220358, 0.75]]}}, "status": 200}
 >>>= 0
 
 ./try/smoke/lib/run leela_tryhttp_write_to_cassandra_and_read_http /v1/2012/11/foobar?nan=allow
 <<<
-event 6|foobar 1352220298.0 NaN;
-event 6|foobar 1352220358.0 0.75;
-event 6|foobar 1352220418.0 Infinity;
-event 6|foobar 1352220478.0 -Infinity;
+event 6|foobar NaN 1352220298.0;
+event 6|foobar 0.75 1352220358.0;
+event 6|foobar Infinity 1352220418.0;
+event 6|foobar -Infinity 1352220478.0;
 >>>
 {"results": {"foobar": {"series": [[1352220298, NaN], [1352220358, 0.75], [1352220418, Infinity], [1352220478, -Infinity]]}}, "status": 200}
 >>>= 0

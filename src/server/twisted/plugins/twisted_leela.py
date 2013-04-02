@@ -27,6 +27,7 @@ from leela.server.services import xmpp
 from leela.server.services import storage
 from leela.server.services import http
 from leela.server.services import udp
+from leela.server.services import collectd
 from leela.server import logger
 from leela.server import config
 
@@ -41,7 +42,7 @@ def read_env(envstr):
 
 class LeelaOption(usage.Options):
     optParameters = [ ["config"   , "", config.default_config_file(), "Leela config file to use"                             ],
-                      ["service"  , "", "xmpp"                      , "What leela service to start (xmpp|storage|udp|http)"  ],
+                      ["service"  , "", "udp"                       , "What leela service to start (xmpp|storage|udp|http|collectd)"  ],
                       ["log-level", "", "warn"                      , "The log level (debug|info|warn|error)"                ],
                       ["setenv"   , "", ""                          , "Provides options to the service (e.g. setenv=a:b,b:c)"]
                     ]
@@ -78,6 +79,9 @@ class LeelaServiceMk(object):
     def udp_service(self, cfg, env):
         return(udp.UdpService(cfg))
 
+    def collectd_service(self, cfg, env):
+        return(collectd.CollectdService(cfg))
+
     def http_service(self, cfg, env):
         srv = http.HttpService(cfg)
         return(srv.get())
@@ -99,6 +103,8 @@ class LeelaServiceMk(object):
             return(self.udp_service(cfg, env))
         elif (options["service"] == "http"):
             return(self.http_service(cfg, env))
+        elif (options["service"] == "collectd"):
+            return(self.collectd_service(cfg, env))
         else:
             raise(RuntimeError("error: unknown service"))
 

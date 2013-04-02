@@ -2,7 +2,7 @@
 
 ./try/smoke/lib/run leela_tryhttp_write_to_cassandra_and_read_http /v1/data/2012/11/foobar
 <<<
-data 6|foobar 1352220178.0 10|{"one": 1};
+data 6|foobar 10|{"one": 1} 1352220178.0;
 >>>
 {"results": {"foobar": {"series": [[1352220178, {"one": 1}]]}}, "status": 200}
 >>>= 0

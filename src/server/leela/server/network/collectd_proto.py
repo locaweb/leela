@@ -15,23 +15,16 @@
 #    limitations under the License.
 #
 
-from twisted.internet import reactor
-from twisted.application.service import Service
+from twisted.internet import protocol
 from leela.server import logger
-from leela.server.data import pp
-from leela.server.network.databus import Relay
-from leela.server.network import udp_proto
-import socket
+from leela.server.data import collectd
 
-class UdpService(Service, udp_proto.UDP):
+class UDP(protocol.DatagramProtocol):
 
-    def __init__(self, cfg):
-        self.cfg   = cfg
-        self.relay = Relay(self.cfg.get("udp", "relay"))
-
-    def recv_event(self, events):
-        logger.debug("recv_events: %d" % len(events))
-        self.relay.relay(events)
-
-    def startService(self):
-        reactor.listenUDP(self.cfg.getint("udp", "port"), self, self.cfg.get("udp", "address"))
+    def datagramReceived(self, string, peer):
+        try:
+            metrics = collectd.parse_packet(string)
+            if (len(metrics) > 0):
+                self.recv_metrics(metrics)
+        except:
+            logger.exception()

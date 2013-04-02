@@ -154,8 +154,8 @@ PA_PARSERS = {TYPE_HOST           : parse_string,
               TYPE_SEVERITY       : parse_numeric
              }
 
-DS_PARSERS = {DS_COUNTER : lambda p: (struct.Struct(">Q").unpack_from(p)[0], 8),
-              DS_GAUGE   : lambda p: (struct.Struct("<d").unpack_from(p)[0], 8),
-              DS_DERIVE  : lambda p: (struct.Struct(">q").unpack_from(p)[0], 8),
-              DS_ABSOLUTE: lambda p: (struct.Struct(">Q").unpack_from(p)[0], 8)
+DS_PARSERS = {DS_COUNTER : lambda p: (struct.unpack_from(">Q", p)[0], 8),
+              DS_GAUGE   : lambda p: (struct.unpack_from("<d", p)[0], 8),
+              DS_DERIVE  : lambda p: (struct.unpack_from(">q", p)[0], 8),
+              DS_ABSOLUTE: lambda p: (struct.unpack_from(">Q", p)[0], 8)
              }

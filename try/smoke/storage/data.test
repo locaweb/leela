@@ -2,7 +2,7 @@
 
 ./try/smoke/lib/run leela_trystorage_write_to_socket_and_enum_data_from_cassandra
 <<<
-data 6|foobar 1351101449.0 10|{"one": 1};
+data 6|foobar 10|{"one": 1} 1351101449.0;
 >>>
-data 6|foobar 1351101420.0 10|{"one": 1};
+data 6|foobar 10|{"one": 1} 1351101420.0;
 >>>= 0

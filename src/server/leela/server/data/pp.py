@@ -23,14 +23,17 @@ def render_json(x):
     return(json.dumps(x, allow_nan=True, sort_keys=True))
 
 def render_event(e):
-    return("event %d|%s %d.0 %s;" % (len(e.name()), e.name(), e.unixtimestamp(), repr(e.value())))
+    return("event %d|%s %s %d.0;" % (len(e.name()), e.name(), repr(e.value()), e.unixtimestamp()))
 
 def render_metric(m):
     return("%s %d|%s %s %s;" % (m.type(), len(m.key), m.key, repr(m.val), repr(m.time)))
 
+def render_metrics(ms):
+    return("".join(map(render_metric, ms)))
+
 def render_data(e):
     value = render_json(e.value())
-    return("data %d|%s %d.0 %d|%s;" % (len(e.name()), e.name(), e.unixtimestamp(), len(value), value))
+    return("data %d|%s %d|%s %d.0;" % (len(e.name()), e.name(), len(value), value, e.unixtimestamp()))
 
 def render_events(es):
     return("".join(map(render_event, es)))

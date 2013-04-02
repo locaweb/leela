@@ -27,7 +27,7 @@ def test_render_event():
     t = random.randint(0, 10)
     v = random.random()
     e = event.Event("foobar", v, t)
-    eq_("event 6|foobar %s.0 %s;" % (e.unixtimestamp(), repr(v)), pp.render_event(e))
+    eq_("event 6|foobar %s %s.0;" % (repr(v), e.unixtimestamp()), pp.render_event(e))
 
 def test_render_events():
     t = random.randint(0, 10)

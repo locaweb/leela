@@ -100,7 +100,7 @@ class RangeRdwr(RangeRdonly):
         data = parser.parse_json_data(self.request.body, key)
         if data.name() != key:
             raise web.HTTPError(400, "name must match the one given on URL: [%s /= %s]" % (data.name(), key))
-        self.databus.broadcast([data])
+        self.relay.relay([data])
         self.set_status(201)
         self.finish({"status": 201, "results" : pp.render_storable_to_json(data)})
 

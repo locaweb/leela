@@ -12,3 +12,5 @@
 /try/dmproc/dmtry
 /src/dmproc/DarkMatter/dmproc
 /src/dmproc/DarkMatter/timeline
+/twistd.log
+/twistd.pid

@@ -23,7 +23,7 @@ from leela.server.network import http_proto
 from leela.server.network import resthandler
 from leela.server.data import event
 from leela.server.data import data
-from leela.server.network.databus import mkbus
+from leela.server.network.databus import Relay
 
 def x(*args):
     print(args)
@@ -32,7 +32,7 @@ class HttpService(service.Service):
 
     def __init__(self, cfg):
         cfg = cfg
-        bus = mkbus(cfg.get("http", "broadcast"))
+        bus = Relay(cfg.get("http", "relay"))
         sto = cassandra_proto.CassandraProto(cfg)
         app = web.Application([
             (r"^/v1/data/past24/(.*)"           , http_proto.Past24      , {"storage": sto,
@@ -47,7 +47,7 @@ class HttpService(service.Service):
                                                                             "class_" : data.Data}),
             (r"^/v1/data/(.*)"                  , http_proto.RangeRdwr   , {"storage": sto,
                                                                             "class_" : data.Data,
-                                                                            "databus": bus}),
+                                                                            "relay": bus}),
 
             (r"^/v1/past24/(.*)"                , http_proto.Past24      , {"storage": sto,
                                                                             "class_" : event.Event}),

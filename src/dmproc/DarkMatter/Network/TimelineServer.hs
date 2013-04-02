@@ -50,7 +50,7 @@ drainWire w input group = do { mc <- wireRead input
                                               in broadcast events >> drainWire w1 input group
                               }
   where broadcast [] = return ()
-        broadcast es = let doc = renderList (\(k, e) -> renderEvent (fromByteString k) e) es
+        broadcast es = let doc = renderList (\(k, e) -> renderEvent (renderStr k) e) es
                        in multicast group (toByteString doc)
 
 start :: Databus Input -> Multicast -> Int -> IO ()

@@ -83,9 +83,9 @@ def parse_event(s):
     s      = parse_string(s, "|")
     (n, s) = parse_take(s, l)
     s      = parse_string(s, " ")
-    (t, s) = parse_double(s)
-    s      = parse_string(s, " ")
     (v, s) = parse_double(s)
+    s      = parse_string(s, " ")
+    (t, s) = parse_double(s)
     if (s[0] == ";"):
         return(event.Event(n, v, t), s[1:])
     else:
@@ -97,11 +97,11 @@ def parse_data(s):
     s      = parse_string(s, "|")
     (n, s) = parse_take(s, l)
     s      = parse_string(s, " ")
-    (t, s) = parse_double(s)
-    s      = parse_string(s, " ")
     (l, s) = parse_int(s)
     s      = parse_string(s, "|")
     (v, s) = parse_take(s, l)
+    s      = parse_string(s, " ")
+    (t, s) = parse_double(s)
     if (s[0] == ";"):
         return(data.Data(n, parse_json(v), t), s[1:])
     else:

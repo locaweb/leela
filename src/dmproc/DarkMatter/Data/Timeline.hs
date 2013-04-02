@@ -95,9 +95,6 @@ combineSum e0 e1 = event (time e0) (val e0 + val e1)
 combineFst :: Event -> Event -> Event
 combineFst = const
 
-combineSnd :: Event -> Event -> Event
-combineSnd = flip const
-
 publish :: (Hashable k, Ord k) => Timeline k -> M.Metric k -> (Timeline k, Maybe (k, Event))
 publish w m
   | M.isGauge m    = strict $ gauge w (M.key m) e
@@ -122,7 +119,7 @@ publishMany w0 = go [] w0
 -- future we want to use this to retrieve an instant snapshot of the
 -- whole thing. Regardless, the new event is always returned as-is.
 gauge :: (Hashable k, Ord k) => Timeline k -> k -> Event -> (Timeline k, Maybe (k, Event))
-gauge w k e1 = let (_, w1) = timeline w combineSnd k e1
+gauge w k e1 = let (_, w1) = timeline w combineFst k e1
                in (w1, Just (k, e1))
 
 -- | Compute the `(e1 - e0) / time_delta` of two events. Older events

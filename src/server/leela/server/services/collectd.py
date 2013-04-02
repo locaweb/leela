@@ -20,18 +20,18 @@ from twisted.application.service import Service
 from leela.server import logger
 from leela.server.data import pp
 from leela.server.network.databus import Relay
-from leela.server.network import udp_proto
+from leela.server.network import collectd_proto
 import socket
 
-class UdpService(Service, udp_proto.UDP):
+class CollectdService(Service, collectd_proto.UDP):
 
     def __init__(self, cfg):
         self.cfg   = cfg
-        self.relay = Relay(self.cfg.get("udp", "relay"))
+        self.relay = Relay(self.cfg.get("collectd", "relay"), pp.render_metrics)
 
-    def recv_event(self, events):
-        logger.debug("recv_events: %d" % len(events))
-        self.relay.relay(events)
+    def recv_metrics(self, metrics):
+        logger.debug("recv_metrics: %d" % len(metrics))
+        self.relay.relay(metrics)
 
     def startService(self):
-        reactor.listenUDP(self.cfg.getint("udp", "port"), self, self.cfg.get("udp", "address"))
+        reactor.listenUDP(self.cfg.getint("collectd", "port"), self, self.cfg.get("collectd", "address"))
