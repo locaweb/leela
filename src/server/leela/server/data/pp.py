@@ -25,6 +25,9 @@ def render_json(x):
 def render_event(e):
     return("event %d|%s %d.0 %s;" % (len(e.name()), e.name(), e.unixtimestamp(), repr(e.value())))
 
+def render_metric(m):
+    return("%s %d|%s %s %s;" % (m.type(), len(m.key), m.key, repr(m.val), repr(m.time)))
+
 def render_data(e):
     value = render_json(e.value())
     return("data %d|%s %d.0 %d|%s;" % (len(e.name()), e.name(), e.unixtimestamp(), len(value), value))
