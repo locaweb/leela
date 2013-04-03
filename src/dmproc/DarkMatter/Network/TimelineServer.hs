@@ -19,11 +19,11 @@ module DarkMatter.Network.TimelineServer ( start ) where
 
 import           Data.Bits
 import           Control.Concurrent
-import           Control.Exception
 import           Blaze.ByteString.Builder
 import qualified Data.ByteString as B
 import           Data.Hashable (hash)
-import           DarkMatter.Logger (info, crit)
+import           DarkMatter.Misc
+import           DarkMatter.Logger (info)
 import           DarkMatter.Data.Metric
 import           DarkMatter.Data.Timeline
 import           DarkMatter.Data.Parsers.Helpers
@@ -33,12 +33,6 @@ import           DarkMatter.Network.Multicast
 type Key = B.ByteString
 
 type Input = [Metric Key]
-
-wait :: MVar () -> IO ()
-wait = takeMVar
-
-signal :: MVar () -> IO ()
-signal = flip putMVar ()
 
 drainWire :: Timeline Key -> Wire Input -> Multicast -> IO ()
 drainWire w input group = do { mc <- wireRead input
@@ -66,16 +60,8 @@ start input group queues = do { info $ "starting " ++ show size ++ " timeline qu
         fire myid wall = do { info $ "creating timeline queue (" ++ show myid ++ ")"
                             ; mutex <- newEmptyMVar
                             ; wire  <- attach input (select myid)
-                            ; _     <- forkfinally (drainWire wall wire group) (signal mutex)
+                            ; _     <- forkfinally "drainWire" (drainWire wall wire group) (signal mutex)
                             ; return mutex
                             }
 
         size = 2 ^ queues
-  
-forkfinally :: IO () -> IO () -> IO ThreadId
-forkfinally action after =
-    mask $ \restore ->
-      forkIO $ try (restore action) >>= f
-  where f (Left (SomeException e)) = crit (show e) >> after
-        f _                        = after
-

@@ -16,46 +16,50 @@
 module Main where
 
 import System.Console.GetOpt
-import Control.Monad
 import Control.Concurrent.MVar
 import Control.Concurrent
+import Network.Socket (SockAddr(..))
 import System.Environment
 import System.Exit
 import System.Posix.Signals
+import DarkMatter.Misc
 import DarkMatter.Logger
 import DarkMatter.Network.Databus
 import DarkMatter.Network.Protocol
+import DarkMatter.Network.Multicast (attachTo)
 import DarkMatter.Network.ProcServer
 
 data OptFlag = Verbose
-             | Version
              deriving (Show)
 
 options :: [OptDescr OptFlag]
 options = [ Option "v" ["verbose"] (NoArg Verbose) "increase verbosity"
-          , Option ""  ["version"] (NoArg Version) "show version and exit"
           ]
 
-getopts :: [String] -> ([OptFlag], String, String)
+getopts :: [String] -> ([OptFlag], String, String, Maybe String)
 getopts argv = case (getOpt Permute options argv)
-               of (o, [p, s], []) -> (o, p, s)
-                  (_, _, msg)  -> error (concat msg ++ usageInfo header options)
-  where header = "USAGE: dmproc [-v|--verbose] [--version] PIPE-FILE SOCKET-FILE"
+               of (o, [d, s, m], []) -> (o, d, s, Just m)
+                  (o, [d, s], [])    -> (o, d, s, Nothing)
+                  (_, _, msg)        -> error (concat msg ++ usageInfo header options)
+  where header = "USAGE: dmproc [-v|--verbose] DATABUS-FILE SERVER-FILE [MULTICAST-FILE]"
 
 main :: IO ()
-main = do { (opts, dgram, stream) <- fmap getopts getArgs
+main = do { (opts, sock_dbus, sock_server, sock_mcast) <- fmap getopts getArgs
           ; setopts INFO opts
-          ; wait <- newEmptyMVar
+          ; mutex <- newEmptyMVar
           ; warn "starting server (^C to terminate)"
-          ; db   <- newDatabus
-          ; _    <- forkIO (forever $ threadDelay 500000 >> connectF db databusEventParser dgram)
-          ; _    <- forkIO (start db stream)
-          ; _    <- installHandler sigINT (Catch $ putMVar wait ()) Nothing
-          ; _    <- installHandler sigTERM (Catch $ putMVar wait ()) Nothing
-          ; takeMVar wait
+          ; db    <- newDatabus
+          ; _     <- mAttachTo sock_dbus (fmap SockAddrUnix sock_mcast)
+          ; _     <- forkIO (foreverNofail "connectF (databus): " $ connectF db databusEventParser sock_dbus)
+          ; _     <- forkIO (start db sock_server)
+          ; _     <- installHandler sigINT (Catch $ signal mutex) Nothing
+          ; _     <- installHandler sigTERM (Catch $ signal mutex) Nothing
+          ; wait mutex
           ; warn "/bye"
           ; exitSuccess
           }
   where setopts _ []               = return ()
         setopts level (Verbose:xs) = setlevel level >> setopts DEBUG xs
-        setopts _ (Version:_)      = error "todo:fixme"
+
+        mAttachTo _ Nothing     = return ()
+        mAttachTo dbus (Just s) = forkIO (foreverNofail "attachTo: " $ attachTo dbus s) >> return ()

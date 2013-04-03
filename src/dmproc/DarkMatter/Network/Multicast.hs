@@ -21,6 +21,7 @@ module DarkMatter.Network.Multicast
        ( Multicast()
        , connectF
        , connectS
+       , attachTo
        , newMulticast
        , addPeer
        , delPeer
@@ -35,9 +36,9 @@ import           Control.Concurrent
 import           Control.Concurrent.STM
 import qualified Data.Map as M
 import           System.Mem.Weak (addFinalizer)
-import           Network.Socket hiding (sendTo)
-import           Network.Socket.ByteString (sendTo)
-import           DarkMatter.Logger (info)
+import           Network.Socket
+import qualified Network.Socket.ByteString as N
+import           DarkMatter.Logger (debug)
 
 data Multicast = Multicast { peers   :: TVar (M.Map FilePath Int)
                            , channel :: Socket
@@ -56,13 +57,20 @@ connectF g f = bracket cOpen cClose (connectS g)
                    ; return s
                    }
 
-        cClose s = sClose s >> removeFile f
+        cClose s = close s >> removeFile f
 
 connectS :: Multicast -> Socket -> IO ()
 connectS g fh = forever $  do { peer <- recv fh maxpacket
-                              ; info ("attaching new peer: " ++ peer)
+                              ; debug ("attaching new peer: " ++ peer)
                               ; addPeer g peer
                               }
+
+attachTo :: FilePath -> SockAddr -> IO ()
+attachTo client server = bracket (socket AF_UNIX Datagram 0) close (\s -> forever $ do_attach s >> wait)
+  where do_attach s = let SockAddrUnix addr = server
+                      in debug ("attachTo " ++ client ++ " " ++ addr) >> sendTo s client server
+
+        wait = threadDelay (1 * 1000000)
 
 newMulticast :: IO Multicast
 newMulticast = do { s <- socket AF_UNIX Datagram 0
@@ -85,7 +93,7 @@ delPeer g k = atomically $ modifyTVar (peers g) (M.delete k)
 multicast :: Multicast -> B.ByteString -> IO ()
 multicast g msg = readTVarIO (peers g) >>= mapM_ runIO . M.keys
   where runIO peer = send_ (SockAddrUnix peer) `catch` (\(_ :: SomeException) -> delPeer g peer)
-        send_ peer = sendTo (channel g) msg peer >> return ()
+        send_ peer = N.sendTo (channel g) msg peer >> return ()
 
 reaper :: Multicast -> IO ()
 reaper m = forever $ do { threadDelay (1 * 1000000)

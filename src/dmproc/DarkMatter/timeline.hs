@@ -16,12 +16,12 @@
 module Main where
 
 import System.Console.GetOpt
-import Control.Monad
 import Control.Concurrent.MVar
 import Control.Concurrent
 import System.Environment
 import System.Exit
 import System.Posix.Signals
+import DarkMatter.Misc
 import DarkMatter.Logger
 import DarkMatter.Network.Protocol
 import DarkMatter.Network.Databus as D
@@ -29,7 +29,6 @@ import DarkMatter.Network.Multicast as M
 import DarkMatter.Network.TimelineServer
 
 data OptFlag = Verbose
-             | Version
              | Queues Int
              | Threads Int
              deriving (Show)
@@ -37,28 +36,27 @@ data OptFlag = Verbose
 options :: [OptDescr OptFlag]
 options = [ Option "v" ["verbose"] (NoArg Verbose)                     "increase verbosity"
           , Option "q" ["queues"]  (ReqArg (Queues . read) "QUEUES")   "number of queue"
-          , Option ""  ["version"] (NoArg Version)                     "show version and exit"
           ]
 
 getopts :: [String] -> ([OptFlag], String, String)
 getopts argv = case (getOpt Permute options argv)
                of (o, [p, s], []) -> (o, p, s)
                   (_, _, msg)  -> error (concat msg ++ usageInfo header options)
-  where header = "USAGE: wall [-v|--verbose] [--version] PIPE-FILE BROADCAST-FILE"
+  where header = "USAGE: wall [-v|--verbose] DATABUS-FILE BROADCAST-FILE"
 
 main :: IO ()
 main = do { (opts, pipe, bcast) <- fmap getopts getArgs
           ; setopts INFO opts
-          ; wait  <- newEmptyMVar
+          ; mutex <- newEmptyMVar
           ; warn "starting server (^C to terminate)"
           ; dbus  <- newDatabus
           ; group <- newMulticast
-          ; _     <- forkIO (forever $ threadDelay 500000 >> D.connectF dbus databusMetricParser pipe)
-          ; _     <- forkIO (forever $ threadDelay 500000 >> M.connectF group bcast)
+          ; _     <- forkIO (foreverNofail "connectF (databus): " $ D.connectF dbus databusMetricParser pipe)
+          ; _     <- forkIO (foreverNofail "connectF (multicast): " $ M.connectF group bcast)
           ; start dbus group (getQueues 1 opts)
-          ; _     <- installHandler sigINT (Catch $ putMVar wait ()) Nothing
-          ; _     <- installHandler sigTERM (Catch $ putMVar wait ()) Nothing
-          ; takeMVar wait
+          ; _     <- installHandler sigINT (Catch $ signal mutex) Nothing
+          ; _     <- installHandler sigTERM (Catch $ signal mutex) Nothing
+          ; wait mutex
           ; warn "/bye"
           ; exitSuccess
           }

@@ -20,10 +20,10 @@ module DarkMatter.Network.ProcServer ( start ) where
 
 import Control.Concurrent
 import Control.Monad
-import Control.Exception
 import Blaze.ByteString.Builder
 import Network.Socket
 import DarkMatter.Logger (debug, info, warn, crit)
+import DarkMatter.Misc
 import DarkMatter.Data.Event
 import DarkMatter.Data.Asm.Types
 import DarkMatter.Data.Asm.Runtime
@@ -36,12 +36,6 @@ import DarkMatter.Network.Databus
 type Input = [(Key, Event)]
 
 type Output = (Key, Event)
-
-wait :: MVar () -> IO ()
-wait = takeMVar
-
-signal :: MVar () -> IO ()
-signal = flip putMVar ()
 
 runProc :: IO (Chunk Input) -> (Output -> IO ()) -> [Function] -> IO ()
 runProc getI0 putO func = evalStateT (exec getI putO) (newMultiplex func)
@@ -58,8 +52,8 @@ handleRequest s bus (Match m) p =
      ; sem  <- newEmptyMVar
      ; wire <- attach bus (databusMatcher (snd m))
      ; debug (" forking proc thread: " ++ toString (render $ Proc (Match m) p))
-     ; _    <- forkfinally (runProc (wireRead wire) (sockWrite s) p)
-                           (detach bus wire >> signal sem)
+     ; _    <- forkfinally "runProc: " (runProc (wireRead wire) (sockWrite s) p)
+                                       (detach bus wire >> signal sem)
      ; asm <- recvAsm s
      ; when (asm /= [Close]) (warn "error: `close;' was expected")
      ; term wire
@@ -77,7 +71,7 @@ start bus f = do { warn ("binding server on: " ++ f)
                  ; listen s 1
                  ; forever $ do { s1 <- fmap fst $ accept s
                                 ; info "creating new connection"
-                                ; _ <- forkfinally (go s1) (info "droppping connection" >> sClose s1)
+                                ; _ <- forkfinally "accept: " (go s1) (info "droppping connection" >> close s1)
                                 ; return ()
                                 }
                  }
@@ -93,11 +87,3 @@ start bus f = do { warn ("binding server on: " ++ f)
 
 recvAsm :: Socket -> IO [Asm]
 recvAsm h = fmap (runAll asmParser) (recvFrame h)
-
-forkfinally :: IO () -> IO () -> IO ThreadId
-forkfinally action after =
-    mask $ \restore ->
-      forkIO $ try (restore action) >>= f
-  where f (Left (SomeException e)) = crit (show e) >> after
-        f _                        = after
-

@@ -117,7 +117,7 @@ connectF db p f = bracket cOpen cClose (connectS db p)
                    ; return s
                    }
 
-        cClose s = sClose s >> removeFile f
+        cClose s = close s >> removeFile f
 
 -- | This effectively starts the databus. This function should block
 -- indefinitely, at least if no errors nor an EOF happens.
