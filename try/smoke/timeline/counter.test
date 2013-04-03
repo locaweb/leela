@@ -1,0 +1,19 @@
+# syntax: http://hub.darcs.net/simon/shelltestrunner
+
+./try/smoke/lib/run leela_trytimeline_interact /tmp/trytimeline
+<<<
+counter 6|foobar 0 0.0;
+counter 6|foobar 30 30.0;
+counter 6|foobar 60 60.0;
+>>>
+event 6|foobar 1 60.0;
+>>>= 0
+
+./try/smoke/lib/run leela_trytimeline_interact /tmp/trytimeline
+<<<
+counter 6|foobar 16 0.0;
+counter 6|foobar 8 30.0;
+counter 6|foobar 0 60.0;
+>>>
+event 6|foobar 71582788 60.0;
+>>>= 0

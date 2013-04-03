@@ -53,7 +53,7 @@ test-server:
 
 test: test-dmproc test-server
 
-test-smoke: compile-dmproc
+test-smoke:
 	$(call .check_bin,lsof)
 	$(call .check_bin,python)
 	$(call .check_bin,shelltest)

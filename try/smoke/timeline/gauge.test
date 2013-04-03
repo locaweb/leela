@@ -1,0 +1,9 @@
+# syntax: http://hub.darcs.net/simon/shelltestrunner
+
+./try/smoke/lib/run leela_trytimeline_interact /tmp/trytimeline
+<<<
+gauge 6|foobar 1 1.0;
+gauge 6|foobar 2 0.0;
+>>>
+event 6|foobar 1 1.0;event 6|foobar 2 0.0;
+>>>= 0

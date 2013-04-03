@@ -8,6 +8,7 @@ exec 2>>/tmp/try-leela.stderr
 . ./try/smoke/lib/trydmproc.sh
 . ./try/smoke/lib/tryhttp.sh
 . ./try/smoke/lib/trystorage.sh
+. ./try/smoke/lib/trytimeline.sh
 
 test -f $pidfile && { kill $(cat $pidfile); sleep 1; }
 rm -f $sockfile $dbusfile

@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -x
+
 srcroot=${srcroot:-$(pwd)}
 pidfile=/tmp/try-leela.pid
 logfile=/tmp/try-leela.log
@@ -9,6 +11,7 @@ sockfile=/tmp/try-leela.sock
 http_endpoint=http://127.0.0.1:4080
 
 bin_dmproc=${bin_dmproc:-./src/dmproc/DarkMatter/dmproc}
+bin_timeline=${bin_timeline:-./src/dmproc/DarkMatter/timeline}
 bin_twistd=${bin_twistd:-twistd}
 bin_python=${bin_python:-python}
 bin_socat=${bin_socat:-socat}
@@ -18,11 +21,11 @@ bin_date=${bin_date:-date}
 bin_sed=${bin_sed:-sed}
 
 leela_trylib_xsock_read () {
-  $bin_socat UNIX-RECVFROM:$1 STDOUT
+  $bin_socat -t1 UNIX-RECVFROM:$1 STDOUT
 }
 
 leela_trylib_xsock_write () {
-  $bin_socat STDIO UNIX-SENDTO:$1
+  $bin_socat -t1 STDIO UNIX-SENDTO:$1
 }
 
 leela_trylib_wait_xsock () {
@@ -40,10 +43,18 @@ leela_trylib_waitpidfile () {
   rm -f $pidfile
 }
 
+leela_trylib_waitpid () {
+  pid=$1
+  for _ in 1 2 3 4 5
+  do
+    if ! ps -p $pid >/dev/null; then break; fi
+  done
+}
+
 leela_trylib_wait_inet () {
   pidf=$1
   inet=$2
-  while ! $bin_lsof -t -a -i$inet -p $(cat $pidf)
+  while ! test -e $pidf && $bin_lsof -t -a -i$inet -p $(cat $pidf)
   do sleep 1; done
 }
 
@@ -69,8 +80,24 @@ leela_trylib_service_start () {
 }
 
 leela_trylib_dmproc_stop () {
+  test -f $pidfile && leela_trylib_stop $(cat $pidfile)
+  rm -f $pidfile
+}
+
+leela_trylib_timeline_stop () {
+  test -f $pidfile && leela_trylib_stop $(cat $pidfile)
+  rm -f $pidfile
+}
+
+leela_trylib_service_stop () {
+  test -f $pidfile && leela_trylib_stop $(cat $pidfile)
+  leela_trylib_waitpidfile $pidfile
+}
+
+leela_trylib_stop () {
+  pid=$1
   test -f $pidfile && kill $(cat $pidfile)
-  sleep 1; rm -f $pidfile
+  leela_trylib_waitpid $pid
 }
 
 leela_trylib_dmproc_start () {
@@ -82,9 +109,13 @@ leela_trylib_dmproc_start () {
   leela_trylib_wait_file $sockfile
 }
 
-leela_trylib_service_stop () {
-  test -f $pidfile && kill $(cat $pidfile)
-  leela_trylib_waitpidfile $pidfile
+leela_trylib_timeline_start () {
+  rm -f $dbusfile
+  rm -f $sockfile
+  $bin_timeline $dbusfile $sockfile&
+  echo -n "$!" >$pidfile
+  leela_trylib_wait_file $dbusfile
+  leela_trylib_wait_file $sockfile
 }
 
 leela_trylib_udp_write () {
