@@ -48,7 +48,7 @@ ewma :: (Fractional a) => a -> Proc a (Maybe a)
 ewma k = Auto (f False 0)
   where f t m0 e
           | t         = (Just m1, Auto $ f t m1)
-          | otherwise = (Nothing, Auto $ f True e)
+          | otherwise = m1 `seq` (Nothing, Auto $ f True e)
             where m1 = k * m0 + (1 - k) * e
 
 -- | Approximates the SMA implementation by using EWMA with an alpha
@@ -58,8 +58,11 @@ ewma k = Auto (f False 0)
 sma :: (Fractional a) => Int  -> Proc a (Maybe a)
 sma n = Auto (f ((n+1) `div` 2) (ewma (1 - 2 / fromIntegral (n+1))))
   where f 0 p0 e = run1 p0 e
-        f t p0 e = let (v, p1) = run1 p0 e
-                   in v `seq` (Nothing, Auto $ f (t-1) p1)
+        f t p0 e = let (mv, p1) = run1 p0 e
+                   in mv `mseq` (Nothing, Auto $ f (t-1) p1)
+
+        mseq Nothing  = id
+        mseq (Just v) = seq v
 
 -- | Drops the first n items
 dropProc :: Int -> Proc a (Maybe a)
@@ -70,12 +73,6 @@ dropProc n = Auto $ const (Nothing, dropProc (n-1))
 takeProc :: Int -> Proc a (Maybe a)
 takeProc 0 = Auto $ const (Nothing, takeProc 0)
 takeProc n = Auto $ \i -> (Just i, takeProc (n-1))
-
--- | Exponential moving average
-ema :: (Fractional a) => a -> Proc a a
-ema a = Auto (f 0)
-  where f m0 i = let m = m0 + a * (i - m0)
-                 in (m, Auto (f m))
 
 -- | Count how many items this proc has seen
 count :: (Integral b) => Proc a b
@@ -121,7 +118,7 @@ sample n0 m0 = Auto (f n0 m0)
   where f _ 0 a       = (Just a, Auto $ f (n0-1) (m0-1))
         f n m a
           | n > 0     = (Just a, Auto $ f (n - 1) (m - 1))
-          | otherwise = (Nothing, Auto $ f 0 (m - 1))
+          | otherwise = a `seq` (Nothing, Auto $ f 0 (m - 1))
 
 -- | Invokes a given proc N number, keeping its intermediary
 -- state. When N is reached, the proc is put back to its original
