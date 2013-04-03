@@ -11,17 +11,20 @@ import time
 import sys
 import os
 
-SEED = "leela.dmproc.trial_timeline"
+SEED    = "leela.dmproc.trial_timeline"
+M_BYTES = "bytes"
+M_KEYS  = "keys"
 
 def mkload(opts, fh):
     opts.load = int(opts.load * 1000 * 1000)
-    k         = helpers.strings(SEED, opts.ksize)
+    k         = helpers.strings(SEED, opts.uniq)
     s         = opts.load
     m         = helpers.progress()
-    helpers.debug("generating load test file ... [keys: %s, pktsz: %s, keylen: %s, load: %s]\n" % (helpers.fmt(len(k)),
+    helpers.debug("generating load test file ... [uniq: %s, pktsz: %s, keylen: %s, load: %s]\n" % (helpers.fmt(len(k)),
                                                                                                    helpers.fmt(opts.pktsz),
                                                                                                    len(k[0]),
                                                                                                    helpers.fmt(s)))
+    pack = lambda p: "".join(p) + "\n"
     while (s > 0):
         p = []
         c = opts.pktsz
@@ -29,19 +32,20 @@ def mkload(opts, fh):
             i  = opts.load - s
             n  = k[i % len(k)]
             l  = "%s %s|%s %s %d.0;" % (opts.type, len(n), n, repr(random.random()), i)
-            z  = len(l)
             s -= 1
-            c -= z
+            c -= len(l)
             if (c >= 0):
-                m.measure(z)
                 p.append(l)
             else:
-                if (opts.pktsz < z):
-                    m.measure(z)
+                if (opts.pktsz < len(l)):
                     p.append(l)
                 break
-            m.dump_state("mkload")
-        fh.write("".join(p) + "\n")
+        if (opts.measure == M_BYTES):
+            m.measure(len(pack(p)))
+        else:
+            m.measure(len(p))
+        m.dump_state("mkload")
+        fh.write("%d %s" % (len(p), pack(p)))
     m.done()
 
 def trial(opts):
@@ -52,18 +56,27 @@ def trial(opts):
         helpers.debug("starting load test [sending file] ... \n")
         fh.seek(0)
         for l in fh:
-            l = l.strip()
-            m.measure(len(l))
+            n, l = l.strip().split(" ", 1)
+            if (opts.measure == M_BYTES):
+                m.measure(len(l))
+            else:
+                m.measure(int(n, 10))
             m.dump_state("trial")
             s.sendto(l, 0, opts.databus)
         m.done()
 
 if (__name__ == "__main__"):
     args = argparse.ArgumentParser()
-    args.add_argument("--ksize",
+    args.add_argument("--measure",
+                      type    = str,
+                      default = "bytes",
+                      choices = [M_BYTES, M_KEYS],
+                      dest    = "measure",
+                      help    = "whether to measure bytes/s or keys")
+    args.add_argument("--uniq",
                       type    = int,
                       default = 1000000,
-                      dest    = "ksize",
+                      dest    = "uniq",
                       help    = "number of distinct keys to generate [default: %(default)s]")
     args.add_argument("--load",
                       type    = float,

@@ -7,16 +7,23 @@ import tempfile
 import struct
 import random
 import socket
+import math
 import time
 import sys
 import os
 
-def fmt(n, units=[("%.0f"), ("%.0f K"), ("%.0f M"), ("%.2f G"), ("%.3f T")]):
+def fmt(n, units=[("%.0f"), ("%.0f K"), ("%.1f M"), ("%.2f G"), ("%.3f T")]):
     units = list(units)
     while (n > 750 and len(units) > 1):
         n = n / 1000.0
         u = units.pop(0)
     return(units[0] % (n,))
+
+def fmt_time(t):
+    h = math.floor(t / 3600)
+    m = math.floor((t - h*3600) / 60)
+    s = t - h*3600 - m*60
+    return("%02d:%02d:%02d" % (h, m, s))
 
 def debug(x):
     sys.stderr.write(x)
@@ -53,7 +60,8 @@ class progress(object):
                      }
         self.width = 80
         self.lastd = time.time()
-        self.units = ["%.0f /s", "%.0f K/s", "%0.f M/s", "%.2f G/s", "%.3f T/s"]
+        self.start = time.time()
+        self.units = ["%.0f /s", "%.0f K/s", "%.1f M/s", "%.2f G/s", "%.3f T/s"]
         self.dots  = [" - ", " \\ ", " | ", " / ", " - ", " \\ ", " | ", " / "]
 
     def measure(self, v):
@@ -90,9 +98,10 @@ class progress(object):
                   "avg": fmt(self.state["mean"][0] or 0, units=self.units),
                   "max": fmt(self.state["max"] or 0, units=self.units),
                   "min": fmt(self.state["min"] or 0, units=self.units),
-                  "dot": dot
+                  "dot": dot,
+                  "elapsed": fmt_time(now - self.start)
                 }
-            l = "%(dot)s | %(label)s: %(avg)s | total: %(total)s | max: %(max)s | min: %(min)s" % d
+            l = "%(dot)s | %(label)s: %(avg)s | total: %(total)s | max: %(max)s | min: %(min)s | elapsed: %(elapsed)s" % d
             self.width = max(len(l), self.width)
             debug("\r" + " " * self.width)
             debug("\r" + l)
