@@ -88,10 +88,6 @@ def metrics(parts):
               }
     metrics = []
     for (ptype, pvalue) in parts:
-        if (ptype == TYPE_PLUGIN):
-            for k in (TYPE_PLUGIN_INSTANCE, TYPE_TYPE, TYPE_TYPE_INSTANCE):
-                if (k in context):
-                    del(context[k])
         context[ptype] = pvalue
         if (ptype == TYPE_VALUES):
             counter = -1
