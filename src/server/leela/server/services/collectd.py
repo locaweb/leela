@@ -31,7 +31,10 @@ class CollectdService(Service, collectd_proto.UDP):
 
     def recv_metrics(self, metrics):
         logger.debug("recv_metrics: %d" % len(metrics))
-        self.relay.relay(metrics)
+        try:
+            self.relay.relay(metrics)
+        except:
+            logger.error("cant relay to peer address")
 
     def startService(self):
         reactor.listenUDP(self.cfg.getint("collectd", "port"), self, self.cfg.get("collectd", "address"))

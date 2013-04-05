@@ -59,10 +59,17 @@ def join_(s, *args):
     return(s.join(filter(valid, args)))
 
 def format(metric, value, context):
-    host   = context.get(TYPE_HOST)
-    plugin = join_("-", context.get(TYPE_PLUGIN), context.get(TYPE_PLUGIN_INSTANCE))
-    mtype  = join_("-", context.get(TYPE_TYPE), context.get(TYPE_TYPE_INSTANCE))
-    key    = join_(".", host, plugin, mtype, context.get(MY_TYPE_SUFFIX))
+    if (TYPE_SIGNATURE not in context):
+        debug("dropping unauthenticated package!")
+        return
+    elif (TYPE_HOST not in context):
+        debug("dropping package without host information")
+        return
+    user    = context[TYPE_SIGNATURE]
+    host    = context[TYPE_HOST]
+    plugin  = join_("-", context.get(TYPE_PLUGIN), context.get(TYPE_PLUGIN_INSTANCE))
+    mtype   = join_("-", context.get(TYPE_TYPE), context.get(TYPE_TYPE_INSTANCE))
+    key     = join_(".", user[0], host, plugin, mtype, context.get(MY_TYPE_SUFFIX))
     if (TYPE_TIME_HI in context):
         mtime = context[TYPE_TIME_HI] / float(2**30)
     else:
@@ -79,7 +86,6 @@ def format(metric, value, context):
         raise(RuntimeError())
 
 def metrics(parts):
-    tree    = [TYPE_PLUGIN, TYPE_PLUGIN_INSTANCE, TYPE_TYPE, TYPE_TYPE_INSTANCE]
     context = {}
     types   = {DS_COUNTER: "counter",
                DS_ABSOLUTE: "absolute",
@@ -97,14 +103,25 @@ def metrics(parts):
                     context[MY_TYPE_SUFFIX] = str(counter)
                 elif (MY_TYPE_SUFFIX in context):
                     del(context[MY_TYPE_SUFFIX])
-                metrics.append(format(metric, value, context))
+                m = format(metric, value, context)
+                if (m is not None):
+                    metrics.append(m)
     return(metrics)
 
 def parse_string(packet):
     _, plen = struct.unpack_from(">2H", packet)
     offset  = 4
-    value   = packet[offset:plen-1]
-    return(value.decode("ascii"), plen)
+    limit   = plen - offset
+    return(struct.unpack_from("%ds" % limit, packet, offset)[0], plen)
+
+def parse_signature(packet):
+    _, plen   = struct.unpack_from(">2H", packet)
+    offset    = 4
+    signature = packet[offset:32]
+    offset   += 32
+    limit     = plen - offset
+    username  = struct.unpack_from("%ds" % limit, packet, offset)[0]
+    return((username, signature), plen)
 
 def parse_skip(packet):
     _, plen = struct.unpack_from(">2H", packet)
@@ -147,7 +164,8 @@ PA_PARSERS = {TYPE_HOST           : parse_string,
               TYPE_INTERVAL       : parse_numeric,
               TYPE_INTERVAL_HI    : parse_numeric,
               TYPE_MESSAGE        : parse_string,
-              TYPE_SEVERITY       : parse_numeric
+              TYPE_SEVERITY       : parse_numeric,
+              TYPE_SIGNATURE      : parse_signature
              }
 
 DS_PARSERS = {DS_COUNTER : lambda p: (struct.unpack_from(">Q", p)[0], 8),
