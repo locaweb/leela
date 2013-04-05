@@ -1,0 +1,8 @@
+# Number of instances to spawn
+NPROCS=1
+
+# The socket to listen events from
+DATABUS=/tmp/storage-databus
+
+# Extra arguments to provide to this service
+#SERVICE_OPTS="--log-level=debug --config=/etc/leela.conf"

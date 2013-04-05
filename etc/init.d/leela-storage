@@ -1,72 +1,73 @@
 #!/bin/sh
 ### BEGIN INIT INFO
 # Provides:          leela-storage
-# Required-Start:    $network $local_fs
+# Required-Start:    $network $local_fs $leela-timeline
 # Required-Stop:
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
 # Short-Description: Distributed, real time event processor and monitoring engine
 ### END INIT INFO
 
-PATH=/sbin:/usr/sbin:/bin:/usr/bin
-FSROOT=${FSROOT:-/}
-DAEMON=/usr/bin/twistd
+DAEMON=twistd
+RUNDIR="$CHDIR/var/run/leela"
 SERVICE=storage
-RUNDIR=/var/run/leela
-PIDFILE=$RUNDIR/$SERVICE.pid
-LOGFILE=/var/log/leela/$SERVICE.log
-SOCKFILE=$RUNDIR/storage
+PIDFILE="$RUNDIR/$SERVICE.pid"
+LOGFILE="$CHDIR/var/log/leela/$SERVICE.log"
 USER=leela
 GROUP=leela
 
-[ -x "$DAEMON" ]                            || exit 0
-[ -r /lib/lsb/init-functions ]              && . /lib/lsb/init-functions
-[ -r ${FSROOT}etc/default/leela-$SERVICE ]  && . ${FSROOT}etc/default/leela-$SERVICE
-[ -r ${FSROOT}usr/libexec/leela-functions ] && . ${FSROOT}usr/libexec/leela-functions
+DATABUS=${DATABUS:-/tmp/storage-databus}
+
+[ -r "${CHDIR}/etc/default/leela-$SERVICE"  ] && . "${CHDIR}/etc/default/leela-$SERVICE"
+[ -r "${CHDIR}/usr/libexec/leela-functions" ] && . "${CHDIR}/usr/libexec/leela-functions"
+leela_test_x "$DAEMON"                        || exit 1
 
 start_service () {
-  mkdir -p $RUNDIR
-  chown $USER:$GROUP $RUNDIR
-  proc_id=$1
-  pidfile=$PIDFILE-$proc_id
-  logfile=$LOGFILE-$proc_id
-  pipefile=$SOCKFILE-$proc_id
-  log_daemon_msg "starting $DAEMON [$SERVICE/$proc_id]"
-  start-stop-daemon -Sq -c $USER:$GROUP -p $pidfile -x $DAEMON -- --logfile=$logfile --pidfile=$pidfile leela --service=$SERVICE --setenv=pipe:$pipefile $DAEMON_OPTS
-  log_end_msg $?
+  local instance logfile pidfile databus
+
+  instance=${NPROC:-1}
+  logfile=$LOGFILE
+  pidfile=$PIDFILE
+  databus=$DATABUS
+  while [ $instance -gt 0 ]
+  do
+    instance=$(( $instance - 1 ))
+    LOGFILE="$logfile.$instance"
+    PIDFILE="$pidfile.$instance"
+    DATABUS="$databus.$instance"
+    echo -n "[$instance] "; leela_twistd_start ${SERVICE_OPTS:---config="$CHDIR/etc/leela.conf"} "--setenv=databus:$DATABUS"
+  done
 }
 
 stop_service () {
-  proc_id=$1
-  pidfile=$PIDFILE-$proc_id
-  pipefile=$SOCKFILE-$proc_id
-  log_daemon_msg "stopping $DAEMON [$SERVICE/$proc_id]"
-  start-stop-daemon -Kq -R 10 -p $pidfile
-  log_end_msg $?
-  rm -f $pidfile
-  rm -f $pipefile
-}
+  local instance logfile pidfile databus
 
-restart_service () {
-  stop_service $1
-  start_service $1
+  instance=${NPROC:-1}
+  logfile=$LOGFILE
+  pidfile=$PIDFILE
+  databus=$DATABUS
+  while [ $instance -gt 0 ]
+  do
+    instance=$(( $instance - 1 ))
+    LOGFILE="$logfile.$instance"
+    PIDFILE="$pidfile.$instance"
+    DATABUS="$databus.$instance"
+    echo -n "[$instance] "; leela_generic_stop
+    rm -f "$DATABUS"
+  done
 }
 
 case "$1" in
   start)
-    repeat ${NPROCS:-1} start_service
+    start_service
     ;;
 
   stop)
-    repeat ${NPROCS:-1} stop_service
-    ;;
-
-  restart)
-    repeat ${NPROCS:-1} restart_service
+    stop_service
     ;;
 
   *)
-    echo "Usage: $0 {start|stop|restart}" >&2
+    echo "Usage: $0 {start|stop}" >&2
     exit 3
     ;;
 esac

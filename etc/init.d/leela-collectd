@@ -1,7 +1,7 @@
 #!/bin/sh
 ### BEGIN INIT INFO
-# Provides:          leela-http
-# Required-Start:    $network $local_fs
+# Provides:          leela-udp
+# Required-Start:    $network $local_fs $leela-timeline
 # Required-Stop:
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
@@ -10,7 +10,7 @@
 
 DAEMON=twistd
 RUNDIR="$CHDIR/var/run/leela"
-SERVICE=http
+SERVICE=collectd
 PIDFILE="$RUNDIR/$SERVICE.pid"
 LOGFILE="$CHDIR/var/log/leela/$SERVICE.log"
 USER=leela

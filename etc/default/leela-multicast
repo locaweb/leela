@@ -1,0 +1,11 @@
+# The unix socket to listen events (usually the output of
+# timeline).
+#MULTICAST_DATABUS=/tmp/multicast-databus
+
+# The socket interested parties may use to register themselves to
+# listen for events. Events are sent to them in a round-robin fashion
+#MULTICAST_ANYCAST=/tmp/multicast-anycast
+
+# The timeline broadcast (usually), i.e. the unix socket that we use
+# to register ourselves as an interested party in listening events
+#PARENT_BROADCAST=/tmp/timeline-broadcast

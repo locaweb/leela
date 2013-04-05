@@ -13,13 +13,6 @@ def find_packages(root, path_f):
             result.append(tr_root)
     return(result)
 
-def find_datafiles(root, path_f):
-    result = []
-    for (root, dirname, files) in os.walk(root):
-        tr_root = path_f(root)
-        result.append((tr_root, map(lambda f: os.path.join(root, f), files)))
-    return(result)
-
 setup(
     name               = "leela",
     version            = "2.0.0",
@@ -29,9 +22,7 @@ setup(
     namespace_packages = ["leela"],
     packages           = find_packages("./src/server", lambda f: f[13:].replace("/", ".")) + ["twisted.plugins"],
     package_dir        = {"": "src/server"},
-    package_data       = {"twisted": ["src/server/twisted/plugins/twisted_leela.py"]},
-    data_files         = (find_datafiles("./etc", lambda f: f[2:]) +
-                          find_datafiles("./usr", lambda f: f[2:])))
+    package_data       = {"twisted": ["src/server/twisted/plugins/twisted_leela.py"]})
 
 # Make Twisted regenerate the dropin.cache, if possible.  This is necessary
 # because in a site-wide install, dropin.cache cannot be rewritten by

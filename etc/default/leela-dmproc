@@ -1,0 +1,17 @@
+# The unix socket to listen events (usually the output of
+# timeline).
+#DMPROC_DATABUS=/tmp/dmproc-databus
+
+# The socket used to perform queries against the dmproc.
+#DMPROC_SOCKET=/tmp/dmproc-socket
+
+# The number of OS threads to use. This should not exceed you actual
+# number of cores.
+#DMPROC_THREADS=1
+
+# The timeline broadcast (usually), i.e. the unix socket that we use
+# to register ourselves as an interested party in listening events.
+#PARENT_BROADCAST=/tmp/timeline-broadcast
+
+# Options to dmproc
+#DMPROC_OPTS=-vvv

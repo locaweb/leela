@@ -1,46 +1,31 @@
 #!/bin/sh
 ### BEGIN INIT INFO
 # Provides:          leela-udp
-# Required-Start:    $network $local_fs $leela-xmpp $leela-storage
+# Required-Start:    $network $local_fs $leela-timeline
 # Required-Stop:
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
 # Short-Description: Distributed, real time event processor and monitoring engine
 ### END INIT INFO
 
-PATH=/sbin:/usr/sbin:/bin:/usr/bin
-FSROOT=${FSROOT:-/}
-DAEMON=/usr/bin/twistd
+DAEMON=twistd
+RUNDIR="$CHDIR/var/run/leela"
 SERVICE=udp
-RUNDIR=/var/run/leela
-PIDFILE=$RUNDIR/udp.pid
-LOGFILE=/var/log/leela/$SERVICE.log
+PIDFILE="$RUNDIR/$SERVICE.pid"
+LOGFILE="$CHDIR/var/log/leela/$SERVICE.log"
 USER=leela
 GROUP=leela
 
-[ -x "$DAEMON" ]                            || exit 0
-[ -r /lib/lsb/init-functions ]              && . /lib/lsb/init-functions
-[ -r ${FSROOT}etc/default/leela-$SERVICE ]  && . ${FSROOT}etc/default/leela-$SERVICE
-[ -r ${FSROOT}usr/libexec/leela-functions ] && . ${FSROOT}usr/libexec/leela-functions
+[ -r "${CHDIR}/etc/default/leela-$SERVICE"  ] && . "${CHDIR}/etc/default/leela-$SERVICE"
+[ -r "${CHDIR}/usr/libexec/leela-functions" ] && . "${CHDIR}/usr/libexec/leela-functions"
+leela_test_x "$DAEMON"                        || exit 1
 
 start_service () {
-  mkdir -p $RUNDIR
-  chown $USER:$GROUP $RUNDIR
-  log_daemon_msg "starting $DAEMON [$SERVICE]"
-  start-stop-daemon -N-5 -c $USER:$GROUP -Sq -p $PIDFILE -x $DAEMON -- --logfile=$LOGFILE --pidfile=$PIDFILE leela --service=$SERVICE $DAEMON_OPTS
-  log_end_msg $?
+  leela_twistd_start ${SERVICE_OPTS:---config="$CHDIR/etc/leela.conf"}
 }
 
 stop_service () {
-  log_daemon_msg "stopping $DAEMON [$SERVICE]"
-  start-stop-daemon -Kq -R 10 -p $PIDFILE
-  log_end_msg $?
-  rm -f $PIDFILE
-}
-
-restart_service () {
-  stop_service
-  start_service
+  leela_generic_stop
 }
 
 case "$1" in
@@ -52,12 +37,8 @@ case "$1" in
     stop_service
     ;;
 
-  restart)
-    restart_service
-    ;;
-
   *)
-    echo "Usage: $0 {start|stop|restart}" >&2
+    echo "Usage: $0 {start|stop}" >&2
     exit 3
     ;;
 esac

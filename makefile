@@ -1,8 +1,12 @@
 
+root     = $(srcroot)/dist
 srcroot  = $(CURDIR)
 userfile = $(HOME)/.leela-server.makefile
 
 include $(srcroot)/makefile.lib
+
+SRC_HASKELL = $(shell $(bin_find) $(srcroot)/src/dmproc -type f -name \*.hs)
+TRY_HASKELL = $(shell $(bin_find) $(srcroot)/try/dmproc -type f -name \*.hs)
 
 bootstrap: .saverc
 	test -d $(HOME)/pyenv/leela-server || $(bin_virtualenv) $(HOME)/pyenv/leela-server
@@ -29,20 +33,9 @@ clean:
 	$(bin_find) . -type f -name \*.hi -exec rm -f \{\} \;
 	rm -f ./src/dmproc/DarkMatter/dmproc ./try/dmproc/dmtry
 
-compile-dmtry:
-	$(call .check_bin,ghc)
-	$(call .check_bin,dash)
-	env bin_dash=$(bin_dash) $(bin_ghc) $(ghcargs) -v0 -i$(srcroot)/src/dmproc -threaded -i$(srcroot)/try/dmproc -O2 --make -static -optc-static -optl-static $(srcroot)/try/dmproc/dmtry.hs -optl-pthread
+compile-dmtry: $(srcroot)/try/dmproc/dmtry
 
-compile-dmproc:
-	$(call .check_bin,ghc)
-	$(bin_ghc) $(ghcargs) -v0 -W -Wall -fforce-recomp -threaded -i$(srcroot)/src/dmproc -O2 --make -static -optc-static -optl-static $(srcroot)/src/dmproc/DarkMatter/dmproc.hs -optl-pthread
-	$(bin_ghc) $(ghcargs) -v0 -W -Wall -fforce-recomp -threaded -i$(srcroot)/src/dmproc -O2 --make -static -optc-static -optl-static $(srcroot)/src/dmproc/DarkMatter/timeline.hs -optl-pthread
-
-build-dmproc: compile-dmproc
-	mkdir -p $(srcroot)/usr/bin
-	$(bin_install) -m 0755 $(srcroot)/src/dmproc/DarkMatter/dmproc $(srcroot)/usr/bin/dmproc
-	$(bin_install) -m 0755 $(srcroot)/src/dmproc/DarkMatter/dmproc $(srcroot)/usr/bin/timeline
+compile-dmproc: $(srcroot)/src/dmproc/DarkMatter/dmproc $(srcroot)/src/dmproc/DarkMatter/timeline $(srcroot)/src/dmproc/DarkMatter/multicast
 
 test-dmproc: compile-dmtry
 	$(srcroot)/try/dmproc/dmtry
@@ -89,7 +82,54 @@ test-smoke:
                            bin_date=$(bin_date)     \
                            $(bin_shelltest) $(shelltestargs) -c $(shelltestpath) -- --timeout=10
 
+dist-build: compile-dmproc
+
+dist-clean:
+	if [ -n "$(root)" -a "$(root)" != "/" ]; then rm -r -f "$(root)"; fi
+
+dist-install:
+	$(call check_bin,install)
+	$(call check_bin,find)
+	$(call check_bin,python)
+	mkdir -p $(root)/usr/bin
+	mkdir -p $(root)/usr/libexec
+	mkdir -p $(root)/etc/default
+	mkdir -p $(root)/var/run/leela
+	mkdir -p $(root)/var/log/leela
+	mkdir -p $(root)/etc/init.d/leela
+	$(bin_python) setup.py -q install --root=$(root)
+	$(bin_install) -m 0755 $(srcroot)/src/dmproc/DarkMatter/dmproc $(root)/usr/bin
+	$(bin_install) -m 0755 $(srcroot)/src/dmproc/DarkMatter/timeline $(root)/usr/bin
+	$(bin_install) -m 0755 $(srcroot)/src/dmproc/DarkMatter/multicast $(root)/usr/bin
+	for f in $(srcroot)/etc/default/*                          \
+                 $(srcroot)/etc/leela.conf;                        \
+	do                                                         \
+	  $(bin_install) -m 0600 $$f $(root)/$${f#$(srcroot)/};    \
+	done
+	for f in $(srcroot)/etc/init.d/*                           \
+                 $(srcroot)/usr/libexec/*;                         \
+        do                                                         \
+          $(bin_install) -m 0755 $$f $(root)/$${f#$(srcroot)/};    \
+        done
+
+$(srcroot)/src/dmproc/DarkMatter/dmproc: $(SRC_HASKELL)
+	$(call .check_bin,ghc)
+	$(bin_ghc) $(ghcargs) -rtsopts -v0 -W -Wall -fforce-recomp -threaded -i$(srcroot)/src/dmproc -O2 --make -static -optc-static -optl-static $@.hs -optl-pthread
+
+$(srcroot)/src/dmproc/DarkMatter/timeline: $(SRC_HASKELL)
+	$(call .check_bin,ghc)
+	$(bin_ghc) $(ghcargs) -rtsopts -v0 -W -Wall -fforce-recomp -threaded -i$(srcroot)/src/dmproc -O2 --make -static -optc-static -optl-static $@.hs -optl-pthread
+
+$(srcroot)/src/dmproc/DarkMatter/multicast: $(SRC_HASKELL)
+	$(call .check_bin,ghc)
+	$(bin_ghc) $(ghcargs) -rtsopts -v0 -W -Wall -fforce-recomp -i$(srcroot)/src/dmproc -O2 --make -static -optc-static -optl-static $@.hs -optl-pthread
+
+$(srcroot)/try/dmproc/dmtry: $(SRC_HASKELL) $(TRY_HASKELL)
+	$(call .check_bin,ghc)
+	$(call .check_bin,dash)
+	env bin_dash=$(bin_dash) $(bin_ghc) $(ghcargs) -rtsopts -v0 -i$(srcroot)/src/dmproc -i$(srcroot)/try/dmproc -O2 --make $@.hs
+
 %: %.test
 	$(MAKE) $(MAKEARGS) test-smoke shelltestpath=$^
 
-.SUFFIXES: .test
+.SUFFIXES: .test .hs

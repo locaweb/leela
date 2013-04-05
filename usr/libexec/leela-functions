@@ -1,106 +1,65 @@
 #!/bin/sh
 
-fixfile () {
-  file=$1
-
-  [ -f "$file" ] && chown leela:leela "$file"
-  return 0
+leela_test_x () {
+  command -v "$1" >/dev/null
 }
 
-fixpipe () {
-  pipefile=$1
-
-  [ -p "$pipefile" ] || mkfifo "$pipefile"
-  chown leela:leela "$pipefile"
+leela_log_exitcode () {
+  code=$1
+  if [ "$code" -eq 0 ]
+  then
+    echo "$DAEMON.$SERVICE OK"
+  else
+    echo "$DAEMON.$SERVICE FAIL [exit=$code]"
+  fi
 }
 
-repeat () {
-  n=$1
-  c=$2
-  shift 1
-  while [ $n -gt 0 ]
+leela_daemon_start () {
+  if [ "$UID" -eq 0 ]
+  then
+    DAEMON_OPTS="-u $USER:$GROUP $DAEMON_OPTS"
+  else
+    DAEMON_OPTS=""
+  fi
+  "$DAEMON" $DAEMON_OPTS -F "$PIDFILE" -o "$LOGFILE" "$SERVICE" -- "$@"
+  leela_log_exitcode $?
+}
+
+retry_while () {
+  local retry
+  retry=10
+
+  while "$@"
   do
-    $c $n
-    n=$(expr $n - 1)
+    sleep 1
+    retry=$(( $retry - 1 ))
+    if [ $retry -lt 0 ];
+    then break; fi
   done
 }
 
-nagios_critical () {
-  echo "$1"
-  exit 2
+leela_wait_pid () {
+  test -n "$1" && ps -p "$1" >>/dev/null
 }
 
-nagios_ok () {
-  echo "$1"
-  exit 0
+leela_generic_stop () {
+  local pid
+
+  pid=$(test -r "$PIDFILE" && cat "$PIDFILE")
+  test -n "$pid" && kill $pid
+  leela_log_exitcode $?
+
+  test -n "$pid" && retry_while leela_wait_pid $pid
+  rm -f "$PIDFILE"
 }
 
-leela_check_pid () {
-  test -f "$1" && ps -o comm= -p $(cat "$1")
-}
-
-leela_check_inet () {
-  pid=$1
-  addr=$2
-  lsof -t -a -i4 -i$addr -p $pid
-}
-
-leela_check_file () {
-  pid=$1
-  file=$2
-  lsof -t -a -p $pid $file
-}
-
-leela_check_xsock () {
-  pid=$1
-  file=$2
-  lsof -U -t -a -p $pid $file
-}
-
-leela_read_udp_broadcast () {
-  cat <<EOF | python -
-from leela.server import config
-
-def write(s):
-  print(s.strip())
-
-broadcast = config.read_config().get("udp", "broadcast")
-map(lambda g: map(write, g.split(";")), broadcast.split(","))
-EOF
-}
-
-leela_read_http_broadcast () {
-  cat <<EOF | python -
-from leela.server import config
-
-def write(s):
-  print(s.strip())
-
-broadcast = config.read_config().get("http", "broadcast")
-map(lambda g: map(write, g.split(";")), broadcast.split(","))
-EOF
-}
-
-leela_read_udp_port () {
-  cat <<EOF | python -
-from leela.server import config
-
-print(config.read_config().get("udp", "port"))
-EOF
-}
-
-leela_read_http_port () {
-  cat <<EOF | python -
-from leela.server import config
-
-print(config.read_config().get("http", "port"))
-EOF
-}
-
-leela_read_redis_port () {
-  cat <<EOF | python -
-from leela.server import config
-
-print(config.read_config().get("redis", "port"))
-EOF
+leela_twistd_start () {
+  if [ "$UID" -eq 0 ]
+  then
+    DAEMON_OPTS="-u $USER -g $GROUP"
+  else
+    DAEMON_OPTS=""
+  fi
+  $DAEMON $DAEMON_OPTS --logfile="$LOGFILE" --pidfile="$PIDFILE" leela --service="$SERVICE" "$@" >/dev/null
+  leela_log_exitcode $?
 }
