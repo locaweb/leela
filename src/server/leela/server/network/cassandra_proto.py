@@ -31,7 +31,7 @@ def parse_srvaddr(s):
 
 def encode_string(s):
     try:
-        return(s.encode("utf8"))
+        return(s.encode("ascii"))
     except UnicodeError:
         return(s)
 
