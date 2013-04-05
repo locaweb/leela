@@ -70,11 +70,7 @@ class LeelaServiceMk(object):
         return(service)
 
     def storage_service(self, cfg, env):
-        if (cfg.has_option("storage", "pipe")):
-            pipe = env.get("pipe", cfg.get("storage", "pipe"))
-        else:
-            pipe = env["pipe"]
-        return(storage.StorageService(cfg, pipe))
+        return(storage.StorageService(cfg, env["databus"]))
 
     def udp_service(self, cfg, env):
         return(udp.UdpService(cfg))

@@ -16,6 +16,7 @@
 #
 
 from twisted.application import service
+from twisted.internet.task import LoopingCall
 from leela.server import funcs
 from leela.server import logger
 from leela.server.network import cassandra_proto
@@ -30,6 +31,13 @@ class StorageService(service.Service):
         self.cfg     = cfg
         self.dbus    = databus.listen_from(sock)
         self.storage = cassandra_proto.CassandraProto(cfg)
+        self.loop    = LoopingCall(self._attach, sock)
+
+    def _attach(self, sock):
+        try:
+            databus.attach(self.cfg.get("storage", "anycast"), sock)
+        except:
+            logger.exception()
 
     def recv_broadcast(self, objects):
         t = funcs.timer_start()
@@ -43,9 +51,11 @@ class StorageService(service.Service):
         logger.warn("starting cassandra service")
         self.dbus.attach("storage", self)
         self.storage.startService()
+        self.loop.start(1)
 
     def stopService(self):
         logger.warn("stoppping cassandra service")
+        self.loop.stop()
         self.dbus.detach("storage")
         self.storage.stopService()
         service.Service.stopService(self)

@@ -23,11 +23,7 @@ from leela.server import logger
 from leela.server.data.pp import *
 from leela.server.data.parser import *
 
-def connect_to(sock):
-    conn = lambda proto: reactor.connectUNIXDatagram(sock, proto, 32*1024)
-    dbus = Databus(conn)
-    dbus.connect()
-    return(dbus)
+MULTICAST_SOCKET = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM, 0)
 
 def listen_from(sock):
     conn = lambda proto: reactor.listenUNIXDatagram(sock, proto, 32*1024)
@@ -35,31 +31,8 @@ def listen_from(sock):
     dbus.connect()
     return(dbus)
 
-def mkbus(string):
-    result = []
-    for group in string.split(","):
-        tmp = map(lambda s: s.strip(), group.split(";"))
-        logger.warn("creating new broadcast group (RR): " + ", ".join(tmp))
-        result.append(RoundRobin(map(lambda f: connect_to(f), tmp)))
-    return(DatabusGroup(result))
-
-class DatabusGroup(object):
-    def __init__(self, group):
-        self.group = group
-
-    def broadcast(self, events):
-        for rr in self.group:
-            rr.getnext().send_broadcast(events)
-
-class RoundRobin(object):
-
-    def __init__(self, ring):
-        self.ring = ring
-
-    def getnext(self):
-        x = self.ring.pop(0)
-        self.ring.append(x)
-        return(x)
+def attach(multicast, peer):
+    MULTICAST_SOCKET.sendto(peer, socket.MSG_DONTWAIT, multicast)
 
 class Relay(object):
 
