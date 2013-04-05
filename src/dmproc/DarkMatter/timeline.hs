@@ -50,7 +50,7 @@ main = do { (opts, pipe, bcast) <- fmap getopts getArgs
           ; mutex <- newEmptyMVar
           ; warn "starting server (^C to terminate)"
           ; dbus  <- newDatabus
-          ; group <- newMulticast
+          ; group <- newMulticast Multicast
           ; _     <- forkIO (foreverNofail "connectF (databus): " $ D.connectF dbus databusMetricParser pipe)
           ; _     <- forkIO (foreverNofail "connectF (multicast): " $ M.connectF group bcast)
           ; start dbus group (getQueues 1 opts)

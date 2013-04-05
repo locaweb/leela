@@ -19,6 +19,8 @@
 -- one registered in the broadcast group.
 module DarkMatter.Network.Multicast
        ( Multicast()
+       , Mode(..)
+       , maxpacket
        , connectF
        , connectS
        , attachTo
@@ -29,6 +31,7 @@ module DarkMatter.Network.Multicast
        ) where
 
 import qualified Data.ByteString as B
+import           Data.Maybe
 import           System.Directory
 import           Control.Monad
 import           Control.Exception
@@ -40,9 +43,16 @@ import           Network.Socket
 import qualified Network.Socket.ByteString as N
 import           DarkMatter.Logger (debug)
 
-data Multicast = Multicast { peers   :: TVar (M.Map FilePath Int)
-                           , channel :: Socket
-                           }
+data Mode = Multicast
+          | Anycast
+
+data Multicast = All { peers   :: TVar (M.Map FilePath Int)
+                     , channel :: Socket
+                     }
+               | One { peers   :: TVar (M.Map FilePath Int)
+                     , channel :: Socket
+                     , _curr   :: TVar (Maybe FilePath)
+                     }
 
 maxpacket :: Int
 maxpacket = 65536
@@ -72,17 +82,20 @@ attachTo client server = bracket (socket AF_UNIX Datagram 0) close (\s -> foreve
 
         wait = threadDelay (1 * 1000000)
 
-newMulticast :: IO Multicast
-newMulticast = do { s <- socket AF_UNIX Datagram 0
-                  ; g <- newTVarIO M.empty
-                  ; let group = Multicast g s
-                  ; mapM_ (uncurry (setSocketOption s)) [(RecvBuffer, maxpacket),
-                                                         (SendBuffer, maxpacket)
-                                                        ]
-                  ; reaperId <- forkIO $ reaper group
-                  ; addFinalizer group (killThread reaperId)
-                  ; return group
-                  }
+newMulticast :: Mode -> IO Multicast
+newMulticast mode = do { s <- socket AF_UNIX Datagram 0
+                       ; g <- newTVarIO M.empty
+                       ; c <- newTVarIO Nothing
+                       ; let group = case mode
+                                     of Multicast -> All g s
+                                        Anycast   -> One g s c
+                       ; mapM_ (uncurry (setSocketOption s)) [(RecvBuffer, maxpacket),
+                                                              (SendBuffer, maxpacket)
+                                                             ]
+                       ; reaperId <- forkIO $ reaper group
+                       ; addFinalizer group (killThread reaperId)
+                       ; return group
+                       }
 
 addPeer :: Multicast -> FilePath -> IO ()
 addPeer g k = atomically $ modifyTVar (peers g) (M.insert k 5)
@@ -90,8 +103,27 @@ addPeer g k = atomically $ modifyTVar (peers g) (M.insert k 5)
 delPeer :: Multicast -> FilePath -> IO ()
 delPeer g k = atomically $ modifyTVar (peers g) (M.delete k)
 
+peerList :: Multicast -> IO [FilePath]
+peerList (All tp _)    = fmap M.keys (readTVarIO tp)
+peerList (One tp _ tc) = atomically rotateLookup
+  where selectNext g mc
+          | M.null g      = Nothing
+          | M.size g == 1 = Just $ fst $ M.findMin g
+          | mc == Nothing = Just $ fst $ M.findMin g
+          | otherwise     = case (M.split (fromJust mc) g)
+                            of (left, right)
+                                 | M.null right -> Just (fst $ M.findMax left)
+                                 | otherwise    -> Just (fst $ M.findMin right)
+
+        rotateLookup = do { g <- readTVar tp
+                          ; c <- readTVar tc
+                          ; case (selectNext g c)
+                            of Nothing -> writeTVar tc Nothing >> return []
+                               Just n  -> writeTVar tc (Just n) >> return [n]
+                          }
+
 multicast :: Multicast -> B.ByteString -> IO ()
-multicast g msg = readTVarIO (peers g) >>= mapM_ runIO . M.keys
+multicast g msg = peerList g >>= mapM_ runIO
   where runIO peer = send_ (SockAddrUnix peer) `catch` (\(_ :: SomeException) -> delPeer g peer)
         send_ peer = N.sendTo (channel g) msg peer >> return ()
 

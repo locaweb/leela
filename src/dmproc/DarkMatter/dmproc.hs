@@ -41,7 +41,7 @@ getopts argv = case (getOpt Permute options argv)
                of (o, [d, s, m], []) -> (o, d, s, Just m)
                   (o, [d, s], [])    -> (o, d, s, Nothing)
                   (_, _, msg)        -> error (concat msg ++ usageInfo header options)
-  where header = "USAGE: dmproc [-v|--verbose] DATABUS-FILE SERVER-FILE [MULTICAST-FILE]"
+  where header = "USAGE: dmproc [-v|--verbose] DATABUS-FILE SERVER-FILE [PARENT-BROADCAST]"
 
 main :: IO ()
 main = do { (opts, sock_dbus, sock_server, sock_mcast) <- fmap getopts getArgs

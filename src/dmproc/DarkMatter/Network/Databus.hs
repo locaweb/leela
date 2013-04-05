@@ -33,6 +33,8 @@ module DarkMatter.Network.Databus
        , term
        , wireRead
        , wireWrite
+       -- * misc
+       , maxpacket
        ) where
 
 import           Control.Monad
