@@ -5,12 +5,18 @@ leela_test_x () {
 }
 
 leela_log_exitcode () {
+  local code service daemon instance
   code=$1
+  daemon=$(basename "$DAEMON")
+  service=$(basename "$SERVICE")
+  instance=""
+  if [ -n "$INSTANCE" ]
+  then instance="[$INSTANCE]"; fi
   if [ "$code" -eq 0 ]
   then
-    echo "$DAEMON.$SERVICE OK"
+    echo "$daemon.$service$instance OK"
   else
-    echo "$DAEMON.$SERVICE FAIL [exit=$code]"
+    echo "$daemon.$service$instance FAIL [exit=$code]"
   fi
 }
 
@@ -60,6 +66,6 @@ leela_twistd_start () {
   else
     DAEMON_OPTS=""
   fi
-  $DAEMON $DAEMON_OPTS --logfile="$LOGFILE" --pidfile="$PIDFILE" leela --service="$SERVICE" "$@" >/dev/null
+  $DAEMON $DAEMON_OPTS --logfile="$LOGFILE" --pidfile="$PIDFILE" leela --service="$SERVICE" "$@"
   leela_log_exitcode $?
 }

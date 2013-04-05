@@ -96,7 +96,7 @@ dist-install:
 	mkdir -p $(root)/etc/default
 	mkdir -p $(root)/var/run/leela
 	mkdir -p $(root)/var/log/leela
-	mkdir -p $(root)/etc/init.d/leela
+	mkdir -p $(root)/etc/init.d
 	$(bin_python) setup.py -q install --root=$(root)
 	$(bin_install) -m 0755 $(srcroot)/src/dmproc/DarkMatter/dmproc $(root)/usr/bin
 	$(bin_install) -m 0755 $(srcroot)/src/dmproc/DarkMatter/timeline $(root)/usr/bin
