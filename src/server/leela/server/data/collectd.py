@@ -15,6 +15,7 @@
 #    limitations under the License.
 
 from leela.server.data.metric import *
+from leela.server import logger
 import struct
 
 TYPE_HOST            = 0x0000
@@ -60,10 +61,10 @@ def join_(s, *args):
 
 def format(metric, value, context):
     if (TYPE_SIGNATURE not in context):
-        debug("dropping unauthenticated package!")
+        logger.debug("dropping unauthenticated package!")
         return
     elif (TYPE_HOST not in context):
-        debug("dropping package without host information")
+        logger.debug("dropping package without host information")
         return
     user    = context[TYPE_SIGNATURE]
     host    = context[TYPE_HOST]
@@ -111,8 +112,9 @@ def metrics(parts):
 def parse_string(packet):
     _, plen = struct.unpack_from(">2H", packet)
     offset  = 4
-    limit   = plen - offset
-    return(struct.unpack_from("%ds" % limit, packet, offset)[0], plen)
+    limit   = plen - offset - 1
+    value   = struct.unpack_from("%ds" % limit, packet, offset)[0]
+    return(value, plen)
 
 def parse_signature(packet):
     _, plen   = struct.unpack_from(">2H", packet)
