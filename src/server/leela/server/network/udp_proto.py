@@ -35,7 +35,14 @@ class UDP(protocol.DatagramProtocol):
 
     def handle_event(self, string):
         tmp = []
-        for l in string.splitlines():
-            tmp.append(parse_event_legacy(l))
+        if (string.startswith("gauge ") or
+            string.startswith("derive ") or
+            string.startswith("counter ") or
+            string.startswith("absolute ")):
+            for l in string.split(";"):
+                tmp.extend("".join(parse_event([l, ";"])))
+        else:
+            for l in string.splitlines():
+                tmp.append(parse_event_legacy(l))
         if (len(tmp) > 0):
             self.recv_event(tmp)
