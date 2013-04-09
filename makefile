@@ -55,8 +55,11 @@ test-smoke:
 	$(call .check_bin,curl)
 	$(call .check_bin,date)
 	$(call .check_bin,sed)
+	env $(pyenv) CHDIR=$(srcroot)/dist $(srcroot)/dist/etc/init.d/leela stop >/dev/null
+	env $(pyenv) CHDIR=$(srcroot)/dist $(srcroot)/dist/etc/init.d/leela start >/dev/null
 	cd $(srcroot); env $(pyenv) \
                            $(bin_shelltest) $(shelltestargs) -c $(shelltestpath) -- --timeout=60
+	@env $(pyenv) CHDIR=$(srcroot)/dist $(srcroot)/dist/etc/init.d/leela stop >/dev/null
 
 dist-build: compile-dmproc
 

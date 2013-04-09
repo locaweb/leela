@@ -7,8 +7,8 @@ from leela.server import config
 import traceback
 import subprocess
 import argparse
+import httplib
 import os.path
-import urllib
 import select
 import socket
 import json
@@ -35,22 +35,28 @@ def split_args(s):
     for w in s.split(" "):
         if (not quote and w.startswith("\"")):
             quote = True
-            args.append([w[1:]])
-        elif (quote and w.endswith("\"")):
-            quote = False
-            args[-1].append(w[:-1])
-            args.append(" ".join(args.pop()))
+            args.append([w])
+        elif (quote):
+            args[-1].append(w)
+            if (w.endswith("\"")):
+                quote = False
+                args.append(" ".join(args.pop())[1:-1])
         else:
-            args.append(map(lambda x: x.strip(), w.split("=", 1)))
-    return(dict(args))
+            args.append(w)
+    return(dict(map(lambda s: s.split("=", 1), args)))
 
 def expand(s):
     t = math.floor(time.time())
-    g = re.search("{now\+(\d+)}", s)
+    g = re.search("{now(\+|-)(\d+(:?s|m|h|d))}", s)
     while (g is not None):
-        a = int(g.group(1), 10)
-        s = s[:g.start()] + repr(t + a) + s[g.end():]
-        g = re.search("{now\+(\d+)}", s)
+        o  = g.group(1)
+        a  = int(g.group(2)[:-1], 10)
+        a *= {"s": 1, "m": 60, "h": 3600, "d": 86400}[g.group(2)[-1]]
+        if (o == "+"):
+            s = s[:g.start()] + repr(t + a) + s[g.end():]
+        elif (o == "-"):
+            s = s[:g.start()] + repr(t - a) + s[g.end():]
+        g = re.search("{now(\+|-)(\d+(:?s|m|h|d))}", s)
     s = s.replace("{now}", repr(t))
     s = s.replace("\\n", "\n")
     return(s)
@@ -104,22 +110,19 @@ def sleep(opts, seconds):
     time.sleep(float(seconds))
     return(0)
 
-def http_get(opts, url):
-    h = opts.config.get("http", "address").replace("0.0.0.0", "localhost")
+def http_request(opts, method, url, data=None):
+    h = opts.config.get("http", "address")
     p = opts.config.getint("http", "port")
     e = "http://%s:%d" % (h, p)
-    (fn, resp) = urllib.urlretrieve("%s%s" % (e, url))
-    with file(fn, "r") as fh:
-        os.unlink(fn)
-        data = json.loads(fh.read())
-        if (isinstance(data, dict) and "results" in data):
-            for k in data["results"].keys():
-                tmp = data["results"][k]
-                if ("series" in tmp):
-                    tmp["series"] = make_relative(tmp["series"])
-        _stdout.write(json.dumps(data, sort_keys=True))
-        _stdout.write("\n")
-        return(0)
+    r = httplib.HTTPConnection(h, p)
+    r.request(method, url, data)
+    rply = json.loads(r.getresponse().read())
+    if ("results" in rply):
+        for k in rply["results"].keys():
+            rply["results"][k]["series"] = make_relative(rply["results"][k]["series"])
+    _stdout.write(json.dumps(rply, sort_keys=True))
+    _stdout.write("\n")
+    return(0)
 
 def invoke(f):
     def g(opts, cmd, **kwargs):
@@ -141,7 +144,7 @@ def run_script(opts, script):
               "initd-restart": invoke(initd_restart),
               "cassandra-truncate": invoke(cassandra_truncate),
               "udp-send": invoke(udp_send),
-              "http-get": invoke(http_get),
+              "http-request": invoke(http_request),
               "sleep": invoke(sleep)
              }
     for (cmd, args) in map(split, script.splitlines()):

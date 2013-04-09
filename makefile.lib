@@ -25,7 +25,7 @@ hsenv          = PATH=$$PATH:$(HOME)/.cabal/bin
 nosetestsargs  =
 # ghcargs        = -optc-O3 -fexcess-precision -optc-march=corei7
 ghcargs        =
-shelltestargs  = -p
+shelltestargs  = -p -a
 shelltestpath  = $(srcroot)/try/smoke
 
 -include $(userfile)

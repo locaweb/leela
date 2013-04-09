@@ -27,7 +27,7 @@ class CollectdService(Service, collectd_proto.UDP):
 
     def __init__(self, cfg):
         self.cfg   = cfg
-        self.relay = Relay(self.cfg.get("collectd", "relay"), pp.render_metrics)
+        self.relay = Relay(self.cfg.get("collectd", "relay"))
 
     def recv_metrics(self, metrics):
         logger.debug("recv_metrics: %d" % len(metrics))
