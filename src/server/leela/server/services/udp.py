@@ -29,9 +29,9 @@ class UdpService(Service, udp_proto.UDP):
         self.cfg   = cfg
         self.relay = Relay(self.cfg.get("udp", "relay"))
 
-    def recv_event(self, events):
-        logger.debug("recv_events: %d" % len(events))
-        self.relay.relay(events)
+    def forward_packet(self, packet):
+        logger.debug("forward: %d" % len(packet))
+        self.relay.relay(packet)
 
     def startService(self):
         reactor.listenUDP(self.cfg.getint("udp", "port"), self, self.cfg.get("udp", "address"))

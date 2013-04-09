@@ -23,7 +23,7 @@ class UDP(protocol.DatagramProtocol):
 
     def datagramReceived(self, string, peer):
         try:
-            if (string == "ping\n"):
+            if (string == "ping\n" or string == "ping"):
                 self.handle_ping(peer)
             else:
                 self.handle_event(string)
@@ -31,18 +31,18 @@ class UDP(protocol.DatagramProtocol):
             logger.exception()
 
     def handle_ping(self, peer):
-        self.transport.write("pong\n", peer)
+        self.transport.write("pong", peer)
 
     def handle_event(self, string):
-        tmp = []
         if (string.startswith("gauge ") or
             string.startswith("derive ") or
             string.startswith("counter ") or
             string.startswith("absolute ")):
-            for l in string.split(";"):
-                tmp.extend("".join(parse_event([l, ";"])))
+            self.forward_packet(string)
         else:
+            tmp = []
             for l in string.splitlines():
-                tmp.append(parse_event_legacy(l))
-        if (len(tmp) > 0):
-            self.recv_event(tmp)
+                e = parse_event_legacy(l)
+                tmp.append("gauge %d|%s %s %d.0;" % (len(e.name()), e.name(), repr(e.value()), e.unixtimestamp()))
+            if (len(tmp) > 0):
+                self.forward_packet("".join(tmp))

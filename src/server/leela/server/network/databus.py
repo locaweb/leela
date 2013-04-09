@@ -36,25 +36,22 @@ def attach(multicast, peer):
 
 class Relay(object):
 
-    def __init__(self, path, pp=render_storables):
+    def __init__(self, path):
         self.fd     = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM, 0)
         self.socket = path
-        self.pp     = pp
 
-    def relay(self, events):
+    def relay(self, packet):
         step = 0
-        while (len(events) > 0):
-            try:
-                e = events[:10]
-                self.fd.sendto(self.pp(e), socket.MSG_DONTWAIT, self.socket)
-                del(events[:10])
-                step = 0
-            except socket.error, ex:
-                if (ex.args[0] not in (errno.EWOULDBLOCK, errno.EAGAIN)):
-                    raise
-                if (step > 3):
-                    raise
-                step += 1
+        try:
+            while (True):
+                self.fd.sendto(packet, socket.MSG_DONTWAIT, self.socket)
+                break
+        except socket.error, ex:
+            if (ex.args[0] not in (errno.EWOULDBLOCK, errno.EAGAIN)):
+                raise
+            if (step > 3):
+                raise
+            step += 1
 
 class Databus(protocol.ConnectedDatagramProtocol):
 
