@@ -44,7 +44,7 @@ def split_args(s):
             args.append(map(lambda x: x.strip(), w.split("=", 1)))
     return(dict(args))
 
-def unespace(s):
+def expand(s):
     t = math.floor(time.time())
     g = re.search("{now\+(\d+)}", s)
     while (g is not None):
@@ -92,7 +92,7 @@ def udp_send(opts, message):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
     p = opts.config.getint("udp", "port")
     h = opts.config.get("udp", "address").replace("0.0.0.0", "localhost")
-    s.sendto(unespace(message), 0, (h, p))
+    s.sendto(expand(message), 0, (h, p))
     r = select.select([s.fileno()], [], [], 1)[0]
     if (len(r) == 1):
         _stdout.write(s.recv(65535))
