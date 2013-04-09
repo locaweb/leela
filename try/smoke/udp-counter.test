@@ -1,4 +1,4 @@
-./dist/usr/libexec/leela-interact --config=try/smoke/config/leela.conf
+./dist/usr/libexec/leela-interact --config=etc/leela.conf
 <<<
 initd-restart script=leela-timeline # flushing memory
 sleep seconds=1                     # giving enough time to reconnection

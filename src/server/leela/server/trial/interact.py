@@ -93,6 +93,14 @@ def initd_restart(opts, script):
     initd_stop(opts, script)
     return(initd_start(opts, script))
 
+def send_frame(s, data):
+    size = struct.pack(">H", len(data))
+    s.send(size + data)
+
+def recv_frame(s):
+    size = struct.unpack(">H", s.recv(2))
+    return(s.recv(size))
+
 def cassandra_truncate(opts, cf):
     storage = cassandra_proto.CassandraProto(opts.config)
     storage.startService()
@@ -154,11 +162,11 @@ def run_script(opts, script):
     engine = {"initd-start": invoke(initd_start),
               "initd-stop": invoke(initd_stop),
               "initd-restart": invoke(initd_restart),
+              "echo": invoke(echo),
+              "sleep": invoke(sleep),
               "cassandra-truncate": invoke(cassandra_truncate),
               "udp-send": invoke(udp_send),
-              "echo": invoke(echo),
-              "http-request": invoke(http_request),
-              "sleep": invoke(sleep)
+              "http-request": invoke(http_request)
              }
     for (cmd, args) in map(split, script.splitlines()):
         if (cmd.startswith("#")):
@@ -173,8 +181,8 @@ if (__name__ == "__main__"):
                       help     = "The root dir you installed leela onto [default: %(default)s]")
     args.add_argument("--config",
                       dest     = "config",
-                      required = True,
-                      help     = "The leela config file to parse and use")
+                      default  = config.default_config_file(),
+                      help     = "The leela config file to parse and use [default: %(default)s]")
     opts = args.parse_args()
     opts.config = config.read_config(opts.config)
     sys.exit(run_script(opts, sys.stdin.read()))

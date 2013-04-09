@@ -1,4 +1,4 @@
-./dist/usr/libexec/leela-interact --config=try/smoke/config/leela.conf
+./dist/usr/libexec/leela-interact --config=etc/leela.conf
 <<<
 cassandra-truncate cf=events
 udp-send "message=foobar: 0.0"

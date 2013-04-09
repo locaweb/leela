@@ -15,17 +15,13 @@
 #    limitations under the License.
 #
 
-import os
 import ConfigParser
 
 MAXPACKET = 8192
 
 def default_config_file():
     config = ConfigParser.ConfigParser()
-    if ("LEELA_CFG" in os.environ):
-        return(os.environ["LEELA_CFG"])
-    else:
-        return("/etc/leela/leela.conf")
+    return("/etc/leela.conf")
 
 def read_config(f=default_config_file()):
     cfg = ConfigParser.ConfigParser()
