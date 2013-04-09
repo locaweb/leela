@@ -4,6 +4,7 @@ import sys; _stdout = sys.stdout; _stdin = sys.stdin; _stderr = sys.stderr;
 from leela.server.network import cassandra_proto
 from twisted.internet import reactor
 from leela.server import config
+from datetime import datetime
 import traceback
 import subprocess
 import argparse
@@ -32,7 +33,7 @@ def split(s):
 def split_args(s):
     args  = []
     quote = False
-    for w in s.split(" "):
+    for w in expand(s).split(" "):
         if (not quote and w.startswith("\"")):
             quote = True
             args.append([w])
@@ -46,17 +47,24 @@ def split_args(s):
     return(dict(map(lambda s: s.split("=", 1), args)))
 
 def expand(s):
+    r = r"{now(?:(\+|-)(\d+(?:s|m|h|d)))?(\|.*?)?}"
     t = math.floor(time.time())
-    g = re.search("{now(\+|-)(\d+(:?s|m|h|d))}", s)
+    g = re.search(r, s)
     while (g is not None):
-        o  = g.group(1)
-        a  = int(g.group(2)[:-1], 10)
-        a *= {"s": 1, "m": 60, "h": 3600, "d": 86400}[g.group(2)[-1]]
-        if (o == "+"):
-            s = s[:g.start()] + repr(t + a) + s[g.end():]
-        elif (o == "-"):
-            s = s[:g.start()] + repr(t - a) + s[g.end():]
-        g = re.search("{now(\+|-)(\d+(:?s|m|h|d))}", s)
+        f = lambda t: datetime.fromtimestamp(t).strftime((g.group(3) or " %s.0")[1:])
+        o = g.group(1)
+        if (o is not None):
+            a  = int(g.group(2)[:-1], 10)
+            a *= {"s": 1, "m": 60, "h": 3600, "d": 86400}[g.group(2)[-1]]
+            if (o == "+"):
+                s = s[:g.start()] + f(t + a) + s[g.end():]
+            elif (o == "-"):
+                s = s[:g.start()] + f(t - a) + s[g.end():]
+            else:
+                raise(RuntimeError("the impossible happened!"))
+        else:
+            s = s[:g.start()] + f(t) + s[g.end():]
+        g = re.search(r, s)
     s = s.replace("{now}", repr(t))
     s = s.replace("\\n", "\n")
     return(s)
@@ -98,12 +106,16 @@ def udp_send(opts, message):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
     p = opts.config.getint("udp", "port")
     h = opts.config.get("udp", "address").replace("0.0.0.0", "localhost")
-    s.sendto(expand(message), 0, (h, p))
+    s.sendto(message, 0, (h, p))
     r = select.select([s.fileno()], [], [], 1)[0]
     if (len(r) == 1):
         _stdout.write(s.recv(65535))
         _stdout.write("\n")
     s.close()
+    return(0)
+
+def echo(opts, string):
+    _stdout.write(string)
     return(0)
 
 def sleep(opts, seconds):
@@ -144,6 +156,7 @@ def run_script(opts, script):
               "initd-restart": invoke(initd_restart),
               "cassandra-truncate": invoke(cassandra_truncate),
               "udp-send": invoke(udp_send),
+              "echo": invoke(echo),
               "http-request": invoke(http_request),
               "sleep": invoke(sleep)
              }
