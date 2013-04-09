@@ -1,6 +1,0 @@
-# syntax: http://hub.darcs.net/simon/shelltestrunner
-
-./try/smoke/lib/run leela_tryhttp_read_http /not_found
->>>
-{"reason": "Not Found", "status": 404}
->>>= 0

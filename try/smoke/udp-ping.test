@@ -1,0 +1,7 @@
+./dist/usr/libexec/leela-interact --config=try/smoke/config/leela.conf
+<<<
+initd-start script=leela
+udp-send message=ping
+>>>
+pong
+>>>= 0

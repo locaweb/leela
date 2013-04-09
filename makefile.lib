@@ -12,19 +12,20 @@ bin_curl       = curl
 bin_date       = date
 bin_sed        = sed
 bin_install    = install
+bin_env        = env
 
 bin_twistd     = twistd
 bin_nosetests  = nosetests
 bin_shelltest  = shelltest
 bin_python     = python
 
-pyenv          = PYTHONPATH=$(srcroot)/src/server
+pyenv          = PYTHONPATH=$(srcroot)/src/server PATH=$$PATH:$(HOME)/pyenv/leela-server/bin
 hsenv          = PATH=$$PATH:$(HOME)/.cabal/bin
 
 nosetestsargs  =
 # ghcargs        = -optc-O3 -fexcess-precision -optc-march=corei7
 ghcargs        =
-shelltestargs  =
+shelltestargs  = -p
 shelltestpath  = $(srcroot)/try/smoke
 
 -include $(userfile)

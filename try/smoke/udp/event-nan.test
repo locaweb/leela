@@ -1,8 +1,0 @@
-# syntax: http://hub.darcs.net/simon/shelltestrunner
-
-./try/smoke/lib/run leela_tryudp_write_to_socket_and_read_from_socket
-<<<
-foobar: nan 1351101449
->>>
-event 6|foobar nan 1351101449.0;
->>>= 0

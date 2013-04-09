@@ -1,0 +1,11 @@
+./dist/usr/libexec/leela-interact --config=try/smoke/config/leela.conf
+<<<
+initd-start leela
+initd-restart leela-timeline        # flushing memory
+sleep 1                             # giving enough time to reconnection
+cassandra-truncate events
+udp-send absolute 6|foobar 0.0 {now};absolute 6|foobar 60.0 {now+30};absolute 6|foobar 0.0 {now+60};
+http-get /v1/past24/foobar
+>>>
+{"results": {"foobar": {"series": [[0, 1.0]]}}, "status": 200}
+>>>= 0

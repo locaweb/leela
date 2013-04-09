@@ -55,38 +55,15 @@ test-smoke:
 	$(call .check_bin,curl)
 	$(call .check_bin,date)
 	$(call .check_bin,sed)
-	@echo "test-smoke                         " >&2
-	@echo "================================== " >&2
-	@echo                                       >&2
-	@echo "Testing with the followign env:    " >&2
-	@echo "---------------------------------- " >&2
-	@echo "  bin_twisted: $(bin_twistd)       " >&2
-	@echo "   bin_python: $(bin_python)       " >&2
-	@echo "    bin_socat: $(bin_socat)        " >&2
-	@echo "     bin_lsof: $(bin_lsof)         " >&2
-	@echo "bin_shelltest: $(bin_shelltest)    " >&2
-	@echo "     bin_curl: $(bin_curl)         " >&2
-	@echo "     bin_date: $(bin_date)         " >&2
-	@echo "      bin_sed: $(bin_sed)          " >&2
-	@echo                                       >&2
-	@echo "Using the following leela.cfg:     " >&2
-	@echo "---------------------------------- " >&2
-	@cat $(srcroot)/try/smoke/cnf/leela.conf    >&2
-	@echo                                       >&2
-	cd $(srcroot); env bin_twistd=$(bin_twistd) \
-                           bin_lsof=$(bin_lsof)     \
-                           bin_python=$(bin_python) \
-                           bin_socat=$(bin_socat)   \
-                           bin_curl=$(bin_curl)     \
-                           bin_sed=$(bin_sed)       \
-                           bin_date=$(bin_date)     \
-                           $(bin_shelltest) $(shelltestargs) -c $(shelltestpath) -- --timeout=10
+	cd $(srcroot); env $(pyenv) \
+                           $(bin_shelltest) $(shelltestargs) -c $(shelltestpath) -- --timeout=60
 
 dist-build: compile-dmproc
 
 dist-clean:
 	if [ -n "$(root)" -a "$(root)" != "/" ]; then rm -r -f "$(root)"; fi
 
+dist-install: python_sitelib=$(shell $(bin_python) -c "from distutils.sysconfig import get_python_lib; print(get_python_lib());")
 dist-install:
 	$(call check_bin,install)
 	$(call check_bin,find)
@@ -111,6 +88,8 @@ dist-install:
         do                                                         \
           $(bin_install) -m 0755 $$f $(root)/$${f#$(srcroot)/};    \
         done
+	$(bin_sed) -i 's,\$${__ENVIRON__},PYTHONPATH="$$PYTHONPATH:$(root)/$(python_sitelib)" CHDIR="$(root)",g' $(root)/usr/libexec/leela-interact
+	$(bin_sed) -i 's,\$${bin_python:-python},$(bin_python),g' $(root)/usr/libexec/leela-interact
 
 $(srcroot)/src/dmproc/DarkMatter/dmproc: $(SRC_HASKELL)
 	$(call .check_bin,ghc)

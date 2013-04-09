@@ -1,8 +1,0 @@
-# syntax: http://hub.darcs.net/simon/shelltestrunner
-
-./try/smoke/lib/run leela_tryxmpp_interact -n 1
-<<<
-foobar@localhost: select * from leela.xmpp;
->>>
-foobar: {"debug": {"request": "select * from leela.xmpp;\n"}, "results": [], "status": 200}
->>>= 0

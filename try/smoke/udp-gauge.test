@@ -1,0 +1,9 @@
+./dist/usr/libexec/leela-interact --config=try/smoke/config/leela.conf
+<<<
+initd-start leela
+cassandra-truncate events
+udp-send gauge 6|foobar 0.0 {now};
+http-get /v1/past24/foobar
+>>>
+{"results": {"foobar": {"series": [[0, 0.0]]}}, "status": 200}
+>>>= 0

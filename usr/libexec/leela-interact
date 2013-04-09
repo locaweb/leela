@@ -1,0 +1,3 @@
+#!/bin/sh
+
+exec env ${__ENVIRON__} ${bin_python:-python} -m leela.server.trial.interact "$@"
