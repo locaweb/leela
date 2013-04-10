@@ -103,6 +103,11 @@ class Storable(object):
         self.t = funcs.timetuple_timestamp(timetuple)
         self.d = Timestamp._make(timetuple)
 
+    def set_unixtimestamp(self, timestamp):
+        d = funcs.datetime_fromtimestamp(timestamp)
+        self.t = timestamp
+        self.d = Timestamp._make((d.year, d.month, d.day, d.hour, d.minute, d.second))
+
     def name(self):
         return(self.n)
 

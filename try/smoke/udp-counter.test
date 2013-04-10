@@ -6,5 +6,5 @@ cassandra-truncate cf=events
 udp-send "message=counter 6|foobar 0.0 {now};counter 6|foobar 60.0 {now+60s};"
 http-request method=GET url=/v1/past24/foobar
 >>>
-{"results": {"foobar": {"series": [[0, 1.0]]}}, "status": 200}
+{"results": {"foobar": {"series": [[60, 1.0]]}}, "status": 200}
 >>>= 0

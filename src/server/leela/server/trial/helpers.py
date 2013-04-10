@@ -35,6 +35,16 @@ def frame(s):
 def framelen(s):
     return(struct.unpack(">H", s)[0])
 
+def recv_frame(s):
+    size = s.recv(2)
+    if (size == ""):
+        return(None)
+    size = framelen(size)
+    return(s.recv(size))
+
+def send_frame(s, msg):
+    s.send(frame(msg))
+
 def strings(seed, count):
     def take(n, i):
         r = set()

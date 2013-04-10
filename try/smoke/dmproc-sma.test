@@ -1,0 +1,14 @@
+./dist/usr/libexec/leela-interact --config=etc/leela.conf
+<<<
+dmproc-connect "proc=proc match 1|. sma 10;"
+udp-send "message=gauge 6|foobar 0.0 {now};"
+udp-send "message=gauge 6|foobar 0.0 {now+1s};"
+udp-send "message=gauge 6|foobar 0.0 {now+2s};"
+udp-send "message=gauge 6|foobar 0.0 {now+3s};"
+udp-send "message=gauge 6|foobar 0.0 {now+4s};"
+udp-send "message=gauge 6|foobar 0.0 {now+5s};"
+udp-send "message=gauge 6|foobar 0.0 {now+6s};"
+dmproc-disconnect
+>>>
+event 6|foobar 0.0 5.0;event 6|foobar 0.0 6.0;
+>>>= 0
