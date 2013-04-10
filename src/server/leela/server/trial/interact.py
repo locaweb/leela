@@ -191,8 +191,7 @@ def dmproc_disconnect(opts, state):
 def invoke(f, state={}):
     def g(opts, cmd, **kwargs):
         rc = f(opts, state, **kwargs)
-        __stderr__.write("%s: %d" % (cmd, rc))
-        __stderr__.write("\n")
+        dump(__stderr__, "%s: %d" % (cmd, rc), "\n")
         return(rc)
     return(g)
 
