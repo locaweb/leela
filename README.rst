@@ -17,19 +17,16 @@ Documentation
 Installing from source
 ======================
 
-unstable
---------
 ::
 
   $ make bootstrap
-  $ make build-dmproc
-  $ pip install -r https://raw.github.com/locaweb/leela-server/master/pip-requires.txt
-  $ pip install https://github.com/locaweb/leela-server/archive/master.tar.gz
+  $ make dist-build
+  $ make dist-install root=$HOME/leela
 
 Version
 =======
 
-* $version 2.0.0$
+* $version 2.2.0$
 
 License
 =======
@@ -42,17 +39,12 @@ Dev Bootstrap
 
   $ make bootstrap
 
-Compiling
----------
-::
-
-  $ make compile
-
 Testing
 -------
 ::
 
-  $ make test
+  $ make test-server
+  $ make test-dmproc
 
 
 Smoke Tests

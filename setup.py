@@ -15,7 +15,7 @@ def find_packages(root, path_f):
 
 setup(
     name               = "leela",
-    version            = "2.0.0",
+    version            = "2.2.0",
     description        = "Collect, Monitor and Analyze anything - server module",
     author             = "Juliano Martinez, Diego Souza",
     url                = "http://leela.readthedocs.org",

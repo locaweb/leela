@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # -*- coding: utf-8; -*-
 #
 # All Rights Reserved.
@@ -17,7 +18,7 @@
 # DO NOT EDIT, AUTOMATICALLY GENERATED
 
 major   = "2"
-minor   = "0"
+minor   = "2"
 build   = "0"
-version = "2.0.0"
+version = "2.2.0"
 
