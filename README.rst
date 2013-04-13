@@ -4,27 +4,15 @@
 LEELA
 =====
 
-Distributed, real time event processor and monitoring engine.
-
-For information on the usage, architecture and much more please refer
-to the documentation.
+Scalable metrics monitoring engine.
 
 Documentation
 =============
 
 * http://leela.rtfd.org/
 
-Installing from source
-======================
-
-::
-
-  $ make bootstrap
-  $ make dist-build
-  $ make dist-install root=$HOME/leela
-
-Version
-=======
+Current Version
+===============
 
 * $version 2.2.0$
 
@@ -33,50 +21,14 @@ License
 
 APACHE 2.0
 
-Dev Bootstrap
-=============
-::
+Author
+======
 
-  $ make bootstrap
+* dgvncsz0f <dsouza@c0d3.xxx>
 
-Testing
--------
-::
+Contributors
+============
 
-  $ make test-server
-  $ make test-dmproc
+* Juliano Martines [former author (v0.0.9)]
+* Rodrigo Vaz
 
-
-Smoke Tests
------------
-
-Acceptance testing.
-
-For these to work, you will need the following
-up and running:
-
-* cassandra /localhost:9160;
-
-* prosody   /localhost:5222;
-
-* redis     /localhost:6379;
-
-Additionally:
-
-1. Create the schema on cassandra (refer to doc/cassandra.schema);
-
-2. Use cassandra with no authentication;
-
-3. Use redis with no authentication;
-
-4. Register two xmpp users:
-
-   a. foobar@localhost (pass: foobar)
-
-   b. foobaz@localhost (pass: foobaz)
-
-GoOd LuCk!
-
-::
-
-  $ make test-smoke
