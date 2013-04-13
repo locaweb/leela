@@ -8,20 +8,22 @@
 # Short-Description: Distributed, real time event processor and monitoring engine
 ### END INIT INFO
 
+PATH="${CHDIR}/bin:${CHDIR}/usr/bin:$PATH"
 DAEMON=twistd
-RUNDIR="$CHDIR/var/run/leela"
+RUNDIR="${CHDIR}/var/run/leela"
 SERVICE=collectd
 PIDFILE="$RUNDIR/$SERVICE.pid"
-LOGFILE="$CHDIR/var/log/leela/$SERVICE.log"
+LOGFILE="${CHDIR}/var/log/leela/$SERVICE.log"
 USER=leela
 GROUP=leela
 
 [ -r "${CHDIR}/etc/default/leela-$SERVICE"  ] && . "${CHDIR}/etc/default/leela-$SERVICE"
 [ -r "${CHDIR}/usr/libexec/leela-functions" ] && . "${CHDIR}/usr/libexec/leela-functions"
-leela_test_x "$DAEMON"                        || exit 1
+[ "$ENABLED" = "true"                       ] || leela_exit_with "error: leela-$SERVICE is disabled" 1
+leela_test_x "$DAEMON"                        || leela_exit_with "error: $DAEMON not found" 1
 
 start_service () {
-  leela_twistd_start ${SERVICE_OPTS:---config="$CHDIR/etc/leela.conf"}
+  leela_twistd_start ${SERVICE_OPTS:---config="${CHDIR}/etc/leela.conf"}
 }
 
 stop_service () {

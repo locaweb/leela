@@ -1,4 +1,4 @@
-./dist/usr/libexec/leela-interact --config=etc/leela.conf
+./dist/usr/libexec/leela-interact
 <<<
 udp-send message=ping\n
 >>>

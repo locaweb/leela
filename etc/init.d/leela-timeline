@@ -9,30 +9,32 @@
 # Short-Description: Distributed, real time event processor and monitoring engine
 ### END INIT INFO
 
+PATH="${CHDIR}/bin:${CHDIR}/usr/bin:$PATH"
 DAEMON=daemon
-SERVICE="$CHDIR/usr/bin/timeline"
-RUNDIR="$CHDIR/var/run/leela"
+SERVICE="${CHDIR}/usr/bin/timeline"
+RUNDIR="${CHDIR}/var/run/leela"
 PIDFILE="$RUNDIR/timeline.pid"
-LOGFILE="$CHDIR/var/log/leela/timeline.log"
+LOGFILE="${CHDIR}/var/log/leela/timeline.log"
 USER=leela
 GROUP=leela
 
 TIMELINE_DATABUS=${TIMELINE_DATABUS:-/tmp/timeline-databus}
-TIMELINE_BROADCAST=${TIMELINE_BROADCAST:-/tmp/timeline-broadcast}
+TIMELINE_MULTICAST=${TIMELINE_MULTICAST:-/tmp/timeline-multicast}
 TIMELINE_QUEUES=${TIMELINE_QUEUES:-1}
 
-[ -r "$CHDIR/etc/default/leela-timeline"    ] && . ${CHDIR}/etc/default/leela-timeline
+[ -r "${CHDIR}/etc/default/leela-timeline"  ] && . ${CHDIR}/etc/default/leela-timeline
 [ -r "${CHDIR}/usr/libexec/leela-functions" ] && . ${CHDIR}/usr/libexec/leela-functions
-leela_test_x "$DAEMON"                        || exit 1
-leela_test_x "$SERVICE"                       || exit 1
+[ "$ENABLED" = "true"                       ] || leela_exit_with "error: leela-timeline is disabled" 1
+leela_test_x "$DAEMON"                        || leela_exit_with "error: $DAEMON not found" 1
+leela_test_x "$SERVICE"                       || leela_exit_with "error: $SERVICE not found" 1
 
 start_service() {
-  leela_daemon_start +RTS -N${TIMELINE_THREADS} -RTS -v $TIMELINE_OPTS -q$TIMELINE_QUEUES "$TIMELINE_DATABUS" "$TIMELINE_BROADCAST"
+  leela_daemon_start +RTS -N${TIMELINE_THREADS} -RTS -v $TIMELINE_OPTS -q$TIMELINE_QUEUES "$TIMELINE_DATABUS" "$TIMELINE_MULTICAST"
 }
 
 stop_service() {
   leela_generic_stop
-  rm -f "$TIMELINE_DATABUS" "$TIMELINE_BROADCAST"
+  rm -f "$TIMELINE_DATABUS" "$TIMELINE_MULTICAST"
 }
 
 case "$1" in

@@ -9,30 +9,32 @@
 # Short-Description: Distributed, real time event processor and monitoring engine
 ### END INIT INFO
 
-DAEMON=/usr/bin/daemon
-SERVICE="$CHDIR/usr/bin/dmproc"
-RUNDIR="$CHDIR/var/run/leela"
+PATH="${CHDIR}/bin:${CHDIR}/usr/bin:$PATH"
+DAEMON=daemon
+SERVICE="${CHDIR}/usr/bin/dmproc"
+RUNDIR="${CHDIR}/var/run/leela"
 PIDFILE="$RUNDIR/dmproc.pid"
-LOGFILE="$CHDIR/var/log/leela/dmproc.log"
+LOGFILE="${CHDIR}/var/log/leela/dmproc.log"
 USER=leela
 GROUP=leela
 
 DMPROC_DATABUS=${DMPROC_DATABUS:-/tmp/dmproc-databus}
-DMPROC_SOCKET=${DMPROC_SOCKET:-/tmp/dmproc-socket}
-PARENT_BROADCAST=${PARENT_BROADCAST:-/tmp/timeline-broadcast}
+DMPROC_PROC=${DMPROC_PROC:-/tmp/dmproc-proc}
+TIMELINE_MULTICAST=${TIMELINE_MULTICAST:-/tmp/timeline-multicast}
 
 [ -r "${CHDIR}/etc/default/leela-dmproc"    ] && . "${CHDIR}/etc/default/leela-dmproc"
 [ -r "${CHDIR}/usr/libexec/leela-functions" ] && . "${CHDIR}/usr/libexec/leela-functions"
-leela_test_x "$DAEMON"                      || exit 1
-leela_test_x "$SERVICE"                     || exit 1
+[ "$ENABLED" = "true"                       ] || leela_exit_with "error: leela-dmproc is disabled" 1
+leela_test_x "$DAEMON"                        || leela_exit_with "error: $DAEMON not found" 1
+leela_test_x "$SERVICE"                       || leela_exit_with "error: $SERVICE not found" 1
 
 start_service() {
-  leela_daemon_start +RTS -N${DMPROC_THREADS} -RTS -v $DMPROC_OPTS "$DMPROC_DATABUS" "$DMPROC_SOCKET" "$PARENT_BROADCAST"
+  leela_daemon_start +RTS -N${DMPROC_THREADS} -RTS -v $DMPROC_OPTS "$DMPROC_DATABUS" "$DMPROC_PROC" "$TIMELINE_MULTICAST"
 }
 
 stop_service() {
   leela_generic_stop
-  rm -f "$DMPROC_DATABUS" "$DMPROC_SOCKET"
+  rm -f "$DMPROC_DATABUS" "$DMPROC_PROC"
 }
 
 case "$1" in

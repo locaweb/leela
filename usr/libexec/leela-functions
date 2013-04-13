@@ -4,6 +4,11 @@ leela_test_x () {
   command -v "$1" >/dev/null
 }
 
+leela_exit_with () {
+  echo "$1"
+  exit $2
+}
+
 leela_log_exitcode () {
   local code service daemon instance
   code=$1

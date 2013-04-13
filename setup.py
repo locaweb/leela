@@ -16,9 +16,9 @@ def find_packages(root, path_f):
 setup(
     name               = "leela",
     version            = "2.2.0",
-    description        = "Collect, Monitor and Analyze anything - server module",
-    author             = "Juliano Martinez, Diego Souza",
-    url                = "http://leela.readthedocs.org",
+    description        = "Scalable, real time metrics system",
+    author             = "Diego Souza",
+    url                = "http://leela.rtfd.org",
     namespace_packages = ["leela"],
     packages           = find_packages("./src/server", lambda f: f[13:].replace("/", ".")) + ["twisted.plugins"],
     package_dir        = {"": "src/server"},

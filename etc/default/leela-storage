@@ -1,3 +1,6 @@
+# Should be either true or false
+ENABLED=true
+
 # Number of instances to spawn
 NPROCS=1
 

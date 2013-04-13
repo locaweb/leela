@@ -11,7 +11,7 @@
 leela_do () {
   for srv in timeline dmproc multicast http storage xmpp collectd udp
   do
-    $CHDIR/etc/init.d/leela-$srv "$@"
+    "${CHDIR}/etc/init.d/leela-$srv" "$@"
   done
 }
 

@@ -1,4 +1,4 @@
-./dist/usr/libexec/leela-interact --config=etc/leela.conf
+./dist/usr/libexec/leela-interact
 <<<
 cassandra-truncate cf=events
 udp-send "message=gauge 6|foobar 0.0 {now};"

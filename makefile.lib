@@ -19,7 +19,7 @@ bin_nosetests  = nosetests
 bin_shelltest  = shelltest
 bin_python     = python
 
-pyenv          = PYTHONPATH=$(srcroot)/src/server PATH=$$PATH:$(HOME)/pyenv/leela-server/bin
+pyenv          = PYTHONPATH=$(srcroot)/src/server
 hsenv          = PATH=$$PATH:$(HOME)/.cabal/bin
 
 nosetestsargs  =
@@ -31,10 +31,6 @@ shelltestpath  = $(srcroot)/try/smoke
 -include $(userfile)
 
 .saverc:
-	$(call check_bin,virtualenv)
-	$(call check_bin,cabal)
-	$(call check_bin,ghc)
-	$(call check_bin,find)
 	echo "bin_virtualenv = $(bin_virtualenv)"                         >$(userfile)
 	echo "bin_dash       = $(bin_dash)"                               >>$(userfile)
 	echo "bin_ghc        = $(bin_ghc)"                                >>$(userfile)
@@ -47,9 +43,9 @@ shelltestpath  = $(srcroot)/try/smoke
 	echo "bin_sed        = $(bin_sed)"                                >>$(userfile)
 	echo "bin_xargs      = $(bin_xargs)"                              >>$(userfile)
 	echo "bin_install    = $(bin_install)"                            >>$(userfile)
-	echo "bin_nosetests  = $(HOME)/pyenv/leela-server/bin/nosetests"  >>$(userfile)
-	echo "bin_twistd     = $(HOME)/pyenv/leela-server/bin/twistd"     >>$(userfile)
-	echo "bin_python     = $(HOME)/pyenv/leela-server/bin/python"     >>$(userfile)
+	echo "bin_nosetests  = $(HOME)/pyenv/leela/bin/nosetests"         >>$(userfile)
+	echo "bin_twistd     = $(HOME)/pyenv/leela/bin/twistd"            >>$(userfile)
+	echo "bin_python     = $(HOME)/pyenv/leela/bin/python"            >>$(userfile)
 	echo "bin_shelltest  = $(HOME)/.cabal/bin/shelltest"              >>$(userfile)
 
 .check_bin = @(command -v $(bin_$(1)) >/dev/null) || {                          \

@@ -1,4 +1,4 @@
-./dist/usr/libexec/leela-interact --config=etc/leela.conf
+./dist/usr/libexec/leela-interact
 <<<
 dmproc-connect "proc=proc match 1|. ewma 0.99;"
 udp-send "message=gauge 6|foobar 0.0 {now};"

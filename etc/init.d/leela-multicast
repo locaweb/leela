@@ -9,30 +9,32 @@
 # Short-Description: Distributed, real time event processor and monitoring engine
 ### END INIT INFO
 
+PATH="${CHDIR}/bin:${CHDIR}/usr/bin:$PATH"
 DAEMON=daemon
-SERVICE="$CHDIR/usr/bin/multicast"
-RUNDIR="$CHDIR/var/run/leela"
+SERVICE="${CHDIR}/usr/bin/multicast"
+RUNDIR="${CHDIR}/var/run/leela"
 PIDFILE="$RUNDIR/multicast.pid"
-LOGFILE="$CHDIR/var/log/leela/multicast.log"
+LOGFILE="${CHDIR}/var/log/leela/multicast.log"
 USER=leela
 GROUP=leela
 
 MULTICAST_DATABUS=${MULTICAST_DATABUS:-/tmp/multicast-databus}
-MULTICAST_ANYCAST=${MULTICAST_ANYCAST:-/tmp/multicast-anycast}
-PARENT_BROADCAST=${PARENT_BROADCAST:-/tmp/timeline-broadcast}
+MULTICAST_MULTICAST=${MULTICAST_MULTICAST:-/tmp/multicast-multicast}
+TIMELINE_MULTICAST=${TIMELINE_MULTICAST:-/tmp/timeline-multicast}
 
-[ -r "$CHDIR/etc/default/leela-multicast" ] && . ${CHDIR}/etc/default/leela-multicast
-[ -r "$CHDIR/usr/libexec/leela-functions" ] && . ${CHDIR}/usr/libexec/leela-functions
-leela_test_x "$DAEMON"                    || exit 1
-leela_test_x "$SERVICE"                   || exit 1
+[ -r "${CHDIR}/etc/default/leela-multicast" ] && . ${CHDIR}/etc/default/leela-multicast
+[ -r "${CHDIR}/usr/libexec/leela-functions" ] && . ${CHDIR}/usr/libexec/leela-functions
+[ "$ENABLED" = "true"                       ] || leela_exit_with "error: leela-multicast is disabled" 1
+leela_test_x "$DAEMON"                        || leela_exit_with "error: $DAEMON not found" 1
+leela_test_x "$SERVICE"                       || leela_exit_with "error: $SERVICE not found" 1
 
 start_service() {
-  leela_daemon_start "$MULTICAST_DATABUS" "$MULTICAST_ANYCAST" "$PARENT_BROADCAST"
+  leela_daemon_start "$MULTICAST_DATABUS" "$MULTICAST_MULTICAST" "$TIMELINE_MULTICAST"
 }
 
 stop_service() {
   leela_generic_stop
-  rm -f "$MULTICAST_DATABUS" "$MULTICAST_ANYCAST"
+  rm -f "$MULTICAST_DATABUS" "$MULTICAST_MULTICAST"
 }
 
 case "$1" in

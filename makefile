@@ -1,7 +1,7 @@
 
 root     = $(srcroot)/dist
 srcroot  = $(CURDIR)
-userfile = $(HOME)/.leela-server.makefile
+userfile = $(HOME)/.leelarc
 
 include $(srcroot)/makefile.lib
 
@@ -9,10 +9,12 @@ SRC_HASKELL = $(shell $(bin_find) $(srcroot)/src/dmproc -type f -name \*.hs)
 TRY_HASKELL = $(shell $(bin_find) $(srcroot)/try/dmproc -type f -name \*.hs)
 
 bootstrap: .saverc
-	test -d $(HOME)/pyenv/leela-server || $(bin_virtualenv) $(HOME)/pyenv/leela-server
-	$(HOME)/pyenv/leela-server/bin/pip install -q -r $(srcroot)/pip-requires.txt
-	$(HOME)/pyenv/leela-server/bin/pip install -q nose
-	$(HOME)/pyenv/leela-server/bin/pip install -q mock
+	$(call check_bin,virtualenv)
+	$(call check_bin,cabal)
+	test -d $(HOME)/pyenv/leela || $(bin_virtualenv) $(HOME)/pyenv/leela
+	$(HOME)/pyenv/leela/bin/pip install -q -r $(srcroot)/pip-requires.txt
+	$(HOME)/pyenv/leela/bin/pip install -q nose
+	$(HOME)/pyenv/leela/bin/pip install -q mock
 	$(bin_cabal) update
 	$(bin_cabal) install -v0 -O2 attoparsec
 	$(bin_cabal) install -v0 -O2 vector
@@ -31,7 +33,11 @@ clean:
 	$(bin_find) . -type f -name \*.hi -exec rm -f \{\} \;
 	$(bin_find) . -type f -name \*.pyc -exec rm -f \{\} \;
 	$(bin_find) . -type f -name \*.hi -exec rm -f \{\} \;
-	rm -f ./src/dmproc/DarkMatter/dmproc ./try/dmproc/dmtry
+	rm -rf ./build
+	rm -f ./src/dmproc/DarkMatter/dmproc    \
+              ./src/dmproc/DarkMatter/multicast \
+              ./src/dmproc/DarkMatter/timeline  \
+              ./try/dmproc/dmtry
 
 compile-dmtry: $(srcroot)/try/dmproc/dmtry
 
@@ -55,29 +61,32 @@ test-smoke:
 	$(call .check_bin,curl)
 	$(call .check_bin,date)
 	$(call .check_bin,sed)
-	env $(pyenv) CHDIR=$(srcroot)/dist $(srcroot)/dist/etc/init.d/leela stop >/dev/null
-	env $(pyenv) CHDIR=$(srcroot)/dist $(srcroot)/dist/etc/init.d/leela start >/dev/null
-	cd $(srcroot); env $(pyenv) \
-                           $(bin_shelltest) $(shelltestargs) -c $(shelltestpath) -- --timeout=60
-	@env $(pyenv) CHDIR=$(srcroot)/dist $(srcroot)/dist/etc/init.d/leela stop >/dev/null
+	$(srcroot)/dist/etc/init.d/leela stop >/dev/null
+	$(srcroot)/dist/etc/init.d/leela start >/dev/null &&                     \
+          cd $(srcroot);                                                         \
+          $(bin_shelltest) $(shelltestargs) -c $(shelltestpath) -- --timeout=60; \
+          $(srcroot)/dist/etc/init.d/leela stop >/dev/null
 
 dist-build: compile-dmproc
 
 dist-clean:
 	if [ -n "$(root)" -a "$(root)" != "/" ]; then rm -r -f "$(root)"; fi
 
-dist-install: python_sitelib=$(shell $(bin_python) -c "from distutils.sysconfig import get_python_lib; print(get_python_lib());")
+dist-install: bin_pip=$(root)/bin/pip
+dist-install: bin_python=$(root)/bin/python
 dist-install:
+	$(call check_bin,virtualenv)
 	$(call check_bin,install)
 	$(call check_bin,find)
-	$(call check_bin,python)
+	test -d $(root) || $(bin_virtualenv) $(root)
 	mkdir -p $(root)/usr/bin
 	mkdir -p $(root)/usr/libexec
 	mkdir -p $(root)/etc/default
 	mkdir -p $(root)/var/run/leela
 	mkdir -p $(root)/var/log/leela
 	mkdir -p $(root)/etc/init.d
-	$(bin_python) setup.py -q install --root=$(root)
+	$(bin_pip) install -q -r $(srcroot)/pip-requires.txt
+	$(bin_pip) install -q -I $(srcroot)
 	$(bin_install) -m 0755 $(srcroot)/src/dmproc/DarkMatter/dmproc $(root)/usr/bin
 	$(bin_install) -m 0755 $(srcroot)/src/dmproc/DarkMatter/timeline $(root)/usr/bin
 	$(bin_install) -m 0755 $(srcroot)/src/dmproc/DarkMatter/multicast $(root)/usr/bin
@@ -91,8 +100,13 @@ dist-install:
         do                                                         \
           $(bin_install) -m 0755 $$f $(root)/$${f#$(srcroot)/};    \
         done
-	$(bin_sed) -i 's,\$${__ENVIRON__},PYTHONPATH="$$PYTHONPATH:$(root)/$(python_sitelib)" CHDIR="$(root)",g' $(root)/usr/libexec/leela-interact
+	for f in $(root)/etc/init.d/*;                \
+        do                                            \
+          $(bin_sed) -i 's,\$${CHDIR},$(root),g' $$f; \
+        done
+	$(bin_sed) -i 's,\$${__ENVIRON__},CHDIR="$(root)",g' $(root)/usr/libexec/leela-interact
 	$(bin_sed) -i 's,\$${bin_python:-python},$(bin_python),g' $(root)/usr/libexec/leela-interact
+	$(bin_sed) -i 's,"\$$@",--config="$(root)/etc/leela.conf" "$$@",g' $(root)/usr/libexec/leela-interact
 
 $(srcroot)/src/dmproc/DarkMatter/dmproc: $(SRC_HASKELL)
 	$(call .check_bin,ghc)

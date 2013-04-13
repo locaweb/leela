@@ -35,7 +35,7 @@ class StorageService(service.Service):
 
     def _attach(self, sock):
         try:
-            databus.attach(self.cfg.get("storage", "anycast"), sock)
+            databus.attach(self.cfg.get("storage", "multicast"), sock)
         except:
             logger.exception()
 
