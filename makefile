@@ -16,16 +16,17 @@ bootstrap: .saverc
 	$(HOME)/pyenv/leela/bin/pip install -q nose
 	$(HOME)/pyenv/leela/bin/pip install -q mock
 	$(bin_cabal) update
-	$(bin_cabal) install -v0 -O2 attoparsec
-	$(bin_cabal) install -v0 -O2 vector
-	$(bin_cabal) install -v0 -O2 blaze-builder
 	$(bin_cabal) install -v0 -O2 double-conversion
-	$(bin_cabal) install -v0 -O2 regex-tdfa
-	$(bin_cabal) install -v0 -O2 stm
-	$(bin_cabal) install -v0 -O2 quickcheck
-	$(bin_cabal) install -v0 -O2 hslogger
-	$(bin_cabal) install -v0 -O2 hspec
 	$(bin_cabal) install -v0 -O2 shelltestrunner
+	$(bin_cabal) install -v0 -O2 blaze-builder
+	$(bin_cabal) install -v0 -O2 regex-tdfa
+	$(bin_cabal) install -v0 -O2 quickcheck
+	$(bin_cabal) install -v0 -O2 attoparsec
+	$(bin_cabal) install -v0 -O2 hashable
+	$(bin_cabal) install -v0 -O2 hslogger
+	$(bin_cabal) install -v0 -O2 vector
+	$(bin_cabal) install -v0 -O2 hspec
+	$(bin_cabal) install -v0 -O2 stm
 
 clean:
 	$(call .check_bin,find)
@@ -75,38 +76,10 @@ dist-clean:
 dist-install: bin_pip=$(root)/bin/pip
 dist-install: bin_python=$(root)/bin/python
 dist-install:
-	$(call check_bin,virtualenv)
-	$(call check_bin,install)
-	$(call check_bin,find)
-	test -d $(root) || $(bin_virtualenv) $(root)
-	mkdir -p $(root)/usr/bin
-	mkdir -p $(root)/usr/libexec
-	mkdir -p $(root)/etc/default
-	mkdir -p $(root)/var/run/leela
-	mkdir -p $(root)/var/log/leela
-	mkdir -p $(root)/etc/init.d
-	$(bin_pip) install -q -r $(srcroot)/pip-requires.txt
-	$(bin_pip) install -q -I $(srcroot)
-	$(bin_install) -m 0755 $(srcroot)/src/dmproc/DarkMatter/dmproc $(root)/usr/bin
-	$(bin_install) -m 0755 $(srcroot)/src/dmproc/DarkMatter/timeline $(root)/usr/bin
-	$(bin_install) -m 0755 $(srcroot)/src/dmproc/DarkMatter/multicast $(root)/usr/bin
-	for f in $(srcroot)/etc/default/*                          \
-                 $(srcroot)/etc/leela.conf;                        \
-	do                                                         \
-	  $(bin_install) -m 0600 $$f $(root)/$${f#$(srcroot)/};    \
-	done
-	for f in $(srcroot)/etc/init.d/*                           \
-                 $(srcroot)/usr/libexec/*;                         \
-        do                                                         \
-          $(bin_install) -m 0755 $$f $(root)/$${f#$(srcroot)/};    \
-        done
-	for f in $(root)/etc/init.d/*;                \
-        do                                            \
-          $(bin_sed) -i 's,\$${CHDIR},$(root),g' $$f; \
-        done
-	$(bin_sed) -i 's,\$${__ENVIRON__},CHDIR="$(root)",g' $(root)/usr/libexec/leela-interact
-	$(bin_sed) -i 's,\$${bin_python:-python},$(bin_python),g' $(root)/usr/libexec/leela-interact
-	$(bin_sed) -i 's,"\$$@",--config="$(root)/etc/leela.conf" "$$@",g' $(root)/usr/libexec/leela-interact
+	env bin_virtualenv=$(bin_virtualenv) \
+            bin_python=$(bin_python)         \
+            bin_pip=$(bin_pip)               \
+            $(srcroot)/src/scripts/install.sh "$(root)" virtualenv "$(srcroot)"
 
 $(srcroot)/src/dmproc/DarkMatter/dmproc: $(SRC_HASKELL)
 	$(call .check_bin,ghc)
