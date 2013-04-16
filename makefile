@@ -73,8 +73,6 @@ dist-build: compile-dmproc
 dist-clean:
 	if [ -n "$(root)" -a "$(root)" != "/" ]; then rm -r -f "$(root)"; fi
 
-dist-install: bin_pip=$(root)/bin/pip
-dist-install: bin_python=$(root)/bin/python
 dist-install:
 	env bin_virtualenv=$(bin_virtualenv) \
             bin_python=$(bin_python)         \

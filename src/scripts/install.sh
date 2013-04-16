@@ -11,13 +11,15 @@ bin_python=${bin_python:-python2.7}
 bin_virtualenv=${bin_virtualenv:-virtualenv}
 
 install_virtualenv () {
+  bin_python="$root/bin/python"
+  bin_pip="$root/bin/pip"
+
   test -d "$root" || "$bin_virtualenv" "$root"
   install_mkdirs
   install_usr
   install_etc
-  fixup_variables
-  "$bin_pip" install -q -r "$srcroot/pip-requires.txt"
-  "$bin_pip" install -q -I "$srcroot"
+  "$bin_pip" install -r "$srcroot/pip-requires.txt"
+  "$bin_pip" install -I "$srcroot"
   fixup_variables
 }
 
@@ -63,7 +65,7 @@ install_usr () {
   done
   for f in "$srcroot/usr/libexec/"*
   do
-    dst=${f##$srcroot}
+    dst=${f##$srcroot/}
     install -m 0755 "$f" "$root/$dst"
     echo "/$dst"
   done
@@ -91,9 +93,8 @@ fixup_variables () {
   do
     sed -i "s,\\\${CHDIR},$root,g" "$f"
   done
-  sed -i "s,\\\${__ENVIRON__},CHDIR=\"$root\",g" "$root/usr/libexec/leela-interact"
-  sed -i "s,\\\${bin_python:-python},$bin_python,g" "$root/usr/libexec/leela-interact"
-  sed -i "s,\\\$@,--config=\"$root/etc/leela.conf\" \"$@\",g" "$root/usr/libexec/leela-interact"
+  sed -i "s,^# template:chdir\$,CHDIR=\"$root\",g" "$root/usr/libexec/leela-interact"
+  sed -i "s,^# template:bin_python\$,bin_python=\"$bin_python\",g" "$root/usr/libexec/leela-interact"
 }
 
 install_mkdirs () {
