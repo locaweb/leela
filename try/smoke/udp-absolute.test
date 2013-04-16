@@ -1,7 +1,6 @@
 ./dist/usr/libexec/leela-interact
 <<<
-initd-restart script=leela-timeline        # flushing memory
-sleep seconds=1                            # giving enough time to reconnection
+initd-restart script=leela-timeline
 cassandra-truncate cf=events
 udp-send "message=absolute 6|foobar 0.0 {now};"
 udp-send "message=absolute 6|foobar 60.0 {now+30s};"
