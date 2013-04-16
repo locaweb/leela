@@ -4,6 +4,7 @@ v2.2.0 | 2013-11-04
   * adding collectd support [dgvncsz0f]
   * udp protocol now supports gauge, derive, counter and absolute [dgvncsz0f]
   * deprecating the legacy udp protocol [dgvncsz0f]
+  * using a much more space efficient algorithm to implement sma [dgvncsz0f]
 
 v2.1.0 | 2012-11-21
   * http interface now removes NaN numbers unless specified otherwise [dgvncsz0f]
