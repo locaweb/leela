@@ -54,9 +54,9 @@ nmax = 1000000000
 
 diff :: Time -> Time -> Time
 diff t0 t1 = let s0     = abs $ seconds t1 - seconds t0
-                 (r, n) = fmap abs $ (nseconds t1 - nseconds t0) `quotRem` nmax
-                 s      = abs $ s0 - r
-             in mktime s n
+                 (r, n) = (nseconds t1 - nseconds t0) `quotRem` nmax
+                 s      = abs $ s0 - (abs r)
+             in mktime s (abs n)
 
 add :: Time -> Time -> Time
 add t0 t1 = mktime (seconds t0 + seconds t1) (nseconds t0 + nseconds t1)

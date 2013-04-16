@@ -30,6 +30,7 @@ module DarkMatter.Network.Multicast
        , multicast
        ) where
 
+import           Prelude hiding (catch)
 import qualified Data.ByteString as B
 import           Data.Maybe
 import           System.Directory
