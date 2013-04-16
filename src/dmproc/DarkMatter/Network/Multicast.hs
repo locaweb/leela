@@ -30,12 +30,11 @@ module DarkMatter.Network.Multicast
        , multicast
        ) where
 
-import           Prelude hiding (catch)
 import qualified Data.ByteString as B
 import           Data.Maybe
 import           System.Directory
 import           Control.Monad
-import           Control.Exception
+import           Control.Exception as E
 import           Control.Concurrent
 import           Control.Concurrent.STM
 import qualified Data.Map as M
@@ -125,7 +124,7 @@ peerList (One tp _ tc) = atomically rotateLookup
 
 multicast :: Multicast -> B.ByteString -> IO ()
 multicast g msg = peerList g >>= mapM_ runIO
-  where runIO peer = send_ (SockAddrUnix peer) `catch` (\(_ :: SomeException) -> delPeer g peer)
+  where runIO peer = send_ (SockAddrUnix peer) `E.catch` (\(_ :: SomeException) -> delPeer g peer)
         send_ peer = N.sendTo (channel g) msg peer >> return ()
 
 reaper :: Multicast -> IO ()

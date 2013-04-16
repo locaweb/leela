@@ -40,19 +40,26 @@ newtype Timeline k = Timeline { history :: M.Map k Event }
 clock :: Time
 clock = mktime 60 0
 
+-- | Fudge factor to allow small clock skews
+fudge :: Time
+fudge = mktime 15 0
+
 -- | The expiration time of events in timeline. If no event arrives
 -- before this frequency, it is marked as invalid and not used.
 ttl :: Time
-ttl = clock `mul` 5
+ttl = clock `mul` 60
 
 empty :: Timeline k
 empty = Timeline M.empty
 
 elapsed :: Event -> Event -> Maybe Time
 elapsed e0 e1
-  | older      = Nothing
-  | otherwise  = Just (diff (time e0) (time e1))
-    where older = time e0 >= time e1
+  | older     = Nothing
+  | otherwise = Just td
+    where t0 = time e0
+          t1 = time e1
+          td = diff t1 t0
+          older = t0 == t1 || (t0 > t1) && (td > fudge)
 
 tKeys :: (Hashable k, Ord k) => Timeline k -> [k]
 tKeys w = M.keys (history w)
