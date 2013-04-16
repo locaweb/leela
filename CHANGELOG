@@ -1,5 +1,9 @@
 --*-- mode: text; --*--
 
+v2.2.1 | 2013-16-04
+  * bugfix: multicast was not using all peers to load balancing [dgvncsz0f]
+  * bugfix: http module was not encoding packet correctly [dgvncsz0f]
+
 v2.2.0 | 2013-11-04
   * adding collectd support [dgvncsz0f]
   * udp protocol now supports gauge, derive, counter and absolute [dgvncsz0f]
