@@ -3,4 +3,4 @@
 # template:chdir
 # template:bin_python
 
-exec env CHDIR="$chdir" "${bin_python:-python}" -m leela.server.trial.interact --config="$CHDIR/etc/leela.conf" "$@"
+exec "${bin_python:-python}" -m leela.server.trial.interact --config="$CHDIR/etc/leela.conf" --chdir="$CHDIR" "$@"
