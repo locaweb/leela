@@ -112,7 +112,7 @@ peerList (One tp _ tc) = atomically rotateLookup
           | mc == Nothing = Just $ fst $ M.findMin g
           | otherwise     = case (M.split (fromJust mc) g)
                             of (left, right)
-                                 | M.null right -> Just (fst $ M.findMax left)
+                                 | M.null right -> Just (fst $ M.findMin left)
                                  | otherwise    -> Just (fst $ M.findMin right)
 
         rotateLookup = do { g <- readTVar tp
