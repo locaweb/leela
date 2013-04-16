@@ -29,8 +29,25 @@ install_debian () {
   "$bin_python" "$srcroot/setup.py" install \
     --install-layout=deb                    \
     --root="$srcroot/debian/tmp"            \
-    --install-data="$srcroot/debian/tmp"    \
     --record="$record"
+  for m in http://pypi.python.org/packages/source/t/txredisapi/txredisapi-1.0.tar.gz \
+           http://pypi.python.org/packages/source/c/cyclone/cyclone-1.1.tar.gz       \
+           http://pypi.python.org/packages/source/t/thrift/thrift-0.9.0.tar.gz       \
+           https://github.com/driftx/Telephus/tarball/releases/1.0.0_beta1
+  do
+    oldpath=$(pwd)
+    TMPDIR=$(mktemp -d) && cd "$TMPDIR" && {
+      "$bin_pip" -q install --no-deps --download="$TMPDIR" "$m"
+      tar -x -z --xform 's,[^/]*/,,' -f "$TMPDIR"/$(basename "$m")
+      "$bin_python" setup.py install \
+        --install-layout=deb         \
+        --root="$srcroot/debian/tmp" \
+        --record="$record.dep"
+      cat "$record.dep" >>"$record"
+      rm -r -f "$TMPDIR"
+    }
+    cd "$oldpath"
+  done
   install_usr >>"$record"
   install_etc >>"$record"
 }

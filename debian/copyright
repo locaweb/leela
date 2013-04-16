@@ -1,0 +1,7 @@
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: leela
+Source: https://github.com/leela/leela
+
+Files: *
+Copyright: 2012-2013, Diego Souza
+License: APACHE-2

@@ -15,7 +15,7 @@ bootstrap: .saverc
 	$(HOME)/pyenv/leela/bin/pip install -q -r $(srcroot)/pip-requires.txt
 	$(HOME)/pyenv/leela/bin/pip install -q nose
 	$(HOME)/pyenv/leela/bin/pip install -q mock
-	$(bin_cabal) update
+	test -d $(HOME)/.cabal || $(bin_cabal) update
 	$(bin_cabal) install -v0 -O2 double-conversion
 	$(bin_cabal) install -v0 -O2 shelltestrunner
 	$(bin_cabal) install -v0 -O2 blaze-builder

@@ -26,7 +26,7 @@ leela_log_exitcode () {
 }
 
 leela_daemon_start () {
-  if [ "$UID" -eq 0 ]
+  if [ $(id -u) -eq 0 ]
   then
     DAEMON_OPTS="-u $USER:$GROUP $DAEMON_OPTS"
   else
@@ -65,7 +65,7 @@ leela_generic_stop () {
 }
 
 leela_twistd_start () {
-  if [ "$UID" -eq 0 ]
+  if [ $(id -u) -eq 0 ]
   then
     DAEMON_OPTS="-u $USER -g $GROUP"
   else

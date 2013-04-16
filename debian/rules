@@ -1,0 +1,23 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --with python2
+
+override_dh_auto_build:
+	$(MAKE) bootstrap
+	$(MAKE) compile-dmproc
+
+override_dh_auto_install:
+	for python in $$(pyversions -r); \
+        do \
+	  env bin_python=$$python \
+              $(CURDIR)/src/scripts/install.sh $(CURDIR)/debian/tmp debian $(CURDIR); \
+        done
+
+override_dh_auto_clean:
+	dh_auto_clean
+	$(MAKE) clean
+	rm -rf build
+
+override_dh_auto_test:
+	echo "nothing to do here"

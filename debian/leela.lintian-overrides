@@ -1,0 +1,6 @@
+leela: statically-linked-binary usr/bin/dmproc
+leela: statically-linked-binary usr/bin/timeline
+leela: statically-linked-binary usr/bin/multicast
+leela: embedded-library usr/bin/dmproc: libm
+leela: embedded-library usr/bin/timeline: libm
+leela: embedded-library usr/bin/multicast: libm
