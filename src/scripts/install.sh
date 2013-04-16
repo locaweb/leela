@@ -1,13 +1,13 @@
 #!/bin/sh
 
-set -e
+set -e -x
 
 root=${1:-./dist}
 layout=${2:-virtualenv}
 srcroot=$(realpath "${3:-.}")
 
 bin_pip=${bin_pip:-pip}
-bin_python=${bin_python:-python2.7}
+bin_python=${bin_python:-python}
 bin_virtualenv=${bin_virtualenv:-virtualenv}
 
 install_virtualenv () {
@@ -24,7 +24,7 @@ install_virtualenv () {
 }
 
 install_debian () {
-  local record
+  local record file
   record="$srcroot/debian/leela.install"
   mkdir -p "$root"
   install_mkdirs
@@ -32,15 +32,16 @@ install_debian () {
     --install-layout=deb                    \
     --root="$srcroot/debian/tmp"            \
     --record="$record"
-  for m in http://pypi.python.org/packages/source/t/txredisapi/txredisapi-1.0.tar.gz \
+  for u in http://pypi.python.org/packages/source/t/txredisapi/txredisapi-1.0.tar.gz \
            http://pypi.python.org/packages/source/c/cyclone/cyclone-1.1.tar.gz       \
            http://pypi.python.org/packages/source/t/thrift/thrift-0.9.0.tar.gz       \
            https://github.com/driftx/Telephus/tarball/releases/1.0.0_beta1
   do
     oldpath=$(pwd)
     TMPDIR=$(mktemp -d) && cd "$TMPDIR" && {
-      "$bin_pip" -q install --no-deps --download="$TMPDIR" "$m"
-      tar -x -z --xform 's,[^/]*/,,' -f "$TMPDIR"/$(basename "$m")
+      file="$TMPDIR"/$(basename "$u")
+      wget -O"$file" "$u"
+      tar -x -z --xform 's,[^/]*/,,' -f "$file"
       "$bin_python" setup.py install \
         --install-layout=deb         \
         --root="$srcroot/debian/tmp" \
