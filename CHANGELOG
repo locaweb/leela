@@ -1,5 +1,8 @@
 --*-- mode: text; --*--
 
+v2.2.2 | 2013-17-04
+  * no longer printing stacktrace when a parser error happens [dgvncsz0f]
+
 v2.2.1 | 2013-16-04
   * bugfix: multicast was not using all peers to load balancing [dgvncsz0f]
   * bugfix: http module was not encoding packet correctly [dgvncsz0f]

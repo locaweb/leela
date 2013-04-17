@@ -14,7 +14,7 @@ Documentation
 Current Version
 ===============
 
-* $version 2.2.0$
+* $version 2.2.2$
 
 License
 =======

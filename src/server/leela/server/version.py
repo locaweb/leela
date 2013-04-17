@@ -19,6 +19,6 @@
 
 major   = "2"
 minor   = "2"
-build   = "0"
-version = "2.2.0"
+build   = "2"
+version = "2.2.2"
 
