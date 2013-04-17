@@ -28,7 +28,9 @@ class UDP(protocol.DatagramProtocol):
             else:
                 self.handle_event(string)
         except:
-            logger.exception()
+            logger.warn("error parsing packet [peer: %s]" % repr(peer))
+            if (logger.level <= logger.DEBUG):
+                logger.exception()
 
     def handle_ping(self, peer):
         self.transport.write("pong", peer)

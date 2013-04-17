@@ -39,6 +39,7 @@ def dolog(f):
 
 def set_level(level):
     # yeah, pretty nasty hack ... only four lines though :-)
+    this.level     = level
     this.debug     = when(level<=DEBUG, dolog)
     this.info      = when(level<=INFO, dolog)
     this.warn      = when(level<=WARNING, dolog)
