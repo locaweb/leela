@@ -22,13 +22,13 @@ v2.0.0 | 2012-11-15
   * dmproc: adding support for using operators in the right position | dgvncsz0f
 
 v1.0.0 | 2012-10-18
-  * complete arquiteture redesign | dgvncsz0f
+  * complete architecture redesign | dgvncsz0f
   * implementing 24h graphs | dgvncsz0f
   * creating xmpp interface | dgvncsz0f
   * making sure everything it UTC | dgvncsz0f
   * graphs using flotr2 library | pothix
 
 v0.0.9 | 2012-06-29
-  * first arquiteture | ncode
+  * first architecture | ncode
   * using gevent instead of standard python sockets | rsampaio
   * creating javascript widget | dgvncsz0f
