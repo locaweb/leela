@@ -39,8 +39,6 @@ class HttpService(service.Service):
                                                                             "class_" : data.Data}),
             (r"^/v1/data/pastweek/(.*)"         , http_proto.PastWeek    , {"storage": sto,
                                                                             "class_" : data.Data}),
-            (r"^/v1/data/range/(.*)"            , http_proto.RangeRdonly , {"storage": sto,
-                                                                            "class_" : data.Data}),    # deprecated
             (r"^/v1/data/(\d+)/(\d+)/(\d+)/(.*)", http_proto.YearMonthDay, {"storage": sto,
                                                                             "class_" : data.Data}),
             (r"^/v1/data/(\d+)/(\d+)/(.*)"      , http_proto.YearMonth   , {"storage": sto,
@@ -53,8 +51,6 @@ class HttpService(service.Service):
                                                                             "class_" : event.Event}),
             (r"^/v1/pastweek/(.*)"              , http_proto.PastWeek    , {"storage": sto,
                                                                             "class_" : event.Event}),
-            (r"^/v1/range/(.*)"                 , http_proto.RangeRdonly , {"storage": sto,
-                                                                            "class_" : event.Event}),  # deprecated
             (r"^/v1/(\d+)/(\d+)/(\d+)/(.*)"     , http_proto.YearMonthDay, {"storage": sto,
                                                                             "class_" : event.Event}),
             (r"^/v1/(\d+)/(\d+)/(.*)"           , http_proto.YearMonth   , {"storage": sto,
