@@ -1,0 +1,10 @@
+./dist/usr/libexec/leela-interact
+<<<
+initd-restart script=leela-timeline
+cassandra-truncate cf=events
+http-request method=POST url=/v1/foobar 'data=[{"type": "derive", "value": 0, "timestamp": {now}}, {"type": "derive", "value": 60, "timestamp": {now+60s}}]'
+http-request method=GET url=/v1/past24/foobar
+>>>
+{"results": [{"name": "foobar", "timestamp": 0.0, "type": "derive", "value": 0.0}, {"name": "foobar", "timestamp": 60.0, "type": "derive", "value": 60.0}], "status": 201}
+{"results": {"foobar": {"series": [[60, 1.0]]}}, "status": 200}
+>>>= 0

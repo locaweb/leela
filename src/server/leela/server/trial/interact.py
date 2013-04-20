@@ -120,6 +120,7 @@ def execute(opts, command, **env):
 
 def initd_start(opts, state, script):
     p = execute(opts, [initd(opts, script), "start"])
+    time.sleep(1)
     return(p.wait())
 
 def initd_stop(opts, state, script):

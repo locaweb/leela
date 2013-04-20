@@ -117,6 +117,17 @@ class RangeDataRdwr(RangeRdonly):
                      "results": pp.render_storables_to_json(data)
                     })
 
+class RangeMetricRdwr(RangeRdonly):
+
+    @resthandler.logexceptions
+    def post(self, key):
+        data = parser.parse_json_metric(self.request.body, key)
+        relay_data(pp.render_metric, self.relay.relay, data)
+        self.set_status(201)
+        self.finish({"status": 201,
+                     "results": pp.render_metrics_to_json(data)
+                    })
+
 class YearMonthDay(resthandler.RestHandler):
 
     @web.asynchronous

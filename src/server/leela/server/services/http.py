@@ -31,10 +31,11 @@ def x(*args):
 class HttpService(service.Service):
 
     def __init__(self, cfg):
-        cfg = cfg
-        bus = Relay(cfg.get("http", "relay"))
-        sto = cassandra_proto.CassandraProto(cfg)
-        app = web.Application([
+        cfg  = cfg
+        bus0 = Relay(cfg.get("http", "multicast"))
+        bus1 = Relay(cfg.get("http", "timeline"))
+        sto  = cassandra_proto.CassandraProto(cfg)
+        app  = web.Application([
             (r"^/v1/data/past24/(.*)"           , http_proto.Past24       , {"storage": sto,
                                                                              "class_" : data.Data}),
             (r"^/v1/data/pastweek/(.*)"         , http_proto.PastWeek     , {"storage": sto,
@@ -45,18 +46,18 @@ class HttpService(service.Service):
                                                                              "class_" : data.Data}),
             (r"^/v1/data/(.*)"                  , http_proto.RangeDataRdwr, {"storage": sto,
                                                                              "class_" : data.Data,
-                                                                             "relay": bus}),
-
-            (r"^/v1/past24/(.*)"                , http_proto.Past24      , {"storage": sto,
-                                                                            "class_" : event.Event}),
-            (r"^/v1/pastweek/(.*)"              , http_proto.PastWeek    , {"storage": sto,
-                                                                            "class_" : event.Event}),
-            (r"^/v1/(\d+)/(\d+)/(\d+)/(.*)"     , http_proto.YearMonthDay, {"storage": sto,
-                                                                            "class_" : event.Event}),
-            (r"^/v1/(\d+)/(\d+)/(.*)"           , http_proto.YearMonth   , {"storage": sto,
-                                                                            "class_" : event.Event}),
-            (r"^/v1/(.*)"                       , http_proto.RangeRdonly,  {"storage": sto,
-                                                                            "class_" : event.Event}),
+                                                                             "relay": bus0}),
+            (r"^/v1/past24/(.*)"                , http_proto.Past24         , {"storage": sto,
+                                                                               "class_" : event.Event}),
+            (r"^/v1/pastweek/(.*)"              , http_proto.PastWeek       , {"storage": sto,
+                                                                               "class_" : event.Event}),
+            (r"^/v1/(\d+)/(\d+)/(\d+)/(.*)"     , http_proto.YearMonthDay   , {"storage": sto,
+                                                                               "class_" : event.Event}),
+            (r"^/v1/(\d+)/(\d+)/(.*)"           , http_proto.YearMonth      , {"storage": sto,
+                                                                               "class_" : event.Event}),
+            (r"^/v1/(.*)"                       , http_proto.RangeMetricRdwr, {"storage": sto,
+                                                                               "class_" : event.Event,
+                                                                               "relay": bus1}),
 
             (r".*"                              , resthandler.Always404)
             ])

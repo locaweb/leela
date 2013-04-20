@@ -21,6 +21,7 @@ import time
 from leela.server import config
 from leela.server.data import event
 from leela.server.data import data
+from leela.server.data import metric
 
 def parse_json(x):
     return(json.loads(x))
@@ -208,26 +209,26 @@ def parse_json_data(s, name=None):
         return([parse_json_data1(results, name)])
 
 def parse_json_metric1(result, name):
-    if (not isinstance(results, dict)):
+    if (not isinstance(result, dict)):
         raise(ValueError("json must be an object"))
     n = result.get("name", name)
     v = float(result["value"])
     m = result["type"]
     t = float(result.get("timestamp", time.time()))
-    if (t == "gauge"):
+    if (m == "gauge"):
         return(metric.Gauge(n, v, t))
-    elif (t == "absolute"):
+    elif (m == "absolute"):
         return(metric.Absolute(n, v, t))
-    elif (t == "derive"):
+    elif (m == "derive"):
         return(metric.Derive(n, v, t))
-    elif (t == "counter"):
+    elif (m == "counter"):
         return(metric.Counter(n, v, t))
     else:
-        raise(ValueError("unkown metric type: %s" % repr(t,)))
+        raise(ValueError("unkown metric type: %s" % repr(m,)))
 
 def parse_json_metric(s, name=None):
     results = parse_json(s)
-    if (isinstance(results, [])):
+    if (isinstance(results, list)):
         return(map(lambda r: parse_json_metric1(r, name), results))
     else:
         return([parse_json_metric1(results, name)])

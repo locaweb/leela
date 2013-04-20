@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -e -x
+set -e
 
 root=${1:-./dist}
 layout=${2:-virtualenv}
