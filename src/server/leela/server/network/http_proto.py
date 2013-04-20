@@ -18,7 +18,6 @@
 import math
 from twisted.internet import defer
 from cyclone import web
-from leela.server import config
 from leela.server import funcs
 from leela.server.network import resthandler
 from leela.server.data import parser
@@ -41,6 +40,19 @@ def render_series(events, nan=NAN_ALLOW):
         elif (nan != NAN_PURGE):
             raise(RuntimeError("unknonw value"))
     return(results)
+
+def relay_data(render, relay, data):
+    size   = 0
+    packet = []
+    for x in data:
+        packet.append(render(x))
+        size += len(packet[-1])
+        if (size > 16*1024):
+            relay("".join(packet))
+            packet = []
+            size   = 0
+    if (size > 0):
+        relay("".join(packet))
 
 @defer.inlineCallbacks
 @resthandler.logexceptions
@@ -91,18 +103,19 @@ class RangeRdonly(resthandler.RestHandler):
         n      = read_nanopt(self.get_argument("nan", "purge"))
         sequence_load(f, key, self.finish, self.send_error, nan=n)
 
-class RangeRdwr(RangeRdonly):
+class RangeDataRdwr(RangeRdonly):
+
+    def put(self, key):
+        return(self.post(key))
 
     @resthandler.logexceptions
-    def put(self, key):
-        if (len(self.request.body) > config.MAXPACKET):
-            raise(web.HTTPError(400, "payload exceeds maxpacket [>= %d]" % config.MAXPACKET))
+    def post(self, key):
         data = parser.parse_json_data(self.request.body, key)
-        if data.name() != key:
-            raise web.HTTPError(400, "name must match the one given on URL: [%s /= %s]" % (data.name(), key))
-        self.relay.relay(pp.render_storables([data]))
+        relay_data(pp.render_storable, self.relay.relay, data)
         self.set_status(201)
-        self.finish({"status": 201, "results" : pp.render_storable_to_json(data)})
+        self.finish({"status": 201,
+                     "results": pp.render_storables_to_json(data)
+                    })
 
 class YearMonthDay(resthandler.RestHandler):
 

@@ -18,6 +18,7 @@
 import re
 import json
 import time
+from leela.server import config
 from leela.server.data import event
 from leela.server.data import data
 
@@ -179,7 +180,7 @@ def parse_timespec(s):
     h = int(s[9:11], 10)
     M = int(s[11:], 10)
     if (m<1 or m>12 or d<1 or d>31 or h<0 or h>23 or M<0 or M>59):
-        raise(RuntimeError("parse_timespec: syntax error"))
+        raise(ValueError("parse_timespec: syntax error"))
     return((y, m, d, h, M))
 
 def parse_status_(s):
@@ -188,10 +189,46 @@ def parse_status_(s):
     except:
         return(-1, "")
 
-def parse_json_data(s, name=None):
-    result = parse_json(s)
-    if not isinstance(result, dict):
-        raise(RuntimeError("json must be an object"))
+def parse_json_data1(result, name):
+    if (not isinstance(result, dict)):
+        raise(ValueError("json must be an object"))
     n = result.get("name", name)
-    t = result.get("timestamp", time.time())
+    t = float(result.get("timestamp", time.time()))
+    if (len(json.dumps(result["value"])) > config.MAXPACKET):
+        raise(ValueError("size is too big [maximum: %d]" % (config.MAXPACKET,)))
+    if (n != name):
+        raise(ValueError("different names given [%s /= %s]" % (n, name)))
     return(data.Data(n, result["value"], t))
+
+def parse_json_data(s, name=None):
+    results = parse_json(s)
+    if (isinstance(results, list)):
+        return(map(lambda r: parse_json_data1(r, name), results))
+    else:
+        return([parse_json_data1(results, name)])
+
+def parse_json_metric1(result, name):
+    if (not isinstance(results, dict)):
+        raise(ValueError("json must be an object"))
+    n = result.get("name", name)
+    v = float(result["value"])
+    m = result["type"]
+    t = float(result.get("timestamp", time.time()))
+    if (t == "gauge"):
+        return(metric.Gauge(n, v, t))
+    elif (t == "absolute"):
+        return(metric.Absolute(n, v, t))
+    elif (t == "derive"):
+        return(metric.Derive(n, v, t))
+    elif (t == "counter"):
+        return(metric.Counter(n, v, t))
+    else:
+        raise(ValueError("unkown metric type: %s" % repr(t,)))
+
+def parse_json_metric(s, name=None):
+    results = parse_json(s)
+    if (isinstance(results, [])):
+        return(map(lambda r: parse_json_metric1(r, name), results))
+    else:
+        return([parse_json_metric1(results, name)])
+

@@ -90,6 +90,17 @@ def make_timeseries_relative(series):
         series[k] = [series[k][0] - __t0__, series[k][1]]
     return(series)
 
+def make_timestamp_relative(item):
+    if (isinstance(item, list)):
+        return(map(make_timestamp_relative, item))
+    elif (isinstance(item, dict)):
+        for k in item.keys():
+            if (k == "timestamp"):
+                item[k] = item[k] - __t0__
+            else:
+                item[k] = make_timestamp_relative(item[k])
+    return(item)
+
 def make_events_relative(string):
     events = []
     output = []
@@ -155,8 +166,11 @@ def http_request(opts, state, method, url, data=None):
     r.request(method, url, data)
     rply = json.loads(r.getresponse().read())
     if ("results" in rply):
-        for k in rply["results"].keys():
-            rply["results"][k]["series"] = make_timeseries_relative(rply["results"][k]["series"])
+        rply["results"] = tmp = make_timestamp_relative(rply["results"])
+        if (isinstance(tmp, dict)):
+            for k in tmp.keys():
+                if (isinstance(tmp[k], dict) and "series" in tmp[k]):
+                    tmp[k]["series"] = make_timeseries_relative(rply["results"][k]["series"])
     dump(__stdout__, json.dumps(rply, sort_keys=True), "\n")
     return(0)
 

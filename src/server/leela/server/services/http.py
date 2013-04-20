@@ -35,17 +35,17 @@ class HttpService(service.Service):
         bus = Relay(cfg.get("http", "relay"))
         sto = cassandra_proto.CassandraProto(cfg)
         app = web.Application([
-            (r"^/v1/data/past24/(.*)"           , http_proto.Past24      , {"storage": sto,
-                                                                            "class_" : data.Data}),
-            (r"^/v1/data/pastweek/(.*)"         , http_proto.PastWeek    , {"storage": sto,
-                                                                            "class_" : data.Data}),
-            (r"^/v1/data/(\d+)/(\d+)/(\d+)/(.*)", http_proto.YearMonthDay, {"storage": sto,
-                                                                            "class_" : data.Data}),
-            (r"^/v1/data/(\d+)/(\d+)/(.*)"      , http_proto.YearMonth   , {"storage": sto,
-                                                                            "class_" : data.Data}),
-            (r"^/v1/data/(.*)"                  , http_proto.RangeRdwr   , {"storage": sto,
-                                                                            "class_" : data.Data,
-                                                                            "relay": bus}),
+            (r"^/v1/data/past24/(.*)"           , http_proto.Past24       , {"storage": sto,
+                                                                             "class_" : data.Data}),
+            (r"^/v1/data/pastweek/(.*)"         , http_proto.PastWeek     , {"storage": sto,
+                                                                             "class_" : data.Data}),
+            (r"^/v1/data/(\d+)/(\d+)/(\d+)/(.*)", http_proto.YearMonthDay , {"storage": sto,
+                                                                             "class_" : data.Data}),
+            (r"^/v1/data/(\d+)/(\d+)/(.*)"      , http_proto.YearMonth    , {"storage": sto,
+                                                                             "class_" : data.Data}),
+            (r"^/v1/data/(.*)"                  , http_proto.RangeDataRdwr, {"storage": sto,
+                                                                             "class_" : data.Data,
+                                                                             "relay": bus}),
 
             (r"^/v1/past24/(.*)"                , http_proto.Past24      , {"storage": sto,
                                                                             "class_" : event.Event}),
@@ -55,7 +55,7 @@ class HttpService(service.Service):
                                                                             "class_" : event.Event}),
             (r"^/v1/(\d+)/(\d+)/(.*)"           , http_proto.YearMonth   , {"storage": sto,
                                                                             "class_" : event.Event}),
-            (r"^/v1/(.*)"                       , http_proto.RangeRdonly , {"storage": sto,
+            (r"^/v1/(.*)"                       , http_proto.RangeRdonly,  {"storage": sto,
                                                                             "class_" : event.Event}),
 
             (r".*"                              , resthandler.Always404)
