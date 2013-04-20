@@ -1,5 +1,11 @@
 --*-- mode: text; --*--
 
+v3.0.0 | 2013-20-04
+  * removing http /v1/range resource | dgvncsz0f
+  * deprecating PUT /v1/data/:key in favor of POST /v1/data/:key | dgvncsz0f
+  * POST /v1/data/:key also accepts a list of values | dgvncsz0f
+  * new POST /v1/:key allows users writing metrics using the http protocol | dgvncsz0f
+
 v2.2.2 | 2013-17-04
   * leela-udp: no longer printing stacktrace when a parser error happens | dgvncsz0f
 

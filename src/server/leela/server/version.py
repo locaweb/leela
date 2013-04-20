@@ -17,8 +17,8 @@
 
 # DO NOT EDIT, AUTOMATICALLY GENERATED
 
-major   = "2"
-minor   = "2"
-build   = "2"
-version = "2.2.2"
+major   = "3"
+minor   = "0"
+build   = "0"
+version = "3.0.0"
 
