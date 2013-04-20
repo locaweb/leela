@@ -46,15 +46,18 @@ def split(s):
 
 def split_args(s):
     args  = []
-    quote = False
+    quote = None
     for w in expand(s).split(" "):
-        if (not quote and w.startswith("\"")):
-            quote = True
-            args.append([w])
-        elif (quote):
+        if (quote is None and (w.startswith("\"") or w.startswith("'"))):
+            if (w.endswith(w[0])):
+                args.append(w)
+            else:
+                quote = w[0]
+                args.append([w])
+        elif (quote is not None):
             args[-1].append(w)
-            if (w.endswith("\"")):
-                quote = False
+            if (w.endswith(quote)):
+                quote = None
                 args.append(" ".join(args.pop())[1:-1])
         else:
             args.append(w)
