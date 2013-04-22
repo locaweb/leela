@@ -50,10 +50,11 @@ class RestHandler(web.RequestHandler):
             else:
                 chunk["debug"] = debug
 
-    def write(self, chunk):
+    def write(self, chunk, cache=300):
         self._write_debug(chunk)
         cc  = self.get_argument("callback", "")
         bdy = pp.render_json(chunk)
+        self.set_header("Cache-Control", "public, max-age=%d" % cache)
         if (re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", cc)):
             self.set_header("Content-Type", "text/javascript; charset=utf-8")
             bdy = u"%s(%s);" % (cc, bdy)
@@ -79,7 +80,7 @@ class RestHandler(web.RequestHandler):
                  "reason": httplib.responses[status_code],
                  "debug": debug
                }
-        self.write(rply)
+        self.write(rply, 0)
         self.finish()
 
 class Always404(RestHandler):
