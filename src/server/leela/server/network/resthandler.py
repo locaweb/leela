@@ -33,6 +33,9 @@ class RestHandler(web.RequestHandler):
         for (k, v) in kwargs.iteritems():
             setattr(self, k, v)
 
+    def compute_etag(self):
+        return(None)
+
     def _write_debug(self, chunk):
         if (isinstance(chunk, dict)):
             if (isinstance(chunk.get("debug"), dict)):
