@@ -213,6 +213,9 @@ def invoke(f, state={}):
         return(rc)
     return(g)
 
+def probe_services(opts):
+    raise(RuntimeError())
+
 def run_script(opts, script):
     state  = {}
     rc     = 0
@@ -235,6 +238,11 @@ def run_script(opts, script):
 
 if (__name__ == "__main__"):
     args = argparse.ArgumentParser()
+    args.add_argument("--probe-services",
+                      dest     = "probe_srv",
+                      default  = False,
+                      action   = "store_true",
+                      help     = "Probe what services are available")
     args.add_argument("--chdir",
                       dest     = "chdir",
                       default  = os.environ.get("CHDIR"),
@@ -246,7 +254,10 @@ if (__name__ == "__main__"):
     opts = args.parse_args()
     opts.config = config.read_config(opts.config)
     try:
-        sys.exit(run_script(opts, __stdin__.read()))
+        if (opts.probe_srv):
+            probe_services(opts)
+        else:
+            sys.exit(run_script(opts, __stdin__.read()))
     except Exception, e:
         dump(__stderr__, traceback.format_exc())
         sys.exit(-1)
