@@ -58,9 +58,9 @@ class CassandraProto(CassandraClusterPool):
 
     def __init__(self, cfg):
         self.cfg = cfg
-        servers  = map(parse_srvaddr, self.cfg.get("storage", "server").split(","))
-        keyspace = self.cfg.get("storage", "keyspace")
-        CassandraClusterPool.__init__(self, seed_list=servers, keyspace=keyspace, conn_timeout=60)
+        servers  = map(parse_srvaddr, self.cfg.get("cassandra", "seed").split(","))
+        keyspace = self.cfg.get("cassandra", "keyspace")
+        CassandraClusterPool.__init__(self, seed_list=servers, keyspace=keyspace, conn_timeout=self.cfg.getint("cassandra", "timeout"))
 
     def store(self, s):
         if (s.kind() == event.Event.kind()):
