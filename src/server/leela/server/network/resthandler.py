@@ -56,6 +56,7 @@ class RestHandler(web.RequestHandler):
         bdy = pp.render_json(chunk)
         self.set_header("Cache-Control", "public, max-age=%d" % cache)
         if (re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", cc)):
+            self.set_status(200)
             self.set_header("Content-Type", "text/javascript; charset=utf-8")
             bdy = u"%s(%s);" % (cc, bdy)
         else:
@@ -76,6 +77,7 @@ class RestHandler(web.RequestHandler):
                 debug["stacktrace"] = e.getTraceback()
             else:
                 debug["stacktrace"] = traceback.format_exc()
+        self.set_status(status_code)
         rply = { "status": status_code,
                  "reason": httplib.responses[status_code],
                  "debug": debug
@@ -86,19 +88,16 @@ class RestHandler(web.RequestHandler):
 class Always404(RestHandler):
 
     def get(self):
-        raise(web.HTTPError(404))
+        self.write_error(404)
 
     def post(self):
-        raise(web.HTTPError(404))
+        self.write_error(404)
 
     def head(self):
-        raise(web.HTTPError(404))
+        self.write_error(404)
 
     def delete(self):
-        raise(web.HTTPError(404))
-
-    def options(self):
-        raise(web.HTTPError(404))
+        self.write_error(404)
 
 def logexceptions(f):
     def g (*args, **kwargs):
