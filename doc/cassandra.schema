@@ -18,8 +18,8 @@ create column family data_012013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family data_022013
   with column_type = 'Standard'
@@ -34,8 +34,8 @@ create column family data_022013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family data_032013
   with column_type = 'Standard'
@@ -50,8 +50,8 @@ create column family data_032013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family data_042013
   with column_type = 'Standard'
@@ -66,8 +66,8 @@ create column family data_042013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family data_052013
   with column_type = 'Standard'
@@ -82,8 +82,8 @@ create column family data_052013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family data_062013
   with column_type = 'Standard'
@@ -98,8 +98,8 @@ create column family data_062013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family data_072013
   with column_type = 'Standard'
@@ -114,8 +114,8 @@ create column family data_072013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family data_082013
   with column_type = 'Standard'
@@ -130,8 +130,8 @@ create column family data_082013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family data_092013
   with column_type = 'Standard'
@@ -146,8 +146,8 @@ create column family data_092013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family data_102013
   with column_type = 'Standard'
@@ -162,8 +162,8 @@ create column family data_102013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family data_112013
   with column_type = 'Standard'
@@ -178,8 +178,8 @@ create column family data_112013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family data_122013
   with column_type = 'Standard'
@@ -194,8 +194,8 @@ create column family data_122013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family events_012013
   with column_type = 'Standard'
@@ -210,8 +210,8 @@ create column family events_012013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family events_022013
   with column_type = 'Standard'
@@ -226,8 +226,8 @@ create column family events_022013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family events_032013
   with column_type = 'Standard'
@@ -242,8 +242,8 @@ create column family events_032013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family events_042013
   with column_type = 'Standard'
@@ -258,8 +258,8 @@ create column family events_042013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family events_052013
   with column_type = 'Standard'
@@ -274,8 +274,8 @@ create column family events_052013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family events_062013
   with column_type = 'Standard'
@@ -290,8 +290,8 @@ create column family events_062013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family events_072013
   with column_type = 'Standard'
@@ -306,8 +306,8 @@ create column family events_072013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family events_082013
   with column_type = 'Standard'
@@ -322,8 +322,8 @@ create column family events_082013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family events_092013
   with column_type = 'Standard'
@@ -338,8 +338,8 @@ create column family events_092013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family events_102013
   with column_type = 'Standard'
@@ -354,8 +354,8 @@ create column family events_102013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family events_112013
   with column_type = 'Standard'
@@ -370,8 +370,8 @@ create column family events_112013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
 
 create column family events_122013
   with column_type = 'Standard'
@@ -386,5 +386,5 @@ create column family events_122013
   and replicate_on_write = true
   and compaction_strategy = 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   and caching = 'KEYS_ONLY'
-  and compaction_strategy_options = {'sstable_size_in_mb' : '10'}
-  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.DeflateCompressor'};
+  and compaction_strategy_options = {'sstable_size_in_mb' : '32'}
+  and compression_options = {'chunk_length_kb' : '64', 'sstable_compression' : 'org.apache.cassandra.io.compress.SnappyCompressor'};
