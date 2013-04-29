@@ -22,6 +22,9 @@ from leela.server.data import event
 from leela.server.data import data
 from leela.server.data import marshall
 
+CF_EVENTS = "events_%02d%04d"
+CF_DATA   = "data_%02d%04d"
+
 def parse_srvaddr(s):
     res = s.strip().split(":", 2)
     if (len(res) == 2):
@@ -37,14 +40,14 @@ def encode_string(s):
 
 def unserialize_event(k, cols):
     f = lambda col: marshall.unserialize_event(k,
-                                               struct.unpack(">I", col.column.name)[0],
+                                               struct.unpack(">i", col.column.name)[0],
                                                struct.unpack(">d", col.column.value)[0],
                                                marshall.DEFAULT_EPOCH)
     return(map(f, cols))
 
 def unserialize_data(k, cols):
     f = lambda col: marshall.unserialize_data(k,
-                                              struct.unpack(">I", col.column.name)[0],
+                                              struct.unpack(">i", col.column.name)[0],
                                               col.column.value,
                                               marshall.DEFAULT_EPOCH)
     return(map(f, cols))
@@ -54,25 +57,37 @@ def concat_map(f, xs):
     map(lambda x: results.extend(f(x)), xs)
     return(results)
 
+def merge(d0, d1):
+    d = defer.Deferred()
+    def f0(xs):
+        d1.addCallback(lambda ys: d.callback(xs + ys))
+        d1.addErrback(d.errback)
+    d0.addCallback(f0)
+    d0.addErrback(d.errback)
+    return(d)
+
 class CassandraProto(CassandraClusterPool):
 
     def __init__(self, cfg):
         self.cfg = cfg
-        servers  = map(parse_srvaddr, self.cfg.get("cassandra", "seed").split(","))
-        keyspace = self.cfg.get("cassandra", "keyspace")
+        servers              = map(parse_srvaddr, self.cfg.get("cassandra", "seed").split(","))
+        keyspace             = self.cfg.get("cassandra", "keyspace")
+        self.request_retries = self.cfg.getint("cassandra", "retries")
         CassandraClusterPool.__init__(self, seed_list=servers, keyspace=keyspace, conn_timeout=self.cfg.getint("cassandra", "timeout"))
 
     def store(self, s):
         if (s.kind() == event.Event.kind()):
             (k0, v0) = marshall.serialize_event(s, marshall.DEFAULT_EPOCH)
-            k = struct.pack(">I", k0)
-            v = struct.pack(">d", v0)
-            return(self.insert(key=encode_string(s.name()), column_family="events", value=v, column=k))
+            k  = struct.pack(">i", k0)
+            v  = struct.pack(">d", v0)
+            cf = CF_EVENTS % (s.month(), s.year())
+            return(self.insert(key=encode_string(s.name()), column_family=cf, value=v, column=k))
         elif (s.kind() == data.Data.kind()):
             (k0, v0) = marshall.serialize_data(s, marshall.DEFAULT_EPOCH)
-            k = struct.pack(">I", k0)
-            v = encode_string(v0)
-            return(self.insert(key=encode_string(s.name()), column_family="data", value=v, column=k))
+            k  = struct.pack(">i", k0)
+            v  = encode_string(v0)
+            cf = CF_DATA % (s.month(), s.year())
+            return(self.insert(key=encode_string(s.name()), column_family=cf, value=v, column=k))
         else:
             raise(RuntimeError("unknown data type: %s" % s.kind()))
 
@@ -80,36 +95,50 @@ class CassandraProto(CassandraClusterPool):
         delay = defer.Deferred()
         if (kind == event.Event.kind()):
             f = lambda k: unserialize_event(k.key, k.columns)
-            d = self.get_range_slices("events", count=klimit, column_count=limit)
+            d = self.get_range_slices(CF_EVENTS, count=klimit, column_count=limit)
             d.addCallback(lambda xs: concat_map(f, xs))
         else:
             f = lambda k: unserialize_data(k.key, k.columns)
-            d = self.get_range_slices("data", count=klimit, column_count=limit)
+            d = self.get_range_slices(CF_DATA, count=klimit, column_count=limit)
             d.addCallback(lambda xs: concat_map(f, xs))
         d.addCallback(delay.callback)
         d.addErrback(delay.errback)
         return(delay)
 
     def load(self, kind, key, start, finish, limit=100):
-        k0    = struct.pack(">I", marshall.serialize_key(*start, epoch=marshall.DEFAULT_EPOCH))
-        k1    = struct.pack(">I", marshall.serialize_key(*finish, epoch=marshall.DEFAULT_EPOCH))
+        k0    = struct.pack(">i", marshall.serialize_key(*start, epoch=marshall.DEFAULT_EPOCH))
+        k1    = struct.pack(">i", marshall.serialize_key(*finish, epoch=marshall.DEFAULT_EPOCH))
+        f     = None
         delay = defer.Deferred()
         if (kind == event.Event.kind()):
+            cf1 = CF_EVENTS % (start[1], start[0])
+            cf2 = CF_EVENTS % (finish[1], finish[0])
+            f   = unserialize_event
+        else:
+            cf1 = CF_DATA % (start[1], start[0])
+            cf2 = CF_DATA % (finish[1], finish[0])
+            f   = unserialize_data
+        if (cf1 == cf2):
             d = self.get_slice(key           = encode_string(key),
                                start         = k0,
                                finish        = k1,
                                reverse       = True,
                                count         = limit,
-                               column_family = "events")
-            d.addCallback(lambda cols: unserialize_event(key, cols))
+                               column_family = cf1)
         else:
-            d = self.get_slice(key           = encode_string(key),
-                               column_family = "data",
-                               start         = k0,
-                               finish        = k1,
-                               reverse       = True,
-                               count         = limit)
-            d.addCallback(lambda cols: unserialize_data(key, cols))
+            d = merge(self.get_slice(key           = encode_string(key),
+                                     start         = k0,
+                                     finish        = k1,
+                                     reverse       = True,
+                                     count         = limit,
+                                     column_family = cf1),
+                      self.get_slice(key           = encode_string(key),
+                                     start         = k0,
+                                     finish        = k1,
+                                     reverse       = True,
+                                     count         = limit,
+                                     column_family = cf2))
+        d.addCallback(lambda cols: f(key, cols))
         d.addCallback(delay.callback)
         d.addErrback(delay.errback)
         return(delay)

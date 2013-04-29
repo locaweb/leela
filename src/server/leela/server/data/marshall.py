@@ -25,23 +25,14 @@ from leela.server.data import data
 DEFAULT_EPOCH = 2000
 
 def serialize_key(y, mo, d, h, mi, s, epoch):
-    y  = ((y-epoch) << 26) & 0xfc000000
-    mo = (mo << 22) & 0x3c00000
-    d  = (d << 17) & 0x3e0000
-    h  = (h << 12) & 0x1f000
-    mi = (mi << 6) & 0xfc0
-    s  = s & 0x3f
-    k  = y | mo | d | h | mi | s
-    return(k)
+    e = funcs.timetuple_timestamp((epoch, 1, 1, 0, 0, 0))
+    t = funcs.timetuple_timestamp((y, mo, d, h, mi, s))
+    return(t - e)
 
 def unserialize_key(k, epoch):
-    y  = ((k >> 26) & 0x3F) + epoch
-    mo = ((k >> 22) & 0xF)
-    d  = ((k >> 17) & 0x1F)
-    h  = (k >> 12) & 0x1F
-    mi = (k >> 6) & 0x3f
-    s  = k & 0x3f
-    return(y, mo, d, h, mi, s)
+    e = funcs.timetuple_timestamp((epoch, 1, 1, 0, 0, 0))
+    t = funcs.datetime_fromtimestamp(k + e)
+    return(t.year, t.month, t.day, t.hour, t.minute, t.second)
 
 def serialize_event(e, epoch):
     timestamp = (e.year(), e.month(), e.day(), e.hour(), e.minute(), e.second())

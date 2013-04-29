@@ -5,6 +5,7 @@ from leela.server.network import cassandra_proto
 from leela.server.trial import helpers
 from leela.server.data import parser
 from twisted.internet import reactor
+from twisted.internet import defer
 from leela.server.data import pp
 from leela.server import config
 from datetime import datetime
@@ -133,11 +134,16 @@ def initd_restart(opts, state, script):
 
 def cassandra_truncate(opts, state, cf):
     storage = cassandra_proto.CassandraProto(opts.config)
+    tmp     = []
     storage.startService()
-    cc = storage.truncate(cf)
+    for m in range(1, 13):
+        tmp.append(storage.truncate(cf % m))
+    cc = defer.DeferredList(tmp)
     cc.addCallback(lambda _: storage.stopService())
     cc.addCallback(lambda _: reactor.stop())
+    cc.addErrback(lambda _: reactor.stop())
     reactor.run()
+    time.sleep(1)
     return(0)
 
 def udp_send(opts, state, message):
@@ -208,8 +214,10 @@ def dmproc_disconnect(opts, state):
 
 def invoke(f, state={}):
     def g(opts, cmd, **kwargs):
+        t0 = time.time()
         rc = f(opts, state, **kwargs)
-        dump(__stderr__, "%s: %d" % (cmd, rc), "\n")
+        t1 = time.time()
+        dump(__stderr__, "%s: %d [time=%.2f]" % (cmd, rc, t1 - t0), "\n")
         return(rc)
     return(g)
 

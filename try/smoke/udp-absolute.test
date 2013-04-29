@@ -1,7 +1,7 @@
 ./dist/usr/libexec/leela-interact
 <<<
 initd-restart script=leela-timeline
-cassandra-truncate cf=events
+cassandra-truncate cf=events_%02d{now|%Y}
 udp-send "message=absolute 6|foobar 0.0 {now};"
 udp-send "message=absolute 6|foobar 60.0 {now+30s};"
 udp-send "message=absolute 6|foobar 0.0 {now+60s};"

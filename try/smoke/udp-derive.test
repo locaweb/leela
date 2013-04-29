@@ -1,7 +1,7 @@
 ./dist/usr/libexec/leela-interact
 <<<
 initd-restart script=leela-timeline
-cassandra-truncate cf=events
+cassandra-truncate cf=events_%02d{now|%Y}
 udp-send "message=derive 6|foobar 0.0 {now};"
 udp-send "message=derive 6|foobar 60.0 {now+60s};"
 http-request method=GET url=/v1/past24/foobar

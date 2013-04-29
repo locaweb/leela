@@ -1,6 +1,6 @@
 ./dist/usr/libexec/leela-interact
 <<<
-cassandra-truncate cf=data
+cassandra-truncate cf=data_%02d{now|%Y}
 http-request method=PUT url=/v1/data/foobar 'data={"value": "foobar", "timestamp": {now}}'
 http-request method=GET url=/v1/data/past24/foobar
 >>>
@@ -10,7 +10,7 @@ http-request method=GET url=/v1/data/past24/foobar
 
 ./dist/usr/libexec/leela-interact
 <<<
-cassandra-truncate cf=data
+cassandra-truncate cf=data_%02d{now|%Y}
 http-request method=POST url=/v1/data/foobar 'data={"value": "foobar", "timestamp": {now}}'
 http-request method=GET url=/v1/data/past24/foobar
 >>>

@@ -1,7 +1,7 @@
 ./dist/usr/libexec/leela-interact
 <<<
 initd-restart script=leela-timeline
-cassandra-truncate cf=events
+cassandra-truncate cf=events_%02d{now|%Y}
 http-request method=POST url=/v1/foobar 'data=[{"type": "counter", "value": 0, "timestamp": {now}}, {"type": "counter", "value": 60, "timestamp": {now+60s}}]'
 http-request method=GET url=/v1/past24/foobar
 >>>

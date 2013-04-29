@@ -1,4 +1,4 @@
-create column family events
+create column family events_012013
   with column_type = 'Standard'
   and comparator = 'ReversedType(org.apache.cassandra.db.marshal.Int32Type)'
   and default_validation_class = 'DoubleType'
