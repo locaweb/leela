@@ -1,5 +1,8 @@
 --*-- mode: text; --*--
 
+v3.2.0 | 2013-29-05
+  * properly handling exception and using correct http codes | dgvncsz0f
+
 v3.1.0 | 2013-29-04
   * using one columnfamily per month | dgvncsz0f
 

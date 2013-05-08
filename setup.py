@@ -15,7 +15,7 @@ def find_packages(root, path_f):
 
 setup(
     name               = "leela",
-    version            = "3.0.0",
+    version            = "3.2.0",
     description        = "Scalable, real time metrics system",
     author             = "Diego Souza",
     url                = "http://leela.rtfd.org",
