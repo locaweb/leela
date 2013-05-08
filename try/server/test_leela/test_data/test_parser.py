@@ -25,18 +25,18 @@ from leela.server.data import parser
 from leela.server.data import event
 from leela.server.data import data
 
-@raises(RuntimeError)
+@raises(ValueError)
 def test_parse_string_raise_if_string_does_not_starts_with():
     parser.parse_string("foobar", "x")
 
 def test_parse_string_passes_if_prefix_is_found():
     eq_("bar", parser.parse_string("foobar", "foo"))
 
-@raises(RuntimeError)
+@raises(ValueError)
 def test_parse_string_is_case_sensitive():
     parser.parse_string("foobar", "Foo")
 
-@raises(RuntimeError)
+@raises(ValueError)
 def test_parse_istring_raise_if_string_does_not_starts_with():
     parser.parse_istring("foobar", "x")
 
@@ -82,7 +82,7 @@ def test_parse_double_is_able_to_parse_exp_notation():
     eq_(float("%d.%de%d" % (a,b,e)), num)
     ok_("foo", s)
 
-@raises(RuntimeError)
+@raises(ValueError)
 def test_parse_double_must_fail_if_cant_parse():
     parser.parse_double("foobar")
 
@@ -92,7 +92,7 @@ def test_parse_int():
     eq_(tmp, num)
     eq_("foo", s)
 
-@raises(RuntimeError)
+@raises(ValueError)
 def test_parse_raise_with_negative_numbers():
     parser.parse_int("-10")
 
@@ -130,11 +130,11 @@ def test_parse_data_returns_leftover():
     (_, s) = parser.parse_data("data 6|foobar %d|%s %s;foobar" % (len(v), v, repr(t)))
     eq_("foobar", s)
 
-@raises(RuntimeError)
+@raises(ValueError)
 def test_parse_event_must_raise_on_error():
     parser.parse_event("foobar")
 
-@raises(RuntimeError)
+@raises(ValueError)
 def test_parse_data_must_raise_on_error():
     parser.parse_data("foobar")
 
@@ -142,7 +142,7 @@ def test_parse_status():
     tmp = random.randint(0, 10)
     eq_((tmp, ""), parser.parse_status("status %d;" % tmp))
 
-@raises(RuntimeError)
+@raises(ValueError)
 def test_parse_status_must_raise_on_error():
     parser.parse_status("foobar")
 
@@ -159,7 +159,7 @@ def test_parse_select():
     eq_({"select": {"proc": "id", "regex": r"^foob(a|r)$"}},
         parser.parse_select("SELECT id FROM ^foob(a|r)$;"))
 
-@raises(RuntimeError)
+@raises(ValueError)
 def test_parse_select_must_raise_on_error():
     parser.parse_select("foobar")
 
@@ -171,7 +171,7 @@ def test_parse_delete_with_where():
     eq_({"delete": {"key": "foobar"}},
         parser.parse_delete("DELETE FROM leela.xmpp WHERE key=foobar;"))
 
-@raises(RuntimeError)
+@raises(ValueError)
 def test_parse_delete_delete_must_raise_on_error():
     parser.parse_delete("foobar")
 
@@ -179,7 +179,7 @@ def test_parse_sql_is_able_to_parse_both_select_and_delete():
     ok_("select" in parser.parse_sql("SELECT * FROM leela.xmpp;"))
     ok_("delete" in parser.parse_sql("DELETE FROM leela.xmpp;"))
 
-@raises(RuntimeError)
+@raises(ValueError)
 def test_parse_sql_must_raise_on_error():
     parser.parse_sql("foobar")
 

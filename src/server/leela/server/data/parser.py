@@ -29,12 +29,12 @@ def parse_json(x):
 def parse_string(s, w):
     if (s.startswith(w)):
         return(s[len(w):])
-    raise(RuntimeError())
+    raise(ValueError("string should start with: %s" % w))
 
 def parse_istring(s, w):
     if (s.lower().startswith(w.lower())):
         return(s[len(w):])
-    raise(RuntimeError())
+    raise(ValueError("string should start with: %s" % w))
 
 def parse_take(s, n):
     return(s[:n], s[n:])
@@ -61,10 +61,7 @@ def parse_double(s):
         return(float("-inf"), s[9:])
     else:
         (d, s) = parse_takewhile(s, lambda c: c in "0123456789.e-+")
-        try:
-            return(float(d), s)
-        except ValueError:
-            raise(RuntimeError())
+        return(float(d), s)
 
 def parse_int(s):
     tmp = []
@@ -73,11 +70,8 @@ def parse_int(s):
             break
         tmp.append(c)
     if (len(tmp) == 0):
-        raise(RuntimeError())
-    try:
-        return(int("".join(tmp), 10), s[len(tmp):])
-    except ValueError:
-        raise(RuntimeError())
+        raise(ValueError("number was expected"))
+    return(int("".join(tmp), 10), s[len(tmp):])
 
 def parse_event(s):
     s      = parse_string(s, "event ")
@@ -91,7 +85,7 @@ def parse_event(s):
     if (s[0] == ";"):
         return(event.Event(n, v, t), s[1:])
     else:
-        raise(RuntimeError())
+        raise(ValueError("; was expected"))
 
 def parse_data(s):
     s      = parse_string(s, "data ")
@@ -107,7 +101,7 @@ def parse_data(s):
     if (s[0] == ";"):
         return(data.Data(n, parse_json(v), t), s[1:])
     else:
-        raise(RuntimeError())
+        raise(ValueError("; was expected"))
 
 def parse_status(s):
     s      = parse_string(s, "status ")
@@ -115,7 +109,7 @@ def parse_status(s):
     if (s[0] == ";"):
         return(l, s[1:])
     else:
-        raise(RuntimeError())
+        raise(ValueError("syntax error"))
 
 def parse_event_legacy(s):
     (name, value) = s.split(": ", 2)
@@ -135,7 +129,7 @@ def parse_select(s):
                              "regex": m.group(2).strip()
                            }
                })
-    raise(RuntimeError())
+    raise(ValueError("syntax error"))
 
 def parse_delete(s):
     m = re.match(r"^DELETE FROM leela.xmpp(?: WHERE key=(.+?))?;$", s.strip(), re.I)
@@ -144,14 +138,14 @@ def parse_delete(s):
         tmp = (m.group(1) or "").strip()
         return({ "delete": {"key": tmp}
                })
-    raise(RuntimeError())
+    raise(ValueError("syntax error"))
 
 def parse_sql(s):
     if (s[0] in "dD"):
         return(parse_delete(s))
     elif (s[0] in "sS"):
         return(parse_select(s))
-    raise(RuntimeError())
+    raise(ValueError("syntax error"))
 
 def parse_sql_(s):
     try:
@@ -215,6 +209,8 @@ def parse_json_metric1(result, name):
     v = float(result["value"])
     m = result["type"]
     t = float(result.get("timestamp", time.time()))
+    if (n != name):
+        raise(ValueError("different names given [%s /= %s]" % (n, name)))
     if (m == "gauge"):
         return(metric.Gauge(n, v, t))
     elif (m == "absolute"):

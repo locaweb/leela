@@ -20,6 +20,7 @@ from twisted.internet import defer
 from cyclone import web
 from leela.server import funcs
 from leela.server.network import resthandler
+from leela.server.data import excepts
 from leela.server.data import parser
 from leela.server.data import pp
 
@@ -32,6 +33,8 @@ def read_nanopt(x, d=NAN_PURGE):
            }.get(x, d))
 
 def render_series(events, nan=NAN_ALLOW):
+    if (events == []):
+        raise(excepts.NotFoundExcept())
     results = []
     accept  = lambda x: not isinstance(x, float) or (not (math.isnan(x) or math.isinf(x)))
     for e in events:
@@ -54,61 +57,46 @@ def relay_data(render, relay, data):
     if (size > 0):
         relay("".join(packet))
 
-@defer.inlineCallbacks
-@resthandler.logexceptions
-def sequence_load(f, key, success, failure, nan=NAN_ALLOW):
-    t = funcs.timer_start()
-    d = lambda: {"walltime": funcs.timer_stop(t)}
-    try:
-        r = yield f()
-        if (r == []):
-            failure(404, debug=d())
-        else:
-            success({"status" : 200,
-                     "results": {key: {"series": render_series(r, nan)}},
-                     "debug"  : d()
-                    })
-    except web.HTTPError, e:
-        failure(e.status_code, exception=e, debug=d())
-    except Exception, e:
-        failure(500, exception=e, debug=d())
+class EventsResource(resthandler.RestHandler):
 
-class Past24(resthandler.RestHandler):
+    def load_events(self, key, cc):
+        nan = read_nanopt(self.get_argument("nan", "purge"))
+        t0  = funcs.timer_start()
+        t1  = lambda: {"walltime": funcs.timer_stop(t0)}
+        cc.addCallback(lambda r: self.finish({"status" : 200,
+                                              "results": {key: {"series": render_series(r, nan)}},
+                                              "debug"  : t1()
+                                             }))\
+          .addErrback(self.catch)
+
+class Past24(EventsResource):
 
     @web.asynchronous
-    @resthandler.logexceptions
     def get(self, key):
-        f = lambda: self.class_.load_past24(self.storage, key)
-        n = read_nanopt(self.get_argument("nan", "purge"))
-        sequence_load(f, key, self.finish, self.send_error, nan=n)
+        self.load_events(key, self.class_.load_past24(self.storage, key))
 
-class PastWeek(resthandler.RestHandler):
+class PastWeek(EventsResource):
 
     @web.asynchronous
-    @resthandler.logexceptions
     def get(self, key):
-        f = lambda: self.class_.load_pastweek(self.storage, key)
-        n = read_nanopt(self.get_argument("nan", "purge"))
-        sequence_load(f, key, self.finish, self.send_error, nan=n)
+        self.load_events(key, self.class_.load_pastweek(self.storage, key))
 
-class RangeRdonly(resthandler.RestHandler):
+class RangeRdonly(EventsResource):
 
     @web.asynchronous
-    @resthandler.logexceptions
+    @resthandler.catch
     def get(self, key):
         start  = parser.parse_timespec(self.get_argument("start"))
         finish = parser.parse_timespec(self.get_argument("finish"))
         args   = list(start) + list(finish)
-        f      = lambda: self.class_.load_range(self.storage, key, *args)
-        n      = read_nanopt(self.get_argument("nan", "purge"))
-        sequence_load(f, key, self.finish, self.send_error, nan=n)
+        self.load_events(key, self.class_.load_range(self.storage, key, *args))
 
 class RangeDataRdwr(RangeRdonly):
 
     def put(self, key):
         return(self.post(key))
 
-    @resthandler.logexceptions
+    @resthandler.catch
     def post(self, key):
         data = parser.parse_json_data(self.request.body, key)
         relay_data(pp.render_storable, self.relay.relay, data)
@@ -119,7 +107,7 @@ class RangeDataRdwr(RangeRdonly):
 
 class RangeMetricRdwr(RangeRdonly):
 
-    @resthandler.logexceptions
+    @resthandler.catch
     def post(self, key):
         data = parser.parse_json_metric(self.request.body, key)
         relay_data(pp.render_metric, self.relay.relay, data)
@@ -128,20 +116,16 @@ class RangeMetricRdwr(RangeRdonly):
                      "results": pp.render_metrics_to_json(data)
                     })
 
-class YearMonthDay(resthandler.RestHandler):
+class YearMonthDay(EventsResource):
 
     @web.asynchronous
-    @resthandler.logexceptions
+    @resthandler.catch
     def get(self, year, month, day, key):
-        f = lambda: self.class_.load_day(self.storage, key, int(year, 10), int(month, 10), int(day, 10))
-        n = read_nanopt(self.get_argument("nan", "purge"))
-        sequence_load(f, key, self.finish, self.send_error, nan=n)
+        self.load_events(key, self.class_.load_day(self.storage, key, int(year, 10), int(month, 10), int(day, 10)))
 
-class YearMonth(resthandler.RestHandler):
+class YearMonth(EventsResource):
 
     @web.asynchronous
-    @resthandler.logexceptions
+    @resthandler.catch
     def get(self, year, month, key):
-        f = lambda: self.class_.load_month(self.storage, key, int(year, 10), int(month, 10))
-        n = read_nanopt(self.get_argument("nan", "purge"))
-        sequence_load(f, key, self.finish, self.send_error, nan=n)
+        self.load_events(key, self.class_.load_month(self.storage, key, int(year, 10), int(month, 10)))

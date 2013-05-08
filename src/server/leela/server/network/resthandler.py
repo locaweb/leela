@@ -23,6 +23,7 @@ from cyclone import web
 from twisted.python.failure import Failure
 from leela.server import logger
 from leela.server.data import pp
+from leela.server.data import excepts
 
 class RestHandler(web.RequestHandler):
 
@@ -63,20 +64,26 @@ class RestHandler(web.RequestHandler):
             self.set_header("Content-Type", "application/json")
         super(RestHandler, self).write(bdy)
 
+    def catch(self, exception):
+        if (hasattr(exception, "value")):
+            e = exception2http(exception.value)
+        else:
+            e = exception2http(exception)
+        return(self.write_error(e.status_code, exception=e))
+
     def write_error(self, status_code, **kwargs):
         debug  = kwargs.get("debug", {})
         if (not isinstance(debug, dict)):
             debug = {}
         if ("exception" in kwargs):
             e = kwargs["exception"]
-            if (hasattr(e, "getErrorMessage")):
-                debug["exception"] = e.getErrorMessage()
-            else:
-                debug["exception"] = str(e)
-            if (hasattr(e, "getTraceback")):
-                debug["stacktrace"] = e.getTraceback()
-            else:
-                debug["stacktrace"] = traceback.format_exc()
+            if (not isinstance(e, web.HTTPError)):
+                e = exception2http(e)
+            if (len(e.args) == 1 \
+                and isinstance(e.args[0], dict) \
+                and "stacktrace" in e.args[0]):
+                debug["stacktrace"] = e.args[0]["stacktrace"]
+            debug["exception"]  = str(e)
         self.set_status(status_code)
         rply = { "status": status_code,
                  "reason": httplib.responses[status_code],
@@ -88,23 +95,36 @@ class RestHandler(web.RequestHandler):
 class Always404(RestHandler):
 
     def get(self):
-        self.write_error(404)
+        raise(web.HTTPError(404))
 
     def post(self):
-        self.write_error(404)
+        raise(web.HTTPError(404))
 
     def head(self):
-        self.write_error(404)
+        raise(web.HTTPError(404))
 
     def delete(self):
-        self.write_error(404)
+        raise(web.HTTPError(404))
 
-def logexceptions(f):
+def exception2http(e):
+    if (hasattr(e, "getTraceback")):
+        stacktrace = e.getTraceback()
+    else:
+        stacktrace = traceback.format_exc()
+    if (isinstance(e, web.HTTPError)):
+        return(e)
+    elif (isinstance(e, KeyError) or isinstance(e, ValueError)):
+        return(web.HTTPError(400, None, {"stacktrace": stacktrace}))
+    elif (isinstance(e, excepts.NotFoundExcept)):
+        return(web.HTTPError(404))
+    else:
+        return(web.HTTPError(500, None, {"stacktrace": stacktrace}))
+
+def catch(f):
     def g (*args, **kwargs):
         try:
             return f(*args, **kwargs)
-        except:
-            logger.exception()
-            raise
+        except Exception, e:
+            raise(exception2http(e))
     g.__name__ = f.__name__
     return g
