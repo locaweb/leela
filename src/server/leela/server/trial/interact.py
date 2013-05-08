@@ -179,6 +179,8 @@ def http_request(opts, state, method, url, data=None):
                 if (isinstance(tmp[k], dict) and "series" in tmp[k]):
                     tmp[k]["series"] = make_timeseries_relative(rply["results"][k]["series"])
     dump(__stdout__, json.dumps(rply, sort_keys=True), "\n")
+    if (method in ("PUT", "POST")):
+        time.sleep(2)
     return(0)
 
 def dmproc_connect(opts, state, proc):
