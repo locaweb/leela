@@ -9,6 +9,7 @@ Homepage: https://github.com/locaweb/leela
 
 Package: leela
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, adduser, daemon (>= 0.6.4), python-twisted (>= 10.1.0), python-wokkel, python-argparse
+Conflicts: python-twisted, python-wokkel, pyton-thrift, python-zope.interface
+Depends: ${shlibs:Depends}, ${misc:Depends}, adduser, daemon (>= 0.6.4), python-pyopenssl, python-dateutil, python-argparse
 Description: Scalable realtime metrics monitoring system
  Refer to http://leela.rtfd.org
