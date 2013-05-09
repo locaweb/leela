@@ -28,11 +28,18 @@ import os
 
 __t0__     = int(time.time())
 __t0__     = __t0__ - __t0__ % 60
+__t0__     = __t0__ - 120
 
 def dump(pipe, *msg):
     with threading.Lock():
         for x in msg:
             pipe.write(x)
+
+def debug(msg, *args):
+    if (msg.endswith("\n")):
+        dump(__stderr__, msg % args)
+    else:
+        dump(__stderr__, msg % args, "\n")
 
 def initd(opts, name):
     return(os.path.join(opts.chdir, "etc/init.d", name))
@@ -125,6 +132,8 @@ def initd_start(opts, state, script):
     return(p.wait())
 
 def initd_stop(opts, state, script):
+    if (not opts.unsafe):
+        raise(RuntimeError("keep out!"))
     p = execute(opts, [initd(opts, script), "stop"])
     return(p.wait())
 
@@ -133,6 +142,8 @@ def initd_restart(opts, state, script):
     return(initd_start(opts, state, script))
 
 def cassandra_truncate(opts, state, cf):
+    if (not opts.unsafe):
+        raise(RuntimeError("keep out!"))
     storage = cassandra_proto.CassandraProto(opts.config)
     tmp     = []
     storage.startService()
@@ -147,10 +158,17 @@ def cassandra_truncate(opts, state, cf):
     return(0)
 
 def udp_send(opts, state, message):
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     p = opts.config.getint("udp", "port")
     h = opts.config.get("udp", "address").replace("0.0.0.0", "localhost")
-    s.sendto(message, 0, (h, p))
+    return(_udp_send(s, (h, p), opts, state, message))
+
+def unix_send(opts, state, addr, message):
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM, 0)
+    return(_udp_send(s, addr, opts, state, message))
+
+def _udp_send(s, addr, opts, state, message):
+    s.sendto(message, 0, addr)
     r = select.select([s.fileno()], [], [], 1)[0]
     if (len(r) == 1):
         dump(__stdout__, s.recv(65535), "\n")
@@ -173,6 +191,7 @@ def http_request(opts, state, method, url, data=None, view="payload"):
     r.request(method, url, data)
     rsp  = r.getresponse()
     rply = json.loads(rsp.read())
+    debug("[http_request] %s %s ~> %d" % (method, url, rsp.status))
     if ("results" in rply):
         rply["results"] = tmp = make_timestamp_relative(rply["results"])
         if (isinstance(tmp, dict)):
@@ -180,8 +199,6 @@ def http_request(opts, state, method, url, data=None, view="payload"):
                 if (isinstance(tmp[k], dict) and "series" in tmp[k]):
                     tmp[k]["series"] = make_timeseries_relative(rply["results"][k]["series"])
     dump(__stdout__, json.dumps(rply, sort_keys=True), "\n")
-    if (method in ("PUT", "POST")):
-        time.sleep(2)
     return(0)
 
 def dmproc_connect(opts, state, proc):
@@ -226,9 +243,6 @@ def invoke(f, state={}):
         return(rc)
     return(g)
 
-def probe_services(opts):
-    raise(RuntimeError())
-
 def run_script(opts, script):
     state  = {}
     rc     = 0
@@ -239,6 +253,7 @@ def run_script(opts, script):
               "sleep": invoke(sleep),
               "cassandra-truncate": invoke(cassandra_truncate),
               "udp-send": invoke(udp_send),
+              "unix-send": invoke(unix_send),
               "http-request": invoke(http_request),
               "dmproc-connect": invoke(dmproc_connect, state),
               "dmproc-disconnect": invoke(dmproc_disconnect, state)
@@ -251,15 +266,15 @@ def run_script(opts, script):
 
 if (__name__ == "__main__"):
     args = argparse.ArgumentParser()
-    args.add_argument("--probe-services",
-                      dest     = "probe_srv",
-                      default  = False,
-                      action   = "store_true",
-                      help     = "Probe what services are available")
     args.add_argument("--chdir",
                       dest     = "chdir",
                       default  = os.environ.get("CHDIR"),
                       help     = "The root dir you installed leela onto [default: %(default)s]")
+    args.add_argument("--unsafe",
+                      dest     = "unsafe",
+                      default  = False,
+                      action   = "store_true",
+                      help     = "Enable unsafe operations, e.g. cassandra truncate")
     args.add_argument("--config",
                       dest     = "config",
                       default  = config.default_config_file(),
@@ -267,10 +282,7 @@ if (__name__ == "__main__"):
     opts = args.parse_args()
     opts.config = config.read_config(opts.config)
     try:
-        if (opts.probe_srv):
-            probe_services(opts)
-        else:
-            sys.exit(run_script(opts, __stdin__.read()))
+        sys.exit(run_script(opts, __stdin__.read()))
     except Exception, e:
         dump(__stderr__, traceback.format_exc())
         sys.exit(-1)

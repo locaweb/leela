@@ -1,4 +1,4 @@
-./dist/usr/libexec/leela-interact
+./dist/usr/libexec/leela-interact --unsafe
 <<<
 initd-restart script=leela-timeline
 cassandra-truncate cf=events_%02d{now|%Y}

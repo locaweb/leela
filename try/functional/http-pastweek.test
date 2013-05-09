@@ -1,4 +1,4 @@
-./dist/usr/libexec/leela-interact
+./dist/usr/libexec/leela-interact --unsafe
 <<<
 cassandra-truncate cf=events_%02d{now|%Y}
 http-request method=GET url=/v1/pastweek/foobar
@@ -6,7 +6,7 @@ http-request method=GET url=/v1/pastweek/foobar
 {"reason": "Not Found", "status": 404}
 >>>= 0
 
-./dist/usr/libexec/leela-interact
+./dist/usr/libexec/leela-interact --unsafe
 <<<
 udp-send "message=gauge 6|foobar 0.0 {now-8d};"
 http-request method=GET url=/v1/pastweek/foobar
@@ -14,7 +14,7 @@ http-request method=GET url=/v1/pastweek/foobar
 {"reason": "Not Found", "status": 404}
 >>>= 0
 
-./dist/usr/libexec/leela-interact
+./dist/usr/libexec/leela-interact --unsafe
 <<<
 udp-send "message=gauge 6|foobar 0.0 {now};"
 http-request method=GET url=/v1/pastweek/foobar

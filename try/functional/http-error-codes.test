@@ -1,4 +1,4 @@
-./dist/usr/libexec/leela-interact
+./dist/usr/libexec/leela-interact --unsafe
 <<<
 http-request method=GET url=/foobar
 http-request method=POST url=/v1/foobar
