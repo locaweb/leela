@@ -103,6 +103,7 @@ fixup_variables () {
     sed -i "s,\\\${CHDIR},$root,g" "$f"
   done
   sed -i "s,^# template:chdir\$,CHDIR=\"$root\",g" "$root/usr/libexec/leela-interact"
+  sed -i "s,^# template:chdir\$,CHDIR=\"$root\",g" "$root/usr/libexec/leela-self-test"
   sed -i "s,^# template:bin_python\$,bin_python=\"$bin_python\",g" "$root/usr/libexec/leela-interact"
 }
 
