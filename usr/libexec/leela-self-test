@@ -46,13 +46,13 @@ EOF
   cat <<EOF | tee $1/inp | leela_interact >$1/out
 dmproc-connect "proc=proc match 15|^leela.selftest id;"
 http-request method=POST url=/v1/$key_http 'data={"type": "gauge", "value": ${rnd}, "timestamp": {now}}'
+sleep seconds=5
 http-request method=GET url=/v1/past24/$key_http
 dmproc-disconnect
 EOF
 }
 
-for t in test_udp_ping   \
-         test_udp
+for t in test_udp_ping test_udp test_http
 do
   TEMPFILE=$(mktemp -d) && {
     $t $TEMPFILE
