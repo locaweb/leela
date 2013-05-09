@@ -53,7 +53,7 @@ test-server:
 
 test: test-dmproc test-server
 
-test-smoke:
+test-functional:
 	$(call .check_bin,lsof)
 	$(call .check_bin,python)
 	$(call .check_bin,shelltest)
@@ -95,8 +95,3 @@ $(srcroot)/try/dmproc/dmtry: $(SRC_HASKELL) $(TRY_HASKELL)
 	$(call .check_bin,ghc)
 	$(call .check_bin,dash)
 	env bin_dash=$(bin_dash) $(bin_ghc) $(ghcargs) -rtsopts -v0 -i$(srcroot)/src/dmproc -i$(srcroot)/try/dmproc -O2 --make $@.hs
-
-%: %.test
-	$(MAKE) $(MAKEARGS) test-smoke shelltestpath=$^
-
-.SUFFIXES: .test .hs

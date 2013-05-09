@@ -165,13 +165,14 @@ def sleep(opts, state, seconds):
     time.sleep(float(seconds))
     return(0)
 
-def http_request(opts, state, method, url, data=None):
+def http_request(opts, state, method, url, data=None, view="payload"):
     h = opts.config.get("http", "address")
     p = opts.config.getint("http", "port")
     e = "http://%s:%d" % (h, p)
     r = httplib.HTTPConnection(h, p)
     r.request(method, url, data)
-    rply = json.loads(r.getresponse().read())
+    rsp  = r.getresponse()
+    rply = json.loads(rsp.read())
     if ("results" in rply):
         rply["results"] = tmp = make_timestamp_relative(rply["results"])
         if (isinstance(tmp, dict)):
@@ -190,7 +191,7 @@ def dmproc_connect(opts, state, proc):
     status = helpers.recv_frame(s)
     if (status == "status 0;"):
         t = threading.Thread(target=dmproc_consume, args=(state,))
-        state["dmproc"] = (s, t)
+        state["dmproc"] = (s, t, [])
         t.start()
         return(0)
     else:
@@ -205,12 +206,14 @@ def dmproc_consume(state):
             if (frame is None):
                 break
             else:
-                dump(__stdout__, make_events_relative(frame))
-    dump(__stdout__, "\n")
+                state["dmproc"][2].append(make_events_relative(frame))
 
 def dmproc_disconnect(opts, state):
     helpers.send_frame(state["dmproc"][0], "close;")
     state["dmproc"][1].join()
+    for x in state["dmproc"][2]:
+        dump(__stdout__, x)
+    dump(__stdout__, "\n")
     del(state["dmproc"])
     return(0)
 
