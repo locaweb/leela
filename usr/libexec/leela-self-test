@@ -30,6 +30,7 @@ EOF
   cat <<EOF | tee $1/inp | leela_interact >$1/out
 dmproc-connect "proc=proc match 15|^leela.selftest id;"
 udp-send "message=gauge $len_udp|$key_udp $rnd {now};"
+sleep seconds=5
 http-request method=GET url=/v1/past24/$key_udp
 dmproc-disconnect
 EOF

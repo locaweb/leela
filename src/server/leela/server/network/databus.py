@@ -53,11 +53,12 @@ class Relay(object):
         self.queue.append(render_metric(Derive("%s.writes/s" % self.key, self.packages, time.time())))
         self.queue.append(render_metric(Gauge("%s.queue_size" % self.key, len(self.queue), time.time())))
 
-    def relay(self, packet):
+    def relay(self, packet, sync=False):
         try:
             self.queue.append(packet)
             packet = "".join(self.queue[:25])
-            self.fd.sendto(packet, socket.MSG_DONTWAIT, self.socket)
+            flags  = sync and 0 or socket.MSG_DONTWAIT
+            self.fd.sendto(packet, flags, self.socket)
             del(self.queue[:25])
             self.packages += len(packet.split(";"))
         except:

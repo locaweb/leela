@@ -56,7 +56,7 @@ def relay_data(render, relay, data):
             packet = []
             size   = 0
     if (size > 0):
-        relay("".join(packet))
+        relay("".join(packet), sync=True)
 
 class EventsResource(resthandler.RestHandler):
 
