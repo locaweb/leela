@@ -1,5 +1,9 @@
 --*-- mode: text; --*--
 
+v3.2.2 | 2013-09-06
+  * udp frontend performance improvements: no longer droppping packages
+  * udp now collects metrics about itself
+
 v3.2.1 | 2013-09-05
   * adding /v1/version resource | dgvncsz0f
 
