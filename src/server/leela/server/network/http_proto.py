@@ -19,6 +19,7 @@ import math
 from twisted.internet import defer
 from cyclone import web
 from leela.server import funcs
+from leela.server import version
 from leela.server.network import resthandler
 from leela.server.data import excepts
 from leela.server.data import parser
@@ -129,3 +130,8 @@ class YearMonth(EventsResource):
     @resthandler.catch
     def get(self, year, month, key):
         self.load_events(key, self.class_.load_month(self.storage, key, int(year, 10), int(month, 10)))
+
+class Version(resthandler.RestHandler):
+
+    def get(self):
+        self.finish({"version": version.version, "major": version.major, "minor": version.minor, "build": version.build})
