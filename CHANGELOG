@@ -6,6 +6,7 @@ v3.3.0 | 2013-09-06
   * http now waits the data to be written to timeline before returning any response | dgvncsz0f
   * adding /v1/version resource | dgvncsz0f
   * properly handling exception and using correct http codes | dgvncsz0f
+  * /usr/libexec/leela-self-test to validate the install | dgvncsz0f
 
 v3.1.0 | 2013-29-04
   * using one columnfamily per month | dgvncsz0f
