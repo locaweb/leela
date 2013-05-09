@@ -1,13 +1,10 @@
 --*-- mode: text; --*--
 
-v3.2.2 | 2013-09-06
-  * udp frontend performance improvements: no longer droppping packages
-  * udp now collects metrics about itself
-
-v3.2.1 | 2013-09-05
+v3.3.0 | 2013-09-06
+  * udp frontend performance improvements: no longer droppping packages | dgvncsz0f
+  * udp now collects metrics about itself | dgvncsz0f 
+  * http now waits the data to be written to timeline before returning any response | dgvncsz0f
   * adding /v1/version resource | dgvncsz0f
-
-v3.2.0 | 2013-08-05
   * properly handling exception and using correct http codes | dgvncsz0f
 
 v3.1.0 | 2013-29-04
