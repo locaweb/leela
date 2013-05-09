@@ -16,6 +16,7 @@
 #
 
 import ConfigParser
+import socket
 
 MAXPACKET = 8192
 
@@ -27,3 +28,6 @@ def read_config(f=default_config_file()):
     cfg = ConfigParser.ConfigParser()
     cfg.read(f)
     return(cfg)
+
+def hostname():
+    return(socket.gethostname())

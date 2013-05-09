@@ -23,6 +23,7 @@ from leela.server.network import http_proto
 from leela.server.network import resthandler
 from leela.server.data import event
 from leela.server.data import data
+from leela.server import config
 from leela.server.network.databus import Relay
 
 def x(*args):
@@ -32,8 +33,8 @@ class HttpService(service.Service):
 
     def __init__(self, cfg):
         cfg  = cfg
-        bus0 = Relay(cfg.get("http", "multicast"))
-        bus1 = Relay(cfg.get("http", "timeline"))
+        bus0 = Relay(cfg.get("http", "multicast"), "leela.%s.http.multicast" % config.hostname())
+        bus1 = Relay(cfg.get("http", "timeline"), "leela.%s.http.timeline" % config.hostname())
         sto  = cassandra_proto.CassandraProto(cfg)
         app  = web.Application([
             (r"^/v1/version$"                   , http_proto.Version),

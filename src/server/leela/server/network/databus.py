@@ -17,11 +17,15 @@
 
 import socket
 import errno
+import time
+from twisted.internet import task
 from twisted.internet import protocol
 from twisted.internet import reactor
 from leela.server import logger
 from leela.server.data.pp import *
 from leela.server.data.parser import *
+from leela.server.data.metric import Derive
+from leela.server.data.metric import Gauge
 
 MULTICAST_SOCKET = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM, 0)
 MAXQUEUE         = 1000000
@@ -37,24 +41,25 @@ def attach(multicast, peer):
 
 class Relay(object):
 
-    def __init__(self, path):
+    def __init__(self, path, key="leela"):
         self.fd       = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM, 0)
         self.queue    = []
         self.socket   = path
-        self.counter  = 0
+        self.packages = 0
+        self.key      = key
+        task.LoopingCall(self.statistics).start(60)
+
+    def statistics(self):
+        self.queue.append(render_metric(Derive("%s.writes/s" % self.key, self.packages, time.time())))
+        self.queue.append(render_metric(Gauge("%s.queue_size" % self.key, len(self.queue), time.time())))
 
     def relay(self, packet):
         try:
             self.queue.append(packet)
-            self.counter += 1
-            packet        = ""
-            if (len(self.queue) >= 25):
-                packet = "".join(self.queue[:25])
-                self.fd.sendto(packet, socket.MSG_DONTWAIT, self.socket)
-                del(self.queue[:25])
-            if (self.counter >= 1000):
-                self.counter = 0
-                logger.info("queue size: %d" % (len(self.queue),))
+            packet = "".join(self.queue[:25])
+            self.fd.sendto(packet, socket.MSG_DONTWAIT, self.socket)
+            del(self.queue[:25])
+            self.packages += len(packet.split(";"))
         except:
             if (len(self.queue) > MAXQUEUE):
                 raise

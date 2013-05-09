@@ -18,6 +18,7 @@
 from twisted.internet import reactor
 from twisted.application.service import Service
 from leela.server import logger
+from leela.server import config
 from leela.server.data import pp
 from leela.server.network.databus import Relay
 from leela.server.network import udp_proto
@@ -27,7 +28,7 @@ class UdpService(Service, udp_proto.UDP):
 
     def __init__(self, cfg):
         self.cfg   = cfg
-        self.relay = Relay(self.cfg.get("udp", "relay"))
+        self.relay = Relay(self.cfg.get("udp", "relay"), "leela.%s.udp.timeline" % config.hostname())
 
     def forward_packet(self, packet):
         logger.debug("forward: %d" % len(packet))

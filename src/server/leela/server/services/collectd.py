@@ -18,6 +18,7 @@
 from twisted.internet import reactor
 from twisted.application.service import Service
 from leela.server import logger
+from leela.server import config
 from leela.server.data import pp
 from leela.server.network.databus import Relay
 from leela.server.network import collectd_proto
@@ -27,7 +28,7 @@ class CollectdService(Service, collectd_proto.UDP):
 
     def __init__(self, cfg):
         self.cfg   = cfg
-        self.relay = Relay(self.cfg.get("collectd", "relay"))
+        self.relay = Relay(self.cfg.get("collectd", "relay"), "leela.%s.collectd.timeline" % config.hostname())
 
     def recv_metrics(self, metrics):
         logger.debug("recv_metrics: %d" % len(metrics))
