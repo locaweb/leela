@@ -38,7 +38,7 @@ leela_daemon_start () {
 
 retry_while () {
   local retry
-  retry=10
+  retry=90
 
   while "$@"
   do
