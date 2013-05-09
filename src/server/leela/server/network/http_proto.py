@@ -52,7 +52,7 @@ def relay_data(render, relay, data):
         packet.append(render(x))
         size += len(packet[-1])
         if (size > 16*1024):
-            relay("".join(packet))
+            relay("".join(packet), sync=True)
             packet = []
             size   = 0
     if (size > 0):
