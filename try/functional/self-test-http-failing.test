@@ -1,0 +1,12 @@
+./dist/usr/libexec/leela-interact --unsafe
+<<<
+initd-stop script=leela-http
+>>>= 0
+
+./dist/usr/libexec/leela-self-test
+>>>= 1
+
+./dist/usr/libexec/leela-interact --unsafe
+<<<
+initd-start script=leela-http
+>>>= 0

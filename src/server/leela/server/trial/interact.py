@@ -16,6 +16,7 @@ import traceback
 import argparse
 import httplib
 import os.path
+import signal
 import struct
 import select
 import socket
@@ -168,8 +169,9 @@ def unix_send(opts, state, addr, message):
     return(_udp_send(s, addr, opts, state, message))
 
 def _udp_send(s, addr, opts, state, message):
+    select.select([], [s.fileno()], [], 2)
     s.sendto(message, 0, addr)
-    r = select.select([s.fileno()], [], [], 1)[0]
+    r = select.select([s.fileno()], [], [], 2)[0]
     if (len(r) == 1):
         dump(__stdout__, s.recv(65535), "\n")
     s.close()
@@ -199,6 +201,8 @@ def http_request(opts, state, method, url, data=None, view="payload"):
                 if (isinstance(tmp[k], dict) and "series" in tmp[k]):
                     tmp[k]["series"] = make_timeseries_relative(rply["results"][k]["series"])
     dump(__stdout__, json.dumps(rply, sort_keys=True), "\n")
+    if (method in ("POST", "PUT")):
+        time.sleep(2)
     return(0)
 
 def dmproc_connect(opts, state, proc):
@@ -261,6 +265,7 @@ def run_script(opts, script):
     for (cmd, args) in map(split, script.splitlines()):
         if (cmd.startswith("#")):
             continue
+        signal.alarm(opts.timeout)
         rc |= engine[cmd](opts, cmd, **args)
     return(rc)
 
@@ -275,6 +280,11 @@ if (__name__ == "__main__"):
                       default  = False,
                       action   = "store_true",
                       help     = "Enable unsafe operations, e.g. cassandra truncate")
+    args.add_argument("--timeout",
+                      dest     = "timeout",
+                      default  = 10,
+                      type     = int,
+                      help     = "The maximum execution time allowed for each command [default: %(default)s]")
     args.add_argument("--config",
                       dest     = "config",
                       default  = config.default_config_file(),

@@ -14,6 +14,7 @@ leela_interact () {
 }
 
 test_udp_ping () {
+  echo -n "testing udp ping ... "
   echo pong >$1/exp
 
   cat <<EOF | tee $1/inp | leela_interact >$1/out
@@ -22,6 +23,7 @@ EOF
 }
 
 test_udp () {
+  echo -n "udp | dmproc, storage | http[read] ... "
   cat <<EOF >$1/exp
 {"results": {"$key_udp": {"series": [[0, ${rnd}.0]]}}, "status": 200}
 event $len_udp|$key_udp ${rnd}.0 0.0;
@@ -37,6 +39,7 @@ EOF
 }
 
 test_http () {
+  echo -n "http[write] | dmproc, storage | http[read] ... "
   cat <<EOF >$1/exp
 {"results": [{"name": "$key_http", "timestamp": 0.0, "type": "gauge", "value": ${rnd}.0}], "status": 201}
 {"results": {"$key_http": {"series": [[0, ${rnd}.0]]}}, "status": 200}
@@ -56,12 +59,14 @@ for t in test_udp_ping test_udp test_http
 do
   TEMPFILE=$(mktemp -d) && {
     $t $TEMPFILE
-    if cmp -b $TEMPFILE/exp $TEMPFILE/out
+    if cmp $TEMPFILE/exp $TEMPFILE/out
     then
-      echo "$t: ok"
+      echo "success"
       rm -rf $TEMPFILE
     else
-      # rm -rf $TEMPFILE
+      echo "failure"
+      diff -u $TEMPFILE/out $TEMPFILE/out
+      rm -rf $TEMPFILE
       exit 1
     fi
   }
