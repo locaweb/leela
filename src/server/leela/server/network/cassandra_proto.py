@@ -18,6 +18,7 @@
 import struct
 from twisted.internet import defer
 from telephus.pool import CassandraClusterPool
+from leela.server import funcs
 from leela.server.data import event
 from leela.server.data import data
 from leela.server.data import marshall
@@ -106,6 +107,13 @@ class CassandraProto(CassandraClusterPool):
         return(delay)
 
     def load(self, kind, key, start, finish, limit=100):
+        t0    = funcs.datetime_fromtimestamp(funcs.timetuple_timestamp(start))
+        t1    = funcs.datetime_fromtimestamp(funcs.timetuple_timestamp(finish))
+        diff  = (t1.month + 12 * (t1.year - t0.year)) - t0.month
+        if (t0 > t1):
+            raise(ValueError("start > finish"))
+        if (diff > 1):
+            raise(ValueError("range too wide"))
         k0    = struct.pack(">i", marshall.serialize_key(*start, epoch=marshall.DEFAULT_EPOCH))
         k1    = struct.pack(">i", marshall.serialize_key(*finish, epoch=marshall.DEFAULT_EPOCH))
         f     = None

@@ -16,6 +16,7 @@
 
 import collections
 import time
+import calendar
 from datetime import timedelta
 from leela.server import funcs
 
@@ -31,25 +32,26 @@ class Storable(object):
     @classmethod
     def load_range(self, storage, k, ys, ms, ds, hs, mins, yf, mf, df, hf, minf):
         start  = Timestamp._make((ys, ms, ds, hs, mins, 0))
-        finish = Timestamp._make((yf, mf, df, hf, minf, 60))
+        finish = Timestamp._make((yf, mf, df, hf, minf, 59))
         return(storage.load(self.kind(), k, start, finish, 31*24*60*60))
 
     @classmethod
     def load_time(self, storage, k, y, m, d, h):
         start  = Timestamp._make((y, m, d, h, 0, 0))
-        finish = Timestamp._make((y, m, d, h, 60, 60))
+        finish = Timestamp._make((y, m, d, h, 59, 59))
         return(storage.load(self.kind(), k, start, finish, 60*60))
 
     @classmethod
     def load_day(self, storage, k, y, m, d):
         start  = Timestamp._make((y, m, d, 0, 0, 0))
-        finish = Timestamp._make((y, m, d, 24, 60, 60))
+        finish = Timestamp._make((y, m, d, 23, 59, 59))
         return(storage.load(self.kind(), k, start, finish, 24*60*60))
 
     @classmethod
     def load_month(self, storage, k, y, m):
-        start  = Timestamp._make((y, m, 0, 0, 0, 0))
-        finish = Timestamp._make((y, m, 31, 24, 60, 60))
+        ds, dt = calendar.monthrange(y, m)
+        start  = Timestamp._make((y, m, ds, 0, 0, 0))
+        finish = Timestamp._make((y, m, dt, 23, 59, 59))
         return(storage.load(self.kind(), k, start, finish, 31*24*60*60))
 
     @classmethod
