@@ -50,6 +50,7 @@ install_debian () {
       else
         tar -x -z --xform 's,[^/]*/,,' -f "$file"
       fi
+      "$bin_python" setup.py clean -a
       "$bin_python" setup.py install \
         --install-layout=deb         \
         --root="$srcroot/debian/tmp" \
