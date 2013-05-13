@@ -128,24 +128,22 @@ class CassandraProto(CassandraClusterPool):
             f   = unserialize_data
         if (cf1 == cf2):
             d = self.get_slice(key           = encode_string(key),
-                               start         = k0,
-                               finish        = k1,
-                               reverse       = True,
+                               start         = k1,
+                               finish        = k0,
                                count         = limit,
                                column_family = cf1)
         else:
             d = merge(self.get_slice(key           = encode_string(key),
-                                     start         = k0,
-                                     finish        = k1,
-                                     reverse       = True,
+                                     start         = k1,
+                                     finish        = k0,
                                      count         = limit,
-                                     column_family = cf1),
+                                     column_family = cf2),
                       self.get_slice(key           = encode_string(key),
-                                     start         = k0,
-                                     finish        = k1,
-                                     reverse       = True,
+                                     start         = k1,
+                                     finish        = k0,
                                      count         = limit,
-                                     column_family = cf2))
+                                     column_family = cf1))
+        d.addCallback(lambda xs: reversed(xs))
         d.addCallback(lambda cols: f(key, cols))
         d.addCallback(delay.callback)
         d.addErrback(delay.errback)
