@@ -7,7 +7,8 @@ v3.3.0 | 2013-09-06
   * adding /v1/version resource | dgvncsz0f
   * properly handling exception and using correct http codes | dgvncsz0f
   * /usr/libexec/leela-self-test to validate the install | dgvncsz0f
-  * validating start and finish date intervals
+  * validating start and finish date intervals | dgvncsz0f
+  * removing `reversed=True' form cassandra.py as columns are already reversed | dgvncsz0f
 
 v3.1.0 | 2013-29-04
   * using one columnfamily per month | dgvncsz0f
