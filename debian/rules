@@ -1,5 +1,7 @@
 #!/usr/bin/make -f
 
+DH_OPTIONS=--no-guessing-versions
+
 %:
 	dh $@ --with python2
 

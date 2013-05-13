@@ -8,6 +8,8 @@ srcroot=$(realpath "${3:-.}")
 
 bin_pip=${bin_pip:-pip}
 bin_python=${bin_python:-python}
+bin_ghc=${bin_ghc:-ghc}
+bin_cabal=${bin_cabal:-cabal}
 bin_virtualenv=${bin_virtualenv:-virtualenv}
 
 install_virtualenv () {
@@ -18,8 +20,8 @@ install_virtualenv () {
   install_mkdirs
   install_usr
   install_etc
-  "$bin_pip" install -r "$srcroot/pip-requires.txt"
-  "$bin_pip" install -I "$srcroot"
+  "$bin_pip" install -q -r "$srcroot/pip-requires.txt"
+  "$bin_pip" install -q -I "$srcroot"
   fixup_variables
 }
 
@@ -43,15 +45,16 @@ install_debian () {
     oldpath=$(pwd)
     TMPDIR=$(mktemp -d) && cd "$TMPDIR" && {
       file="$TMPDIR"/$(basename "$u")
-      wget -O"$file" "$u"
+      wget -q -O"$file" "$u"
       if echo $u | grep -q Twisted
       then
         tar -x -j --xform 's,[^/]*/,,' -f "$file"
       else
         tar -x -z --xform 's,[^/]*/,,' -f "$file"
       fi
-      "$bin_python" setup.py clean -a
+      rm -rf $srcroot/build
       "$bin_python" setup.py install \
+        --quiet                      \
         --install-layout=deb         \
         --root="$srcroot/debian/tmp" \
         --record="$record.dep"

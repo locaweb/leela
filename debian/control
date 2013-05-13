@@ -8,8 +8,8 @@ X-Python-Version: >= 2.6
 Homepage: https://github.com/locaweb/leela
 
 Package: leela
+Provides: python-twisted, python-cyclone, python-txredisapi, python-zope.interface, python-thrift, python-wokkel, python-telephus
 Architecture: any
-Conflicts: python-twisted, python-wokkel, pyton-thrift, python-zope.interface
-Depends: ${shlibs:Depends}, ${misc:Depends}, adduser, daemon (>= 0.6.4), python-pyopenssl, python-dateutil, python-argparse
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, adduser, daemon (>= 0.6.4)
 Description: Scalable realtime metrics monitoring system
  Refer to http://leela.rtfd.org
