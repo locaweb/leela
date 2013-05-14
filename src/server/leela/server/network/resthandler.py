@@ -56,6 +56,7 @@ class RestHandler(web.RequestHandler):
         cc  = self.get_argument("callback", "")
         bdy = pp.render_json(chunk)
         self.set_header("Cache-Control", "public, max-age=%d" % cache)
+        self.set_header("Access-Control-Allow-Origin", "*")
         if (re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", cc)):
             self.set_status(200)
             self.set_header("Content-Type", "text/javascript; charset=utf-8")
