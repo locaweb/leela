@@ -47,18 +47,17 @@ class Relay(object):
         self.socket   = path
         self.packages = 0
         self.key      = monit_prefix
-        if (monit_prefix is not None):
-            task.LoopingCall(self.statistics).start(60)
+        task.LoopingCall(self.sync).start(5)
 
-    def statistics(self):
-        self.queue.append(render_metric(Derive("%s.writes/s" % self.key, self.packages, time.time())))
-        self.queue.append(render_metric(Gauge("%s.queue_size" % self.key, len(self.queue), time.time())))
+    def sync(self):
+        self._relay(25, False)
+        if (self.key is not None):
+            self.queue.append(render_metric(Derive("%s.writes/s" % self.key, self.packages, time.time())))
+            self.queue.append(render_metric(Gauge("%s.queue_size" % self.key, len(self.queue), time.time())))
 
-    def relay(self, packet, sync=False):
-        if (len(self.queue) < MAXQUEUE):
-            self.queue.append(packet)
-        else:
-            logger.warn("discarding packet, queue full!!!")
+    def _relay(self, size=25, sync=True):
+        if (len(self.queue) == 0):
+            return
         packet = "".join(self.queue[:25])
         flags  = sync and 0 or socket.MSG_DONTWAIT
         try:
@@ -67,6 +66,13 @@ class Relay(object):
             self.packages += len(packet.split(";"))
         except socket.error:
             pass
+
+    def relay(self, packet):
+        if (len(self.queue) < MAXQUEUE):
+            self.queue.append(packet)
+        else:
+            logger.warn("discarding packet, queue full!!!")
+        self._relay(25, False)
 
 class Databus(protocol.ConnectedDatagramProtocol):
 

@@ -33,7 +33,7 @@ class HttpService(service.Service):
 
     def __init__(self, cfg):
         cfg  = cfg
-        bus0 = Relay(cfg.get("http", "multicast"), "leela.%s.http.multicast" % config.hostname())
+        bus0 = Relay(cfg.get("http", "multicast"))
         bus1 = Relay(cfg.get("http", "timeline"), "leela.%s.http.timeline" % config.hostname())
         sto  = cassandra_proto.CassandraProto(cfg)
         app  = web.Application([
