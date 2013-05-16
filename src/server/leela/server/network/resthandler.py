@@ -21,6 +21,7 @@ import traceback
 import time
 from cyclone import web
 from twisted.python.failure import Failure
+from telephus.cassandra.c08.ttypes import InvalidRequestException
 from leela.server import logger
 from leela.server.data import pp
 from leela.server.data import excepts
@@ -116,7 +117,9 @@ def exception2http(e):
         return(e)
     elif (isinstance(e, KeyError) or isinstance(e, ValueError)):
         return(web.HTTPError(400, None, {"stacktrace": stacktrace}))
-    elif (isinstance(e, excepts.NotFoundExcept)):
+    elif (isinstance(e, excepts.NotFoundExcept) or isinstance(e, InvalidRequestException)):
+        # XXX: big assumption: InvalidRequestException means we
+        #      couldn't find the table.
         return(web.HTTPError(404))
     else:
         return(web.HTTPError(500, None, {"stacktrace": stacktrace}))
