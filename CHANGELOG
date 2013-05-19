@@ -1,5 +1,10 @@
 --*-- mode: text; --*--
 
+v3.4.0 | XXXX
+  * http module now flushes its queue periodically | dgvncsz0f
+  * writing to the timeline socket is no longer synchronous | dgvncsz0f
+  * adding Access-Control-Allow-Origin header | dgvncsz0f
+
 v3.3.0 | 2013-09-06
   * udp frontend performance improvements: no longer droppping packages | dgvncsz0f
   * udp now collects metrics about itself | dgvncsz0f 

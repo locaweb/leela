@@ -16,6 +16,7 @@
 #
 
 import struct
+import calendar
 from twisted.internet import defer
 from telephus.pool import CassandraClusterPool
 from leela.server import funcs
@@ -38,6 +39,10 @@ def encode_string(s):
         return(s.encode("ascii"))
     except UnicodeError:
         return(s)
+
+def wholemonth(start, finish):
+    _, dt = calendar.monthrange(start[0], start[1])
+    return (start[2] == 1 and start[3] == 0 and start[4] == 0 and start[5] == 0 and finish[2] == dt and finish[3] == 23 and finish[4] == 59 and finish[5] == 59)
 
 def unserialize_event(k, cols):
     f = lambda col: marshall.unserialize_event(k,
@@ -127,11 +132,16 @@ class CassandraProto(CassandraClusterPool):
             cf2 = CF_DATA % (finish[1], finish[0])
             f   = unserialize_data
         if (cf1 == cf2):
-            d = self.get_slice(key           = encode_string(key),
-                               start         = k1,
-                               finish        = k0,
-                               count         = limit,
-                               column_family = cf1)
+            if (wholemonth(start, finish)):
+                d = self.get_slice(key           = encode_string(key),
+                                   count         = limit,
+                                   column_family = cf1)
+            else:
+                d = self.get_slice(key           = encode_string(key),
+                                   start         = k1,
+                                   finish        = k0,
+                                   count         = limit,
+                                   column_family = cf1)
         else:
             d = merge(self.get_slice(key           = encode_string(key),
                                      start         = k1,

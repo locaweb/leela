@@ -49,10 +49,10 @@ class Storable(object):
 
     @classmethod
     def load_month(self, storage, k, y, m):
-        ds, dt = calendar.monthrange(y, m)
-        start  = Timestamp._make((y, m, ds, 0, 0, 0))
+        _, dt  = calendar.monthrange(y, m)
+        start  = Timestamp._make((y, m, 1, 0, 0, 0))
         finish = Timestamp._make((y, m, dt, 23, 59, 59))
-        return(storage.load(self.kind(), k, start, finish, 31*24*60*60))
+        return(storage.load(self.kind(), k, start, finish, dt*24*60*60))
 
     @classmethod
     def load_past24(self, storage, k):
