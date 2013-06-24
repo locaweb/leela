@@ -1,0 +1,44 @@
+message Metric {
+  required Ke key      = 0;
+  required double val  = 1;
+  required uint32 time = 2;
+}
+
+message Data {
+  required Key key     = 0;
+  required string val  = 1;
+  required uint32 time = 2;
+}
+
+message Key {
+  required uint32 uid = 0;
+  repeated string key = 1;
+}
+
+mesage Index {
+  enum Type = { METRIC = 0; DATA = 1; }
+
+  required Type type = 0;
+  required Key  key  = 1;
+}
+
+message Tag {
+  required uint32 uid        = 0;
+  required string tag        = 1;
+  required repeated Key keys = 2;
+}
+
+message Acl {
+  enum Type = { RO = 0; }
+
+  required Type   acl = 0;
+  required uint32 uid = 1;
+}
+
+message User {
+  required uint32 uid       = 0;
+  required bool   super     = 1
+  required string username  = 2;
+  required string password  = 3;
+  optional repeated Acl acl = 4;
+}

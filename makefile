@@ -17,6 +17,7 @@ bootstrap: .saverc
 	$(HOME)/pyenv/leela/bin/pip install -q mock
 	test -d $(HOME)/.cabal || $(bin_cabal) update
 	$(bin_cabal) install -v0 -O2 double-conversion
+	$(bin_cabal) install -v0 -O2 hprotoc
 	$(bin_cabal) install -v0 -O2 shelltestrunner
 	$(bin_cabal) install -v0 -O2 blaze-builder
 	$(bin_cabal) install -v0 -O2 regex-tdfa
