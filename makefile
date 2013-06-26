@@ -8,6 +8,7 @@ include $(srcroot)/makefile.lib
 SRC_HASKELL = $(shell $(bin_find) $(srcroot)/src/dmproc -type f -name \*.hs)
 TRY_HASKELL = $(shell $(bin_find) $(srcroot)/try/dmproc -type f -name \*.hs)
 
+bootstrap: PATH := $(PATH):$(HOME)/.cabal/bin
 bootstrap: .saverc
 	$(call check_bin,virtualenv)
 	$(call check_bin,cabal)
@@ -16,18 +17,17 @@ bootstrap: .saverc
 	$(HOME)/pyenv/leela/bin/pip install -q nose
 	$(HOME)/pyenv/leela/bin/pip install -q mock
 	test -d $(HOME)/.cabal || $(bin_cabal) update
-	$(bin_cabal) install -v0 -O2 double-conversion
-	$(bin_cabal) install -v0 -O2 hprotoc
-	$(bin_cabal) install -v0 -O2 shelltestrunner
-	$(bin_cabal) install -v0 -O2 blaze-builder
-	$(bin_cabal) install -v0 -O2 regex-tdfa
-	$(bin_cabal) install -v0 -O2 quickcheck
-	$(bin_cabal) install -v0 -O2 attoparsec
-	$(bin_cabal) install -v0 -O2 hashable
-	$(bin_cabal) install -v0 -O2 hslogger
-	$(bin_cabal) install -v0 -O2 vector
-	$(bin_cabal) install -v0 -O2 hspec
-	$(bin_cabal) install -v0 -O2 stm
+	env $(hsenv) $(bin_cabal) install -v0 -O2 double-conversion
+	env $(hsenv) $(bin_cabal) install -v0 -O2 shelltestrunner
+	env $(hsenv) $(bin_cabal) install -v0 -O2 blaze-builder
+	env $(hsenv) $(bin_cabal) install -v0 -O2 regex-tdfa
+	env $(hsenv) $(bin_cabal) install -v0 -O2 quickcheck
+	env $(hsenv) $(bin_cabal) install -v0 -O2 attoparsec
+	env $(hsenv) $(bin_cabal) install -v0 -O2 hashable
+	env $(hsenv) $(bin_cabal) install -v0 -O2 hslogger
+	env $(hsenv) $(bin_cabal) install -v0 -O2 vector
+	env $(hsenv) $(bin_cabal) install -v0 -O2 hspec
+	env $(hsenv) $(bin_cabal) install -v0 -O2 stm
 
 clean:
 	$(call .check_bin,find)
