@@ -19,7 +19,7 @@ Current Version
 License
 =======
 
-APACHE 2.0
+APACHE-2.0
 
 Author
 ======

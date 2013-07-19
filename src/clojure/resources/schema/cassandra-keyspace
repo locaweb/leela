@@ -1,0 +1,42 @@
+CREATE TABLE graph
+  ( a blob
+  , b blob
+  , l varchar
+  , PRIMARY KEY (a, b)
+  )
+WITH
+  caching     = 'ROWS_ONLY'
+AND
+  compaction  = {'class': 'LeveledCompactionStrategy', 'sstable_size_in_mb': 10}
+AND
+  compression = {'sstable_compression': 'SnappyCompressor'};
+
+CREATE TABLE search
+  ( a    blob
+  , ref  blob
+  , name varchar
+  , PRIMARY KEY (a, name)
+  )
+WITH
+  caching     = 'KEYS_ONLY'
+AND
+  compaction  = {'class': 'LeveledCompactionStrategy', 'sstable_size_in_mb': 10}
+AND
+  compression = {'sstable_compression': 'SnappyCompressor'};
+
+CREATE TABLE props
+  ( ref   blob
+  , slot  int
+  , data  blob
+  , time  bigint
+  , PRIMARY KEY ((ref, slot), time)
+  )
+WITH
+  caching     = 'NONE'
+AND
+  compaction  = {'class': 'LeveledCompactionStrategy', 'sstable_size_in_mb': 32}
+ AND
+  compression = {'sstable_compression': 'SnappyCompressor'}
+AND
+  CLUSTERING ORDER BY (time DESC);
+

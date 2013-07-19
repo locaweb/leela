@@ -1,6 +1,12 @@
 --*-- mode: text; --*--
 
-v3.4.0 | XXXX
+v4.0.0 | 2013-08-01
+  * creating warpdrive [graph engine & key-value/timeline store];
+  * leela query language: new universal input;
+  * stream response: new universal output protocol;
+  * using 0mq library for transport;
+
+v3.4.0 | 2013-06-01
   * http module now flushes its queue periodically | dgvncsz0f
   * writing to the timeline socket is no longer synchronous | dgvncsz0f
   * adding Access-Control-Allow-Origin header | dgvncsz0f

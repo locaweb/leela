@@ -1,6 +1,0 @@
-#!/bin/sh
-
-# template:chdir
-# template:bin_python
-
-exec "${bin_python:-python}" -m leela.server.trial.interact --config="$CHDIR/etc/leela.conf" --chdir="$CHDIR" "$@"
