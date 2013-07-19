@@ -16,17 +16,22 @@
 #
 
 import math
+import time
 from twisted.internet import defer
 from cyclone import web
 from leela.server import funcs
+from leela.server import logger
+from leela.server import config
 from leela.server import version
 from leela.server.network import resthandler
 from leela.server.data import excepts
+from leela.server.data import metric
 from leela.server.data import parser
 from leela.server.data import pp
 
 NAN_ALLOW = 0
 NAN_PURGE = 1
+HOSTNAME  = config.hostname()
 
 def read_nanopt(x, d=NAN_PURGE):
     return({ "allow": NAN_ALLOW,
@@ -58,6 +63,18 @@ def relay_data(render, relay, data):
     if (size > 0):
         relay("".join(packet))
 
+def measure_reads(relay, value):
+    name0 = "leela.%s.http.keys/s" % (HOSTNAME,)
+    name1 = "leela.%s.http.reqs/s" % (HOSTNAME,)
+    now   = time.time()
+    try:
+        relay_data(pp.render_metric, relay, [metric.Absolute(name0, len(value), now),
+                                             metric.Absolute(name1, 1, now)
+                                            ])
+    except:
+        logger.error("error instrumenting reads/s")
+    return(value)
+
 class EventsResource(resthandler.RestHandler):
 
     def load_events(self, key, cc):
@@ -65,7 +82,7 @@ class EventsResource(resthandler.RestHandler):
         t0  = funcs.timer_start()
         t1  = lambda: {"walltime": funcs.timer_stop(t0)}
         cc.addCallback(lambda r: self.finish({"status" : 200,
-                                              "results": {key: {"series": render_series(r, nan)}},
+                                              "results": {key: {"series": render_series(measure_reads(self.timeline.relay, r), nan)}},
                                               "debug"  : t1()
                                              }))\
           .addErrback(self.catch)

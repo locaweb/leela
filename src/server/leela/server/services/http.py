@@ -38,16 +38,16 @@ class HttpService(service.Service):
         sto  = cassandra_proto.CassandraProto(cfg)
         app  = web.Application([
             (r"^/v1/version$"                   , http_proto.Version),
-            (r"^/v1/data/past24/(.*)"           , http_proto.Past24         , {"storage": sto, "class_" : data.Data}),
-            (r"^/v1/data/pastweek/(.*)"         , http_proto.PastWeek       , {"storage": sto, "class_" : data.Data}),
-            (r"^/v1/data/(\d+)/(\d+)/(\d+)/(.*)", http_proto.YearMonthDay   , {"storage": sto, "class_" : data.Data}),
-            (r"^/v1/data/(\d+)/(\d+)/(.*)"      , http_proto.YearMonth      , {"storage": sto, "class_" : data.Data}),
-            (r"^/v1/data/(.*)"                  , http_proto.RangeDataRdwr  , {"storage": sto, "class_" : data.Data, "relay": bus0}),
-            (r"^/v1/past24/(.*)"                , http_proto.Past24         , {"storage": sto, "class_" : event.Event}),
-            (r"^/v1/pastweek/(.*)"              , http_proto.PastWeek       , {"storage": sto, "class_" : event.Event}),
-            (r"^/v1/(\d+)/(\d+)/(\d+)/(.*)"     , http_proto.YearMonthDay   , {"storage": sto, "class_" : event.Event}),
-            (r"^/v1/(\d+)/(\d+)/(.*)"           , http_proto.YearMonth      , {"storage": sto, "class_" : event.Event}),
-            (r"^/v1/(.*)"                       , http_proto.RangeMetricRdwr, {"storage": sto, "class_" : event.Event, "relay": bus1}),
+            (r"^/v1/data/past24/(.*)"           , http_proto.Past24         , {"storage": sto, "class_" : data.Data, "timeline": bus1}),
+            (r"^/v1/data/pastweek/(.*)"         , http_proto.PastWeek       , {"storage": sto, "class_" : data.Data, "timeline": bus1}),
+            (r"^/v1/data/(\d+)/(\d+)/(\d+)/(.*)", http_proto.YearMonthDay   , {"storage": sto, "class_" : data.Data, "timeline": bus1}),
+            (r"^/v1/data/(\d+)/(\d+)/(.*)"      , http_proto.YearMonth      , {"storage": sto, "class_" : data.Data, "timeline": bus1}),
+            (r"^/v1/data/(.*)"                  , http_proto.RangeDataRdwr  , {"storage": sto, "class_" : data.Data, "relay": bus0, "timeline": bus1}),
+            (r"^/v1/past24/(.*)"                , http_proto.Past24         , {"storage": sto, "class_" : event.Event, "timeline": bus1}),
+            (r"^/v1/pastweek/(.*)"              , http_proto.PastWeek       , {"storage": sto, "class_" : event.Event, "timeline": bus1}),
+            (r"^/v1/(\d+)/(\d+)/(\d+)/(.*)"     , http_proto.YearMonthDay   , {"storage": sto, "class_" : event.Event, "timeline": bus1}),
+            (r"^/v1/(\d+)/(\d+)/(.*)"           , http_proto.YearMonth      , {"storage": sto, "class_" : event.Event, "timeline": bus1}),
+            (r"^/v1/(.*)"                       , http_proto.RangeMetricRdwr, {"storage": sto, "class_" : event.Event, "relay": bus1, "timeline": bus1}),
 
             (r".*"                              , resthandler.Always404)
             ])
