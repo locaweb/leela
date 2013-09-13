@@ -13,13 +13,13 @@ log_stderr () {
 
 recv () {
   log_stderr receiving package to build ...
-  socat -u TCP-LISTEN:9999 EXEC:"tar -x -C \"$BUILDROOT\""
+  socat -u TCP-LISTEN:9999 EXEC:"tar -x -z -C \"$BUILDROOT\""
 }
 
 send () {
   log_stderr sending binary package ...
   cd "$BUILDROOT/dist"
-  tar -c . >&3
+  tar -c -z . >&3
 }
 
 build_warpdrive () {
