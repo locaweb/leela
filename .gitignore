@@ -12,4 +12,4 @@
 /src/haskell/src/Leela/warpdrive
 /src/haskell/cabal-dev/
 /src/haskell/dist/
-/docker/app/leela-dist.tar
+/docker/app/leela-dist.tgz
