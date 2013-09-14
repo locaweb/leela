@@ -1,4 +1,4 @@
-FROM leela:rt
+FROM 47f8bde36e22
 MAINTAINER dgvncsz0f
 
 ADD dev-bootstrap.sh /var/tmp/bootstrap.sh
