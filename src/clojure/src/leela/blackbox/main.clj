@@ -24,17 +24,11 @@
                                     :default "localhost"
                                     :assoc-fn seed-assoc-fn]
                                    ["--endpoint" "the address to bind to"
-                                    :default "tcp://*:9999"]
-                                   ["--queue-size" "maximum size of pending requests"
-                                    :default 64
-                                    :parse-fn #(Integer. %)]
-                                   ["--workers" "number of workers"
-                                    :default 32
-                                    :parse-fn #(Integer. %)])]
+                                    :default "tcp://*:9999"])]
     (when (:help options)
       (println banner)
       (java.lang.System/exit 0))
 
     (zserver/server-start (zserver/create-session (:seed options) (:keyspace options))
                           (ZMQ/context 1)
-                          options)))
+                          {:capabilities 64 :queue-size 32})))
