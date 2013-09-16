@@ -1,4 +1,4 @@
-FROM 47e18ac9140d
+FROM 24975d642361
 MAINTAINER dgvncsz0f
 ADD rt-bootstrap.sh /var/tmp/bootstrap.sh
 RUN /var/tmp/bootstrap.sh

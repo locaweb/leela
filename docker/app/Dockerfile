@@ -1,4 +1,4 @@
-FROM 47f8bde36e22
+FROM 519ac7d81f90
 MAINTAINER dgvncsz0f
-ADD leela-dist.tgz /var/tmp/leela-dist.tgz
-RUN tar -C / -x -f /var/tmp/leela-dist.tgz
+ADD leela.tar.gz /var/tmp/leela.tar.gz
+RUN tar -C / -x -f /var/tmp/leela.tar.gz

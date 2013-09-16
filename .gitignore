@@ -13,3 +13,4 @@
 /src/haskell/cabal-dev/
 /src/haskell/dist/
 /docker/app/leela-dist.tgz
+/docker/app/leela.tar.gz

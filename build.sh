@@ -1,42 +1,21 @@
 #!/bin/sh
 
-trap cleanup INT
+SRCROOT=$(dirname $(readlink -f "$0"))
 
-cd $(dirname $(readlink -f "$0"))
-
-sudo=""
-[ "$(id -u)" -ne 0 ] || sudo="sudo"
-docker="$sudo docker"
-
-sendfile () {
-  for _ in $(seq 1 60)
-  do
-    sleep 1
-    if $sudo lsof -t -itcp:9999
-    then break; fi
-  done
-  socat -u OPEN:"$1" TCP-CONNECT:127.0.0.1:9999 2>/dev/null
-  echo "sending files to builder: ok"
+build_prepare () {
+  sudo rm -rf "$SRCROOT/dist"
+  mkdir -p "$SRCROOT/dist"
 }
 
 build_image () {
-  echo "starting builder ..."
-  $docker run -a stdout -p 9999:9999 7ae5921a2397 /bin/leela-recv-build >docker/app/leela-dist.tgz
+  sudo docker run -v "$1":/mnt/src/leela d2201ff3285f /mnt/src/leela/do-build.sh /mnt/src/leela "$2"
 }
 
-build_app () {
-  echo "building app container ..."
-  $sudo ./docker/app/make.sh
-}
-
-cleanup () {
-  [ -f "$TARFILE" ] && rm -f "$TARFILE"
-  exit 130
-}
-
-TARFILE=$(mktemp) && {
-  tar -c -z . -f "$TARFILE"
-  sendfile "$TARFILE" &
-  build_image && build_app
-  rm -f "$TARFILE"
+BUILDROOT=$(mktemp -d --tmpdir=/dev/shm) && {
+  BUILDFILE=$(basename "$BUILDROOT")
+  cp -p -r "$SRCROOT" "$BUILDROOT/leela"
+  build_prepare
+  build_image "$BUILDROOT/leela" "$BUILDFILE"
+  sudo cp "$BUILDROOT/leela/$BUILDFILE" "$SRCROOT/dist/leela.tar.gz"
+  sudo rm -rf "$BUILDROOT"
 }

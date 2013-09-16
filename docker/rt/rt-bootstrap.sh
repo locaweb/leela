@@ -8,4 +8,5 @@ echo debconf shared/accepted-oracle-license-v1-1 select true | debconf-set-selec
 echo debconf shared/accepted-oracle-license-v1-1 seen true | debconf-set-selections
 apt-key adv --keyserver keyserver.ubuntu.com --recv-keys EEA14886
 apt-get update && apt-get install -q --yes --force-yes \
-  unzip libzmq3 zlib1g libgmp10 oracle-java7-installer
+  unzip libzmq3 zlib1g libgmp10 oracle-java7-installer \
+  libffi6
