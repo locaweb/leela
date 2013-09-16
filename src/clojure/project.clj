@@ -1,7 +1,7 @@
 (defproject blackbox "4.0.0"
   :url          "http://leela.rtfd.org"
-  :aot          [leela.blackbox.main]
-  :main         leela.blackbox.main
+  :aot          [leela.blackbox.blackbox]
+  :main         leela.blackbox.blackbox
   :license      {:name "APACHE-2.0"
                  :url  "http://www.apache.org/licenses/LICENSE-2.0"
                 }

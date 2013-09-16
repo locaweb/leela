@@ -14,8 +14,24 @@
     (.get b buffer)
     (str "0x" (String. (org.apache.commons.codec.binary.Hex/encodeHex buffer)))))
 
-(defn session [endpoints keyspace]
-  (client/connect (client/build-cluster {:contact-points endpoints}) keyspace))
+(defn create-leela-keyspace [session keyspace]
+  (create-keyspace session keyspace
+                   (with {:replication {:class "SimpleStrategy"
+                                        :replication_factor 1}}))
+  (use-keyspace session keyspace)
+  (client/execute session "CREATE TABLE graph ( a blob , b blob , l varchar , PRIMARY KEY (a, b)) WITH caching     = 'ROWS_ONLY'AND compaction  = {'class': 'LeveledCompactionStrategy', 'sstable_size_in_mb': 10} AND compression = {'sstable_compression': 'SnappyCompressor'}")
+  (client/execute session "CREATE TABLE t_props ( ref   blob , slot  int , data  blob , time  bigint , PRIMARY KEY ((ref, slot), time)) WITH caching     = 'NONE'AND compaction  = {'class': 'LeveledCompactionStrategy', 'sstable_size_in_mb': 32} AND compression = {'sstable_compression': 'SnappyCompressor'} AND CLUSTERING ORDER BY (time DESC)"))
+
+
+(defn session [endpoints keyspace creat]
+  (let [cluster (client/build-cluster {:contact-points endpoints})
+        session (client/connect cluster)]
+    (if-not (describe-keyspace session keyspace)
+      (do (when-not creat (throw (IllegalArgumentException. "refusing to re-create keyspace")))
+          (create-leela-keyspace session keyspace))
+      (do (when creat (throw (IllegalArgumentException. "refusing to create keyspace [creat flag is false]")))
+          (use-keyspace session keyspace)))
+    session))
 
 (defmacro with-consistency [tag & body]
   `(client/with-consistency-level
