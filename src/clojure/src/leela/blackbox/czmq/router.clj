@@ -40,5 +40,5 @@
           queue       (make-queue (:queue-size cfg))]
       (.bind (z/setup-socket ofh) ipcEndpoint)
       (.bind (z/setup-socket ifh) (:endpoint cfg))
-      (dotimes [_ (:workers cfg)] (fork-worker ctx ipcEndpoint queue worker))
+      (dotimes [_ (:capabilities cfg)] (fork-worker ctx ipcEndpoint queue worker))
       (z/forever (routing-loop ifh ofh queue)))))
