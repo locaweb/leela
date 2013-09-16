@@ -25,14 +25,27 @@ import           Database.Redis
 import qualified Data.ByteString as B
 import           Control.Exception
 import           Leela.Data.Excepts
+import           Leela.Data.Endpoint
 import           Leela.Data.Namespace
 import           Data.ByteString.Lazy (toStrict, fromStrict)
+import qualified Data.ByteString.Char8 as C8
 import           Leela.Storage.Backend
 
 newtype RedisBackend = RedisBackend { ring :: [Connection] }
 
-new :: [ConnectInfo] -> IO RedisBackend
-new = fmap RedisBackend . mapM connect
+endpointToConnection :: String -> ConnectInfo
+endpointToConnection e =
+  case (strEndpoint e) of
+    Nothing -> error "unknown endpoint"
+    Just e
+      | isTCP e   -> ConnInfo (asStr $ eHost e) (asPort (ePort e)) (ePass e) 128 (fromIntegral 300)
+      | otherwise -> error "unsupported endpoint"
+
+    where asPort = PortNumber . fromIntegral . maybe 6379 id
+          asStr  = C8.unpack
+
+new :: [String] -> IO RedisBackend
+new = fmap RedisBackend . mapM (connect . endpointToConnection)
 
 valueof1 :: Either a b -> b
 valueof1 = valueof id

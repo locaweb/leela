@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell   #-}
 
 -- This file is part of Leela.
 --
@@ -17,9 +17,9 @@
 
 module Main (main) where
 
+import HFlags
 import System.ZMQ3
 import Leela.Logger
-import Database.Redis as R
 import Control.Concurrent
 import Leela.Network.ZMQServer as Z
 import Leela.Storage.Backend.ZMQ as Zs
@@ -28,18 +28,26 @@ import Leela.Storage.Backend.Redis as Rs
 
 import Leela.Data.LQL.Lang ()
 
+defineFlag "redis" "tcp://localhost:6379" "The redis server to connect to"
+
+defineFlag "storage" "tcp://localhost:4081" "The storage to connect to"
+
+defineFlag "endpoint" "tcp://127.0.0.1:4080" "The endpoint to bind to"
+
+defineEQFlag "loglevel" [| NOTICE :: Priority |] "PRIORITY" "The log level"
+
 backend :: Context -> IO (CacheBackend RedisBackend ZMQBackend)
-backend ctx = do redisCluster <- Rs.new [defaultConnectInfo { connectPort = UnixSocket "/tmp/redis.socket" }]
-                 zmqCluster   <- Zs.new ctx ["tcp://127.0.0.1:9999"]
+backend ctx = do redisCluster <- Rs.new [flags_redis]
+                 zmqCluster   <- Zs.new ctx [flags_storage]
                  return (Cs.new redisCluster zmqCluster)
 
 main :: IO ()
 main = withContext $ \ctx -> do
-    logsetup DEBUG
-    db   <- backend ctx
-    z    <- create db
-    wait <- newEmptyMVar
-    _    <- forkFinally (zrun z ctx "tcp://*:4080") (\_ -> putMVar wait ())
-    takeMVar wait
-    takeMVar wait
-
+  _    <- $initHFlags "warpdrive - the property graph engine"
+  logsetup flags_loglevel
+  db   <- backend ctx
+  z    <- create db
+  wait <- newEmptyMVar
+  _    <- forkFinally (zrun z ctx flags_endpoint) (\_ -> putMVar wait ())
+  takeMVar wait
+  takeMVar wait
