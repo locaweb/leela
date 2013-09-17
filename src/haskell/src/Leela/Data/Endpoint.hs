@@ -53,20 +53,26 @@ isUDP :: Endpoint -> Bool
 isUDP (UDP _ _ _ _ _) = True
 isUDP _               = False
 
-qstring :: (Word8 -> Bool) -> Parser (Word8, B.ByteString)
-qstring p = go []
-    where go acc = do
+qstring :: (Word8 -> Bool) -> Parser (Maybe Word8, B.ByteString)
+qstring p = cont []
+    where cont acc = do
+            eof <- atEnd
+            if eof
+              then return (Nothing, B.pack $ reverse acc)
+              else go acc
+
+          go acc = do
             c <- anyWord8
             case c of
-              0x5c          -> anyWord8 >>= \c1 -> go (c1:acc)
+              0x5c          -> anyWord8 >>= \c1 -> cont (c1:acc)
               _
-                | p c       -> return (c, B.pack $ reverse acc)
-                | otherwise -> go (c:acc)
+                | p c       -> return (Just c, B.pack $ reverse acc)
+                | otherwise -> cont (c:acc)
 
-parseSepByColon :: (Word8 -> Bool) -> Parser (Word8, B.ByteString, Maybe B.ByteString)
+parseSepByColon :: (Word8 -> Bool) -> Parser (Maybe Word8, B.ByteString, Maybe B.ByteString)
 parseSepByColon p = do
   (wl, l) <- qstring (\w -> w == 0x3a || p w)
-  if (wl == 0x3a)
+  if (wl == Just 0x3a)
   then do (wr, r) <- qstring p
           return (wr, l, Just r)
   else return (wl, l, Nothing)
@@ -78,13 +84,15 @@ parseURL :: Parser (B.ByteString, Maybe Word16, Maybe B.ByteString, Maybe B.Byte
 parseURL = do
   (w, userOrHost, passOrPort) <- parseSepByColon (`elem` [0x40, 0x2f])
   case w of
-    0x40 -> do
+    Just 0x40 -> do
       (_, host, port) <- parseSepByColon (== 0x2f)
       path            <- takeByteString
       return (host, port >>= readWord, Just userOrHost, passOrPort, path)
-    0x2f -> do
+    Just 0x2f -> do
       path <- takeByteString
       return (userOrHost, passOrPort >>= readWord, Nothing, Nothing, path)
+    Nothing   -> do
+      return (userOrHost, passOrPort >>= readWord, Nothing, Nothing, B.empty)
     _    -> fail "unknonw endpoint"
 
 parseEndpoint :: Parser Endpoint
