@@ -23,7 +23,6 @@ module Leela.Network.CoreServer
 
 import           Control.Exception
 import           Leela.Data.LQL
-import qualified Data.ByteString as B
 import           Leela.Data.Graph (Matcher (..) , Result)
 import qualified Leela.Data.Graph as G
 import           Leela.Data.Journal
@@ -62,6 +61,7 @@ perform m write = exec []
                                              exec acc lql
            exec acc ((Resolve _ g):lql) = do k <- dig m g
                                              write (fromGUID g k)
+                                             exec acc lql
 
            runq []     = return ()
            runq (c:cs) = case c of
