@@ -41,6 +41,7 @@ import Data.ByteString.Lazy.Builder
 data Facility = Global
               | HZMQ
               | Network
+              | Storage
 
 class ToString a where
     fmt :: a -> String
@@ -55,11 +56,13 @@ logsetup prio = do
     setupLog HZMQ (setLevel prio)
     setupLog Global (setLevel prio)
     setupLog Network (setLevel prio)
+    setupLog Storage (setLevel prio)
 
 facility :: Facility -> String
 facility Global  = "leela"
 facility HZMQ    = "leela.hzmq"
 facility Network = "leela.network"
+facility Storage = "leela.storage"
 
 setupLog :: Facility -> (Logger -> Logger) -> IO ()
 setupLog sys = updateGlobalLogger (facility sys)
@@ -103,3 +106,7 @@ instance (ToString a) => ToString [a] where
 
     fmt = foldr (\a acc -> fmt a ++ acc) ""
 
+instance (ToString a) => ToString (Maybe a) where
+
+    fmt Nothing  = "<<nothing>>"
+    fmt (Just s) = fmt s
