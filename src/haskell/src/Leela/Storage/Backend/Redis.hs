@@ -18,9 +18,11 @@
 module Leela.Storage.Backend.Redis
     ( RedisBackend ()
     , new
+    , endpointToConnection
     ) where
 
 import qualified Data.Aeson as A
+import           Leela.Logger
 import           Database.Redis
 import qualified Data.ByteString as B
 import           Control.Exception
@@ -34,18 +36,20 @@ import           Leela.Storage.Backend
 newtype RedisBackend = RedisBackend { ring :: [Connection] }
 
 endpointToConnection :: String -> ConnectInfo
-endpointToConnection e =
-  case (strEndpoint e) of
+endpointToConnection s =
+  case (strEndpoint s) of
     Nothing -> error "unknown endpoint"
     Just e
-      | isTCP e   -> ConnInfo (asStr $ eHost e) (asPort (ePort e)) (ePass e) 128 (fromIntegral 300)
+      | isTCP e   -> ConnInfo (asStr $ eHost e) (asPort (ePort e)) (ePass e) 128 (fromIntegral (300 :: Int))
       | otherwise -> error "unsupported endpoint"
 
     where asPort = PortNumber . fromIntegral . maybe 6379 id
           asStr  = C8.unpack
 
 new :: [String] -> IO RedisBackend
-new = fmap RedisBackend . mapM (connect . endpointToConnection)
+new endpoints = do
+  linfo Global $ printf "connect to redis: %s" (show endpoints)
+  fmap RedisBackend $ mapM (connect . endpointToConnection) endpoints
 
 valueof1 :: Either a b -> b
 valueof1 = valueof id
