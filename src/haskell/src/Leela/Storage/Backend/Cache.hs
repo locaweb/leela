@@ -18,6 +18,7 @@ module Leela.Storage.Backend.Cache
     , new
     ) where
 
+import Leela.Logger
 import Control.Exception
 import Leela.Data.Excepts
 import Leela.Storage.Backend as B
@@ -46,7 +47,8 @@ tryL1 m f h g = do mresult <- onL1 m f
                                  _      <- onL1 m (h result)
                                  return result
                        | otherwise
-                           -> onL2 m g
+                           -> do linfo Global $ printf "l1 cache has failed: %s" (show e)
+                                 onL2 m g
                      Right result
                        -> return result
 
