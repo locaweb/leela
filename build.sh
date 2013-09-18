@@ -8,7 +8,7 @@ build_prepare () {
 }
 
 build_image () {
-  sudo docker run -v "$1":/mnt/src/leela d2201ff3285f /mnt/src/leela/do-build.sh /mnt/src/leela "$2"
+  sudo docker run -v "$1":/mnt/src/leela 1659228191c8 /mnt/src/leela/do-build.sh /mnt/src/leela "$2"
 }
 
 BUILDROOT=$(mktemp -d --tmpdir=/dev/shm) && {

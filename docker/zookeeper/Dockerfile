@@ -1,4 +1,4 @@
-FROM 47f8bde36e22
+FROM bb0e0ec13618
 MAINTAINER dgvncsz0f
 RUN apt-get update && apt-get install -q --yes --force-yes zookeeper
 CMD ["start-foreground"]

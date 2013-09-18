@@ -1,4 +1,4 @@
-FROM 519ac7d81f90
+FROM bb0e0ec13618
 MAINTAINER dgvncsz0f
 
 ADD dev-bootstrap.sh /var/tmp/bootstrap.sh
