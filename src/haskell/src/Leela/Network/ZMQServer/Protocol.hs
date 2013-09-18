@@ -16,7 +16,8 @@
 -- along with Leela.  If not, see <http://www.gnu.org/licenses/>.
 
 module Leela.Network.ZMQServer.Protocol
-       ( Request (..)
+       ( FH
+       , Request (..)
        , Response (..)
        , liftE
        , msgpack
@@ -24,6 +25,7 @@ module Leela.Network.ZMQServer.Protocol
        , msgunpack
        ) where
 
+import Data.Word
 import Data.Aeson
 import Leela.Data.LQL
 import Data.Attoparsec
@@ -36,11 +38,13 @@ import Leela.Data.Namespace
 import Data.Attoparsec.Char8
 import Leela.Network.Protocol
 
-data Request = Begin [LQL]
-             | Fetch Int Int
-             | Close Int
+type FH = Word64
 
-data Response = Channel Int
+data Request = Begin [LQL]
+             | Fetch FH Int
+             | Close FH
+
+data Response = Channel Word64
               | Data Reply
 
 parseRequest :: Namespace -> Parser Request
@@ -51,9 +55,10 @@ parseRequest n = do
     where endBy = liftA2 const
 
 liftE :: SomeException -> Reply
-liftE e =
+liftE e = do
   case (fromException e) of
     Nothing              -> InternalError
+    Just TimeoutExcept   -> InternalError
     Just BadDeviceExcept -> InternalError
     Just UserExcept      -> BadRequestError
     Just SystemExcept    -> InternalError

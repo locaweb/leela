@@ -25,6 +25,7 @@ import Control.Exception
 
 data Excepts = BadDeviceExcept
              | NotFoundExcept
+             | TimeoutExcept
              | SystemExcept
              | UserExcept
              deriving (Show, Typeable, Eq)

@@ -35,11 +35,9 @@ import           Leela.Network.CoreServer
 import           Leela.Network.ZMQServer.Device
 import           Leela.Network.ZMQServer.Protocol
 
-type FH = Int
-
 data ZMQServer b = ZMQServer { backend :: b
-                             , fdseq   :: TVar Int
-                             , handles :: TVar (M.Map Int Device)
+                             , fdseq   :: TVar FH
+                             , handles :: TVar (M.Map FH Device)
                              }
 
 qsize :: Int
@@ -48,7 +46,7 @@ qsize = 32
 defaultTtl :: Int
 defaultTtl = 30
 
-znextfd :: ZMQServer b -> STM Int
+znextfd :: ZMQServer b -> STM FH
 znextfd z = do
   k <- readTVar (fdseq z)
   writeTVar (fdseq z) (k + 1)
@@ -112,7 +110,7 @@ exec z (Begin lql)      = do
   forkLQL z fh lql
   return (msgpack1 (Channel fh))
 exec z (Close fh)       = do
-  zclose z fh
+  zclose z (fromIntegral fh)
   return (msgpack1 done)
 
 create :: a -> IO (ZMQServer a)
