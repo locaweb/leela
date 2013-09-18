@@ -26,10 +26,11 @@ import           Data.Maybe
 import           System.ZMQ3
 import           Leela.Logger
 import           Control.Monad
+import           Leela.Data.Time
 import qualified Data.ByteString as B
 import           Control.Exception
-import           Control.Concurrent
 import           Leela.Data.Excepts
+import           Control.Concurrent
 import           Leela.HZMQ.ZHelpers
 import           Control.Concurrent.STM
 
@@ -39,10 +40,11 @@ data Cfg = Cfg { timeout      :: Int64
                }
 
 defaultCfg :: Cfg
-defaultCfg = Cfg 5 32 8
+defaultCfg = Cfg (5 * 1000) 32 8
 
-data Job = Job { jmsg :: [B.ByteString]
-               , slot :: TMVar (Maybe [B.ByteString])
+data Job = Job { jtime :: Time
+               , jmsg  :: [B.ByteString]
+               , slot  :: TMVar (Maybe [B.ByteString])
                }
 
 data Pool = Pool { readTimeout :: Int64
@@ -51,8 +53,9 @@ data Pool = Pool { readTimeout :: Int64
 
 enqueue :: Pool -> [B.ByteString] -> IO (TMVar (Maybe [B.ByteString]))
 enqueue pool a = do
+  time <- now
   mvar <- newEmptyTMVarIO
-  atomically (writeTBQueue (queue pool) (Job a mvar))
+  atomically (writeTBQueue (queue pool) (Job time a mvar))
   return mvar
 
 dequeue :: Pool -> IO Job
@@ -62,10 +65,15 @@ request :: Pool -> [B.ByteString] -> IO (Maybe [B.ByteString])
 request pool a = enqueue pool a >>= atomically . takeTMVar
 
 notify :: TMVar (Maybe [B.ByteString]) -> Maybe [B.ByteString] -> IO ()
-notify mvar msg = atomically (putTMVar mvar msg)
+notify mvar mmsg = atomically (putTMVar mvar mmsg)
 
 logresult :: Job -> Maybe SomeException -> IO ()
-logresult _ _ = return ()
+logresult job me = do
+  elapsed <- fmap (`diff` (jtime job)) now
+  linfo HZMQ $ printf "%s `%s' (%.4fms)" (failOrSucc me) (fmt $ jmsg job) (1000 * toDouble elapsed)
+    where failOrSucc :: Maybe SomeException -> String
+          failOrSucc Nothing  = "DEALER.Ok"
+          failOrSucc (Just e) = printf "DEALER.Fail[%s]" (show e)
 
 worker :: Pool -> Context -> String -> IO ()
 worker pool ctx endpoint = do
@@ -84,12 +92,8 @@ worker pool ctx endpoint = do
               Right _ -> do
                 mresult <- recvTimeout (readTimeout pool) fh
                 notify (slot job) mresult
-                case mresult of
-                  Nothing  ->
-                    logresult job (Just $ SomeException SystemExcept)
-                  Just res -> do
-                    logresult job Nothing
-                    workLoop fh
+                logresult job (maybe (Just $ SomeException TimeoutExcept) (const Nothing) mresult)
+                when (isJust mresult) (workLoop fh)
 
 forkSupervised :: IO () -> IO ()
 forkSupervised io = forkIO (supervise "dealer.worker" io) >> return ()
