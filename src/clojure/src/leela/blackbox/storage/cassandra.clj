@@ -29,8 +29,8 @@
     (if-not (describe-keyspace session keyspace)
       (do (when-not creat (throw (IllegalArgumentException. "refusing to re-create keyspace")))
           (create-leela-keyspace session keyspace))
-      (do (when creat (throw (IllegalArgumentException. "refusing to create keyspace [creat flag is false]")))
-          (use-keyspace session keyspace)))
+      (when creat (throw (IllegalArgumentException. "refusing to create keyspace [creat flag is false]"))))
+    (use-keyspace session keyspace)
     session))
 
 (defmacro with-consistency [tag & body]
