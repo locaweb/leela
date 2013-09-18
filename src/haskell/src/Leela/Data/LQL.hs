@@ -50,11 +50,14 @@ instance HasNamespace Using where
 
 instance HasNamespace LQL where
 
-    self (Create r _) = self r
-    self (Match r _)  = self r
+    self (Create r _)  = self r
+    self (Match r _)   = self r
+    self (Resolve r _) = self r
 
-    root (Create r _) = root r
-    root (Match r _)  = root r
+    root (Create r _)  = root r
+    root (Match r _)   = root r
+    root (Resolve r _) = root r
 
-    top (Create r _) = top r
-    top (Match r _)  = top r
+    top (Create r _)  = top r
+    top (Match r _)   = top r
+    top (Resolve r _) = top r
