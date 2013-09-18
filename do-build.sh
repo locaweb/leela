@@ -22,7 +22,8 @@ build_warpdrive () {
   cd "$BUILDROOT/src/haskell"
   cabal update
   cabal configure
-  cabal-dev install -O2
+  if ! cabal-dev install -O2
+  then exit -1; fi
   cp -apv "$BUILDROOT/src/haskell/cabal-dev/bin/warpdrive" "$dist/bin/warpdrive" | log_stderr
 }
 
@@ -33,7 +34,8 @@ build_blackbox () {
   log_stderr building blackbox ...
 
   cd "$BUILDROOT/src/clojure"
-  lein uberjar
+  if ! lein uberjar
+  then exit -1; fi
   cp -v "$BUILDROOT/src/clojure/"/blackbox-*-standalone.jar "$dist/lib/blackbox.jar" | log_stderr
   cp -apv /usr/lib/libjzmq*.so* "$dist/lib/" | log_stderr
 }
