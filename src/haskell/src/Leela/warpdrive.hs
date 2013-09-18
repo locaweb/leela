@@ -28,11 +28,11 @@ import Leela.Storage.Backend.Redis as Rs
 
 import Leela.Data.LQL.Lang ()
 
-defineFlag "redis" "tcp://localhost:6379" "The redis server to connect to"
+defineFlag "redis" "tcp://127.0.0.1:6379" "The redis server to connect to"
 
-defineFlag "storage" "tcp://localhost:4081" "The storage to connect to"
+defineFlag "storage" "tcp://127.0.0.1:50021" "The storage to connect to"
 
-defineFlag "endpoint" "tcp://127.0.0.1:4080" "The endpoint to bind to"
+defineFlag "endpoint" "tcp://*:50023" "The endpoint to bind to"
 
 defineEQFlag "loglevel" [| NOTICE :: Priority |] "PRIORITY" "The log level"
 
