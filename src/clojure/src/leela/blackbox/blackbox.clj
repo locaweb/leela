@@ -24,10 +24,9 @@
                                     :default false
                                     :flag true]
                                    ["--seed" "cassandra seed nodes (may be used multiple times)"
-                                    :default "localhost"
                                     :assoc-fn seed-assoc-fn]
                                    ["--endpoint" "the address to bind to"
-                                    :default "tcp://*:4080"])]
+                                    :default "tcp://*:50021"])]
     (when (:help options)
       (println banner)
       (java.lang.System/exit 0))
