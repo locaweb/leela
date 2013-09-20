@@ -21,14 +21,14 @@ import HFlags
 import System.ZMQ3
 import Leela.Logger
 import Control.Concurrent
+import Leela.Storage.Backend
 import Leela.Network.ZMQServer as Z
 import Leela.Storage.Backend.ZMQ as Zs
-import Leela.Storage.Backend.Cache as Cs
 import Leela.Storage.Backend.Redis as Rs
 
 import Leela.Data.LQL.Lang ()
 
-defineFlag "redis" "tcp://127.0.0.1:6379" "The redis server to connect to"
+defineFlag "redis" "nothing" "The redis server to connect to"
 
 defineFlag "storage" "tcp://127.0.0.1:50021" "The storage to connect to"
 
@@ -36,10 +36,16 @@ defineFlag "endpoint" "tcp://*:50023" "The endpoint to bind to"
 
 defineEQFlag "loglevel" [| NOTICE :: Priority |] "PRIORITY" "The log level"
 
-backend :: Context -> IO (CacheBackend RedisBackend ZMQBackend)
-backend ctx = do redisCluster <- Rs.new [flags_redis]
-                 zmqCluster   <- Zs.new ctx [flags_storage]
-                 return (Cs.new redisCluster zmqCluster)
+backend :: Context -> IO AnyBackend
+backend ctx = do
+  zmqCluster   <- Zs.new ctx [flags_storage]
+  if (flags_redis == "nothing")
+    then do
+      lnotice Global "not using redis backend for caching"
+      return $ AnyBackend zmqCluster
+    else do
+      redisCluster <- Rs.new [flags_redis]
+      return $ AnyBackend (AnyBackend redisCluster, AnyBackend zmqCluster)
 
 main :: IO ()
 main = withContext $ \ctx -> do

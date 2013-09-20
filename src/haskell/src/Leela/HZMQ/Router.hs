@@ -60,9 +60,10 @@ logresult :: Request -> Maybe SomeException -> IO ()
 logresult job me = do
   elapsed <- fmap (`diff` (reqTime job)) now
   linfo HZMQ $ printf "%s `%s' (%.4fms)" (failOrSucc me) (fmt $ readMsg job) (1000 * toDouble elapsed)
-    where failOrSucc :: Maybe SomeException -> String
-          failOrSucc Nothing  = "ROUTER.Ok"
-          failOrSucc (Just e) = printf "ROUTER.Fail[%s]" (show e)
+    where
+      failOrSucc :: Maybe SomeException -> String
+      failOrSucc Nothing  = "ROUTER.Ok"
+      failOrSucc (Just e) = printf "ROUTER.Fail[%s]" (show e)
 
 request :: TBQueue Request -> Request -> IO ()
 request queue req = atomically (writeTBQueue queue req)

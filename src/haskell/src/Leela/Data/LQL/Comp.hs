@@ -53,29 +53,35 @@ hardspace :: Parser ()
 hardspace = char ' ' >> return ()
 
 parseKey :: Namespace -> Parser NKey
-parseKey _ = do s <- qstring 128 0x28 0x29
-                return (pack s, s)
+parseKey _ = do
+  s <- qstring 128 0x28 0x29
+  return (pack s, s)
 
 parseKeyAsGUID :: Namespace -> Parser (Key, GUID)
-parseKeyAsGUID n = do (k, _) <- parseKey n
-                      return (k, guid $ derive n k)
+parseKeyAsGUID n = do
+  (k, _) <- parseKey n
+  return (k, guid $ derive n k)
 
 parseNS :: Namespace -> Parser (Namespace, NKey)
-parseNS n = do s <- qstring 128 0x28 0x29
-               return (derive n s, (pack s, s))
+parseNS n = do
+  s <- qstring 128 0x28 0x29
+  return (derive n s, (pack s, s))
 
 parseLabel :: Namespace -> Parser NLabel
-parseLabel _ = do s <- qstring 128 0x5b 0x5d
-                  return (pack s, s)
+parseLabel _ = do
+  s <- qstring 128 0x5b 0x5d
+  return (pack s, s)
 
 qstring :: Int -> Word8 -> Word8 -> Parser L.ByteString
 qstring limit l r = word8 l >> anyWord8 >>= loop limit []
-    where loop lim acc x
-              | x == r    = return (L.pack (reverse acc))
-              | lim < 0   = fail "qstring:too long"
-              | x == 0x5c = do c <- anyWord8
-                               anyWord8 >>= loop (lim - 1) (c : acc)
-              | otherwise = anyWord8 >>= loop (lim - 1) (x : acc)
+    where
+      loop lim acc x
+        | x == r    = return (L.pack (reverse acc))
+        | lim < 0   = fail "qstring:too long"
+        | x == 0x5c = do
+            c <- anyWord8
+            anyWord8 >>= loop (lim - 1) (c : acc)
+        | otherwise = anyWord8 >>= loop (lim - 1) (x : acc)
 
 newline :: Parser ()
 newline = char '\n' >> return ()
@@ -84,59 +90,68 @@ semicolon :: Parser ()
 semicolon = char ';' >> return ()
 
 parseLink :: Namespace -> Parser (Direction NLabel)
-parseLink n = do mdir <- char '-' <|> char '<'
-                 l    <- option (pack L.empty, L.empty) (parseLabel n)
-                 f    <- case mdir of
-                           '-' -> (liftM (const B) (char '-')) <|> (liftM (const R) (char '>'))
-                           '<' -> liftM (const L) (char '-')
-                           _   -> fail "parseLink"
-                 return (f l)
+parseLink n = do
+  mdir <- char '-' <|> char '<'
+  l    <- option (pack L.empty, L.empty) (parseLabel n)
+  f    <- case mdir of
+           '-' -> (liftM (const B) (char '-')) <|> (liftM (const R) (char '>'))
+           '<' -> liftM (const L) (char '-')
+           _   -> fail "parseLink"
+  return (f l)
 
 parseRLink :: Namespace -> Parser NLabel
-parseRLink n = do dlink <- parseLink n
-                  case dlink of
-                    R l -> return l
-                    _   -> fail "parseRLink: wrong direction"
+parseRLink n = do
+  dlink <- parseLink n
+  case dlink of
+    R l -> return l
+    _   -> fail "parseRLink: wrong direction"
 
 parseG :: Namespace -> Parser (G.Result ())
-parseG n = do (k, kg) <- parseKeyAsGUID n
-              peekChar >>= fmap (putNode n k >>) . (go kg [])
-  where go k g (Just ' ') = do l <- hardspace >> parseLink n
-                               r <- hardspace >> fmap snd (parseKeyAsGUID n)
-                               peekChar >>= go r (asLink g k r l)
-        go _ g _          = return (putLinks g)
+parseG n = do
+  (k, kg) <- parseKeyAsGUID n
+  peekChar >>= fmap (putNode n k >>) . (go kg [])
+    where
+      go k g (Just ' ') = do
+        l <- hardspace >> parseLink n
+        r <- hardspace >> fmap snd (parseKeyAsGUID n)
+        peekChar >>= go r (asLink g k r l)
+      go _ g _          = return (putLinks g)
 
-        asLink acc k r (L (l, _)) = (r, k, l) : acc
-        asLink acc k r (R (l, _)) = (k, r, l) : acc
-        asLink acc k r (B (l, _)) = (k, r, l) : (r, k, l) : acc
+      asLink acc k r (L (l, _)) = (r, k, l) : acc
+      asLink acc k r (R (l, _)) = (k, r, l) : acc
+      asLink acc k r (B (l, _)) = (k, r, l) : (r, k, l) : acc
 
 endBy :: Parser a -> Parser b -> Parser a
 endBy = liftM2 const
 
 parseQuery :: Namespace -> Parser Cursor
-parseQuery n = do q0 <- fmap (select . snd) (parseKeyAsGUID n)
-                  parseQuery1 n q0
+parseQuery n = do
+  q0 <- fmap (start . snd) (parseKeyAsGUID n)
+  parseQuery1 True n q0
 
-parseQuery1 :: Namespace -> Cursor -> Parser Cursor
-parseQuery1 n q = option q doParse
-    where doParse = do hardspace
-                       (_, sl) <- parseRLink n
-                       hardspace
-                       (k, sk) <- parseKey n
-                       if (L.null sk)
-                         then parseQuery1 n (outlabelWith (comparator sl) q)
-                         else parseQuery1 n (outnodeWith (comparator sl) (== (guid $ derive n k)) q)
+parseQuery1 :: Bool -> Namespace -> Cursor -> Parser Cursor
+parseQuery1 begin n q
+    | begin     = option (select (const True) (const True) q) doParse
+    | otherwise = option q doParse
+    where 
+      doParse = do
+        hardspace
+        (_, sl) <- parseRLink n
+        hardspace
+        (k, sk) <- parseKey n
+        if (L.null sk)
+          then parseQuery1 False n (select (comparator sl) (const True) q)
+          else parseQuery1 False n (select (comparator sl) (== (guid $ derive n k)) q)
 
-          comparator s = let isPrefix = "*" `L.isPrefixOf` s
-                             isSuffix = "*" `L.isSuffixOf` s
-                             left     = L.init s
-                             right    = L.tail s
-                             mid      = L.tail (L.init s)
-                         in case (isPrefix, isSuffix) of
-                              (True, True)   -> or . map (mid `L.isPrefixOf`) . L.tails . unpack
-                              (True, False)  -> (right `L.isSuffixOf`) . unpack
-                              (False, True)  -> (left `L.isPrefixOf`) . unpack
-                              (False, False) -> (s ==) . unpack
+      comparator s =
+        case (isPrefix, isSuffix) of
+          (True, True)   -> (s ==) . unpack
+          (True, False)  -> (L.tail s `L.isSuffixOf`) . unpack
+          (False, True)  -> (L.init s `L.isPrefixOf`) . unpack
+          (False, False) -> (s ==) . unpack
+          where
+            isPrefix = "*" `L.isPrefixOf` s
+            isSuffix = "*" `L.isSuffixOf` s
 
 parseStmtCreate :: Using -> Parser LQL
 parseStmtCreate n = "create " .*> liftM (Create n) (parseG (self n))
@@ -147,22 +162,24 @@ parseStmtMatch n = "match " .*> liftM (Match n) (parseQuery (self n))
 hexAlphabet :: [Word8]
 hexAlphabet = [0x78] ++ [0x30 .. 0x39] ++ [0x41 .. 0x46] ++ [0x61 .. 0x66]
 
-parseStmtResolve :: Using -> Parser LQL
-parseStmtResolve n = "resolve " .*> liftM (Resolve n . pack) (A.takeWhile (\c -> c `elem` hexAlphabet))
+parseStmtDeref :: Using -> Parser LQL
+parseStmtDeref n = "deref " .*> liftM (Deref n . pack) (A.takeWhile (\c -> c `elem` hexAlphabet))
 
 parseStmt :: Using -> Parser LQL
-parseStmt n = parseStmtCreate n
-              <|> parseStmtMatch n
-              <|> parseStmtResolve n
+parseStmt n =
+  parseStmtCreate n
+  <|> parseStmtMatch n
+  <|> parseStmtDeref n
 
 parseStmts :: Using -> Parser [LQL]
 parseStmts u = parseStmt u `sepBy1` (char '\n')
 
 parseUsing :: Namespace -> Parser Using
-parseUsing r = do (uns, (ukey, user)) <- "using " .*> parseNS r
-                  (nns, (nkey, name)) <- hardspace >> parseNS uns
-                  (akey, _)           <- option (ukey, user) parseAs
-                  return (Using uns (nns, nkey, name) akey)
+parseUsing r = do
+  (uns, (ukey, user)) <- "using " .*> parseNS r
+  (nns, (nkey, name)) <- hardspace >> parseNS uns
+  (akey, _)           <- option (ukey, user) parseAs
+  return (Using uns (nns, nkey, name) akey)
     where parseAs = " as " .*> parseKey r
 
 parseLQL :: Namespace -> Parser [LQL]
@@ -176,17 +193,18 @@ loads p = parseOnly p . bytestring
 
 chkloads :: (Source i) => Parser a -> [i] -> Either String a
 chkloads p = go (parse p B.empty)
-    where go r []     = eitherResult r
-          go r (i:is) = go (feed r (bytestring i)) is
+    where
+      go r []     = eitherResult r
+      go r (i:is) = go (feed r (bytestring i)) is
 
 instance Source B.ByteString where
 
-    bytestring = id
+  bytestring = id
 
 instance Source String where
 
-    bytestring = U.fromString
+  bytestring = U.fromString
 
 instance Source L.ByteString where
 
-    bytestring = L.toStrict
+  bytestring = L.toStrict

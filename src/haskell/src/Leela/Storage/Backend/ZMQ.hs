@@ -36,40 +36,61 @@ new ctx endpoints = do
   return (ZMQBackend pool)
 
 recvPool :: Maybe [ByteString] -> Response
-recvPool Nothing    = SomeError 500
+recvPool Nothing    = RFail 500
 recvPool (Just msg) = asResponse
-    where asResponse = case (decode $ fromChunks msg) of
-                         Nothing -> SomeError 502
-                         Just v  -> v
+    where
+      asResponse =
+        case (decode $ fromChunks msg) of
+          Nothing -> RFail 502
+          Just v  -> v
 
 sendPool :: Pool -> Request -> IO Response
 sendPool pool req = fmap recvPool (request pool msg)
     where msg = [toStrict $ encode req]
 
-instance Backend ZMQBackend where
+instance GraphBackend ZMQBackend where
 
-    resolve k m = do
-      reply <- sendPool (reqPool m) (Resolve k)
-      case reply of
-        Name ns name  -> return (ns, name)
-        SomeError 404 -> throwIO NotFoundExcept
-        _             -> throwIO SystemExcept
+  getName g m = do
+    reply <- sendPool (reqPool m) (GetName g)
+    case reply of
+      RName n k -> return (n, k)
+      RFail 404 -> throwIO NotFoundExcept
+      _         -> throwIO SystemExcept
 
-    getNode k m = do
-      reply <- sendPool (reqPool m) (GetNode k)
-      case reply of
-        Node value    -> return value
-        SomeError 404 -> throwIO NotFoundExcept
-        _             -> throwIO SystemExcept
+  putName n k g m = do
+    reply <- sendPool (reqPool m) (PutName n k g)
+    case reply of
+      ROk -> return ()
+      _   -> throwIO SystemExcept
 
-    putNode n k g m = do
-      reply <- sendPool (reqPool m) (PutNode n k g)
-      case reply of
-        Done -> return ()
-        _    -> throwIO SystemExcept
+  getLabel g m = do
+    reply <- sendPool (reqPool m) (GetLabel g)
+    case reply of
+      RLabel value -> return value
+      RFail 404    -> throwIO NotFoundExcept
+      _            -> throwIO SystemExcept
 
-    putLink lnks m = do
-      reply <- sendPool (reqPool m) (PutLink lnks)
-      case reply of
-        Done -> return ()
-        _    -> throwIO SystemExcept
+  putLabel g lbls m = do
+    reply <- sendPool (reqPool m) (PutLabel g lbls)
+    case reply of
+      ROk -> return ()
+      _   -> throwIO SystemExcept
+
+  getLink g m = do
+    reply <- sendPool (reqPool m) (GetLink g)
+    case reply of
+      RLink value -> return value
+      RFail 404   -> throwIO NotFoundExcept
+      _           -> throwIO SystemExcept
+
+  putLink g lnks m = do
+    reply <- sendPool (reqPool m) (PutLink g lnks)
+    case reply of
+      ROk -> return ()
+      _   -> throwIO SystemExcept
+
+  unlink a b m = do
+    reply <- sendPool (reqPool m) (Unlink a b)
+    case reply of
+      ROk -> return ()
+      _   -> throwIO SystemExcept

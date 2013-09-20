@@ -1,0 +1,16 @@
+CREATE TABLE graph (
+  a blob,
+  b blob,
+  PRIMARY KEY (a, b)
+) WITH caching    = 'NONE'
+  AND compaction  = {'sstable_size_in_mb': '20', 'class': 'LeveledCompactionStrategy'}
+  AND compression = {'sstable_compression': 'SnappyCompressor'};
+
+CREATE TABLE search (
+  key   blob,
+  code  int,
+  name  text,
+  PRIMARY KEY ((key, code), name)
+) WITH caching     = 'NONE'
+  AND  compaction  = {'sstable_size_in_mb': '20', 'class': 'LeveledCompactionStrategy'}
+  AND  compression = {'sstable_compression': 'SnappyCompressor'};

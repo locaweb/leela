@@ -20,56 +20,45 @@ module Leela.Storage.Backend.ZMQ.Protocol
     , Response (..)
     ) where
 
-import           Data.Aeson
-import qualified Data.Vector as V
-import           Data.Aeson.Types
-import           Leela.Data.Namespace
+import Data.Aeson
+import Leela.Data.Namespace
 
-data Request = Resolve GUID
-             | GetNode GUID
-             | PutNode Namespace Key GUID
-             | PutLink [(GUID, GUID, Label)]
+data Request = GetName GUID
+             | PutName Namespace Key GUID
+             | GetLink GUID
+             | PutLink GUID [GUID]
+             | GetLabel GUID
+             | PutLabel GUID [Label]
+             | Unlink GUID GUID
 
-data Response = Done
-              | Name Namespace Key
-              | Node [(GUID, Label)]
-              | SomeError Int
+data Response = ROk
+              | RName Namespace Key
+              | RLink [GUID]
+              | RLabel [Label]
+              | RFail Int
 
 i :: Int -> Value
 i = toJSON
 
-asTuple :: (FromJSON a, FromJSON b) => Value -> Parser (a, b)
-asTuple = withArray "asTuple" go
-    where go pair
-              | V.length pair == 2 = do
-            a <- parseJSON (pair V.! 0)
-            b <- parseJSON (pair V.! 1)
-            return (a, b)
-              | otherwise          = fail "asTuple"
-
-parseName :: Value -> Parser Response
-parseName = fmap (uncurry Name) . asTuple
-
-parseNode :: Value -> Parser Response
-parseNode = withArray "parseNode" $ fmap Node . Prelude.mapM asTuple . V.toList
-
 instance ToJSON Request where
 
-  toJSON (Resolve g)     = object [("code", i 0), ("data", toJSON g)]
-  toJSON (GetNode g)     = object [("code", i 1), ("data", toJSON g)]
-  toJSON (PutNode n k g) = object [("code", i 2), ("data", toJSON (n, k, g))]
-  toJSON (PutLink lnks)  = object [("code", i 3), ("data", toJSON lnks)]
+  toJSON (GetName g)       = object [("code", i 0), ("data", toJSON g)]
+  toJSON (PutName n k g)   = object [("code", i 1), ("data", toJSON (n, k, g))]
+  toJSON (GetLabel g)      = object [("code", i 2), ("data", toJSON g)]
+  toJSON (PutLabel g lbls) = object [("code", i 3), ("data", toJSON (g, lbls))]
+  toJSON (GetLink g)       = object [("code", i 4), ("data", toJSON g)]
+  toJSON (PutLink g lnks)  = object [("code", i 5), ("data", toJSON (g, lnks))]
+  toJSON (Unlink a b)      = object [("code", i 6), ("data", toJSON (a, b))]
 
 instance FromJSON Response where
 
   parseJSON = withObject "Response" $ \o -> do
-    msg <- fmap v (o .: "code")
-    case msg of
-      0 -> return Done
-      1 -> o .: "data" >>= parseName
-      2 -> o .: "data" >>= parseNode
-      3 -> fmap SomeError (o .: "data")
-      _ -> return (SomeError 502)
-      where v :: Int -> Int
-            v = id
+    msg <- o .: "code"
+    case (msg :: Int) of
+      0 -> return ROk
+      1 -> o .: "data" >>= return . (uncurry RName)
+      2 -> o .: "data" >>= return . RLink
+      3 -> o .: "data" >>= return . RLabel
+      4 -> fmap RFail (o .: "data")
+      _ -> return (RFail 502)
                            

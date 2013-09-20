@@ -16,18 +16,6 @@
         (.send fh msg ZMQ/SNDMORE)
         (recur (first rest) (next rest))))))
 
-(defmacro forever [& body]
-  `(while true ~@body))
-
-(defmacro supervise [& body]
-  `(forever
-    (try
-      ~@body
-      (catch Exception _#))))
-
-(defn utf8-string [bytes]
-  (String. bytes "UTF-8"))
-
 (defn setup-socket [fh]
   (.setLinger fh 1)
   (.setReconnectIVL fh 1000)

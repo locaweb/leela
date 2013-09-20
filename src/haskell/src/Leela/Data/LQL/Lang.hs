@@ -20,8 +20,8 @@ module Leela.Data.LQL.Lang
     , link
     , using
     , match
+    , deref
     , create
-    , resolve
     , (.>)
     , (..>)
     , (<$>)
@@ -61,8 +61,8 @@ link a l b = Document $
 match :: (ToBuilder node) => node -> Document
 match node = Document (string7 "match " <> build node)
 
-resolve :: (ToBuilder guid) => guid -> Document
-resolve guid = Document (string7 "resolve " <> build guid)
+deref :: (ToBuilder guid) => guid -> Document
+deref guid = Document (string7 "deref " <> build guid)
 
 (.>) :: (ToBuilder label) => Document -> label -> Document
 (.>) doc label = doc ..> (label, "()")

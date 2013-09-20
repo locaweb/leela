@@ -81,5 +81,5 @@ msgpack (x:xs) = encodeStrict x : msgpack xs
 
 instance ToJSON Response where
 
-    toJSON (Channel n) = object [("done", object [("channel", toJSON n)])]
-    toJSON (Data r)    = toJSON r
+  toJSON (Channel n) = object [("done", object [("channel", toJSON n)])]
+  toJSON (Data r)    = toJSON r

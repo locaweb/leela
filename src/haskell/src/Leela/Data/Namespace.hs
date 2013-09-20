@@ -27,8 +27,9 @@ module Leela.Data.Namespace
     -- * Top-level namespace
     , tld
     , Data.Hashable.hash
-    -- * Casting
+    -- * Hashing
     , guid
+    , rehash
     ) where
 
 import           Data.Word
@@ -44,7 +45,7 @@ import           Control.Applicative
 import qualified Data.ByteString.Lazy as L
 
 newtype GUID = GUID (Digest SHA224)
-    deriving (Eq)
+    deriving (Eq, Ord)
 
 newtype Namespace = Namespace L.ByteString
     deriving (Eq, Show)
@@ -57,19 +58,22 @@ newtype Label = Label L.ByteString
 
 class Domain a where
 
-    derive :: Namespace -> a -> Namespace
+  derive   :: Namespace -> a -> Namespace
 
 class Identifier a b where
 
-    pack :: b -> a
+  pack :: b -> a
 
-    unpack :: a -> b
+  unpack :: a -> b
 
-sep :: L.ByteString
-sep = L.singleton 0x2f
+sep :: Word8
+sep = 0x2f
 
 guid :: Namespace -> GUID
 guid (Namespace l) = GUID (hashlazy l)
+
+rehash :: GUID -> B.ByteString -> GUID
+rehash (GUID g) b = GUID $ hashFinalize $ hashUpdates hashInit [toBytes g, b]
 
 tld :: Namespace
 tld = Namespace ""
@@ -89,112 +93,119 @@ decodeWord a b = do
 
 decodeHex :: B.ByteString -> Maybe B.ByteString
 decodeHex = fmap (B.pack . reverse) . go [] . B.unpack
-    where go acc (w0:w1:ws) = decodeWord w0 w1 >>= \w -> go (w : acc) ws
-          go acc []         = Just acc
-          go _ _            = Nothing
+    where
+      go acc (w0:w1:ws) = decodeWord w0 w1 >>= \w -> go (w : acc) ws
+      go acc []         = Just acc
+      go _ _            = Nothing
 
 instance Domain B.ByteString where
 
-    derive n = derive n . L.fromStrict
+  derive n = derive n . L.fromStrict
 
 instance Domain L.ByteString where
 
-    derive (Namespace n) s = Namespace (n `L.append` sep `L.append` s)
+  derive (Namespace n) s
+    | L.elem sep s = error "invalid character"
+    | otherwise    = Namespace (s `L.append` (L.cons sep n))
 
 instance Domain Key where
 
-    derive n (Key k) = derive n k
+  derive n (Key k) = derive n k
 
 instance Domain Label where
 
-    derive n (Label k) = derive n k
+  derive n (Label k) = derive n k
 
 instance Identifier Namespace L.ByteString where
 
-    pack = Namespace
+  pack = Namespace
 
-    unpack (Namespace s) = s
+  unpack (Namespace s) = s
 
 instance Identifier Namespace B.ByteString where
 
-    pack = Namespace . L.fromStrict
+  pack = Namespace . L.fromStrict
 
-    unpack (Namespace s) = L.toStrict s
+  unpack (Namespace s) = L.toStrict s
 
 instance Identifier Key L.ByteString where
 
-    pack = Key
+  pack = Key
 
-    unpack (Key s) = s
+  unpack (Key s) = s
 
 instance Identifier Key B.ByteString where
 
-    pack = Key . L.fromStrict
+  pack = Key . L.fromStrict
 
-    unpack (Key s) = L.toStrict s
+  unpack (Key s) = L.toStrict s
 
 instance Identifier Label L.ByteString where
 
-    pack = Label
+  pack = Label
 
-    unpack (Label s) = s
+  unpack (Label s) = s
 
 instance Identifier Label B.ByteString where
 
-    pack = Label . L.fromStrict
+  pack = Label . L.fromStrict
 
-    unpack (Label s) = L.toStrict s
+  unpack (Label s) = L.toStrict s
 
 instance Identifier GUID B.ByteString where
 
-    pack s = case (decodeHex (B.drop 2 s)) of
-               Just  v -> GUID (fromJust $ digestFromByteString v)
-               Nothing -> error "data corruption"
-    unpack (GUID s) = B.append "0x" (digestToHexByteString s)
+  pack s =
+    case (decodeHex (B.drop 2 s)) of
+      Just  v -> GUID (fromJust $ digestFromByteString v)
+      Nothing -> error "data corruption"
+
+  unpack (GUID s) = B.append "0x" (digestToHexByteString s)
 
 instance Identifier GUID L.ByteString where
 
-    pack s = (pack $ L.toStrict s)
-    unpack g = L.fromStrict (unpack g)
+  pack s = (pack $ L.toStrict s)
+
+  unpack g = L.fromStrict (unpack g)
 
 instance ToJSON Key where
 
-    toJSON (Key w0) = toJSON w0
+  toJSON (Key w0) = toJSON w0
 
 instance ToJSON Label where
 
-    toJSON (Label w0) = toJSON w0
+  toJSON (Label w0) = toJSON w0
 
 instance ToJSON GUID where
 
-    toJSON g = toJSON (str)
-        where str :: B.ByteString
-              str = unpack g
+  toJSON g = toJSON (str)
+      where
+        str :: B.ByteString
+        str = unpack g
 
 instance ToJSON Namespace where
 
-    toJSON (Namespace s) = toJSON s
+  toJSON (Namespace s) = toJSON s
 
 instance FromJSON Namespace where
 
-    parseJSON = withText "Namespace" $ pure . pack . encodeUtf8
+  parseJSON = withText "Namespace" $ pure . pack . encodeUtf8
 
 instance FromJSON Key where
 
-    parseJSON = withText "Key" $ pure . pack . encodeUtf8
+  parseJSON = withText "Key" $ pure . pack . encodeUtf8
 
 instance FromJSON Label where
 
-    parseJSON = withText "Label" $ pure . pack . encodeUtf8
+  parseJSON = withText "Label" $ pure . pack . encodeUtf8
 
 instance FromJSON GUID where
 
-    parseJSON = withText "GUID" $ pure . pack . encodeUtf8
+  parseJSON = withText "GUID" $ pure . pack . encodeUtf8
 
 instance Ord Namespace where
 
-    compare (Namespace n0) (Namespace n1) = n0 `compare` n1
+  compare (Namespace n0) (Namespace n1) = n0 `compare` n1
 
 instance Hashable GUID where
 
-    hashWithSalt salt (GUID s) = hashWithSalt salt (toBytes s)
+  hashWithSalt salt (GUID s) = hashWithSalt salt (toBytes s)

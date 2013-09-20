@@ -71,29 +71,31 @@ logresult :: Job -> Maybe SomeException -> IO ()
 logresult job me = do
   elapsed <- fmap (`diff` (jtime job)) now
   linfo HZMQ $ printf "%s `%s' (%.4fms)" (failOrSucc me) (fmt $ jmsg job) (1000 * toDouble elapsed)
-    where failOrSucc :: Maybe SomeException -> String
-          failOrSucc Nothing  = "DEALER.Ok"
-          failOrSucc (Just e) = printf "DEALER.Fail[%s]" (show e)
+    where
+      failOrSucc :: Maybe SomeException -> String
+      failOrSucc Nothing  = "DEALER.Ok"
+      failOrSucc (Just e) = printf "DEALER.Fail[%s]" (show e)
 
 worker :: Pool -> Context -> String -> IO ()
 worker pool ctx endpoint = do
   withSocket ctx Req $ \fh -> setup fh >> workLoop fh
-    where setup fh = do
-            connect fh endpoint
-            configure fh
+    where
+      setup fh = do
+        connect fh endpoint
+        configure fh
 
-          workLoop fh = do
-            job  <- dequeue pool
-            mres <- try (sendAll fh (jmsg job))
-            case mres of
-              Left e  -> do
-                logresult job (Just e)
-                notify (slot job) Nothing
-              Right _ -> do
-                mresult <- recvTimeout (readTimeout pool) fh
-                notify (slot job) mresult
-                logresult job (maybe (Just $ SomeException TimeoutExcept) (const Nothing) mresult)
-                when (isJust mresult) (workLoop fh)
+      workLoop fh = do
+        job  <- dequeue pool
+        mres <- try (sendAll fh (jmsg job))
+        case mres of
+          Left e  -> do
+            logresult job (Just e)
+            notify (slot job) Nothing
+          Right _ -> do
+            mresult <- recvTimeout (readTimeout pool) fh
+            notify (slot job) mresult
+            logresult job (maybe (Just $ SomeException TimeoutExcept) (const Nothing) mresult)
+            when (isJust mresult) (workLoop fh)
 
 forkSupervised :: IO () -> IO ()
 forkSupervised io = forkIO (supervise "dealer.worker" io) >> return ()

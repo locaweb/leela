@@ -31,8 +31,9 @@ recvTimeout t s = do
 sendAll :: Sender a => Socket a => [ByteString] -> IO ()
 sendAll _ []      = error "empty message"
 sendAll fh [x]    = send fh [] x
-sendAll fh (x:xs) = do send fh [SendMore] x
-                       sendAll fh xs
+sendAll fh (x:xs) = do
+  send fh [SendMore] x
+  sendAll fh xs
 
 ms :: Int -> Int
 ms = (* 1000)
@@ -43,9 +44,7 @@ configure fh = do
   setReconnectInterval (restrict (ms 1)) fh
 
 supervise :: String -> IO () -> IO ()
-supervise name io =
-  mask $ \restore -> do
-    restore io `catch` restart
+supervise name io = mask $ \restore -> restore io `catch` restart
     where
       restart :: SomeException -> IO ()
       restart e = do linfo HZMQ (printf "supervised thread has died [%s: except: %s]" name (show e))

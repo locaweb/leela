@@ -15,31 +15,14 @@
 
 module Leela.Data.Journal
     ( Journal (..)
-    , jmerge
     ) where
 
-import Data.List
 import Leela.Data.Namespace
 
 -- | The log of write operations on the graph.  The idea is to provide
 -- serialization through logging, which gives us the nice feature of
 -- writing asynchronously and also the nasty hazard of
 -- read-after-write.
-data Journal = PutLink [(GUID, GUID, Label)]
+data Journal = PutLink [(GUID, GUID)]
+             | PutLabel [(GUID, Label)]
              | PutNode Namespace Key GUID
-
-splitType :: [Journal] -> ([Journal], [Journal])
-splitType = partition f
-    where f (PutNode _ _ _) = True
-          f _               = False
-
-jmerge_ :: [Journal] -> [Journal]
-jmerge_ []                                     = []
-jmerge_ [j]                                    = [j]
-jmerge_ (j@(PutNode _ _ _):js)                 = j : jmerge_ js
-jmerge_ ((PutLink l0):(PutLink l1):js)         = jmerge_ (PutLink (l0 ++ l1) : js)
-jmerge_ (j0@(PutLink _):j1@(PutNode _ _ _):js) = j1 : jmerge_ (j0 : js)
-
-jmerge :: [Journal] -> [Journal]
-jmerge js = let (a, b) = splitType js
-            in jmerge_ a ++ jmerge_ b

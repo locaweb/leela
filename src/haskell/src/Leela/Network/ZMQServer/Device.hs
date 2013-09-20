@@ -66,16 +66,16 @@ asReply xs = xs
 
 blkread :: Limit -> Device -> STM [Reply]
 blkread limit dev = blkread_ (max 0 limit) asReply
-    where blkread_ 0 f = return (f [])
-          blkread_ l f = do
-            mmsg <- readfunc l
-            case mmsg of
-              Just msg
-                | isChunk msg -> blkread_ (l - 1) (f . (msg :))
-                | otherwise   -> blkread_ 0 (f . (msg :))
-              Nothing         -> return (f [])
+    where
+      blkread_ 0 f = return (f [])
+      blkread_ l f = do
+        mmsg <- readfunc l
+        case mmsg of
+          Just msg
+              | isChunk msg -> blkread_ (l - 1) (f . (msg :))
+              | otherwise   -> blkread_ 0 (f . (msg :))
+          Nothing           -> return (f [])
     
-          readfunc l
-              | l == limit = fmap Just (devread dev)
-              | otherwise  = trydevread dev
-                
+      readfunc l
+          | l == limit = fmap Just (devread dev)
+          | otherwise  = trydevread dev                

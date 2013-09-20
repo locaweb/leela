@@ -51,12 +51,12 @@ myfmt = simpleLogFormatter "[$utcTime] [$prio/$loggername.$pid] $msg"
 
 logsetup :: Priority -> IO ()
 logsetup prio = do
-    h <- fmap (flip setFormatter myfmt) (streamHandler stderr prio)
-    updateGlobalLogger rootLoggerName (setHandlers [h])
-    setupLog HZMQ (setLevel prio)
-    setupLog Global (setLevel prio)
-    setupLog Network (setLevel prio)
-    setupLog Storage (setLevel prio)
+  h <- fmap (flip setFormatter myfmt) (streamHandler stderr prio)
+  updateGlobalLogger rootLoggerName (setHandlers [h])
+  setupLog HZMQ (setLevel prio)
+  setupLog Global (setLevel prio)
+  setupLog Network (setLevel prio)
+  setupLog Storage (setLevel prio)
 
 facility :: Facility -> String
 facility Global  = "leela"
@@ -87,26 +87,26 @@ lcritical sys = criticalM (facility sys) . fmt
 
 instance ToString ByteString where
   
-    fmt = fmt . toString . toLazyByteString . byteString
+  fmt = fmt . toString . toLazyByteString . byteString
 
 instance ToString Double where
 
-    fmt = show
+  fmt = show
 
 instance ToString Int where
 
-    fmt = show
+  fmt = show
 
 instance ToString Char where
 
-    fmt '\n' = "[\\n]"
-    fmt c    = [c]
+  fmt '\n' = "[\\n]"
+  fmt c    = [c]
 
 instance (ToString a) => ToString [a] where
 
-    fmt = foldr (\a acc -> fmt a ++ acc) ""
+  fmt = foldr (\a acc -> fmt a ++ acc) ""
 
 instance (ToString a) => ToString (Maybe a) where
 
-    fmt Nothing  = "<<nothing>>"
-    fmt (Just s) = fmt s
+  fmt Nothing  = "<<nothing>>"
+  fmt (Just s) = fmt s

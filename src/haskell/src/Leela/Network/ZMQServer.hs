@@ -25,12 +25,14 @@ import           System.ZMQ3
 import           Control.Monad
 import           Leela.Data.LQL
 import qualified Data.ByteString as B
+import qualified Data.Map.Strict as M
+import           Control.Exception
 import           Leela.HZMQ.Router
 import           Control.Concurrent
-import qualified Data.Map.Strict as M
+import           Leela.Data.Excepts
 import           Leela.Storage.Backend
-import           Leela.Network.Protocol as R
 import           Control.Concurrent.STM
+import           Leela.Network.Protocol as R
 import           Leela.Network.CoreServer
 import           Leela.Network.ZMQServer.Device
 import           Leela.Network.ZMQServer.Protocol
@@ -88,20 +90,23 @@ zwrite z fh r =
 zreaper :: ZMQServer a -> IO ()
 zreaper z = rungc z >>= mapM_ (zclose z)
 
-forkLQL :: (Backend a) => ZMQServer a -> FH -> [LQL] -> IO ()
+forkLQL :: (GraphBackend a) => ZMQServer a -> FH -> [LQL] -> IO ()
 forkLQL z fh lql = forkFinally doWork cleaner >> return ()
   where
     doWork = perform (backend z) (zwrite z fh) lql
 
-    cleaner (Left e) = zwrite z fh (liftE e)
+    cleaner (Left e) =
+      case (fromException e) of
+        Just BadDeviceExcept -> return ()
+        _                    -> zwrite z fh (liftE e)
     cleaner  _       = return ()
 
-worker :: (Backend a) => ZMQServer a -> Worker
+worker :: (GraphBackend a) => ZMQServer a -> Worker
 worker z = Worker (exec z . msgunpack) g
   where
     g e = return (msgpack1 (Data (liftE e)))
 
-exec :: (Backend a) => ZMQServer a -> Request -> IO [B.ByteString]
+exec :: (GraphBackend a) => ZMQServer a -> Request -> IO [B.ByteString]
 exec z (Fetch fh limit) = do
   atomically (zalter (liftM (putTtl defaultTtl)) z fh)
   fmap msgpack (atomically (zselect z fh >>= blkread limit))
@@ -116,7 +121,7 @@ exec z (Close fh)       = do
 create :: a -> IO (ZMQServer a)
 create a = liftM2 (ZMQServer a) (newTVarIO 0) (newTVarIO M.empty)
 
-zrun :: (Backend a) => ZMQServer a -> Context -> String -> IO ()
+zrun :: (GraphBackend a) => ZMQServer a -> Context -> String -> IO ()
 zrun z ctx addr = do
   _ <- forkIO (forever (threadDelay 1000000 >> zreaper z))
   start "zmqserver" (defaultCfg {endpoint = addr}) (worker z) ctx

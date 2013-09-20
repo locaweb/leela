@@ -39,11 +39,11 @@ import qualified Data.ByteString.Lazy as L
 
 data RValue = LinkVal Link
             | NodeVal GUID
-            | PathVal [Either GUID Label]
+            | PathVal GUID [(GUID, Label)]
             | NameVal GUID (Namespace, Key)
 
-data Reply = Chunk RValue
-           | Done
+data Reply = Done
+           | Chunk RValue
            | InternalError
            | NotFoundError
            | BadRequestError
@@ -58,8 +58,8 @@ fromLink = Chunk . LinkVal
 fromNode :: GUID -> Reply
 fromNode = Chunk . NodeVal
 
-fromPath :: [Either GUID Label] -> Reply
-fromPath = Chunk . PathVal
+fromPath :: GUID -> [(GUID, Label)] -> Reply
+fromPath g = Chunk . PathVal g
 
 fromGUID :: GUID -> (Namespace, Key) -> Reply
 fromGUID g k = Chunk $ NameVal g k
@@ -85,20 +85,15 @@ consume :: [RValue] -> Stream b -> IO b
 consume [] s     = fmap fst (runStream s Done)
 consume (x:xs) s = fmap snd (runStream s (Chunk x)) >>= consume xs
 
-asJson :: Either GUID Label -> Value
-asJson (Left k)  = object [("node", toJSON k)]
-asJson (Right l) = object [("label", toJSON l)]
-
 instance ToJSON Reply where
 
-    toJSON Done                       = object [("done", object [])]
-    toJSON (Chunk (LinkVal c))        = object [("chunk", object [("link", toJSON c)])]
-    toJSON (Chunk (NodeVal c))        = object [("chunk", object [("node", toJSON c)])]
-    toJSON (Chunk (PathVal c))        = object [("chunk", object [("path", toJSON (map asJson c))])]
-    toJSON (Chunk (NameVal g (n, k))) = object [("chunk", object [("name", toJSON (g, n, k))])]
-    toJSON InternalError              = object [("fail", object [("code", toJSON (500 :: Int))])]
-    toJSON BadRequestError            = object [("fail", object [("code", toJSON (400 :: Int))])]
-    toJSON NotFoundError              = object [("fail", object [("code", toJSON (404 :: Int))])]
-    toJSON NoSuchResourceError        = object [("fail", object [("code", toJSON (410 :: Int))])]
-    toJSON TempUnavailError           = object [("fail", object [("code", toJSON (503 :: Int))])]
-
+  toJSON Done                       = object [("done", object [])]
+  toJSON (Chunk (LinkVal c))        = object [("chunk", object [("link", toJSON c)])]
+  toJSON (Chunk (NodeVal c))        = object [("chunk", object [("node", toJSON c)])]
+  toJSON (Chunk (PathVal g c))      = object [("chunk", object [("path", toJSON (g, c))])]
+  toJSON (Chunk (NameVal g (n, k))) = object [("chunk", object [("name", toJSON (g, n, k))])]
+  toJSON InternalError              = object [("fail", object [("code", toJSON (500 :: Int))])]
+  toJSON BadRequestError            = object [("fail", object [("code", toJSON (400 :: Int))])]
+  toJSON NotFoundError              = object [("fail", object [("code", toJSON (404 :: Int))])]
+  toJSON NoSuchResourceError        = object [("fail", object [("code", toJSON (410 :: Int))])]
+  toJSON TempUnavailError           = object [("fail", object [("code", toJSON (503 :: Int))])]

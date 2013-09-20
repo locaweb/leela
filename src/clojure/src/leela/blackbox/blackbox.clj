@@ -1,5 +1,6 @@
 (ns leela.blackbox.blackbox
-  (:use     [clojure.tools.cli :only [cli]])
+  (:use     [clojure.tools.cli :only [cli]]
+            [leela.blackbox.config :as cfg])
   (:import  [org.zeromq ZMQ])
   (:require [leela.blackbox.network.zmqserver :as zserver]
             [leela.blackbox.storage.cassandra :as storage])
@@ -18,19 +19,14 @@
                                    ["--help" "this message"
                                     :default false
                                     :flag true]
-                                   ["--keyspace" "the keyspace to use"
-                                    :default "leela"]
-                                   ["--creat" "creates the keyspace if it does not exist"
-                                    :default false
-                                    :flag true]
-                                   ["--seed" "cassandra seed nodes (may be used multiple times)"
-                                    :assoc-fn seed-assoc-fn]
-                                   ["--endpoint" "the address to bind to"
-                                    :default "tcp://*:50021"])]
+                                   ["--zookeeper" "the zookeeper address to connect to"
+                                    :default "tcp://localhost:2181"]
+                                   ["--namespace" "our namespace"
+                                    :default "leela-devel"]
+                                   ["--node" "the nodename to report and also to read config from"
+                                    :default (.. java.net.InetAddress getLocalHost getHostName)])]
     (when (:help options)
       (println banner)
       (java.lang.System/exit 0))
-
-    (zserver/server-start (zserver/create-session (:seed options) (:keyspace options) (:creat options))
-                          (ZMQ/context 1)
-                          (conj options {:capabilities 64 :queue-size 32}))))
+    (storage/with-session [cluster]
+      (zserver/server-start (ZMQ/context 1) cluster))))

@@ -19,10 +19,9 @@ module Leela.Data.LQL
     , HasNamespace (..)
     ) where
 
-import qualified Data.ByteString as B
-import           Leela.Data.Graph
-import           Data.ByteString.Lazy (ByteString)
-import           Leela.Data.Namespace
+import Leela.Data.Graph
+import Data.ByteString.Lazy (ByteString)
+import Leela.Data.Namespace
 
 data Using = Using { uUser  :: Namespace
                    , uRoot  :: (Namespace, Key, ByteString)
@@ -31,33 +30,33 @@ data Using = Using { uUser  :: Namespace
     deriving (Eq)
 
 data LQL = Create Using (Result ())
-         | Resolve Using GUID
          | Match Using Cursor
+         | Deref Using GUID
 
 class HasNamespace a where
 
-    root :: a -> Namespace
-    self :: a -> Namespace
-    top  :: a -> Key
+  root :: a -> Namespace
+  self :: a -> Namespace
+  top  :: a -> Key
 
 instance HasNamespace Using where
 
-    self (Using _ (n, _, _) _) = n
+  self (Using _ (n, _, _) _) = n
 
-    root (Using n _ _) = n
+  root (Using n _ _) = n
 
-    top (Using _ (_, k, _) _) = k
+  top (Using _ (_, k, _) _) = k
 
 instance HasNamespace LQL where
 
-    self (Create r _)  = self r
-    self (Match r _)   = self r
-    self (Resolve r _) = self r
+  self (Create r _) = self r
+  self (Match r _)  = self r
+  self (Deref r _)  = self r
 
-    root (Create r _)  = root r
-    root (Match r _)   = root r
-    root (Resolve r _) = root r
+  root (Create r _) = root r
+  root (Match r _)  = root r
+  root (Deref r _)  = root r
 
-    top (Create r _)  = top r
-    top (Match r _)   = top r
-    top (Resolve r _) = top r
+  top (Create r _) = top r
+  top (Match r _)  = top r
+  top (Deref r _)  = top r

@@ -29,11 +29,17 @@ import           Control.Exception
 import           Leela.Data.Excepts
 import           Leela.Data.Endpoint
 import           Leela.Data.Namespace
-import           Data.ByteString.Lazy (toStrict, fromStrict)
+import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Char8 as C8
 import           Leela.Storage.Backend
 
 newtype RedisBackend = RedisBackend { ring :: [Connection] }
+
+nameref :: GUID -> B.ByteString
+nameref g = 0x00 `B.cons` (unpack g)
+
+noderef :: GUID -> B.ByteString
+noderef g = 0x01 `B.cons` (unpack g)
 
 endpointToConnection :: String -> ConnectInfo
 endpointToConnection s =
@@ -41,6 +47,7 @@ endpointToConnection s =
     Nothing -> error "unknown endpoint"
     Just e
       | isTCP e   -> ConnInfo (asStr $ eHost e) (asPort (ePort e)) (ePass e) 128 (fromIntegral (300 :: Int))
+      | isUNIX e  -> ConnInfo "localhost" (UnixSocket $ asStr $ ePath e) Nothing 128 (fromIntegral (300 :: Int))
       | otherwise -> error "unsupported endpoint"
 
     where asPort = PortNumber . fromIntegral . maybe 6379 id
@@ -48,53 +55,54 @@ endpointToConnection s =
 
 new :: [String] -> IO RedisBackend
 new endpoints = do
-  linfo Global $ printf "connect to redis: %s" (show endpoints)
+  lnotice Global $ printf "connecting to redis cluster: %s" (show endpoints)
   fmap RedisBackend $ mapM (connect . endpointToConnection) endpoints
 
-valueof1 :: Either a b -> b
-valueof1 = valueof id
+valueof1 :: Monad m => Either a b -> m b
+valueof1 = valueof return
 
-valueof_ :: Either a b -> ()
-valueof_ = valueof (const ())
+valueof_ :: Monad m => Either a b -> m ()
+valueof_ = valueof (\_ -> return ())
 
-valueof :: (b -> c) -> Either a b -> c
-valueof f = either (\_ -> throw SystemExcept) f
-
-putnode0 :: Namespace -> Key -> GUID -> Redis ()
-putnode0 n k g = fmap valueof_ (hset (unpack g) "" (toStrict $ A.encode (n, k)))
-
-putnode1 :: GUID -> GUID -> Label -> Redis ()
-putnode1 a b l = fmap valueof_ (hset (unpack a) (unpack b) (unpack l))
-
-getnode :: GUID -> Redis [(B.ByteString, B.ByteString)]
-getnode k = fmap valueof1 (hgetall (unpack k))
-
-getname :: GUID -> Redis (Maybe B.ByteString)
-getname k = fmap valueof1 (hget (unpack k) "")
+valueof :: Monad m => (b -> m c) -> Either a b -> m c
+valueof f = either (\_ -> fail "redis failure") f
 
 choose :: GUID -> RedisBackend -> IO Connection
-choose g cluster = let available = ring cluster
-                       size      = fromIntegral (length available)
-                       luckyone  = fromIntegral (hash g `mod` size)
-                   in return (available !! luckyone)
+choose g cluster =
+  let available = ring cluster
+      size      = fromIntegral (length available)
+      luckyone  = fromIntegral (hash g `mod` size)
+  in return (available !! luckyone)
 
 with :: GUID -> RedisBackend -> Redis a -> IO a
-with g cluster exec = do conn <- choose g cluster
-                         runRedis conn exec
+with g cluster exec = do
+  conn <- choose g cluster
+  runRedis conn exec
 
-instance Backend RedisBackend where
+instance GraphBackend RedisBackend where
 
-    resolve k m = with k m (getname k) >>= asResult
-        where asResult Nothing  = throwIO NotFoundExcept
-              asResult (Just s) = case (A.decode $ fromStrict s) of
-                                    Just v  -> return v
-                                    Nothing -> throwIO SystemExcept
+  getName g m = with g m (get (nameref g) >>= valueof1) >>= asResult
+      where
+        asResult Nothing  = throwIO NotFoundExcept
+        asResult (Just s) =
+          case (A.decode $ L.fromStrict s) of
+            Just v  -> return v
+            Nothing -> throwIO SystemExcept
 
-    getNode k m = with k m (getnode k) >>= asResult
-        where asResult [] = throwIO NotFoundExcept
-              asResult xs = return (map (\(a, b) -> (pack a, pack b)) $ filter ((/= "") . fst) xs)
+  putName n k g m = with g m $ set (nameref g) (L.toStrict $ A.encode (n, k)) >>= valueof_
 
-    putNode n k g m = with g m (putnode0 n k g)
+  getLabel g m = with g m (zrange (noderef g) 0 10000 >>= valueof1) >>= asResult
+      where
+        asResult [] = throwIO NotFoundExcept
+        asResult xs = return $ map pack xs
 
-    putLink lnks m = mapM_ link lnks
-        where link (a, b, l) = with a m (putnode1 a b l)
+  putLabel g lbls m = with g m $ zadd (noderef g) (map (\v -> (0, unpack v)) lbls) >>= valueof_
+
+  getLink g m = with g m (zrange (noderef g) 0 10000 >>= valueof1) >>= asResult
+      where 
+        asResult [] = throwIO NotFoundExcept
+        asResult xs = return $ map pack xs
+
+  putLink g lnks m = with g m $ zadd (noderef g) (map (\v -> (0, unpack v)) lnks) >>= valueof_
+
+  unlink g b m = with g m $ zrem (noderef g) [unpack b] >>= valueof_

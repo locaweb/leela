@@ -36,40 +36,48 @@ data FlowControl = Stop
 
 type StreamWriter a = a -> IO ()
 
-writeJournal :: (Backend m) => m -> Journal -> IO ()
-writeJournal m (PutNode n k g) = putNode n k g m
-writeJournal m (PutLink lnks)  = putLink lnks m
+store :: (GraphBackend m) => m -> Journal -> IO ()
+store m (PutNode n k g)  = putName n k g m
+store m (PutLabel lbls)  = mapM_ (\(a, l) -> putLabel a [l] m) lbls
+store m (PutLink lnks)   = mapM_ (\(a, b) -> putLink a [b] m) lnks
 
-load :: (Backend m) => m -> Matcher r -> IO r
-load m (ByNode k f) = getNode k m >>= return . f . G.context k
+load :: (GraphBackend m) => m -> Matcher r -> IO r
+load m (ByNode k f)  = fmap f (getLabel k m)
+load m (ByLabel k f) = fmap f (getLink k m)
 
-eval :: (Backend m) => [Journal] -> m -> Result r -> IO ([Journal], r)
+eval :: (GraphBackend m) => [Journal] -> m -> Result r -> IO ([Journal], r)
 eval _ _ (G.Fail _)     = throwIO SystemExcept
-eval acc _ (G.Done r j) = return (jmerge (j ++ acc), r)
+eval acc _ (G.Done r j) = return (j ++ acc, r)
 eval acc m (G.Load f _) = load m f >>= eval acc m
 
-dig :: (Backend m) => m -> GUID -> IO (Namespace, Key)
-dig m g = resolve g m
+deref :: (GraphBackend m) => m -> GUID -> IO (Namespace, Key)
+deref m g = getName g m
 
-perform :: (Backend m) => m -> StreamWriter Reply -> [LQL] -> IO ()
+perform :: (GraphBackend m) => m -> StreamWriter Reply -> [LQL] -> IO ()
 perform m write = exec []
-     where exec acc []                  = do mapM_ (writeJournal m) acc
-                                             write done
-           exec acc ((Create _ r):lql)  = do (acc1, _) <- eval acc m r
-                                             exec acc1 lql
-           exec acc ((Match _ r):lql)   = do runq [r]
-                                             exec acc lql
-           exec acc ((Resolve _ g):lql) = do k <- dig m g
-                                             write (fromGUID g k)
-                                             exec acc lql
+     where
+       exec acc []                 = do
+         mapM_ (store m) acc
+         write done
+       exec acc ((Create _ r):lql) = do
+         (acc1, _) <- eval acc m r
+         exec acc1 lql
+       exec acc ((Match _ r):lql)  = do
+         runq [r]
+         exec acc lql
+       exec acc ((Deref _ g):lql)  = do
+         k <- deref m g
+         write (fromGUID g k)
+         exec acc lql
 
-           runq []     = return ()
-           runq (c:cs) = case c of
-                           G.EOF            -> runq cs
-                           G.Need q         -> do (_, cursor) <- eval [] m q
-                                                  runq (cursor : cs)
-                           G.ItemL _ l cont -> do write (fromLink l)
-                                                  runq (cont : cs)
-                           G.ItemK p cont   -> do write (fromPath p)
-                                                  runq (cont : cs)
-
+       runq []        = return ()
+       runq (c:cs) =
+         case c of
+           G.EOF
+             -> runq cs
+           G.Need q
+             -> do (_, cursor) <- eval [] m q
+                   runq (cursor : cs)
+           G.Item path nodes cont
+             -> do mapM_ (write . flip fromPath path) nodes
+                   runq (cont : cs)
