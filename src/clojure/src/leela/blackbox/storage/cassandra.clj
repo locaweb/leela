@@ -46,6 +46,10 @@
   `(client/with-consistency-level
      (client/consistency-level ~tag) ~@body))
 
+(defn truncate-all [cluster]
+  (doseq [t [:graph :search]]
+    (truncate cluster t)))
+
 (defn putlink [cluster a links]
   (let [k (hex-to-bytes a)]
     (doseq [b links]

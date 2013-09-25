@@ -1,4 +1,4 @@
-(ns leela.blackbox.cassandra-test
+(ns leela.blackbox.storage.cassandra-test
   (:use     [clojure.test]
             [clojurewerkz.cassaforte.query]
             [clojurewerkz.cassaforte.embedded]
@@ -10,13 +10,12 @@
 
 (defn storage-cleanup [f]
   (storage/with-session [cluster]
-    (truncate cluster :graph)
-    (truncate cluster :search))
+    (storage/truncate-all cluster))
   (f))
 
 (use-fixtures :each storage-cleanup)
 
-(deftest cassandra-graph-backend
+(deftest test-cassandra-backend
   (storage/with-session [cluster]
 
     (testing "getname with no data"

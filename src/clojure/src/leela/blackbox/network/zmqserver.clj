@@ -14,7 +14,7 @@
 (defn msg-name [n k]
   {:code 1 :data [n k]})
 
-(defn msg-node [links]
+(defn msg-link [links]
   {:code 2 :data links})
 
 (defn msg-label [labels]
@@ -37,7 +37,7 @@
     (let [rows (storage/getlink session a)]
       (case (seq rows)
         nil (msg-fail 404)
-        (msg-node rows)))))
+        (msg-link rows)))))
 
 (defn exec-putlink [session [a links]]
   (storage/with-consistency :quorum
@@ -64,12 +64,11 @@
     3 (exec-putlabel session (get msg "data"))
     4 (exec-getlink session (get msg "data"))
     5 (exec-putlink session (get msg "data"))
-    ; 6 (exec-unlink session (get msg "data"))
     (msg-fail 400)))
 
-(defn my-worker [session]
+(defn zmqworker [session]
   {:onjob #(json/write-str (handle-message session (json/read-str %))) :onerr (json/write-str (msg-fail 500))})
 
 (defn server-start [ctx cluster]
-  (router/router-start ctx (my-worker cluster)))
+  (router/router-start ctx (zmqworker cluster)))
   
