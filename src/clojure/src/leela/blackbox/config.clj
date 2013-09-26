@@ -121,7 +121,7 @@
 (defn zk-connect [zkref]
   (let [watcher             (zk-make-watcher zk-watcher zk-connect zkref)
         [_ _ endpoint auth] @zkref]
-    (swap! zkref (fn [[_ & args] zk] (cons zk args)) (ZooKeeper. endpoint 30000 watcher))
+    (swap! zkref (fn [[_ & args] zk] (cons zk args)) (ZooKeeper. endpoint 5000 watcher))
     zkref))
 
 (defn zk-attach [node endpoint auth]
