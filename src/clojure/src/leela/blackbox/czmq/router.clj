@@ -1,5 +1,5 @@
 (ns leela.blackbox.czmq.router
-  (:use     [clojure.tools.logging :only [error info]]
+  (:use     [clojure.tools.logging :only [trace debug error info warn]]
             [leela.blackbox.config :as cfg])
   (:import  [org.zeromq ZMQ ZMQ$Poller])
   (:require [leela.blackbox.f :as f]
@@ -16,7 +16,8 @@
       (.put queue [peer (f/bytes-to-str msg)]))))
 
 (defn routing-loop [ifh ofh queue]
-  (let [[ifh-info ofh-info] (z/poll -1 [ifh [ZMQ$Poller/POLLIN] ofh [ZMQ$Poller/POLLIN]])]
+  (trace "ENTER:routing-loop")
+  (let [[ifh-info ofh-info] (z/poll 1000 [ifh [ZMQ$Poller/POLLIN] ofh [ZMQ$Poller/POLLIN]])]
     (when (.isReadable ifh-info)
       (enqueue ifh queue))
     (when (.isReadable ofh-info)
@@ -31,16 +32,18 @@
 
 (defn run-worker [watch ctx endpoint queue worker]
   (with-open [fh (.socket ctx ZMQ/PUSH)]
+    (trace (format "ENTER:run-worker %s" endpoint))
     (.connect (z/setup-socket fh) endpoint)
     (f/forever-with
      watch
-     (let [item (.poll queue 60 s)]
+     (let [item (.poll queue 1 s)]
        (when item (z/sendmulti fh (evaluate worker item)))))))
 
 (defn fork-worker [watch ctx endpoint queue worker]
   (.start (Thread. #(f/supervise-with watch (run-worker watch ctx endpoint queue worker)))))
 
 (defn router-start1 [ctx worker]
+  (trace "ENTER:router-start1")
   (with-open [ifh (.socket ctx ZMQ/ROUTER)
               ofh (.socket ctx ZMQ/PULL)]
     (let [[cfg watch] (cfg/get-state :zmqrouter)
@@ -50,7 +53,8 @@
       (.bind (z/setup-socket ofh) ipcendpoint)
       (.bind (z/setup-socket ifh) (:endpoint cfg))
       (dotimes [_ (:capabilities cfg)] (fork-worker watch ctx ipcendpoint queue worker))
-      (f/supervise-with watch (routing-loop ifh ofh queue)))))
+      (f/supervise-with watch (routing-loop ifh ofh queue))))
+  (trace "EXIT:router-start1"))
 
 (defmacro router-start [ctx worker]
   `(f/supervise (router-start1 ~ctx ~worker)))

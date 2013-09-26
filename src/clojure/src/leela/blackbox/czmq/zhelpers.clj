@@ -17,7 +17,7 @@
         (recur (first rest) (next rest))))))
 
 (defn setup-socket [fh]
-  (.setLinger fh 1)
+  (.setLinger fh 0)
   (.setReconnectIVL fh 1000)
   fh)
 

@@ -69,5 +69,5 @@
   {:onjob #(f/json-to-str (handle-message cluster (f/str-to-json %))) :onerr (f/json-to-str (msg-fail 500))})
 
 (defn server-start [ctx cluster]
-  (router/router-start1 ctx (zmqworker cluster)))
+  (router/router-start ctx (zmqworker cluster)))
   

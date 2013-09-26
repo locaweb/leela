@@ -1,9 +1,9 @@
 (ns leela.blackbox.f
-  (:use     [clojure.tools.logging :only [warn]])
+  (:use     [clojure.tools.logging :only [error]])
   (:require [clojure.data.json :as json]))
 
 (defmacro forever [& body]
-  `(forever-with (fn [] true) ~@body))
+  `(while true ~@body))
 
 (defmacro forever-with [check & body]
   `(while (~check) ~@body))
@@ -30,7 +30,7 @@
     (try
       ~@body
       (catch Exception e#
-        (warn e# "supervised function has died, restarting")))))
+        (error e# "supervised function has died, restarting")))))
 
 ;; (defn random-string [bits]
 ;;   (.toString (java.math.BigInteger. bits (java.security.SecureRandom.)) 32))
