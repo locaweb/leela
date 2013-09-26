@@ -9,14 +9,14 @@
             [leela.blackbox.storage.cassandra :as storage]))
 
 (defn storage-cleanup [f]
-  (storage/with-session [cluster]
+  (storage/with-session [cluster "127.0.0.1" "leela"]
     (storage/truncate-all cluster))
   (f))
 
 (use-fixtures :each storage-cleanup)
 
 (deftest test-cassandra-backend
-  (storage/with-session [cluster]
+  (storage/with-session [cluster "127.0.0.1" "leela"]
 
     (testing "getname with no data"
       (is (= nil (storage/getname cluster "0x00"))))

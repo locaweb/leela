@@ -6,14 +6,14 @@
             [leela.blackbox.network.zmqserver :as server]))
 
 (defn storage-cleanup [f]
-  (storage/with-session [cluster]
+  (storage/with-session [cluster "127.0.0.1" "leela"]
     (storage/truncate-all cluster))
   (f))
 
 (use-fixtures :each storage-cleanup)
 
 (deftest test-zmqserver-handle-message
-  (storage/with-session [cluster]
+  (storage/with-session [cluster "127.0.0.1" "leela"]
 
     (testing "getname with no data"
       (is (= (server/msg-fail 404) (server/handle-message cluster {"code" 0 "data" "0x00"}))))

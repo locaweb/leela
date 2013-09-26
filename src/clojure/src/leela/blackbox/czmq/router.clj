@@ -5,7 +5,7 @@
   (:require [leela.blackbox.f :as f]
             [leela.blackbox.czmq.zhelpers :as z]))
 
-(def s (java.util.concurrent.TimeUnit/SECONDS))
+(def s java.util.concurrent.TimeUnit/SECONDS)
 
 (defn make-queue [size]
   (java.util.concurrent.LinkedBlockingQueue. size))
@@ -13,7 +13,7 @@
 (defn enqueue [fh queue]
   (let [[peer blank msg] (z/recvmulti fh)]
     (when (empty? blank)
-      (.put queue [peer (f/utf8-string msg)]))))
+      (.put queue [peer (f/bytes-to-str msg)]))))
 
 (defn routing-loop [ifh ofh queue]
   (let [[ifh-info ofh-info] (z/poll -1 [ifh [ZMQ$Poller/POLLIN] ofh [ZMQ$Poller/POLLIN]])]
@@ -43,12 +43,13 @@
 (defn router-start1 [ctx worker]
   (with-open [ifh (.socket ctx ZMQ/ROUTER)
               ofh (.socket ctx ZMQ/PULL)]
-    (let [[cfg watch] (cfg/get-state :router)
-          ipcEndpoint (format "inproc://%s.blackbox" (java.util.UUID/randomUUID))
-          queue       (make-queue (:queue-size cfg))]
-      (.bind (z/setup-socket ofh) ipcEndpoint)
+    (let [[cfg watch] (cfg/get-state :zmqrouter)
+          queue       (make-queue (:queue-size cfg))
+          ipcendpoint (format "inproc://blackbox.v%d" (:version cfg))]
+      (info (format "router-start1; config=%s" cfg))
+      (.bind (z/setup-socket ofh) ipcendpoint)
       (.bind (z/setup-socket ifh) (:endpoint cfg))
-      (dotimes [_ (:capabilities cfg)] (fork-worker watch ctx ipcEndpoint queue worker))
+      (dotimes [_ (:capabilities cfg)] (fork-worker watch ctx ipcendpoint queue worker))
       (f/supervise-with watch (routing-loop ifh ofh queue)))))
 
 (defmacro router-start [ctx worker]

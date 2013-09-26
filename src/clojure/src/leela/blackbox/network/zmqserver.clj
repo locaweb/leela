@@ -1,7 +1,6 @@
 (ns leela.blackbox.network.zmqserver
   (:use     [clojure.tools.logging :only [info error]])
   (:require [leela.blackbox.f :as f]
-            [clojure.data.json :as json]
             [leela.blackbox.czmq.router :as router]
             [leela.blackbox.storage.cassandra :as storage]))
 
@@ -25,11 +24,11 @@
     (let [raw (storage/getname session a)]
       (case raw
         nil (msg-fail 404)
-        (apply msg-name (json/read-str raw))))))
+        (apply msg-name (f/str-to-json raw))))))
 
 (defn exec-putname [session [n k g]]
   (storage/with-consistency :quorum
-    (storage/putname session (json/write-str [n k]) g)
+    (storage/putname session (f/json-to-str [n k]) g)
     (msg-done)))
 
 (defn exec-getlink [session a]
@@ -66,9 +65,9 @@
     5 (exec-putlink session (get msg "data"))
     (msg-fail 400)))
 
-(defn zmqworker [session]
-  {:onjob #(json/write-str (handle-message session (json/read-str %))) :onerr (json/write-str (msg-fail 500))})
+(defn zmqworker [cluster]
+  {:onjob #(f/json-to-str (handle-message cluster (f/str-to-json %))) :onerr (f/json-to-str (msg-fail 500))})
 
 (defn server-start [ctx cluster]
-  (router/router-start ctx (zmqworker cluster)))
+  (router/router-start1 ctx (zmqworker cluster)))
   
