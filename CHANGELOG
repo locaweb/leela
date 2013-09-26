@@ -1,11 +1,11 @@
 --*-- mode: text; --*--
 
 v4.0.0 | 2013-08-01
-  * creating warpdrive [graph engine & key-value/timeline store];
-  * leela query language: new universal input;
-  * stream response: new universal output protocol;
-  * 0mq library for transport;
-  * zookeeper for naming and configuration;
+  * creating warpdrive [graph engine & key-value/timeline store] | dgvncsz0f;
+  * leela query language: new universal input | dgvncsz0f;
+  * stream response: new universal output protocol | dgvncsz0f;
+  * 0mq library for transport | dgvncsz0f;
+  * zookeeper for naming and configuration | dgvncsz0f;
 
 v3.4.0 | 2013-06-01
   * http module now flushes its queue periodically | dgvncsz0f
