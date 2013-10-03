@@ -16,49 +16,57 @@
 -- along with Leela.  If not, see <http://www.gnu.org/licenses/>.
 
 module Leela.Storage.Backend.ZMQ.Protocol
-    ( Request (..)
-    , Response (..)
+    ( Query (..)
+    , Reply (..)
+    , encode
+    , decode
     ) where
 
-import Data.Aeson
-import Leela.Data.Namespace
+import qualified Data.ByteString as B
+import           Leela.Data.Namespace
+import           Data.ByteString.Char8 (readInt)
+import           Leela.Storage.Backend (Mode (..))
 
-data Request = GetName GUID
-             | PutName Namespace Key GUID
-             | GetLink GUID
-             | PutLink GUID [GUID]
-             | GetLabel GUID
-             | PutLabel GUID [Label]
-             | Unlink GUID GUID
+data Query = GetName GUID
+           | PutName Namespace Key GUID
+           | PutLink GUID [GUID]
+           | PutLabel GUID [Label]
+           | GetLink GUID (Maybe GUID)
+           | GetLabel GUID (Mode Label)
+           | Unlink GUID GUID
 
-data Response = ROk
-              | RName Namespace Key
-              | RLink [GUID]
-              | RLabel [Label]
-              | RFail Int
+data Reply = Done
+           | Name Namespace Key
+           | Link [GUID]
+           | Label [Label]
+           | Fail Int
 
-i :: Int -> Value
-i = toJSON
+decodeInt :: B.ByteString -> Maybe Int
+decodeInt s = case (readInt s) of
+                Just (n, "") -> Just n
+                _            -> Nothing
 
-instance ToJSON Request where
+encodeMode :: GUID -> Mode Label -> [B.ByteString]
+encodeMode g (All Nothing)  = ["all", unpack g]
+encodeMode g (All (Just l)) = ["all", unpack g, unpack l]
+encodeMode g (Prefix a b)   = ["pre", unpack g, unpack a, unpack b]
+encodeMode g (Suffix a b)   = ["suf", unpack g, unpack a, unpack b]
+encodeMode g (Precise l)    = ["ext", unpack g, unpack l]
 
-  toJSON (GetName g)       = object [("code", i 0), ("data", toJSON g)]
-  toJSON (PutName n k g)   = object [("code", i 1), ("data", toJSON (n, k, g))]
-  toJSON (GetLabel g)      = object [("code", i 2), ("data", toJSON g)]
-  toJSON (PutLabel g lbls) = object [("code", i 3), ("data", toJSON (g, lbls))]
-  toJSON (GetLink g)       = object [("code", i 4), ("data", toJSON g)]
-  toJSON (PutLink g lnks)  = object [("code", i 5), ("data", toJSON (g, lnks))]
-  toJSON (Unlink a b)      = object [("code", i 6), ("data", toJSON (a, b))]
+encode :: Query -> [B.ByteString]
+encode (GetName g)          = ["get", "name", unpack g]
+encode (GetLink g Nothing)  = ["get", "link", unpack g]
+encode (GetLink g (Just p)) = ["get", "link", unpack g, unpack p]
+encode (GetLabel g m)       = "get" : "label" : encodeMode g m
+encode (PutName n k g)      = ["put", "name", unpack g, unpack n, unpack k]
+encode (PutLink g xs)       = "put" : "link" : unpack g : map unpack xs
+encode (PutLabel g xs)      = "put" : "label" : unpack g : map unpack xs
+encode (Unlink a b)         = ["del", "link", unpack a, unpack b]
 
-instance FromJSON Response where
-
-  parseJSON = withObject "Response" $ \o -> do
-    msg <- o .: "code"
-    case (msg :: Int) of
-      0 -> return ROk
-      1 -> o .: "data" >>= return . (uncurry RName)
-      2 -> o .: "data" >>= return . RLink
-      3 -> o .: "data" >>= return . RLabel
-      4 -> fmap RFail (o .: "data")
-      _ -> return (RFail 502)
-                           
+decode :: [B.ByteString] -> Reply
+decode ["done"]         = Done
+decode ["name", n, k]   = Name (pack n) (pack k)
+decode ("link":guids)   = Link (map pack guids)
+decode ("label":labels) = Label (map pack labels)
+decode ["fail", code]   = maybe (Fail 599) id (fmap Fail (decodeInt code))
+decode _                = Fail 599

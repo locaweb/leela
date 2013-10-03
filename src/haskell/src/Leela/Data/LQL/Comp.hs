@@ -37,10 +37,6 @@ import qualified Data.ByteString.Lazy as L
 import           Leela.Data.Namespace as N
 import           Data.Attoparsec.Char8 as A8
 
-type NKey = (Key, L.ByteString)
-
-type NLabel = (Label, L.ByteString)
-
 data Direction a = L a
                  | R a
                  | B a
@@ -52,25 +48,25 @@ class Source a where
 hardspace :: Parser ()
 hardspace = char ' ' >> return ()
 
-parseKey :: Namespace -> Parser NKey
+parseKey :: Namespace -> Parser Key
 parseKey _ = do
   s <- qstring 128 0x28 0x29
-  return (pack s, s)
+  return (pack s)
 
 parseKeyAsGUID :: Namespace -> Parser (Key, GUID)
 parseKeyAsGUID n = do
-  (k, _) <- parseKey n
+  k <- parseKey n
   return (k, guid $ derive n k)
 
-parseNS :: Namespace -> Parser (Namespace, NKey)
+parseNS :: Namespace -> Parser (Namespace, Key)
 parseNS n = do
   s <- qstring 128 0x28 0x29
-  return (derive n s, (pack s, s))
+  return (derive n s, pack s)
 
-parseLabel :: Namespace -> Parser NLabel
+parseLabel :: Namespace -> Parser Label
 parseLabel _ = do
   s <- qstring 128 0x5b 0x5d
-  return (pack s, s)
+  return (pack s)
 
 qstring :: Int -> Word8 -> Word8 -> Parser L.ByteString
 qstring limit l r = word8 l >> anyWord8 >>= loop limit []
@@ -86,20 +82,23 @@ qstring limit l r = word8 l >> anyWord8 >>= loop limit []
 newline :: Parser ()
 newline = char '\n' >> return ()
 
+separator :: Parser ()
+separator = (char '\n' <|> char ' ') >> return ()
+
 semicolon :: Parser ()
 semicolon = char ';' >> return ()
 
-parseLink :: Namespace -> Parser (Direction NLabel)
+parseLink :: Namespace -> Parser (Direction Label)
 parseLink n = do
   mdir <- char '-' <|> char '<'
-  l    <- option (pack L.empty, L.empty) (parseLabel n)
+  l    <- option (pack L.empty) (parseLabel n)
   f    <- case mdir of
            '-' -> (liftM (const B) (char '-')) <|> (liftM (const R) (char '>'))
            '<' -> liftM (const L) (char '-')
            _   -> fail "parseLink"
   return (f l)
 
-parseRLink :: Namespace -> Parser NLabel
+parseRLink :: Namespace -> Parser Label
 parseRLink n = do
   dlink <- parseLink n
   case dlink of
@@ -117,9 +116,9 @@ parseG n = do
         peekChar >>= go r (asLink g k r l)
       go _ g _          = return (putLinks g)
 
-      asLink acc k r (L (l, _)) = (r, k, l) : acc
-      asLink acc k r (R (l, _)) = (k, r, l) : acc
-      asLink acc k r (B (l, _)) = (k, r, l) : (r, k, l) : acc
+      asLink acc k r (L l) = (r, k, l) : acc
+      asLink acc k r (R l) = (k, r, l) : acc
+      asLink acc k r (B l) = (k, r, l) : (r, k, l) : acc
 
 endBy :: Parser a -> Parser b -> Parser a
 endBy = liftM2 const
@@ -127,31 +126,17 @@ endBy = liftM2 const
 parseQuery :: Namespace -> Parser Cursor
 parseQuery n = do
   q0 <- fmap (start . snd) (parseKeyAsGUID n)
-  parseQuery1 True n q0
+  parseQuery1 n q0
 
-parseQuery1 :: Bool -> Namespace -> Cursor -> Parser Cursor
-parseQuery1 begin n q
-    | begin     = option (select (const True) (const True) q) doParse
-    | otherwise = option q doParse
+parseQuery1 :: Namespace -> Cursor -> Parser Cursor
+parseQuery1 n q = option q doParse
     where 
       doParse = do
         hardspace
-        (_, sl) <- parseRLink n
+        l <- parseRLink n
         hardspace
-        (k, sk) <- parseKey n
-        if (L.null sk)
-          then parseQuery1 False n (select (comparator sl) (const True) q)
-          else parseQuery1 False n (select (comparator sl) (== (guid $ derive n k)) q)
-
-      comparator s =
-        case (isPrefix, isSuffix) of
-          (True, True)   -> (s ==) . unpack
-          (True, False)  -> (L.tail s `L.isSuffixOf`) . unpack
-          (False, True)  -> (L.init s `L.isPrefixOf`) . unpack
-          (False, False) -> (s ==) . unpack
-          where
-            isPrefix = "*" `L.isPrefixOf` s
-            isSuffix = "*" `L.isSuffixOf` s
+        _ <- string "()"
+        parseQuery1 n (select l (const True) q)
 
 parseStmtCreate :: Using -> Parser LQL
 parseStmtCreate n = "create " .*> liftM (Create n) (parseG (self n))
@@ -172,18 +157,15 @@ parseStmt n =
   <|> parseStmtDeref n
 
 parseStmts :: Using -> Parser [LQL]
-parseStmts u = parseStmt u `sepBy1` (char '\n')
+parseStmts u = parseStmt u `sepBy1` newline
 
 parseUsing :: Namespace -> Parser Using
-parseUsing r = do
-  (uns, (ukey, user)) <- "using " .*> parseNS r
-  (nns, (nkey, name)) <- hardspace >> parseNS uns
-  (akey, _)           <- option (ukey, user) parseAs
-  return (Using uns (nns, nkey, name) akey)
-    where parseAs = " as " .*> parseKey r
+parseUsing user = do
+  (treeN, treeK) <- "using " .*> parseNS user
+  return (Using user (treeN, treeK))
 
 parseLQL :: Namespace -> Parser [LQL]
-parseLQL n = parseUsing n `endBy` newline >>= parseLQL1
+parseLQL n = parseUsing n `endBy` separator >>= parseLQL1
 
 parseLQL1 :: Using -> Parser [LQL]
 parseLQL1 u = parseStmts u `endBy` semicolon

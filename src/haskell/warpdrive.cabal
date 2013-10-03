@@ -23,13 +23,9 @@ executable warpdrive
   ghc-options: -threaded -rtsopts -W -Wall 
   build-depends:    stm             (>= 2.4  && < 3)
                   , base            (>= 4    && < 5)
-                  , text            (>= 0.11 && < 1)
                   , time            (>= 1.4  && < 2)
-                  , aeson           (>= 0.6  && < 1)
-                  , async           (>= 2.0  && < 3)
                   , clock           (>= 0.3  && < 1)
                   , hedis           (>= 0.6  && < 1)
-                  , vector          (>= 0.10 && < 1)
                   , hflags          (>= 0.2  && < 1)
                   , byteable        (>= 0.1  && < 1)
                   , hashable        (>= 1.2  && < 2)

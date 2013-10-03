@@ -17,9 +17,7 @@ module Leela.HZMQ.ZHelpers where
 
 import Data.Int
 import System.ZMQ3
-import Leela.Logger
 import Data.ByteString (ByteString)
-import Control.Exception
 
 recvTimeout :: (Receiver a) => Int64 -> Socket a -> IO (Maybe [ByteString])
 recvTimeout t s = do
@@ -42,11 +40,3 @@ configure :: Socket a -> IO ()
 configure fh = do
   setLinger (restrict (ms 0)) fh
   setReconnectInterval (restrict (ms 1)) fh
-
-supervise :: String -> IO () -> IO ()
-supervise name io = mask $ \restore -> restore io `catch` restart
-    where
-      restart :: SomeException -> IO ()
-      restart e = do linfo HZMQ (printf "supervised thread has died [%s: except: %s]" name (show e))
-                     supervise name io
-

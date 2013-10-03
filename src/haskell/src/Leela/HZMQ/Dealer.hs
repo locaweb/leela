@@ -26,6 +26,7 @@ import           Data.Maybe
 import           System.ZMQ3
 import           Leela.Logger
 import           Control.Monad
+import           Leela.Helpers
 import           Leela.Data.Time
 import qualified Data.ByteString as B
 import           Control.Exception
@@ -70,11 +71,11 @@ notify mvar mmsg = atomically (putTMVar mvar mmsg)
 logresult :: Job -> Maybe SomeException -> IO ()
 logresult job me = do
   elapsed <- fmap (`diff` (jtime job)) now
-  linfo HZMQ $ printf "%s `%s' (%.4fms)" (failOrSucc me) (fmt $ jmsg job) (1000 * toDouble elapsed)
+  linfo HZMQ $ printf "%s (%.4fms)" (failOrSucc me) (1000 * toDouble elapsed)
     where
       failOrSucc :: Maybe SomeException -> String
-      failOrSucc Nothing  = "DEALER.Ok"
-      failOrSucc (Just e) = printf "DEALER.Fail[%s]" (show e)
+      failOrSucc Nothing  = "DEALER.ok"
+      failOrSucc (Just e) = printf "DEALER.fail[%s]" (show e)
 
 worker :: Pool -> Context -> String -> IO ()
 worker pool ctx endpoint = do

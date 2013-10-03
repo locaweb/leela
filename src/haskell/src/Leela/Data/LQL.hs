@@ -20,12 +20,10 @@ module Leela.Data.LQL
     ) where
 
 import Leela.Data.Graph
-import Data.ByteString.Lazy (ByteString)
 import Leela.Data.Namespace
 
 data Using = Using { uUser  :: Namespace
-                   , uRoot  :: (Namespace, Key, ByteString)
-                   , uAuth  :: Key
+                   , uRoot  :: (Namespace, Key)
                    }
     deriving (Eq)
 
@@ -41,11 +39,11 @@ class HasNamespace a where
 
 instance HasNamespace Using where
 
-  self (Using _ (n, _, _) _) = n
+  self (Using _ (n, _)) = n
 
-  root (Using n _ _) = n
+  root (Using n _) = n
 
-  top (Using _ (_, k, _) _) = k
+  top (Using _ (_, k)) = k
 
 instance HasNamespace LQL where
 

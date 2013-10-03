@@ -24,11 +24,8 @@ import Control.Concurrent
 import Leela.Storage.Backend
 import Leela.Network.ZMQServer as Z
 import Leela.Storage.Backend.ZMQ as Zs
-import Leela.Storage.Backend.Redis as Rs
 
 import Leela.Data.LQL.Lang ()
-
-defineFlag "redis" "nothing" "The redis server to connect to"
 
 defineFlag "storage" "tcp://127.0.0.1:50021" "The storage to connect to"
 
@@ -38,22 +35,14 @@ defineEQFlag "loglevel" [| NOTICE :: Priority |] "PRIORITY" "The log level"
 
 backend :: Context -> IO AnyBackend
 backend ctx = do
-  zmqCluster   <- Zs.new ctx [flags_storage]
-  if (flags_redis == "nothing")
-    then do
-      lnotice Global "not using redis backend for caching"
-      return $ AnyBackend zmqCluster
-    else do
-      redisCluster <- Rs.new [flags_redis]
-      return $ AnyBackend (AnyBackend redisCluster, AnyBackend zmqCluster)
+  zmqCluster <- Zs.new ctx [flags_storage]
+  return $ AnyBackend zmqCluster
 
 main :: IO ()
 main = withContext $ \ctx -> do
   _    <- $initHFlags "warpdrive - the property graph engine"
   logsetup flags_loglevel
   db   <- backend ctx
-  z    <- create db
   wait <- newEmptyMVar
-  _    <- forkFinally (zrun z ctx flags_endpoint) (\_ -> putMVar wait ())
-  takeMVar wait
+  _    <- forkFinally (startServer db ctx flags_endpoint) (\_ -> putMVar wait ())
   takeMVar wait

@@ -19,13 +19,14 @@ module Leela.HZMQ.Router
        ( Worker (..)
        , Cfg (..)
        , defaultCfg
-       , start
+       , startRouter
        ) where
 
 import           Data.Maybe
 import           System.ZMQ3
 import           Leela.Logger
 import           Control.Monad
+import           Leela.Helpers
 import           Leela.Data.Time
 import qualified Data.ByteString as B
 import           Control.Exception
@@ -41,29 +42,29 @@ data Cfg = Cfg { endpoint     :: String
 defaultCfg :: Cfg
 defaultCfg = Cfg "tcp://*:4080" 32 128
 
-newtype Request = Request (Time, B.ByteString, [B.ByteString])
+data Request = Request Time B.ByteString [B.ByteString]
 
 data Worker = Worker { onJob :: [B.ByteString] -> IO [B.ByteString]
                      , onErr :: SomeException -> IO [B.ByteString]
                      }
 
 readMsg :: Request -> [B.ByteString]
-readMsg (Request (_, _, val)) = val
+readMsg (Request _ _ val) = val
 
 readPeer :: Request -> B.ByteString
-readPeer (Request (_, val, _)) = val
+readPeer (Request _ val _) = val
 
 reqTime :: Request -> Time
-reqTime (Request (val, _, _)) = val
+reqTime (Request val _ _) = val
 
 logresult :: Request -> Maybe SomeException -> IO ()
 logresult job me = do
   elapsed <- fmap (`diff` (reqTime job)) now
-  linfo HZMQ $ printf "%s `%s' (%.4fms)" (failOrSucc me) (fmt $ readMsg job) (1000 * toDouble elapsed)
+  linfo HZMQ $ printf "%s (%.4fms)" (failOrSucc me) (1000 * toDouble elapsed)
     where
       failOrSucc :: Maybe SomeException -> String
-      failOrSucc Nothing  = "ROUTER.Ok"
-      failOrSucc (Just e) = printf "ROUTER.Fail[%s]" (show e)
+      failOrSucc Nothing  = "ROUTER.ok"
+      failOrSucc (Just e) = printf "ROUTER.fail[%s]" (show e)
 
 request :: TBQueue Request -> Request -> IO ()
 request queue req = atomically (writeTBQueue queue req)
@@ -103,13 +104,13 @@ forkWorker ctx addr queue action =
 recvRequest :: Receiver a => Socket a -> IO (Maybe Request)
 recvRequest fh = do
   mmsg <- receiveMulti fh
+  time <- now
   case mmsg of
-    (peer:"":msg) -> do time <- now
-                        return $ Just (Request (time, peer, msg))
+    (peer:"":msg) -> return $ Just (Request time peer msg)
     _             -> return Nothing
 
-start :: String -> Cfg -> Worker -> Context -> IO ()
-start name cfg action ctx = do
+startRouter :: String -> Cfg -> Worker -> Context -> IO ()
+startRouter name cfg action ctx = do
   lnotice HZMQ $
     printf "starting zmq.router: %s [qsize: %d, capabilities: %d, endpoint: %s]"
            name
@@ -126,20 +127,18 @@ start name cfg action ctx = do
       replicateM_ (capabilities cfg) (forkWorker ctx oaddr queue action)
       forever (routingLoop ifh ofh queue)
 
-  where
-    oaddr = printf "inproc://%s.hzmq-router" name
-
-    procRequest fh queue = do
-      mreq  <- recvRequest fh
-      when (isJust mreq) (request queue (fromJust mreq))
-
-    procResponse ifh ofh = do
-      msg <- receiveMulti ofh
-      sendAll ifh msg
-
-    routingLoop :: Socket Router -> Socket Pull -> TBQueue Request -> IO ()
-    routingLoop ifh ofh queue = do
-      [eifh, eofh] <- poll (-1) [Sock ifh [In] Nothing, Sock ofh [In] Nothing]
-      when (not $ null eifh) (procRequest ifh queue)
-      when (not $ null eofh) (procResponse ifh ofh)
+    where
+      oaddr = printf "inproc://%s.hzmq-router" name
+       
+      procRequest fh queue = do
+        mreq <- recvRequest fh
+        when (isJust mreq) (request queue (fromJust mreq))
+       
+      procResponse ifh ofh = receiveMulti ofh >>= sendAll ifh
+       
+      routingLoop :: Socket Router -> Socket Pull -> TBQueue Request -> IO ()
+      routingLoop ifh ofh queue = do
+        [eifh, eofh] <- poll (-1) [Sock ifh [In] Nothing, Sock ofh [In] Nothing]
+        when (not $ null eifh) (procRequest ifh queue)
+        when (not $ null eofh) (procResponse ifh ofh)
 

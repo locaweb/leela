@@ -39,11 +39,9 @@ class ToBuilder a where
 
   build :: a -> Builder
 
-using :: (ToBuilder user, ToBuilder tree) => user -> tree -> Document
-using user tree = Document $
+using :: (ToBuilder tree) => tree -> Document
+using tree = Document $
   string7 "using "
-  <> build user
-  <> char7 ' '
   <> build tree
 
 create :: (ToBuilder a) => a -> Document

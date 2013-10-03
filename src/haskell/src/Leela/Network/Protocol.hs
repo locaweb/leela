@@ -16,84 +16,139 @@
 -- along with Leela.  If not, see <http://www.gnu.org/licenses/>.
 
 module Leela.Network.Protocol
-    ( Reply (..)
+    ( FH
+    , MAC (..)
+    , User (..)
+    , Nonce (..)
+    , Query (..)
+    , Reply (..)
     , RValue (..)
-    , Stream (..)
-    , consume
-    , encodeLazy
-    , encodeStrict
-    , fromLink
-    , fromNode
-    , fromGUID
-    , fromPath
-    , done
-    , isDone
-    , isChunk
+    , Writer
+    , Signature (..)
+    , isEOF
+    , reduce
+    , decode
+    , encode
+    , encodeE
+    , namespaceFrom
     ) where
 
-import           Data.Aeson
+import           Data.Word
+import           Control.Monad
 import qualified Data.ByteString as B
-import           Leela.Data.Graph (Link)
+import           Leela.Data.Time
+import           Control.Exception
+import           Leela.Data.Excepts
+import           Control.Applicative
+import           Data.ByteString.UTF8 (fromString)
 import           Leela.Data.Namespace
-import qualified Data.ByteString.Lazy as L
+import qualified Data.ByteString.Char8 as B8
 
-data RValue = LinkVal Link
-            | NodeVal GUID
-            | PathVal GUID [(GUID, Label)]
-            | NameVal GUID (Namespace, Key)
+type FH = Word64
 
-data Reply = Done
-           | Chunk RValue
-           | InternalError
-           | NotFoundError
-           | BadRequestError
-           | TempUnavailError
-           | NoSuchResourceError
+type Writer a = a -> IO ()
 
-data Stream b = Stream { runStream :: Reply -> IO (b, Stream b) }
+newtype MAC = MAC B.ByteString
 
-fromLink :: Link -> Reply
-fromLink = Chunk . LinkVal
+newtype User = User B.ByteString
 
-fromNode :: GUID -> Reply
-fromNode = Chunk . NodeVal
+newtype Nonce = Nonce B.ByteString
 
-fromPath :: GUID -> [(GUID, Label)] -> Reply
-fromPath g = Chunk . PathVal g
+data Signature = Signature { sigUser  :: User
+                           , sigTime  :: Time
+                           , sigNonce :: Nonce
+                           , sigMAC   :: MAC
+                           }
 
-fromGUID :: GUID -> (Namespace, Key) -> Reply
-fromGUID g k = Chunk $ NameVal g k
+data Query = Begin Signature [B.ByteString]
+           | Close Signature FH
+           | Fetch Signature FH Word8
 
-isChunk :: Reply -> Bool
-isChunk (Chunk _) = True
-isChunk _         = False
+data Reply = Done FH
+           | Last (Maybe RValue)
+           | Item RValue
+           | Fail Int (Maybe String)
 
-isDone :: Reply -> Bool
-isDone Done = True
-isDone _    = False
+data RValue = Path [(GUID, Label)]
+            | List [RValue]
+            | Name Namespace Key
 
-done :: Reply
-done = Done
+isEOF :: Reply -> Bool
+isEOF m = isLast m || isFail m
 
-encodeStrict :: (ToJSON a) => a -> B.ByteString
-encodeStrict = L.toStrict . encodeLazy
+isLast :: Reply -> Bool
+isLast (Last _) = True
+isLast _        = False
 
-encodeLazy :: (ToJSON a) => a -> L.ByteString
-encodeLazy = encode
+isFail :: Reply -> Bool
+isFail (Fail _ _) = True
+isFail _          = False
 
-consume :: [RValue] -> Stream b -> IO b
-consume [] s     = fmap fst (runStream s Done)
-consume (x:xs) s = fmap snd (runStream s (Chunk x)) >>= consume xs
+readDecimal :: (Integral n) => B.ByteString -> Either Reply n
+readDecimal s = case (B8.readInteger s) of
+                  Just (n, "") -> Right (fromIntegral n)
+                  _            -> Left $ Fail 400 (Just "syntax error: invalid number")
 
-instance ToJSON Reply where
+readTime :: B.ByteString -> Either Reply Time
+readTime = fmap (flip mktime 0) . readDecimal
 
-  toJSON Done                       = object [("done", object [])]
-  toJSON (Chunk (LinkVal c))        = object [("chunk", object [("link", toJSON c)])]
-  toJSON (Chunk (NodeVal c))        = object [("chunk", object [("node", toJSON c)])]
-  toJSON (Chunk (PathVal g c))      = object [("chunk", object [("path", toJSON (g, c))])]
-  toJSON (Chunk (NameVal g (n, k))) = object [("chunk", object [("name", toJSON (g, n, k))])]
-  toJSON InternalError              = object [("fail", object [("code", toJSON (500 :: Int))])]
-  toJSON BadRequestError            = object [("fail", object [("code", toJSON (400 :: Int))])]
-  toJSON NotFoundError              = object [("fail", object [("code", toJSON (404 :: Int))])]
-  toJSON NoSuchResourceError        = object [("fail", object [("code", toJSON (410 :: Int))])]
-  toJSON TempUnavailError           = object [("fail", object [("code", toJSON (503 :: Int))])]
+readSignature :: B.ByteString -> Either Reply Signature
+readSignature s =
+  let (base, mac) = B.break (== 0x20) s
+  in case (B.splitWith (== 0x3a) base) of
+       [user, nonce, timestr] -> do
+         t <- readTime timestr
+         Right $ Signature (User user) t (Nonce nonce) (MAC $ B.drop 1 mac)
+       _                      ->
+         Left $ Fail 400 (Just "syntax error: signature")
+
+encodeShow :: (Show s) => s -> B.ByteString
+encodeShow = B8.pack . show
+
+decode :: [B.ByteString] -> Either Reply Query
+decode (sig:"begin":lql)      = fmap (flip Begin lql) (readSignature sig)
+decode [sig,"close",fh]       = liftM2 Close (readSignature sig) (readDecimal fh)
+decode [sig,"fetch",fh,limit] = liftM3 Fetch (readSignature sig) (readDecimal fh) (readDecimal limit)
+decode _                      = Left $ Fail 400 (Just "syntax error")
+
+encodeRValue :: RValue -> [B.ByteString]
+encodeRValue (Name n k)   = ["name", unpack n, unpack k]
+encodeRValue (Path p)     = let f (g, l) acc = unpack l : unpack g : acc
+                            in "path" : encodeShow (2 * length p) : foldr f [] p
+encodeRValue (List v)     = "list" : encodeShow (length v) : concatMap encodeRValue v
+
+encode :: Reply -> [B.ByteString]
+encode (Done fh)              = ["done", encodeShow fh]
+encode (Last Nothing)         = ["done"]
+encode (Last (Just v))        = "done" : encodeRValue v
+encode (Fail code Nothing)    = ["fail", encodeShow code]
+encode (Fail code (Just msg)) = ["fail", encodeShow code, fromString msg]
+encode (Item v)               = "item" : encodeRValue v
+
+encodeE :: SomeException -> Reply
+encodeE e = 
+  case (fromException e) of
+    Just BadDeviceExcept -> Fail 599 Nothing
+    Just NotFoundExcept  -> Fail 404 Nothing
+    Just TimeoutExcept   -> Fail 589 Nothing
+    Just UserExcept      -> Fail 400 Nothing
+    _                    -> Fail 500 Nothing
+
+reduceRValue :: RValue -> RValue -> RValue
+reduceRValue (List a) (List b) = List (a ++ b)
+reduceRValue (List a) b        = List (b : a)
+reduceRValue a (List b)        = List (a : b)
+reduceRValue a b               = List [a, b]
+
+reduce :: Reply -> Reply -> Reply
+reduce m@(Fail _ _) _    = m
+reduce _ m@(Fail _ _)    = m
+reduce m@(Done _) _      = m
+reduce _ m@(Done _)      = m
+reduce (Last a) (Last b) = Last (liftA2 reduceRValue a b <|> a <|> b)
+reduce (Last a) (Item b) = Last ((reduceRValue b <$> a) <|> (Just b))
+reduce (Item a) (Last b) = Last ((reduceRValue a <$> b) <|> (Just a))
+reduce (Item a) (Item b) = Item (reduceRValue a b)
+
+namespaceFrom :: Signature -> Namespace
+namespaceFrom = (\(User u) -> derive tld u) . sigUser

@@ -27,6 +27,8 @@ module Leela.Data.Namespace
     -- * Top-level namespace
     , tld
     , Data.Hashable.hash
+    -- * Querying
+    , isDerivedOf
     -- * Hashing
     , guid
     , rehash
@@ -34,21 +36,20 @@ module Leela.Data.Namespace
 
 import           Data.Word
 import           Data.Bits
-import           Data.Aeson
 import           Data.Maybe
 import           Crypto.Hash
 import           Data.Hashable
 import           Data.Byteable
 import qualified Data.ByteString as B
-import           Data.Text.Encoding
-import           Control.Applicative
+import           Control.Exception
+import           Leela.Data.Excepts
 import qualified Data.ByteString.Lazy as L
 
 newtype GUID = GUID (Digest SHA224)
     deriving (Eq, Ord)
 
 newtype Namespace = Namespace L.ByteString
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 newtype Key = Key L.ByteString
     deriving (Eq, Ord, Show)
@@ -78,6 +79,9 @@ rehash (GUID g) b = GUID $ hashFinalize $ hashUpdates hashInit [toBytes g, b]
 tld :: Namespace
 tld = Namespace ""
 
+isDerivedOf :: Namespace -> Namespace -> Bool
+isDerivedOf (Namespace a) (Namespace b) = a `L.isPrefixOf` b
+
 hex2word :: Word8 -> Maybe Word8
 hex2word w
     | w >= 48 && w <= 57  = Just $ w - 48
@@ -105,8 +109,8 @@ instance Domain B.ByteString where
 instance Domain L.ByteString where
 
   derive (Namespace n) s
-    | L.elem sep s = error "invalid character"
-    | otherwise    = Namespace (s `L.append` (L.cons sep n))
+    | L.elem sep s = throw UserExcept
+    | otherwise    = Namespace (n `L.append` (sep `L.cons` s))
 
 instance Domain Key where
 
@@ -166,45 +170,6 @@ instance Identifier GUID L.ByteString where
   pack s = (pack $ L.toStrict s)
 
   unpack g = L.fromStrict (unpack g)
-
-instance ToJSON Key where
-
-  toJSON (Key w0) = toJSON w0
-
-instance ToJSON Label where
-
-  toJSON (Label w0) = toJSON w0
-
-instance ToJSON GUID where
-
-  toJSON g = toJSON (str)
-      where
-        str :: B.ByteString
-        str = unpack g
-
-instance ToJSON Namespace where
-
-  toJSON (Namespace s) = toJSON s
-
-instance FromJSON Namespace where
-
-  parseJSON = withText "Namespace" $ pure . pack . encodeUtf8
-
-instance FromJSON Key where
-
-  parseJSON = withText "Key" $ pure . pack . encodeUtf8
-
-instance FromJSON Label where
-
-  parseJSON = withText "Label" $ pure . pack . encodeUtf8
-
-instance FromJSON GUID where
-
-  parseJSON = withText "GUID" $ pure . pack . encodeUtf8
-
-instance Ord Namespace where
-
-  compare (Namespace n0) (Namespace n1) = n0 `compare` n1
 
 instance Hashable GUID where
 

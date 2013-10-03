@@ -50,14 +50,14 @@ module Leela.Data.Graph
     , done
     , loadNode
     , loadNode1
-    , loadLabel
-    , loadLabel1
     -- * Querying
     , start
     , select
     -- * Binding
     , bindAndLog
     , bindNoLog
+    -- * Misc
+    , labelRef
     ) where
 
 import Leela.Data.Journal
@@ -65,67 +65,66 @@ import Leela.Data.Namespace
 
 type Link = (GUID, GUID, Label)
 
-data Matcher r = ByNode GUID ([Label] -> r)
-               | ByLabel GUID ([GUID] -> r)
+data Matcher r = ByLabel GUID Label ([(GUID, Label)] -> r)
+               | ByNode GUID ([(GUID, Label)] -> r)
 
 data Result r = Load (Matcher (Result r)) (Result r)
               | Done r [Journal]
               | Fail String
 
-data Cursor = Item [(GUID, Label)] [GUID] Cursor
+data Cursor = Head GUID
+            | Item [(GUID, Label)] [(GUID, Label)] Cursor
             | Need (Result Cursor)
-            | EOF
+            | Tail
 
 done :: a -> Result a
 done a = Done a []
 
-loadNode :: GUID -> ([Label] -> Result r) -> Result r -> Result r
-loadNode k f = Load (ByNode k f)
+loadNode :: GUID -> Maybe Label -> ([(GUID, Label)] -> Result r) -> Result r -> Result r
+loadNode k Nothing f  = Load (ByNode k f)
+loadNode k (Just l) f = Load (ByLabel k l f)
 
-loadNode1 :: GUID -> ([Label] -> Result r) -> Result r
-loadNode1 k f = loadNode k f (fail "not found")
-
-loadLabel :: GUID -> Label -> ([GUID] -> Result r) -> Result r -> Result r
-loadLabel g l f = Load (ByLabel (rehash g $ unpack l) f)
-
-loadLabel1 :: GUID -> Label -> ([GUID] -> Result r) -> Result r
-loadLabel1 g l f = loadLabel g l f (fail "not found")
+loadNode1 :: GUID -> Maybe Label -> ([(GUID, Label)] -> Result r) -> Result r
+loadNode1 k l f = loadNode k l f (fail "not found")
 
 putNode :: Namespace -> Key -> Result ()
 putNode n k = Done () [PutNode n k (guid $ derive n k)]
 
 start :: GUID -> Cursor
-start g = Item [] [g] EOF
+start g = Head g
 
-select :: (Label -> Bool) -> (GUID -> Bool) -> Cursor -> Cursor
-select _ _ EOF                     = EOF
-select f g (Need r)                = Need (r >>= done . select f g)
-select f g (Item _ [] cont)        = select f g cont
-select f g (Item path (x:xs) cont) = Need (loadNode1 x matchAndLoad)
-    where
-      matchAndLoad [] = done (select f g $ Item path xs cont)
-      matchAndLoad (y:ys)
-        | f y       = loadLabel1 x y (\nodes -> done $ Item ((x,y):path) (filter g nodes) (Need (matchAndLoad ys)))
-        | otherwise = matchAndLoad ys
+select :: Label -> (GUID -> Bool) -> Cursor -> Cursor
+select _ _ Tail                             = Tail
+select wantl f (Head a)                     = Need $
+  loadNode1 a (Just wantl) $ \nodes -> done $
+    Item [] (filter (f . fst) nodes) Tail
+select wantl f (Need r)                          = Need (r >>= done . select wantl f)
+select wantl f (Item _ [] cont)                  = select wantl f cont
+select wantl f (Item path (item@(b, _):xs) cont) = Need $
+  loadNode1 b (Just wantl) $ \nodes -> done $
+    Item (item:path) (filter (f . fst) nodes) (select wantl f (Item path xs cont))
 
 putLink :: Link -> Result ()
 putLink lnk = putLinks [lnk]
 
 putLinks :: [Link] -> Result ()
 putLinks lnks = Done () [ PutLabel $ map (\(a, _, l) -> (a, l)) lnks,
-                          PutLink $ map (\(a, b, l) -> (rehash a $ unpack l, b)) lnks
+                          PutLink $ map (\(a, b, l) -> (labelRef a l, b)) lnks
                         ]
 
+labelRef :: GUID -> Label -> GUID
+labelRef a l = rehash a $ unpack l
+
 bindWith :: ([Journal] -> [Journal] -> [Journal]) -> Result r1 -> (r1 -> Result r) -> Result r
-bindWith _ (Fail s) _                   = Fail s
+bindWith _ (Fail s) _                     = Fail s
+bindWith merge (Load (ByLabel k l f) g) h = Load (ByLabel k l (\v -> bindWith merge (f v) h)) (bindWith merge g h)
 bindWith merge (Load (ByNode k f) g) h  = Load (ByNode k (\v -> bindWith merge (f v) h)) (bindWith merge g h)
-bindWith merge (Load (ByLabel k f) g) h = Load (ByLabel k (\v -> bindWith merge (f v) h)) (bindWith merge g h)
-bindWith merge (Done r j) f             = mergeLog (f r)
+bindWith merge (Done r j) f               = mergeLog (f r)
     where
-      mergeLog (Done r1 j1)           = Done r1 (j `merge` j1)
-      mergeLog (Fail s)               = Fail s
-      mergeLog (Load (ByNode k g) h)  = Load (ByNode k (\v -> mergeLog (g v))) (mergeLog h)
-      mergeLog (Load (ByLabel k g) h) = Load (ByLabel k (\v -> mergeLog (g v))) (mergeLog h)
+      mergeLog (Done r1 j1)             = Done r1 (j `merge` j1)
+      mergeLog (Fail s)                 = Fail s
+      mergeLog (Load (ByLabel k l g) h) = Load (ByLabel k l (\v -> mergeLog (g v))) (mergeLog h)
+      mergeLog (Load (ByNode k g) h)    = Load (ByNode k (\v -> mergeLog (g v))) (mergeLog h)
 
 bindAndLog :: Result r1 -> (r1 -> Result r) -> Result r
 bindAndLog = bindWith (++)
@@ -137,10 +136,10 @@ bindNoLog = bindWith f
       f _ _   = error "bindNoLog: not empty"
 
 fmapR :: (r1 -> r) -> Result r1 -> Result r
-fmapR _ (Fail s)               = Fail s
-fmapR f (Load (ByNode k g) h)  = Load (ByNode k (\v -> fmapR f (g v))) (fmapR f h)
-fmapR f (Load (ByLabel k g) h) = Load (ByLabel k (\v -> fmapR f (g v))) (fmapR f h)
-fmapR f (Done r j)             = Done (f r) j
+fmapR _ (Fail s)                 = Fail s
+fmapR f (Load (ByLabel k l g) h) = Load (ByLabel k l (\v -> fmapR f (g v))) (fmapR f h)
+fmapR f (Load (ByNode k g) h)    = Load (ByNode k (\v -> fmapR f (g v))) (fmapR f h)
+fmapR f (Done r j)               = Done (f r) j
 
 instance Monad Result where
 
