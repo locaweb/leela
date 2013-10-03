@@ -14,75 +14,144 @@
 ;; along with Leela.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns leela.blackbox.network.zmqserver
-  (:use     [clojure.tools.logging :only [info error]])
-  (:require [leela.blackbox.f :as f]
+  (:use     [clojure.tools.logging :only [trace debug info error]])
+  (:require [clojure.string :as s]
+            [leela.blackbox.f :as f]
             [leela.blackbox.czmq.router :as router]
             [leela.blackbox.storage.cassandra :as storage]))
 
+(def +index-name+ 0x00)
+(def +index-pxlabel+ 0x01)
+(def +index-sxlabel+ 0x02)
+
 (defn msg-fail [status]
-  {:code 4 :data status})
+  ["fail" (str status)])
 
 (defn msg-done []
-  {:code 0})
+  ["done"])
 
-(defn msg-name [n k]
-  {:code 1 :data [n k]})
+(defn msg-name [msg]
+  (if-not msg
+    (msg-fail 404)
+    (cons "name" msg)))
 
 (defn msg-link [links]
-  {:code 2 :data links})
+  (cons "link" links))
 
 (defn msg-label [labels]
-  {:code 3 :data labels})
+  (cons "label" labels))
 
-(defn exec-getname [session a]
-  (storage/with-consistency :quorum
-    (let [raw (storage/getname session a)]
-      (case raw
-        nil (msg-fail 404)
-        (apply msg-name (f/str-to-json raw))))))
+(defn msg-label1 [label]
+  (if-not label
+    (msg-fail 404)
+    (msg-label [label])))
 
-(defn exec-putname [session [n k g]]
-  (storage/with-consistency :quorum
-    (storage/putname session (f/json-to-str [n k]) g)
-    (msg-done)))
+(defn exec-getname [cluster msg]
+  (if (not= (count msg) 1)
+    (msg-fail 400)
+    (let [g (first msg)]
+      (storage/with-consistency :quorum
+        (storage/with-limit 1
+          (msg-name (first (map #(f/str-to-json %) (storage/getindex cluster g +index-name+)))))))))
 
-(defn exec-getlink [session a]
-  (storage/with-consistency :one
-    (let [rows (storage/getlink session a)]
-      (case (seq rows)
-        nil (msg-fail 404)
-        (msg-link rows)))))
+(defn exec-putname [cluster msg]
+  (if (not= (count msg) 3)
+    (msg-fail 400)
+    (let [[g n k] msg]
+      (storage/with-consistency :quorum
+        (storage/putindex cluster g +index-name+ (f/json-to-str [n k]))
+        (msg-done)))))
 
-(defn exec-putlink [session [a links]]
-  (storage/with-consistency :quorum
-    (storage/putlink session a links)
-    (msg-done)))
+(defn exec-getlink [cluster msg]
+  (if (< (count msg) 1)
+    (msg-fail 400)
+    (storage/with-consistency :one
+      (msg-link (apply storage/getlink cluster msg)))))
 
-(defn exec-getlabel [session a]
-  (storage/with-consistency :one
-    (let [rows (storage/getlabel session a)]
-      (case (seq rows)
-        nil (msg-fail 404)
-        (msg-label rows)))))
+(defn exec-putlink [cluster msg]
+  (if (< (count msg) 1)
+    (msg-fail 400)
+    (let [[a & links] msg]
+      (storage/with-consistency :quorum
+        (doseq [b links]
+          (storage/putlink cluster a b))
+        (msg-done)))))
 
-(defn exec-putlabel [session [a labels]]
-  (storage/with-consistency :quorum
-    (storage/putlabel session a labels)
-    (msg-done)))
+(defn exec-getlabel-exact [cluster msg]
+  (if (not= (count msg) 2)
+    (msg-fail 400)
+    (let [[k n] msg]
+      (storage/with-consistency :quorum
+        (storage/hasindex cluster k +index-pxlabel+ n)))))
 
-(defn handle-message [session msg]
-  (case (get msg "code")
-    0 (exec-getname session (get msg "data"))
-    1 (exec-putname session (get msg "data"))
-    2 (exec-getlabel session (get msg "data"))
-    3 (exec-putlabel session (get msg "data"))
-    4 (exec-getlink session (get msg "data"))
-    5 (exec-putlink session (get msg "data"))
+(defn exec-getlabel-all [cluster msg]
+  (if (< (count msg) 1)
+    (msg-fail 400)
+    (let [[k page] msg]
+      (storage/with-consistency :quorum
+        (storage/getindex cluster k +index-pxlabel+ page)))))
+
+(defn exec-getlabel-prefix [cluster msg]
+  (if (not= (count msg) 3)
+    (msg-fail 400)
+    (let [[k start finish] msg]
+      (storage/with-consistency :quorum
+        (storage/getindex cluster k +index-pxlabel+ start finish)))))
+
+(defn exec-getlabel-suffix [cluster msg]
+  (if (not= (count msg) 3)
+    (msg-fail 400)
+    (let [[k start finish] msg]
+      (storage/with-consistency :quorum
+        (map s/reverse (storage/getindex cluster k +index-sxlabel+ (s/reverse start) (s/reverse finish)))))))
+
+(defn exec-getlabel [cluster msg]
+  (case (first msg)
+    "all" (msg-label (exec-getlabel-all cluster (subvec msg 1)))
+    "pre" (msg-label (exec-getlabel-prefix cluster (subvec msg 1)))
+    "suf" (msg-label (exec-getlabel-suffix cluster (subvec msg 1)))
+    "ext" (msg-label1 (exec-getlabel-exact cluster (subvec msg 1)))
     (msg-fail 400)))
 
+(defn exec-putlabel [cluster msg]
+  (if (< (count msg) 1)
+    (msg-fail 400)
+    (let [[k & labels] msg]
+      (storage/with-consistency :quorum
+        (doseq [l labels]
+          (storage/putindex cluster k +index-pxlabel+ l)
+          (storage/putindex cluster k +index-sxlabel+ (s/reverse l)))
+        (msg-done)))))
+
+(defn handle-get [cluster msg]
+  (case (first msg)
+    "name" (exec-getname cluster (subvec msg 1))
+    "link" (exec-getlink cluster (subvec msg 1))
+    "label" (exec-getlabel cluster (subvec msg 1))
+    (msg-fail 400)))
+
+(defn handle-put [cluster msg]
+  (case (first msg)
+    "name" (exec-putname cluster (subvec msg 1))
+    "link" (exec-putlink cluster (subvec msg 1))
+    "label" (exec-putlabel cluster (subvec msg 1))
+    (msg-fail 400)))
+
+(defn handle-del [cluster msg]
+  (msg-fail 500))
+
+(defn handle-message [cluster msg]
+  (if (< (count msg) 1)
+    (msg-fail 400)
+    (let [msg (mapv f/bytes-to-str msg)]
+      (case (first msg)
+        "get" (handle-get cluster (subvec msg 1))
+        "put" (handle-put cluster (subvec msg 1))
+        "del" (handle-del cluster (subvec msg 1))
+        (msg-fail 400)))))
+
 (defn zmqworker [cluster]
-  {:onjob #(f/json-to-str (handle-message cluster (f/str-to-json %))) :onerr (f/json-to-str (msg-fail 500))})
+  {:onjob #(handle-message cluster %) :onerr (msg-fail 500)})
 
 (defn server-start [ctx cluster]
-  (router/router-start ctx (zmqworker cluster)))
-  
+  (router/router-start ctx (zmqworker cluster)))  

@@ -26,9 +26,9 @@
   (java.util.concurrent.LinkedBlockingQueue. size))
 
 (defn enqueue [fh queue]
-  (let [[peer blank msg] (z/recvmulti fh)]
+  (let [[peer blank & msg] (z/recvmulti fh)]
     (when (empty? blank)
-      (.put queue [peer (f/bytes-to-str msg)]))))
+      (.put queue [peer msg]))))
 
 (defn routing-loop [ifh ofh queue]
   (trace "ENTER:routing-loop")
@@ -40,10 +40,10 @@
 
 (defn evaluate [worker [peer msg]]
   (try
-    [peer "" ((:onjob worker) msg)]
+    (cons peer (cons "" ((:onjob worker) msg)))
     (catch Exception e
       (error e "error evaluating worker")
-      [peer "" (:onerr worker)])))
+      (cons peer (cons "" (:onerr worker))))))
 
 (defn run-worker [watch ctx endpoint queue worker]
   (with-open [fh (.socket ctx ZMQ/PUSH)]

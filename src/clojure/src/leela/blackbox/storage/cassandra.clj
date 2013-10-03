@@ -17,13 +17,12 @@
   (:use     [clojure.tools.logging :only [info warn]]
             [clojurewerkz.cassaforte.query]
             [clojurewerkz.cassaforte.multi.cql])
-  (:require [leela.blackbox.f :as f]
+  (:require [clojure.string :as s]
+            [leela.blackbox.f :as f]
             [leela.blackbox.config :as cfg]
             [clojurewerkz.cassaforte.client :as client]))
 
-(def +label+ 0x0)
-
-(def +name+  0x1)
+(def +limit+ 512)
 
 (defn check-schema [cluster keyspace]
   (when-not (describe-keyspace cluster keyspace)
@@ -54,47 +53,43 @@
   `(client/with-consistency-level
      (client/consistency-level ~tag) ~@body))
 
+(defmacro with-limit [lim & body]
+  `(with-redefs [+limit+ ~lim]
+     ~@body))
+
 (defn truncate-all [cluster]
   (doseq [t [:graph :search]]
     (truncate cluster t)))
 
-(defn putlink [cluster a links]
-  (let [k (f/hexstr-to-bytes a)]
-    (doseq [b links]
-      (insert cluster :graph {:a k :b (f/hexstr-to-bytes b)}))))
+(defn putindex [cluster k code name]
+  (insert cluster :search {:key (f/hexstr-to-bytes k) :code code :name name}))
 
-(defn putlabel [cluster a labels]
-  (let [k (f/hexstr-to-bytes a)]
-    (doseq [l labels]
-      (insert cluster :search {:key k :code +label+ :name l}))))
+(defn getindex [cluster k code & optional]
+  (let [[start finish] optional]
+    (map #(:name %) (select cluster
+                            :search
+                            (columns :name)
+                            (case [(boolean start) (boolean finish)]
+                              [true true] (where :key (f/hexstr-to-bytes k) :code code :name [:>= start] :name [:< finish])
+                              [true false] (where :key (f/hexstr-to-bytes k) :code code :name [:>= start])
+                              (where :key (f/hexstr-to-bytes k) :code code))
+                            (limit +limit+)))))
 
-(defn putname [cluster n g]
-  (insert cluster :search {:key (f/hexstr-to-bytes g) :code +name+ :name n}))
+(defn hasindex [cluster k code name]
+  (first (map #(:name %) (select cluster
+                                 :search
+                                 (columns :name)
+                                 (where :key (f/hexstr-to-bytes k) :code code :name name)
+                                 (limit 1)))))
 
-(defn getname [cluster k]
-  (let [cfg (cfg/read-state :cassandra)
-        raw (select
-             cluster
-             :search
-             (columns :name)
-             (where :key (f/hexstr-to-bytes k) :code +name+)
-             (limit 1))]
-    (when (seq raw) (:name (first raw)))))
+(defn putlink [cluster a b]
+  (insert cluster :graph {:a (f/hexstr-to-bytes a) :b (f/hexstr-to-bytes b)}))
 
-(defn getlink [cluster k]
-  (let [cfg (cfg/read-state :cassandra)]
-    (map #(f/bytes-to-hexstr (:b %)) (select
-                                      cluster
-                                      :graph
-                                      (columns :b)
-                                      (where :a (f/hexstr-to-bytes k))
-                                      (limit (:rows-limit cfg))))))
-
-(defn getlabel [cluster k]
-  (let [cfg (cfg/read-state :cassandra)]
-    (map #(:name %) (select
-                     cluster
-                     :search
-                     (columns :name)
-                     (where :key (f/hexstr-to-bytes k) :code +label+)
-                     (limit (:rows-limit cfg))))))
+(defn getlink [cluster k & page]
+  (map #(f/bytes-to-hexstr (:b %)) (select cluster
+                                           :graph
+                                           (columns :b)
+                                           (if (seq page)
+                                             (where :a (f/hexstr-to-bytes k) :b [:> (f/hexstr-to-bytes (first page))])
+                                             (where :a (f/hexstr-to-bytes k)))
+                                           (limit +limit+))))

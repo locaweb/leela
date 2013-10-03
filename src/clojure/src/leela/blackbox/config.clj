@@ -28,7 +28,7 @@
   (:require [leela.blackbox.f :as f]))
 
 (def +z-value+ {:announce  nil
-                :cassandra {:rows-limit   10000}
+                :cassandra {}
                 :zmqrouter {:endpoint     "tcp://*:50021"
                             :queue-size   128
                             :capabilities 64}})
@@ -37,6 +37,12 @@
 
 (defn watch-state [version]
   (= version (:version @state)))
+
+(defn wait-config []
+  (loop []
+    (when-not (:version @state)
+      (Thread/sleep 100)
+      (recur))))
 
 (defn get-state [k]
   (let [obj @state
@@ -141,4 +147,5 @@
 
 (defn zk-attach [node endpoint auth]
   (let [zkref (atom [nil node endpoint auth])]
-    (zk-connect zkref)))
+    (zk-connect zkref)
+    (wait-config)))
