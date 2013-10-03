@@ -133,28 +133,25 @@ The answer to the above request will either be:
     | fail | <ERROR-CODE> | <REASON> |
     +------+--------------+----------+
 
-or a list of chunks:
+or a `item`, meaning there are more items to fetch:
 
-    0       1
+    0      1..n
     +------+-----------+
     | item | <BIN-STR> |
     +------+-----------+
-    | item | <BIN-STR> |
+
+or a `done` with or without payload indicating the _end of the stream_:
+
+    0      1..n
     +------+-----------+
-    | item | <BIN-STR> |
+    | done | <BIN-STR> |
     +------+-----------+
-    * 3 chunks in this message
+           ^^^^^^^^^^^^^
+              optional
 
-or a `done` without payload indicating the _end of the stream_:
-
-    0
-    +------+
-    | done |
-    +------+
-
-When this message is received, the server will automatically close the
-channel, so no further messages will sent by the server or even
-allowed to be received on this channel.
+When a `done` or `fail` messages are sent the server will
+automatically close the channel, so no further messages will sent by
+the server or even allowed to be received on this channel.
 
 ### CLOSE MESSAGE ###
 
