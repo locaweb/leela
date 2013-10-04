@@ -22,6 +22,7 @@ module Leela.Data.QDevice
        , HasControl (..)
        , open
        , close
+       , closed
        , openIO
        , control
        , devnull
@@ -33,14 +34,15 @@ module Leela.Data.QDevice
        , devreadIO
        , devwriteIO
        , trydevread
+       , withControl
        ) where
 
-import Data.Word
 import Control.Monad
+import Control.Exception
 import Leela.Data.Excepts
 import Control.Concurrent.STM
 
-type Limit = Word8
+type Limit = Int
 
 newtype Control = Control (TVar Bool)
 
@@ -57,8 +59,18 @@ devnull = do
   ctrl <- newTVar True
   fmap (Device ctrl) (newTBQueue 0)
 
+withControl :: (Control -> IO a) -> IO ()
+withControl io = mask $ \restore -> do
+  ctrl <- atomically control
+  _    <- restore (io ctrl) `onException` closeIO ctrl
+  closeIO ctrl
+
+closed :: HasControl ctrl => ctrl -> IO Bool
+closed box = let Control ctrl = ctrlof box
+             in readTVarIO ctrl
+
 open :: HasControl ctrl => ctrl -> Limit -> STM (Device a)
-open ctrl0 l = fmap (Device ctrl) (newTBQueue (max (fromIntegral l) 1))
+open ctrl0 l = fmap (Device ctrl) (newTBQueue (max l 1))
     where Control ctrl = ctrlof ctrl0
 
 openIO :: HasControl ctrl => ctrl -> Limit -> IO (Device a)
@@ -73,8 +85,8 @@ closeIO = atomically . close
 
 select :: Device a -> STM (TBQueue a)
 select (Device ctrl q) = do
-  closed <- readTVar ctrl
-  when closed (throwSTM BadDeviceExcept)
+  notok <- readTVar ctrl
+  when notok (throwSTM BadDeviceExcept)
   return q
 
 devwrite :: Device a -> a -> STM ()
