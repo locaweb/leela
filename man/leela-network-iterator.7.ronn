@@ -149,9 +149,9 @@ or a `done` with or without payload indicating the _end of the stream_:
            ^^^^^^^^^^^^^
               optional
 
-When a `done` or `fail` messages are sent the server will
-automatically close the channel, so no further messages will sent by
-the server or even allowed to be received on this channel.
+When a `done` or `fail` messages are sent the server will send no
+further messages. Users must then send a `close` message to purge any
+resources associated with that channel.
 
 ### CLOSE MESSAGE ###
 

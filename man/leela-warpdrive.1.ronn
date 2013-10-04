@@ -1,0 +1,123 @@
+-*- mode: markdown; -*-
+
+# leela-warpdrive(1) -- leela zmq frontend #
+
+## SYNOPSIS ##
+
+`warpdrive` [OPTION]... 
+
+## DESCRIPTION ##
+
+`warpdrive` is the heart of the leela system. It implements the
+protocol describe in leela-network-iterator(7) and accepts a query
+language hereafter refereced as *LQL*. This allows users to manipulate
+the *property-graph* completely.
+
+This page describes the internals as well as the protocol that users
+must use in order to place requests.
+
+## LQL LANGUAGE - OVERVIEW ##
+
+Clients always initiate a request with a `begin` message which must
+contains a valid *LQL* statement. LQL is an *ASCII* only language,
+that allows the user to modify and read the graph as well as vertex
+properties. The first page covers the language used to deal with the
+graph (vertex and edges). The second part focuses on properties only.
+
+There are currently two commands available:
+
+  * `create`: used to create nodes, labels and edges;
+  * `match`: to navigate through the graph;
+
+The following is an example of a valid *LQL* statement:
+
+    1| using (system)
+    2| create (leela)
+    3| create (warpdrive)
+    4| create (blackbox)
+    5| create (leela) -[zmq/lql]> (warpdrive) -[zmq/storage]> (blackbox);
+
+Now lets dissect this statement. The very first line is mandatory, it
+defines the namespace:
+
+    using (system)
+
+This informs that you are referring to the *system namespace*. Names
+in the same *namespace* are unique.
+
+Now, the next three lines:
+
+    create (leela)
+    create (warpdrive)
+    create (blackbox)
+
+This creates three vertexes: *leela*, *warpdrive* and *blackbox*. This
+is always idempotent and is required prior creating edges, as it
+registers the name of the node.
+
+At last, the last line creates the *edges*, linking two nodes
+together. You can always read it pairwise:
+
+    create (leela) -[zmq/lql]> (warpdrive)
+
+This creates a directed path connecting *leela* to the vertex
+*warpdrive* with the label *zmq/lql*. The brackets delimit the string
+and the arrow (please try hard to read it as an arrow) defines
+direction. So to create a path in the opposite direction we could
+either do:
+
+    create (warpdrive) -[...]> (leela)
+    create (leela) <[...]- (warpdrive)
+
+Both lines are equivalent. Continuing:
+
+    create (warpdrive) -[zmq/storage]> (blackbox);
+
+This does exactly the same as the first component, except by the
+trailing semi-colon. This is used indicate the end of the statement
+and everything after it gets ignored.
+
+The other command at our disposal is `match`. It shares the same
+syntax as the create statement. Consider the following example:
+
+    match (leela)
+
+This will retrieves all *outgoing edges* the *leela* vertex may
+have. Supposing the previous `create` statement has executed
+successfully, this would return to you the *warpdrive* vertex and the
+*zmq/lql* label (a tuple: (vertex, label)).
+
+We can also provide a path:
+
+    match (leela) -[zmq/lql]> ()
+
+Notice the empty parenthesis at the end of the path. This is used to
+express that we want to retrieve all vertex that `leela` have an
+outgoing edge to. Currently, except for the first vertex, all vertex
+in a match query must be `()`.
+
+You may also perform a prefix or suffix match in the label using the
+`*` character:
+
+    match (leela) -[zmq/*]> ()
+    match (leela) -[*/lql]> ()
+    match (leela) -[*]> ()
+
+Match queries can have arbitrary sizes too:
+
+    match (leela) -[zmq/*]> () -> [/*native]> ()
+
+This cover the basics of the *LQL*, following we provide details of
+the actual syntax and internals.
+
+## AUTHORS ##
+
+This manual page has been written by dsouza <dsouza@c0d3.xxx>.
+
+## RESOURCES ##
+
+Source code available at http://github.com/locaweb/leela
+
+## COPYING ##
+
+Please refer to COPYING file.
