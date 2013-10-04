@@ -45,7 +45,8 @@
     (try
       ~@body
       (catch Exception e#
-        (error e# "supervised function has died, restarting")))))
+        (error e# "supervised function has died, restarting")
+        (Thread/sleep 500)))))
 
 ;; (defn random-string [bits]
 ;;   (.toString (java.math.BigInteger. bits (java.security.SecureRandom.)) 32))
