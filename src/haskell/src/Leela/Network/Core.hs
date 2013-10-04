@@ -227,12 +227,14 @@ process m srv (Begin sig msg) = do
       _         <- forkFinally (evalLQL m dev stmts) (evalFinalizer fh dev)
       return $ Done fh
 process _ srv (Fetch sig fh limit) = do
+  let channel = (sigUser sig, fh)
   ldebug Network (printf "FETCH %d %d" fh limit)
-  mdev <- selectFD srv (sigUser sig, fh)
+  mdev <- selectFD srv channel
   case mdev of
     Nothing  -> return $ Fail 404 $ Just "no such channel"
     Just dev -> do
       answer <- fmap (foldr1 reduce) (blkreadIO limit dev)
+      when (isEOF answer) (closeFD srv channel)
       return answer
 process _ srv (Close sig fh) = do
   ldebug Network (printf "CLOSE %d" fh)
