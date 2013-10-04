@@ -21,7 +21,6 @@
 module Leela.Network.Core where
 
 import qualified Data.Map as M
-import           Data.Word
 import           Leela.Logger
 import           Leela.Helpers
 import           Control.Monad
@@ -41,11 +40,14 @@ import           Control.Concurrent.STM
 import           Leela.Network.Protocol
 
 data CoreServer = CoreServer { fdseq  :: TVar FH
-                             , fdlist :: TVar (M.Map (B.ByteString, FH) (Word8, Device Reply))
+                             , fdlist :: TVar (M.Map (B.ByteString, FH) (Int, Device Reply))
                              }
 
 data Stream a = Chunk a
               | EOF
+
+ttl :: Int
+ttl = 300
 
 whenChunk :: (Stream a -> IO ()) -> Stream a -> IO ()
 whenChunk _ EOF   = return ()
@@ -54,16 +56,15 @@ whenChunk f chunk = f chunk
 new :: IO CoreServer
 new = do
   state <- makeState
-  -- _     <- forkIO (supervise "coreserver#cleanup" $ gcloop (fdlist state))
+  _     <- forkIO (forever (sleep 1 >> rungc (fdlist state)))
   return state
     where
       makeState = atomically $ do
         liftM2 CoreServer (newTVar 0) (newTVar M.empty)
 
-gcloop :: (Eq k, Show k) => TVar (M.Map k (Word8, Device a)) -> IO ()
-gcloop tvar = do
+rungc :: (Ord k, Show k) => TVar (M.Map k (Int, Device a)) -> IO ()
+rungc tvar = do
   atomically kill >>= mapM_ burry
-  sleep 1 >> gcloop tvar
     where partition acc []       = acc
           partition (a, b) ((k, (tick, dev)):xs)
               | tick == 0 = partition ((k, dev) : a, b) xs
@@ -71,11 +72,11 @@ gcloop tvar = do
 
           kill = do
             (dead, alive) <- fmap (partition ([], []) . M.toList) (readTVar tvar)
-            writeTVar tvar (M.fromAscList alive)
+            writeTVar tvar (M.fromList alive)
             return dead
 
           burry (k, dev) = do
-            ldebug Network $ printf "closing/purging unused channel: %s" (show k)
+            lwarn Network $ printf "closing/purging unused channel: %s" (show k)
             atomically $ close dev
 
 nextfd :: CoreServer -> STM FH
@@ -88,12 +89,16 @@ makeFD :: CoreServer -> User -> IO (FH, Device Reply)
 makeFD srv (User u) = atomically $ do
   ctrl <- control
   fd   <- nextfd srv
-  dev  <- open ctrl 64
-  modifyTVar (fdlist srv) (M.insert (u, fd) (maxBound, dev))
+  dev  <- open ctrl pageSize
+  modifyTVar (fdlist srv) (M.insert (u, fd) (ttl, dev))
   return (fd, dev)
 
 selectFD :: CoreServer -> (User, FH) -> IO (Maybe (Device Reply))
-selectFD srv ((User u), fh) = fmap (fmap snd . M.lookup (u, fh)) (readTVarIO (fdlist srv))
+selectFD srv ((User u), fh) = atomically $ do
+  let resetTTL _ (_, dev) = Just (ttl, dev)
+  (mdev, newv) <- fmap (M.updateLookupWithKey resetTTL (u, fh)) (readTVar (fdlist srv))
+  writeTVar (fdlist srv) newv
+  return (fmap snd mdev)
 
 closeFD :: CoreServer -> (User, FH) -> IO ()
 closeFD srv ((User u), fh) = do
@@ -115,6 +120,14 @@ store m (PutNode n k g)  = putName n k g m
 store m (PutLabel lbls)  = mapM_ (\(a, l) -> putLabel a [l] m) lbls
 store m (PutLink lnks)   = mapM_ (\(a, b) -> putLink a [b] m) lnks
 
+rechunk :: Int -> [a] -> [[a]]
+rechunk n = go 0 []
+    where go _ [] []      = []
+          go _ acc []     = [acc]
+          go k acc (x:xs)
+            | k == n      = acc : go 0 [x] xs
+            | otherwise   = go (k+1) (x:acc) xs
+
 fetch :: (GraphBackend m, HasControl ctrl) => ctrl -> m -> Matcher r -> (Stream r -> IO ()) -> IO ()
 fetch ctrl m selector callback0 =
   case selector of
@@ -130,26 +143,33 @@ fetch ctrl m selector callback0 =
         case mlabels of
           Left e       -> throwIO e
           Right []     -> callback0 EOF
-          Right labels -> forM_ labels $ \label -> do
-            dev2 <- openIO ctrl 2
-            getLink dev2 (G.labelRef k label) m
-            load2 dev2 (\nodes -> callback0 $ Chunk (f $ map (, label) nodes))
+          Right labels -> do
+            subdev <- openIO ctrl 2
+            forM_ labels (\label -> do
+              getLink subdev (G.labelRef k label) m
+              load2 label subdev $ \nodes ->
+                when (not $ null nodes) (callback0 $ Chunk (f nodes)))
             load1 k f dev
 
-      load2 dev callback = do
-        mnodes <- devreadIO dev
+      load2 label subdev callback = do
+        mnodes <- devreadIO subdev
         case mnodes of
           Left e      -> throwIO e
-          Right []    -> return ()
-          Right nodes -> callback nodes >> load2 dev callback
+          Right []    -> callback []
+          Right nodes -> callback (map (, label) nodes) >> load2 label subdev callback
 
 eval :: (GraphBackend m, HasControl ctrl) => ctrl -> m -> Result r -> (Stream r -> IO ()) -> IO ()
-eval _ _ (G.Fail _) _             = throwIO SystemExcept
-eval ctrl m (G.Load f _) callback =
-  fetch ctrl m f $ \chunk ->
-    case chunk of
-      EOF     -> callback EOF
-      Chunk r -> eval ctrl m r (whenChunk callback)
+eval _ _ (G.Fail 404 _) _         = throwIO NotFoundExcept
+eval _ _ (G.Fail code msg) _      = do lwarn Network (printf "eval has failed: %d/%s" code msg)
+                                       throwIO SystemExcept
+eval ctrl m (G.Load f g) callback =
+  catch (fetch ctrl m f $ \chunk ->
+           case chunk of
+             EOF     -> callback EOF
+             Chunk r -> eval ctrl m r (whenChunk callback))
+        (\e -> case e of
+                 NotFoundExcept -> eval ctrl m g callback
+                 _              -> throwIO e)
 eval _ m (G.Done r j) callback    = do
   mapM_ (store m) j
   callback (Chunk r)
@@ -180,18 +200,18 @@ evalLQL m dev (x:xs) = do
           EOF          -> cont
           Chunk cursor -> navigate cursor (return ())
       navigate (G.Item path links next) cont = do
-        mapM_ (\link -> devwriteIO dev (Item $ Path (link : path))) links
+        devwriteIO dev (Item $ makeList $ map (Path . (:path)) links)
         navigate next cont
       navigate (G.Head g) cont              = do
         eval dev m (G.loadNode1 g Nothing G.done) $ \chunk -> do
           case chunk of
-            EOF         -> cont
-            Chunk links -> mapM_ (devwriteIO dev . Item . Path . (:[])) links
+            EOF          -> cont
+            Chunk links  -> devwriteIO dev (Item $ makeList $ map (Path . (:[])) links)
 
 evalFinalizer :: FH -> Device Reply -> Either SomeException () -> IO ()
 evalFinalizer chan dev (Left e)  = do
+  devwriteIO dev (encodeE e) `catch` ignore
   linfo Network $ printf "[fd: %s] session terminated with failure: %s" (show chan) (show e)
-  devwriteIO dev (encodeE e)
 evalFinalizer chan _ (Right _)   = do
   linfo Network $ printf "[fd: %s] session terminated successfully" (show chan)
 

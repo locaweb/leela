@@ -30,6 +30,7 @@ module Leela.Network.Protocol
     , decode
     , encode
     , encodeE
+    , makeList
     , namespaceFrom
     ) where
 
@@ -62,7 +63,7 @@ data Signature = Signature { sigUser  :: User
 
 data Query = Begin Signature [B.ByteString]
            | Close Signature FH
-           | Fetch Signature FH Word8
+           | Fetch Signature FH Int
 
 data Reply = Done FH
            | Last (Maybe RValue)
@@ -83,6 +84,10 @@ isLast _        = False
 isFail :: Reply -> Bool
 isFail (Fail _ _) = True
 isFail _          = False
+
+makeList :: [RValue] -> RValue
+makeList [x] = x
+makeList xs  = List xs
 
 readDecimal :: (Integral n) => B.ByteString -> Either Reply n
 readDecimal s = case (B8.readInteger s) of
