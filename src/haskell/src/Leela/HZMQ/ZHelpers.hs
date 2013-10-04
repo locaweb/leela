@@ -26,13 +26,6 @@ recvTimeout t s = do
     [[]] -> return Nothing
     _    -> fmap Just (receiveMulti s)
 
-sendAll :: Sender a => Socket a => [ByteString] -> IO ()
-sendAll _ []      = error "empty message"
-sendAll fh [x]    = send fh [] x
-sendAll fh (x:xs) = do
-  send fh [SendMore] x
-  sendAll fh xs
-
 ms :: Int -> Int
 ms = (* 1000)
 

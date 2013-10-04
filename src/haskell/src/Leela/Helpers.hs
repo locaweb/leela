@@ -16,15 +16,29 @@
 module Leela.Helpers where
 
 import Leela.Logger
+import Control.Monad
 import Control.Exception
 import Control.Concurrent
 
-supervise :: String -> IO () -> IO ()
-supervise name io = mask $ \restore -> restore io `catch` restart
+forkOSSupervised :: IO Bool -> IO () -> IO ()
+forkOSSupervised check io = do
+  _ <- forkOS (superviseWith check "router.worker" io)
+  return ()
+
+superviseWith :: IO Bool -> String -> IO () -> IO ()
+superviseWith check name io = do
+  (foreverWith check io) `onException` restart
     where
-      restart :: SomeException -> IO ()
-      restart e = do linfo Global (printf "supervised thread [%s] has died [except: %s]" name (show e))
-                     supervise name io
+      restart = do linfo Global (printf "supervised thread [%s] has died" name)
+                   superviseWith check name io
+
+ignore :: SomeException -> IO ()
+ignore _ = return ()
+
+foreverWith :: IO Bool -> IO () -> IO ()
+foreverWith check io = do
+  ok <- check
+  when ok (io >> foreverWith check io)
 
 sleep :: Int -> IO ()
 sleep s = threadDelay (s * 1000000)

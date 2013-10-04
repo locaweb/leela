@@ -22,6 +22,7 @@ module Leela.Network.ZMQServer
 import System.ZMQ3
 import Leela.HZMQ.Router
 import Leela.Network.Core
+import Leela.Data.QDevice
 import Leela.Storage.Backend
 import Leela.Network.Protocol
 
@@ -32,7 +33,7 @@ worker m srv = Worker f (return . encode . encodeE)
               Left err -> return $ encode err
               Right q  -> fmap encode (process m srv q)
 
-startServer :: (GraphBackend m) => m -> Context -> String -> IO ()
-startServer m ctx addr = do
+startServer :: (GraphBackend m) => Control -> m -> Context -> String -> IO ()
+startServer ctrl m ctx addr = do
   srv <- new
-  startRouter "zmqserver" (defaultCfg {endpoint = addr}) (worker m srv) ctx
+  startRouter ctrl "zmqserver" (defaultCfg {endpoint = addr}) (worker m srv) ctx

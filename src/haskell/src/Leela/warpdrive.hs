@@ -20,12 +20,13 @@ module Main (main) where
 import HFlags
 import System.ZMQ3
 import Leela.Logger
+import Leela.HZMQ.Dealer
 import Control.Concurrent
+import Leela.Data.QDevice
+import System.Posix.Signals
 import Leela.Storage.Backend
 import Leela.Network.ZMQServer as Z
-import Leela.Storage.Backend.ZMQ as Zs
-
-import Leela.Data.LQL.Lang ()
+import Leela.Storage.Backend.ZMQ
 
 defineFlag "storage" "tcp://127.0.0.1:50021" "The storage to connect to"
 
@@ -33,16 +34,26 @@ defineFlag "endpoint" "tcp://*:50023" "The endpoint to bind to"
 
 defineEQFlag "loglevel" [| NOTICE :: Priority |] "PRIORITY" "The log level"
 
-backend :: Context -> IO AnyBackend
-backend ctx = do
-  zmqCluster <- Zs.new ctx [flags_storage]
-  return $ AnyBackend zmqCluster
+backend :: Control -> Context -> IO AnyBackend
+backend ctrl ctx = do
+  pool <- create ctrl "zmq.backend" defaultCfg ctx [flags_storage]
+  return $ AnyBackend (new pool)
+
+wait :: MVar () -> IO ()
+wait = takeMVar
+
+signal :: MVar () -> IO ()
+signal x = tryPutMVar x () >> return ()
 
 main :: IO ()
-main = withContext $ \ctx -> do
-  _    <- $initHFlags "warpdrive - the property graph engine"
-  logsetup flags_loglevel
-  db   <- backend ctx
-  wait <- newEmptyMVar
-  _    <- forkFinally (startServer db ctx flags_endpoint) (\_ -> putMVar wait ())
-  takeMVar wait
+main = do
+  lck  <- newEmptyMVar
+  _    <- installHandler sigTERM (Catch $ signal lck) Nothing
+  _    <- installHandler sigINT (Catch $ signal lck) Nothing
+  withContext $ \ctx -> do 
+    _    <- $initHFlags "warpdrive - the property graph engine"
+    logsetup flags_loglevel
+    withControl $ \ctrl -> do
+      db   <- backend ctrl ctx
+      _    <- forkFinally (startServer ctrl db ctx flags_endpoint) (\_ -> signal lck)
+      wait lck

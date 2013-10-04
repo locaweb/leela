@@ -30,8 +30,9 @@ import           Leela.Helpers
 import           Leela.Data.Time
 import qualified Data.ByteString as B
 import           Control.Exception
+import           Data.List.NonEmpty
+import           Leela.Data.QDevice
 import           Leela.Data.Excepts
-import           Control.Concurrent
 import           Leela.HZMQ.ZHelpers
 import           Control.Concurrent.STM
 
@@ -49,18 +50,18 @@ data Job = Job { jtime :: Time
                }
 
 data Pool = Pool { readTimeout :: Int64
-                 , queue       :: TBQueue Job
+                 , queue       :: Device Job
                  }
 
 enqueue :: Pool -> [B.ByteString] -> IO (TMVar (Maybe [B.ByteString]))
 enqueue pool a = do
   time <- now
   mvar <- newEmptyTMVarIO
-  atomically (writeTBQueue (queue pool) (Job time a mvar))
+  devwriteIO (queue pool) (Job time a mvar)
   return mvar
 
 dequeue :: Pool -> IO Job
-dequeue pool = atomically (readTBQueue (queue pool))
+dequeue pool = devreadIO (queue pool)
 
 request :: Pool -> [B.ByteString] -> IO (Maybe [B.ByteString])
 request pool a = enqueue pool a >>= atomically . takeTMVar
@@ -87,7 +88,7 @@ worker pool ctx endpoint = do
 
       workLoop fh = do
         job  <- dequeue pool
-        mres <- try (sendAll fh (jmsg job))
+        mres <- try (sendMulti fh (fromList $ jmsg job))
         case mres of
           Left e  -> do
             logresult job (Just e)
@@ -98,14 +99,11 @@ worker pool ctx endpoint = do
             logresult job (maybe (Just $ SomeException TimeoutExcept) (const Nothing) mresult)
             when (isJust mresult) (workLoop fh)
 
-forkSupervised :: IO () -> IO ()
-forkSupervised io = forkIO (supervise "dealer.worker" io) >> return ()
+forkWorker :: Control -> Pool -> Context -> String -> IO ()
+forkWorker ctrl pool ctx endpoint = forkOSSupervised (fmap not $ closed ctrl) (worker pool ctx endpoint)
 
-forkWorker :: Pool -> Context -> String -> IO ()
-forkWorker pool ctx endpoint = forkSupervised (worker pool ctx endpoint)
-
-create :: String -> Cfg -> Context -> [String] -> IO Pool
-create name cfg ctx endpoints = do
+create :: Control -> String -> Cfg -> Context -> [String] -> IO Pool
+create ctrl name cfg ctx endpoints = do
   lnotice HZMQ $
     printf "creating zmq.dealer: %s [timeout: %d; qsize: %d; capabilities: %d; endpoint: %s]"
            name
@@ -113,6 +111,6 @@ create name cfg ctx endpoints = do
            (queueSize cfg)
            (capabilities cfg)
            (show endpoints)
-  pool <- fmap (Pool (timeout cfg)) (newTBQueueIO (queueSize cfg))
-  mapM_ (replicateM_ (capabilities cfg) . forkWorker pool ctx) endpoints
+  pool <- fmap (Pool (timeout cfg)) (openIO ctrl (queueSize cfg))
+  mapM_ (replicateM_ (capabilities cfg) . forkWorker ctrl pool ctx) endpoints
   return pool
