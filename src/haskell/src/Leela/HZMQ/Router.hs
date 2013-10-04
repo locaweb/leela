@@ -40,7 +40,7 @@ data Cfg = Cfg { endpoint     :: String
                }
 
 defaultCfg :: Cfg
-defaultCfg = Cfg "tcp://*:4080" 32 128
+defaultCfg = Cfg "tcp://*:4080" 32 16
 
 data Request = Request Time B.ByteString [B.ByteString]
 
