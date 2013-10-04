@@ -1,3 +1,5 @@
+{-# LANGUAGE TupleSections #-}
+
 -- This file is part of Leela.
 --
 -- Leela is free software: you can redistribute it and/or modify
@@ -81,19 +83,22 @@ instance GraphBackend ZMQBackend where
       Done -> return ()
       _    -> throwIO SystemExcept
 
-  getLink dev g m = forkFinally (fetch Nothing) (devwriteIO dev) >> return ()
+  getLink dev keys m = forkFinally (fetch keys Nothing) (devwriteIO dev) >> return ()
       where
-        fetch page = do
+        fetch [] _        = return []
+        fetch (g:gs) page = do
           reply <- sendPool (reqPool m) (GetLink g page)
           case reply of
             Link []
               | isNothing page       -> throwIO NotFoundExcept
-              | otherwise            -> return []
-            Link [x]                 -> devwriteIO dev (Right [x]) >> return []
+              | otherwise            -> fetch gs Nothing
+            Link [x]                 -> do devwriteIO dev (Right [(g, x)])
+                                           fetch gs Nothing
             Link xs
-              | length xs < pageSize -> devwriteIO dev (Right xs) >> return []
-              | otherwise            -> do devwriteIO dev (Right (init xs))
-                                           fetch (Just $ last xs)
+              | length xs < pageSize -> do devwriteIO dev (Right (map (g, ) xs))
+                                           fetch gs Nothing
+              | otherwise            -> do devwriteIO dev (Right (map (g, ) (init xs)))
+                                           fetch (g:gs) (Just $ last xs)
             Fail 404                 -> throwIO NotFoundExcept
             _                        -> throwIO SystemExcept
 

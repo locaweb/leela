@@ -21,6 +21,7 @@
 module Leela.Network.Core where
 
 import qualified Data.Map as M
+import           Data.Maybe
 import           Leela.Logger
 import           Leela.Helpers
 import           Control.Monad
@@ -144,19 +145,20 @@ fetch ctrl m selector callback0 =
           Left e       -> throwIO e
           Right []     -> callback0 EOF
           Right labels -> do
-            subdev <- openIO ctrl 2
-            forM_ labels (\label -> do
-              getLink subdev (G.labelRef k label) m
-              load2 label subdev $ \nodes ->
-                when (not $ null nodes) (callback0 $ Chunk (f nodes)))
+            let keys = M.fromList $ map (\l -> (G.labelRef k l, l)) labels
+            subdev <- openIO ctrl 4
+            getLink subdev (M.keys keys) m
+            load2 subdev $ \guidNodes ->
+              let labelNodes = map (\(lk, g) -> (g, fromJust $ M.lookup lk keys)) guidNodes
+              in when (not $ null labelNodes) (callback0 $ Chunk (f labelNodes))
             load1 k f dev
 
-      load2 label subdev callback = do
+      load2 subdev callback = do
         mnodes <- devreadIO subdev
         case mnodes of
           Left e      -> throwIO e
           Right []    -> callback []
-          Right nodes -> callback (map (, label) nodes) >> load2 label subdev callback
+          Right nodes -> callback nodes >> load2 subdev callback
 
 eval :: (GraphBackend m, HasControl ctrl) => ctrl -> m -> Result r -> (Stream r -> IO ()) -> IO ()
 eval _ _ (G.Fail 404 _) _         = throwIO NotFoundExcept

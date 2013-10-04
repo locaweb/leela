@@ -47,7 +47,7 @@ class GraphBackend m where
 
   putName  :: Namespace -> Key -> GUID -> m -> IO ()
 
-  getLink  :: Device (Either SomeException [GUID]) -> GUID -> m -> IO ()
+  getLink  :: Device (Either SomeException [(GUID, GUID)]) -> [GUID] -> m -> IO ()
 
   putLink  :: GUID -> [GUID] -> m -> IO ()
 
