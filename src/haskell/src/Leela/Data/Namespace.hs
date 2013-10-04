@@ -35,8 +35,6 @@ module Leela.Data.Namespace
     ) where
 
 import           Data.Word
-import           Data.Bits
-import           Data.Maybe
 import           Crypto.Hash
 import           Data.Hashable
 import           Data.Byteable
@@ -44,6 +42,7 @@ import qualified Data.ByteString as B
 import           Control.Exception
 import           Leela.Data.Excepts
 import qualified Data.ByteString.Lazy as L
+import           Data.ByteString.Base16
 
 newtype GUID = GUID (Digest SHA224)
     deriving (Eq, Ord)
@@ -81,26 +80,6 @@ tld = Namespace ""
 
 isDerivedOf :: Namespace -> Namespace -> Bool
 isDerivedOf (Namespace a) (Namespace b) = a `L.isPrefixOf` b
-
-hex2word :: Word8 -> Maybe Word8
-hex2word w
-    | w >= 48 && w <= 57  = Just $ w - 48
-    | w >= 65 && w <= 70  = Just $ w - 55
-    | w >= 97 && w <= 102 = Just $ w - 87
-    | otherwise           = Nothing
-
-decodeWord :: Word8 -> Word8 -> Maybe Word8
-decodeWord a b = do
-  w0 <- hex2word a
-  w1 <- hex2word b
-  return (w0 `shiftL` 4 .|. w1)
-
-decodeHex :: B.ByteString -> Maybe B.ByteString
-decodeHex = fmap (B.pack . reverse) . go [] . B.unpack
-    where
-      go acc (w0:w1:ws) = decodeWord w0 w1 >>= \w -> go (w : acc) ws
-      go acc []         = Just acc
-      go _ _            = Nothing
 
 instance Domain B.ByteString where
 
@@ -158,10 +137,9 @@ instance Identifier Label B.ByteString where
 
 instance Identifier GUID B.ByteString where
 
-  pack s =
-    case (decodeHex (B.drop 2 s)) of
-      Just  v -> GUID (fromJust $ digestFromByteString v)
-      Nothing -> error "data corruption"
+  pack s = case (digestFromByteString (fst $ decode (B.drop 2 s))) of
+             Nothing -> throw SystemExcept
+             Just x  -> GUID x
 
   unpack (GUID s) = B.append "0x" (digestToHexByteString s)
 
