@@ -70,7 +70,7 @@ data Matcher r = ByLabel GUID Label ([(GUID, Label)] -> r)
 
 data Result r = Load (Matcher (Result r)) (Result r)
               | Done r [Journal]
-              | Fail String
+              | Fail Int String
 
 data Cursor = Head GUID
             | Item [(GUID, Label)] [(GUID, Label)] Cursor
@@ -85,7 +85,7 @@ loadNode k Nothing f  = Load (ByNode k f)
 loadNode k (Just l) f = Load (ByLabel k l f)
 
 loadNode1 :: GUID -> Maybe Label -> ([(GUID, Label)] -> Result r) -> Result r
-loadNode1 k l f = loadNode k l f (fail "not found")
+loadNode1 k l f = loadNode k l f (Fail 404 "not found")
 
 putNode :: Namespace -> Key -> Result ()
 putNode n k = Done () [PutNode n k (guid $ derive n k)]
@@ -93,16 +93,16 @@ putNode n k = Done () [PutNode n k (guid $ derive n k)]
 start :: GUID -> Cursor
 start g = Head g
 
-select :: Label -> (GUID -> Bool) -> Cursor -> Cursor
-select _ _ Tail                             = Tail
-select wantl f (Head a)                     = Need $
-  loadNode1 a (Just wantl) $ \nodes -> done $
-    Item [] (filter (f . fst) nodes) Tail
-select wantl f (Need r)                          = Need (r >>= done . select wantl f)
-select wantl f (Item _ [] cont)                  = select wantl f cont
-select wantl f (Item path (item@(b, _):xs) cont) = Need $
-  loadNode1 b (Just wantl) $ \nodes -> done $
-    Item (item:path) (filter (f . fst) nodes) (select wantl f (Item path xs cont))
+select :: Label -> Cursor -> Cursor
+select _ Tail                                  = Tail
+select wantl (Head a)                          =
+  let item nodes = Item [] nodes Tail
+  in Need $ loadNode a (Just wantl) (done . item) (done Tail)
+select wantl (Need r)                          = Need (r >>= done . select wantl)
+select wantl (Item _ [] cont)                  = select wantl cont
+select wantl (Item path ((b, l):xs) cont) =
+  let item nodes = Item ((b, l):path) nodes (select wantl (Item path xs cont))
+  in Need $ loadNode b (Just wantl) (done . item) (done $ select wantl (Item path xs cont))
 
 putLink :: Link -> Result ()
 putLink lnk = putLinks [lnk]
@@ -116,13 +116,13 @@ labelRef :: GUID -> Label -> GUID
 labelRef a l = rehash a $ unpack l
 
 bindWith :: ([Journal] -> [Journal] -> [Journal]) -> Result r1 -> (r1 -> Result r) -> Result r
-bindWith _ (Fail s) _                     = Fail s
+bindWith _ (Fail c s) _                   = Fail c s
 bindWith merge (Load (ByLabel k l f) g) h = Load (ByLabel k l (\v -> bindWith merge (f v) h)) (bindWith merge g h)
-bindWith merge (Load (ByNode k f) g) h  = Load (ByNode k (\v -> bindWith merge (f v) h)) (bindWith merge g h)
+bindWith merge (Load (ByNode k f) g) h    = Load (ByNode k (\v -> bindWith merge (f v) h)) (bindWith merge g h)
 bindWith merge (Done r j) f               = mergeLog (f r)
     where
       mergeLog (Done r1 j1)             = Done r1 (j `merge` j1)
-      mergeLog (Fail s)                 = Fail s
+      mergeLog (Fail c s)               = Fail c s
       mergeLog (Load (ByLabel k l g) h) = Load (ByLabel k l (\v -> mergeLog (g v))) (mergeLog h)
       mergeLog (Load (ByNode k g) h)    = Load (ByNode k (\v -> mergeLog (g v))) (mergeLog h)
 
@@ -136,14 +136,14 @@ bindNoLog = bindWith f
       f _ _   = error "bindNoLog: not empty"
 
 fmapR :: (r1 -> r) -> Result r1 -> Result r
-fmapR _ (Fail s)                 = Fail s
+fmapR _ (Fail c s)               = Fail c s
 fmapR f (Load (ByLabel k l g) h) = Load (ByLabel k l (\v -> fmapR f (g v))) (fmapR f h)
 fmapR f (Load (ByNode k g) h)    = Load (ByNode k (\v -> fmapR f (g v))) (fmapR f h)
 fmapR f (Done r j)               = Done (f r) j
 
 instance Monad Result where
 
-  fail s   = Fail s
+  fail s   = Fail 500 s
   return a = done a
   f >>= g  = f `bindAndLog` g
 

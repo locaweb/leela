@@ -136,7 +136,7 @@ parseQuery1 n q = option q doParse
         l <- parseRLink n
         hardspace
         _ <- string "()"
-        parseQuery1 n (select l (const True) q)
+        parseQuery1 n (select l q)
 
 parseStmtCreate :: Using -> Parser LQL
 parseStmtCreate n = "create " .*> liftM (Create n) (parseG (self n))
