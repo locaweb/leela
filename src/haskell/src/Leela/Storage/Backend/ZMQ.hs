@@ -19,7 +19,6 @@ module Leela.Storage.Backend.ZMQ
     ) where
 
 import Data.Maybe
-import System.ZMQ3 (Context)
 import Data.ByteString (ByteString)
 import Control.Exception
 import Leela.HZMQ.Dealer
@@ -31,10 +30,8 @@ import Leela.Storage.Backend.ZMQ.Protocol
 
 data ZMQBackend = ZMQBackend { reqPool :: Pool }
 
-new :: Context -> [String] -> IO ZMQBackend
-new ctx endpoints = do
-  pool <- create "zmq.backend" defaultCfg ctx endpoints
-  return (ZMQBackend pool)
+new :: Pool -> ZMQBackend
+new = ZMQBackend
 
 recvPool :: Maybe [ByteString] -> Reply
 recvPool Nothing    = Fail 500
@@ -58,21 +55,25 @@ instance GraphBackend ZMQBackend where
       Done -> return ()
       _    -> throwIO SystemExcept
 
-  getLabel dev g mode m = forkFinally (fetch Nothing) (devwriteIO dev) >> return ()
+  getLabel dev _ (Precise l) _ = do devwriteIO dev (Right [l])
+                                    devwriteIO dev (Right [])
+  getLabel dev g mode m        = forkFinally (fetch Nothing) (devwriteIO dev) >> return ()
       where
         fetch page = do
           reply <- sendPool (reqPool m) (GetLabel g $ maybe mode id page)
           case reply of
             Label []
-              | isNothing page -> throwIO NotFoundExcept
-              | otherwise      -> return []
-            Label [x]          -> devwriteIO dev (Right [x]) >> return []
-            Label xs           -> do devwriteIO dev (Right $ init xs)
-                                     case (nextPage mode (last xs)) of
-                                       Nothing -> return []
-                                       p       -> fetch p
-            Fail 404           -> throwIO NotFoundExcept
-            _                  -> throwIO SystemExcept
+              | isNothing page       -> throwIO NotFoundExcept
+              | otherwise            -> return []
+            Label [x]                -> devwriteIO dev (Right [x]) >> return []
+            Label xs
+              | length xs < pageSize -> devwriteIO dev (Right xs) >> return []
+              | otherwise            -> do devwriteIO dev (Right $ init xs)
+                                           case (nextPage mode (last xs)) of
+                                             Nothing -> return []
+                                             p       -> fetch p
+            Fail 404                -> throwIO NotFoundExcept
+            _                       -> throwIO SystemExcept
 
   putLabel g lbls m = do
     reply <- sendPool (reqPool m) (PutLabel g lbls)
@@ -86,13 +87,15 @@ instance GraphBackend ZMQBackend where
           reply <- sendPool (reqPool m) (GetLink g page)
           case reply of
             Link []
-              | isNothing page  -> throwIO NotFoundExcept
-              | otherwise       -> return []
-            Link [x]            -> devwriteIO dev (Right [x]) >> return []
-            Link xs             -> do devwriteIO dev (Right (init xs))
-                                      fetch (Just $ last xs)
-            Fail 404            -> throwIO NotFoundExcept
-            _                   -> throwIO SystemExcept
+              | isNothing page       -> throwIO NotFoundExcept
+              | otherwise            -> return []
+            Link [x]                 -> devwriteIO dev (Right [x]) >> return []
+            Link xs
+              | length xs < pageSize -> devwriteIO dev (Right xs) >> return []
+              | otherwise            -> do devwriteIO dev (Right (init xs))
+                                           fetch (Just $ last xs)
+            Fail 404                 -> throwIO NotFoundExcept
+            _                        -> throwIO SystemExcept
 
   putLink g lnks m = do
     reply <- sendPool (reqPool m) (PutLink g lnks)

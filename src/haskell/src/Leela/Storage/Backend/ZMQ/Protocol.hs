@@ -24,8 +24,8 @@ module Leela.Storage.Backend.ZMQ.Protocol
 
 import qualified Data.ByteString as B
 import           Leela.Data.Namespace
-import           Data.ByteString.Char8 (readInt)
-import           Leela.Storage.Backend (Mode (..))
+import qualified Data.ByteString.Char8 as B8
+import           Leela.Storage.Backend (Mode (..), pageSize)
 
 data Query = GetName GUID
            | PutName Namespace Key GUID
@@ -42,21 +42,24 @@ data Reply = Done
            | Fail Int
 
 decodeInt :: B.ByteString -> Maybe Int
-decodeInt s = case (readInt s) of
+decodeInt s = case (B8.readInt s) of
                 Just (n, "") -> Just n
                 _            -> Nothing
 
+encodeShow :: (Show s) => s -> B.ByteString
+encodeShow = B8.pack . show
+
 encodeMode :: GUID -> Mode Label -> [B.ByteString]
-encodeMode g (All Nothing)  = ["all", unpack g]
-encodeMode g (All (Just l)) = ["all", unpack g, unpack l]
-encodeMode g (Prefix a b)   = ["pre", unpack g, unpack a, unpack b]
-encodeMode g (Suffix a b)   = ["suf", unpack g, unpack a, unpack b]
+encodeMode g (All Nothing)  = ["all", unpack g, "", encodeShow pageSize]
+encodeMode g (All (Just l)) = ["all", unpack g, unpack l, encodeShow pageSize]
+encodeMode g (Prefix a b)   = ["pre", unpack g, unpack a, unpack b, encodeShow pageSize]
+encodeMode g (Suffix a b)   = ["suf", unpack g, unpack a, unpack b, encodeShow pageSize]
 encodeMode g (Precise l)    = ["ext", unpack g, unpack l]
 
 encode :: Query -> [B.ByteString]
 encode (GetName g)          = ["get", "name", unpack g]
-encode (GetLink g Nothing)  = ["get", "link", unpack g]
-encode (GetLink g (Just p)) = ["get", "link", unpack g, unpack p]
+encode (GetLink g Nothing)  = ["get", "link", unpack g, "0x", encodeShow pageSize]
+encode (GetLink g (Just p)) = ["get", "link", unpack g, unpack p, encodeShow pageSize]
 encode (GetLabel g m)       = "get" : "label" : encodeMode g m
 encode (PutName n k g)      = ["put", "name", unpack g, unpack n, unpack k]
 encode (PutLink g xs)       = "put" : "link" : unpack g : map unpack xs

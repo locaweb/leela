@@ -23,6 +23,7 @@ module Leela.Storage.Backend
     , GraphBackend (..)
     , glob
     , nextPage
+    , pageSize
     ) where
 
 import           Control.Exception
@@ -36,6 +37,9 @@ data Mode a = All (Maybe a)
             | Prefix a a
             | Suffix a a
             | Precise a
+
+pageSize :: Int
+pageSize = 512
 
 class GraphBackend m where
 
