@@ -50,7 +50,7 @@
   (if (not= (count msg) 1)
     (msg-fail 400)
     (let [g (first msg)]
-      (storage/with-consistency :quorum
+      (storage/with-consistency :one
         (storage/with-limit 1
           (msg-name (first (map #(f/str-to-json %) (storage/getindex cluster g +index-name+)))))))))
 
@@ -65,8 +65,10 @@
 (defn exec-getlink [cluster msg]
   (if (< (count msg) 1)
     (msg-fail 400)
-    (storage/with-consistency :one
-      (msg-link (apply storage/getlink cluster msg)))))
+    (let [[_ _ limit] msg]
+      (storage/with-consistency :one
+        (storage/with-limit limit
+          (msg-link (apply storage/getlink cluster msg)))))))
 
 (defn exec-putlink [cluster msg]
   (if (< (count msg) 1)
@@ -81,29 +83,32 @@
   (if (not= (count msg) 2)
     (msg-fail 400)
     (let [[k n] msg]
-      (storage/with-consistency :quorum
+      (storage/with-consistency :one
         (storage/hasindex cluster k +index-pxlabel+ n)))))
 
 (defn exec-getlabel-all [cluster msg]
   (if (< (count msg) 1)
     (msg-fail 400)
-    (let [[k page] msg]
-      (storage/with-consistency :quorum
-        (storage/getindex cluster k +index-pxlabel+ page)))))
+    (let [[k page limit] msg]
+      (storage/with-consistency :one
+        (storage/with-limit limit
+          (storage/getindex cluster k +index-pxlabel+ page))))))
 
 (defn exec-getlabel-prefix [cluster msg]
-  (if (not= (count msg) 3)
+  (if (< (count msg) 3)
     (msg-fail 400)
-    (let [[k start finish] msg]
-      (storage/with-consistency :quorum
-        (storage/getindex cluster k +index-pxlabel+ start finish)))))
+    (let [[k start finish limit] msg]
+      (storage/with-consistency :one
+        (storage/with-limit limit
+          (storage/getindex cluster k +index-pxlabel+ start finish))))))
 
 (defn exec-getlabel-suffix [cluster msg]
   (if (not= (count msg) 3)
     (msg-fail 400)
-    (let [[k start finish] msg]
-      (storage/with-consistency :quorum
-        (map s/reverse (storage/getindex cluster k +index-sxlabel+ (s/reverse start) (s/reverse finish)))))))
+    (let [[k start finish limit] msg]
+      (storage/with-consistency :one
+        (storage/with-limit limit
+          (map s/reverse (storage/getindex cluster k +index-sxlabel+ (s/reverse start) (s/reverse finish))))))))
 
 (defn exec-getlabel [cluster msg]
   (case (first msg)

@@ -22,7 +22,7 @@
             [leela.blackbox.config :as cfg]
             [clojurewerkz.cassaforte.client :as client]))
 
-(def +limit+ 512)
+(def +limit+ 256)
 
 (defn check-schema [cluster keyspace]
   (when-not (describe-keyspace cluster keyspace)
@@ -54,7 +54,7 @@
      (client/consistency-level ~tag) ~@body))
 
 (defmacro with-limit [lim & body]
-  `(with-redefs [+limit+ ~lim]
+  `(with-redefs [+limit+ (or ~lim +limit+)]
      ~@body))
 
 (defn truncate-all [cluster]

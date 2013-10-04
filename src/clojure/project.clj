@@ -7,6 +7,7 @@
   :description  "Leela: scalable metrics monitoring engine [storage component]"
   :dependencies [[org.zeromq/jzmq "2.2.2"]
                  [org.clojure/clojure "1.5.1"]
+                 [org.clojure/data.json "0.2.3"]
                  [org.clojure/tools.cli "0.2.4"]
                  [clojurewerkz/cassaforte "1.2.0"]
                  [org.clojure/tools.logging "0.2.6"]
