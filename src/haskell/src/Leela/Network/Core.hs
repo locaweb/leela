@@ -132,26 +132,31 @@ rechunk n = go 0 []
 fetch :: (GraphBackend m, HasControl ctrl) => ctrl -> m -> Matcher r -> (Stream r -> IO ()) -> IO ()
 fetch ctrl m selector callback0 =
   case selector of
-    ByLabel k l f -> do dev <- openIO ctrl 2
-                        getLabel dev k (glob l) m
-                        load1 k f dev
-    ByNode k f    -> do dev <- openIO ctrl 2
-                        getLabel dev k (All Nothing) m
-                        load1 k f dev
+    ByLabel k l f  -> do dev <- openIO ctrl 2
+                         getLabel dev k (glob l) m
+                         load1 k Nothing f dev
+    ByNode k f     -> do dev <- openIO ctrl 2
+                         getLabel dev k (All Nothing) m
+                         load1 k Nothing f dev
+    ByEdge a l b f -> do dev <- openIO ctrl 2
+                         getLabel dev a (glob l) m
+                         load1 a (Just b) f dev
     where
-      load1 k f dev = do
+      load1 a mb f dev = do
         mlabels <- devreadIO dev
         case mlabels of
           Left e       -> throwIO e
           Right []     -> callback0 EOF
           Right labels -> do
-            let keys = M.fromList $ map (\l -> (G.labelRef k l, l)) labels
+            let keys = M.fromList $ map (\l -> (G.labelRef a l, l)) labels
             subdev <- openIO ctrl 4
-            getLink subdev (M.keys keys) m
+            case mb of
+              Nothing -> getLink subdev (M.keys keys) m
+              Just b  -> getEdge subdev (map (, b) (M.keys keys)) m
             load2 subdev $ \guidNodes ->
               let labelNodes = map (\(lk, g) -> (g, fromJust $ M.lookup lk keys)) guidNodes
               in when (not $ null labelNodes) (callback0 $ Chunk (f labelNodes))
-            load1 k f dev
+            load1 a mb f dev
 
       load2 subdev callback = do
         mnodes <- devreadIO subdev
@@ -205,7 +210,7 @@ evalLQL m dev (x:xs) = do
         devwriteIO dev (Item $ makeList $ map (Path . (:path)) links)
         navigate next cont
       navigate (G.Head g) cont              = do
-        eval dev m (G.loadNode1 g Nothing G.done) $ \chunk -> do
+        eval dev m (G.loadNode1 g Nothing Nothing G.done) $ \chunk -> do
           case chunk of
             EOF          -> cont
             Chunk links  -> devwriteIO dev (Item $ makeList $ map (Path . (:[])) links)

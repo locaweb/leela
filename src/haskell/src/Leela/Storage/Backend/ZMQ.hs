@@ -20,7 +20,6 @@ module Leela.Storage.Backend.ZMQ
     , new
     ) where
 
-import Data.Maybe
 import Data.ByteString (ByteString)
 import Control.Exception
 import Leela.HZMQ.Dealer
@@ -64,17 +63,13 @@ instance GraphBackend ZMQBackend where
         fetch page = do
           reply <- sendPool (reqPool m) (GetLabel g $ maybe mode id page)
           case reply of
-            Label []
-              | isNothing page       -> throwIO NotFoundExcept
-              | otherwise            -> return []
-            Label [x]                -> devwriteIO dev (Right [x]) >> return []
+            Label []                 -> return []
             Label xs
               | length xs < pageSize -> devwriteIO dev (Right xs) >> return []
               | otherwise            -> do devwriteIO dev (Right $ init xs)
                                            case (nextPage mode (last xs)) of
                                              Nothing -> return []
                                              p       -> fetch p
-            Fail 404                -> throwIO NotFoundExcept
             _                       -> throwIO SystemExcept
 
   putLabel g lbls m = do
@@ -83,23 +78,29 @@ instance GraphBackend ZMQBackend where
       Done -> return ()
       _    -> throwIO SystemExcept
 
+  getEdge dev guids m = forkFinally (fetch guids) (devwriteIO dev) >> return ()
+      where
+        fetch []     = return []
+        fetch (x:xs) = do
+          reply <- sendPool (reqPool m) (uncurry HasLink x)
+          case reply of
+            Link []  -> fetch xs
+            Link _   -> do devwriteIO dev (Right [x])
+                           fetch xs
+            _        -> throwIO SystemExcept
+
   getLink dev keys m = forkFinally (fetch keys Nothing) (devwriteIO dev) >> return ()
       where
         fetch [] _        = return []
         fetch (g:gs) page = do
           reply <- sendPool (reqPool m) (GetLink g page)
           case reply of
-            Link []
-              | isNothing page       -> throwIO NotFoundExcept
-              | otherwise            -> fetch gs Nothing
-            Link [x]                 -> do devwriteIO dev (Right [(g, x)])
-                                           fetch gs Nothing
+            Link []                  -> fetch gs Nothing
             Link xs
               | length xs < pageSize -> do devwriteIO dev (Right (map (g, ) xs))
                                            fetch gs Nothing
               | otherwise            -> do devwriteIO dev (Right (map (g, ) (init xs)))
                                            fetch (g:gs) (Just $ last xs)
-            Fail 404                 -> throwIO NotFoundExcept
             _                        -> throwIO SystemExcept
 
   putLink g lnks m = do

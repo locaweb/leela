@@ -32,6 +32,7 @@ data Query = GetName GUID
            | PutLink GUID [GUID]
            | PutLabel GUID [Label]
            | GetLink GUID (Maybe GUID)
+           | HasLink GUID GUID
            | GetLabel GUID (Mode Label)
            | Unlink GUID GUID
 
@@ -58,6 +59,7 @@ encodeMode g (Precise l)    = ["ext", unpack g, unpack l]
 
 encode :: Query -> [B.ByteString]
 encode (GetName g)          = ["get", "name", unpack g]
+encode (HasLink a b)        = ["get", "link", unpack a, unpack b, "1"]
 encode (GetLink g Nothing)  = ["get", "link", unpack g, "0x", encodeShow pageSize]
 encode (GetLink g (Just p)) = ["get", "link", unpack g, unpack p, encodeShow pageSize]
 encode (GetLabel g m)       = "get" : "label" : encodeMode g m

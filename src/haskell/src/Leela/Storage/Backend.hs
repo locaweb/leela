@@ -47,6 +47,8 @@ class GraphBackend m where
 
   putName  :: Namespace -> Key -> GUID -> m -> IO ()
 
+  getEdge  :: Device (Either SomeException [(GUID, GUID)]) -> [(GUID, GUID)] -> m -> IO ()
+
   getLink  :: Device (Either SomeException [(GUID, GUID)]) -> [GUID] -> m -> IO ()
 
   putLink  :: GUID -> [GUID] -> m -> IO ()
@@ -83,6 +85,8 @@ instance GraphBackend AnyBackend where
   getLabel dev g m (AnyBackend b) = getLabel dev g m b
 
   putLabel g lbls (AnyBackend b) = putLabel g lbls b
+
+  getEdge dev gs (AnyBackend b) = getEdge dev gs b
 
   getLink dev g (AnyBackend b) = getLink dev g b
 

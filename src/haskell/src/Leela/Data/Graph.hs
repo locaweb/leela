@@ -67,6 +67,7 @@ type Link = (GUID, GUID, Label)
 
 data Matcher r = ByLabel GUID Label ([(GUID, Label)] -> r)
                | ByNode GUID ([(GUID, Label)] -> r)
+               | ByEdge GUID Label GUID ([(GUID, Label)] -> r)
 
 data Result r = Load (Matcher (Result r)) (Result r)
               | Done r [Journal]
@@ -80,12 +81,14 @@ data Cursor = Head GUID
 done :: a -> Result a
 done a = Done a []
 
-loadNode :: GUID -> Maybe Label -> ([(GUID, Label)] -> Result r) -> Result r -> Result r
-loadNode k Nothing f  = Load (ByNode k f)
-loadNode k (Just l) f = Load (ByLabel k l f)
+loadNode :: GUID -> Maybe Label -> Maybe GUID -> ([(GUID, Label)] -> Result r) -> Result r -> Result r
+loadNode a Nothing Nothing f   = Load (ByNode a f)
+loadNode a (Just l) Nothing f  = Load (ByLabel a l f)
+loadNode a Nothing (Just b) f  = Load (ByNode a (f . filter ((== b) . fst)))
+loadNode a (Just l) (Just b) f = Load (ByEdge a l b f)
 
-loadNode1 :: GUID -> Maybe Label -> ([(GUID, Label)] -> Result r) -> Result r
-loadNode1 k l f = loadNode k l f (Fail 404 "not found")
+loadNode1 :: GUID -> Maybe Label -> Maybe GUID -> ([(GUID, Label)] -> Result r) -> Result r
+loadNode1 a l b f = loadNode a l b f (Fail 404 "not found")
 
 putNode :: Namespace -> Key -> Result ()
 putNode n k = Done () [PutNode n k (guid $ derive n k)]
@@ -93,16 +96,20 @@ putNode n k = Done () [PutNode n k (guid $ derive n k)]
 start :: GUID -> Cursor
 start g = Head g
 
-select :: Label -> Cursor -> Cursor
-select _ Tail                                  = Tail
-select wantl (Head a)                          =
+select :: Label -> Maybe GUID -> Cursor -> Cursor
+select _ _ Tail                                 = Tail
+select wantl wantb (Head a)                     =
   let item nodes = Item [] nodes Tail
-  in Need $ loadNode a (Just wantl) (done . item) (done Tail)
-select wantl (Need r)                          = Need (r >>= done . select wantl)
-select wantl (Item _ [] cont)                  = select wantl cont
-select wantl (Item path ((b, l):xs) cont) =
-  let item nodes = Item ((b, l):path) nodes (select wantl (Item path xs cont))
-  in Need $ loadNode b (Just wantl) (done . item) (done $ select wantl (Item path xs cont))
+      onSucc     = done . item
+      onFail     = done Tail
+  in Need $ loadNode a (Just wantl) wantb onSucc onFail
+select wantl wantb (Need r)                     = Need (r >>= done . select wantl wantb)
+select wantl wantb (Item _ [] cont)             = select wantl wantb cont
+select wantl wantb (Item path ((b, l):xs) cont) =
+  let item nodes = Item ((b, l):path) nodes (select wantl wantb (Item path xs cont))
+      onSucc     = done . item
+      onFail     = done $ select wantl wantb (Item path xs cont)
+  in Need $ loadNode b (Just wantl) wantb onSucc onFail
 
 putLink :: Link -> Result ()
 putLink lnk = putLinks [lnk]
@@ -116,15 +123,17 @@ labelRef :: GUID -> Label -> GUID
 labelRef a l = rehash a $ unpack l
 
 bindWith :: ([Journal] -> [Journal] -> [Journal]) -> Result r1 -> (r1 -> Result r) -> Result r
-bindWith _ (Fail c s) _                   = Fail c s
-bindWith merge (Load (ByLabel k l f) g) h = Load (ByLabel k l (\v -> bindWith merge (f v) h)) (bindWith merge g h)
-bindWith merge (Load (ByNode k f) g) h    = Load (ByNode k (\v -> bindWith merge (f v) h)) (bindWith merge g h)
-bindWith merge (Done r j) f               = mergeLog (f r)
+bindWith _ (Fail c s) _                     = Fail c s
+bindWith merge (Load (ByLabel k l f) g) h   = Load (ByLabel k l (\v -> bindWith merge (f v) h)) (bindWith merge g h)
+bindWith merge (Load (ByNode k f) g) h      = Load (ByNode k (\v -> bindWith merge (f v) h)) (bindWith merge g h)
+bindWith merge (Load (ByEdge a l b f) g) h  = Load (ByEdge a l b (\v -> bindWith merge (f v) h)) (bindWith merge g h)
+bindWith merge (Done r j) f                 = mergeLog (f r)
     where
-      mergeLog (Done r1 j1)             = Done r1 (j `merge` j1)
-      mergeLog (Fail c s)               = Fail c s
-      mergeLog (Load (ByLabel k l g) h) = Load (ByLabel k l (\v -> mergeLog (g v))) (mergeLog h)
-      mergeLog (Load (ByNode k g) h)    = Load (ByNode k (\v -> mergeLog (g v))) (mergeLog h)
+      mergeLog (Done r1 j1)              = Done r1 (j `merge` j1)
+      mergeLog (Fail c s)                = Fail c s
+      mergeLog (Load (ByLabel k l g) h)  = Load (ByLabel k l (\v -> mergeLog (g v))) (mergeLog h)
+      mergeLog (Load (ByNode k g) h)     = Load (ByNode k (\v -> mergeLog (g v))) (mergeLog h)
+      mergeLog (Load (ByEdge a l b g) h) = Load (ByEdge a l b (\v -> mergeLog (g v))) (mergeLog h)
 
 bindAndLog :: Result r1 -> (r1 -> Result r) -> Result r
 bindAndLog = bindWith (++)
@@ -136,10 +145,11 @@ bindNoLog = bindWith f
       f _ _   = error "bindNoLog: not empty"
 
 fmapR :: (r1 -> r) -> Result r1 -> Result r
-fmapR _ (Fail c s)               = Fail c s
-fmapR f (Load (ByLabel k l g) h) = Load (ByLabel k l (\v -> fmapR f (g v))) (fmapR f h)
-fmapR f (Load (ByNode k g) h)    = Load (ByNode k (\v -> fmapR f (g v))) (fmapR f h)
-fmapR f (Done r j)               = Done (f r) j
+fmapR _ (Fail c s)                = Fail c s
+fmapR f (Load (ByLabel k l g) h)  = Load (ByLabel k l (\v -> fmapR f (g v))) (fmapR f h)
+fmapR f (Load (ByNode k g) h)     = Load (ByNode k (\v -> fmapR f (g v))) (fmapR f h)
+fmapR f (Load (ByEdge a l b g) h) = Load (ByEdge a l b (\v -> fmapR f (g v))) (fmapR f h)
+fmapR f (Done r j)                = Done (f r) j
 
 instance Monad Result where
 

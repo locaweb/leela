@@ -130,13 +130,17 @@ parseQuery n = do
 
 parseQuery1 :: Namespace -> Cursor -> Parser Cursor
 parseQuery1 n q = option q doParse
-    where 
+    where
+      zero = pack L.empty
+
       doParse = do
         hardspace
         l <- parseRLink n
         hardspace
-        _ <- string "()"
-        parseQuery1 n (select l q)
+        (b, gb) <- parseKeyAsGUID n
+        if (b == zero)
+          then parseQuery1 n (select l Nothing q)
+          else parseQuery1 n (select l (Just gb) q)
 
 parseStmtCreate :: Using -> Parser LQL
 parseStmtCreate n = "create " .*> liftM (Create n) (parseG (self n))
