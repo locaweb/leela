@@ -90,6 +90,6 @@
                                            :graph
                                            (columns :b)
                                            (if (seq page)
-                                             (where :a (f/hexstr-to-bytes k) :b [:> (f/hexstr-to-bytes (first page))])
+                                             (where :a (f/hexstr-to-bytes k) :b [:>= (f/hexstr-to-bytes (first page))])
                                              (where :a (f/hexstr-to-bytes k)))
                                            (limit +limit+))))
