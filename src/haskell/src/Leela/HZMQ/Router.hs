@@ -87,13 +87,13 @@ worker job fh action = do
     Right msg -> do
       logresult job Nothing
       reply job fh msg
-  
+
 forkWorker :: Context -> String -> Request -> Worker -> IO ()
 forkWorker ctx addr job action = forkIO (do
   withSocket ctx Push $ \fh -> do
     connect fh addr
     configure fh
-    forever (worker job fh action)) >> return ()
+    worker job fh action) >> return ()
 
 recvRequest :: Receiver a => Socket a -> IO (Maybe Request)
 recvRequest fh = do
