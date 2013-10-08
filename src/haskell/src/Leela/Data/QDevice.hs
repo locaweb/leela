@@ -113,7 +113,7 @@ devread :: Device a -> STM (Maybe a)
 devread dev = do
   (notok, q) <- select dev
   if notok
-    then return Nothing
+    then tryReadTBQueue q
     else fmap Just (readTBQueue q)
 
 devreadIO :: Device a -> IO (Maybe a)
