@@ -61,7 +61,7 @@ enqueue pool a = do
   return mvar
 
 dequeue :: Pool -> IO Job
-dequeue pool = devreadIO (queue pool)
+dequeue pool = fmap fromJust $ devreadIO (queue pool)
 
 request :: Pool -> [B.ByteString] -> IO (Maybe [B.ByteString])
 request pool a = enqueue pool a >>= atomically . takeTMVar

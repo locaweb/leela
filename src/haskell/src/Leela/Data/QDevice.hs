@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections     #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 -- This file is part of Leela.
@@ -23,6 +24,7 @@ module Leela.Data.QDevice
        , open
        , close
        , closed
+       , linger
        , openIO
        , control
        , devnull
@@ -30,6 +32,7 @@ module Leela.Data.QDevice
        , blkread
        , closeIO
        , devwrite
+       , lingerIO
        , blkreadIO
        , devreadIO
        , devwriteIO
@@ -80,30 +83,40 @@ close :: HasControl ctrl => ctrl -> STM ()
 close ctrl = let Control tvar = ctrlof ctrl
              in writeTVar tvar True
 
+linger :: HasControl ctrl => ctrl -> STM ()
+linger ctrl = let Control tvar = ctrlof ctrl
+              in do isClosed <- readTVar tvar
+                    when (not isClosed) retry
+
+lingerIO :: HasControl ctrl => ctrl -> IO ()
+lingerIO = atomically . linger
+
 closeIO :: HasControl ctrl => ctrl -> IO ()
 closeIO = atomically . close
 
-select :: Device a -> STM (TBQueue a)
-select (Device ctrl q) = do
-  notok <- readTVar ctrl
-  when notok (throwSTM BadDeviceExcept)
-  return q
+select :: Device a -> STM (Bool, TBQueue a)
+select (Device ctrl q) = fmap (, q) (readTVar ctrl)
 
 devwrite :: Device a -> a -> STM ()
 devwrite dev v = do
-  q <- select dev
+  (notok, q) <- select dev
+  when notok (throwSTM BadDeviceExcept)
   writeTBQueue q v
 
 devwriteIO :: Device a -> a -> IO ()
 devwriteIO dev = atomically . devwrite dev
 
 trydevread :: Device a -> STM (Maybe a)
-trydevread dev = select dev >>= tryReadTBQueue
+trydevread dev = fmap snd (select dev) >>= tryReadTBQueue
 
-devread :: Device a -> STM a
-devread dev = select dev >>= readTBQueue
+devread :: Device a -> STM (Maybe a)
+devread dev = do
+  (notok, q) <- select dev
+  if notok
+    then return Nothing
+    else fmap Just (readTBQueue q)
 
-devreadIO :: Device a -> IO a
+devreadIO :: Device a -> IO (Maybe a)
 devreadIO = atomically . devread
 
 blkreadIO :: Limit -> Device a -> IO [a]
@@ -120,7 +133,7 @@ blkread limit dev = blkread_ (max 1 limit) []
           Nothing  -> return acc
 
       readfunc l
-          | l == limit = fmap Just (devread dev)
+          | l == limit = devread dev
           | otherwise  = trydevread dev
 
 instance HasControl Control where
