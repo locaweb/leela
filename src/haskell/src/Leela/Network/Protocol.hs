@@ -111,11 +111,11 @@ encodeShow :: (Show s) => s -> B.ByteString
 encodeShow = B8.pack . show
 
 decode :: [B.ByteString] -> Either Reply Query
-decode (sig:"begin":lql)        = fmap (flip Begin lql) (readSignature sig)
-decode [sig,"close",fh]         = liftM2 (Close False) (readSignature sig) (readDecimal fh)
-decode [sig,"close",fh,"force"] = liftM2 (Close True) (readSignature sig) (readDecimal fh)
-decode [sig,"fetch",fh]         = liftM2 Fetch (readSignature sig) (readDecimal fh)
-decode _                        = Left $ Fail 400 (Just "syntax error")
+decode (sig:"begin":lql)         = fmap (flip Begin lql) (readSignature sig)
+decode [sig,"close",fh]          = liftM2 (Close False) (readSignature sig) (readDecimal fh)
+decode [sig,"close",fh,"nowait"] = liftM2 (Close True) (readSignature sig) (readDecimal fh)
+decode [sig,"fetch",fh]          = liftM2 Fetch (readSignature sig) (readDecimal fh)
+decode _                         = Left $ Fail 400 (Just "syntax error")
 
 encodeRValue :: RValue -> [B.ByteString]
 encodeRValue (Name u n k) = ["name", u, n, unpack k]
