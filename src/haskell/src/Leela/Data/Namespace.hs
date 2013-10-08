@@ -60,6 +60,8 @@ class Domain a where
 
   derive   :: Namespace -> a -> Namespace
 
+  underive :: Namespace -> (a, Namespace)
+
 class Identifier a b where
 
   pack :: b -> a
@@ -85,19 +87,31 @@ instance Domain B.ByteString where
 
   derive n = derive n . L.fromStrict
 
+  underive n = let (s, n1) = underive n
+               in (L.toStrict s, n1)
+
 instance Domain L.ByteString where
 
   derive (Namespace n) s
     | L.elem sep s = throw UserExcept
-    | otherwise    = Namespace (n `L.append` (sep `L.cons` s))
+    | otherwise    = Namespace (s `L.append` (sep `L.cons` n))
+
+  underive (Namespace n) = let (s, n1) = L.break (== sep) n
+                           in (s, Namespace $ L.drop 1 n1)
 
 instance Domain Key where
 
   derive n (Key k) = derive n k
 
+  underive n = let (s, n1) = underive n
+               in (Key s, n1)
+
 instance Domain Label where
 
   derive n (Label k) = derive n k
+
+  underive n = let (s, n1) = underive n
+               in (Label s, n1)
 
 instance Identifier Namespace L.ByteString where
 
