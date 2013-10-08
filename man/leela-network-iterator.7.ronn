@@ -43,6 +43,17 @@ representing a variadic number of parts:
 All messages in this document are represented using this syntax. All
 strings, unless otherwise noted, are _ascii_ encoded.
 
+When representing a communication between a client and a server, a
+more concise representation may get used:
+
+    > part0 | part1 | ... | part_n
+
+This represents user's request (notice the character *>* at the
+beginning of the string). The server reply is represented with the
+character *<*:
+
+    > part0 | part1 | ... | part_n
+
 ## REQUEST-RESPONSE PROTOCOL ##
 
 This protocol is used to implement the so called _unidirecional
@@ -56,6 +67,7 @@ There are three different request messages:
 
 *   `begin`: creates a channel;
 *   `fetch`: requests more data from a specific channel;
+*   `store`: writes data on the channel;
 *   `close`: closes the channel;
 
 Upon receiving a message, and obviously depending on the message
@@ -108,22 +120,18 @@ created. Notice that <CHANNEL> is an opaque string.
 After a successful `begin` the user may fetch data from the server. In
 order to accomplish this, the following message must be sent:
 
-    0           1       2           3
-    +-----------+-------+-----------+---------+
-    | signature | fetch | <CHANNEL> | <LIMIT> |
-    +-----------+-------+-----------+---------+
+    0             1       2 
+    +-------------+-------+-----------+
+    | <SIGNATURE> | fetch | <CHANNEL> |
+    +-------------+-------+-----------+
 
-<CHANNEL> is the result of the `begin` message. <LIMIT> is an integer
-such as `<LIMIT> > 0`, the maximum number of _chunks_ the server is
-allowed to send. The actual number of _chunks_ in a reply may vary,
-but it will always be bounded by `0 < x < <LIMIT>`.
+<CHANNEL> is the result of the `begin` message. Suppose you are
+referencing a valid channel and the signature is valid:
 
-Suppose you are referencing a valid channel and the signature is valid:
-
-    0             1       2   3
-    +-------------+-------+---+----+
-    | <SIGNATURE> | fetch | 1 | 32 |
-    +-------------+-------+---+----+
+    0             1       2
+    +-------------+-------+---+
+    | <SIGNATURE> | fetch | 1 |
+    +-------------+-------+---+
     
 
 The answer to the above request will either be:
@@ -153,18 +161,34 @@ When a `done` or `fail` messages are sent the server will send no
 further messages. Users must then send a `close` message to purge any
 resources associated with that channel.
 
+### STORE MESSAGE ###
+
+After the `begin` message the server may receive data from the user
+using a `storage` message. The syntax is:
+
+    0             1       2           3..n
+    +-------------+-------+-----------+-----------+
+    | <SIGNATURE> | store | <CHANNEL> | <BIN-STR> |
+    +-------------+-------+-----------+-----------+
+
+This produces no result. Again, the format of *<BIN-STR>* is
+implementation dependent.
+
 ### CLOSE MESSAGE ###
 
 The user that decides he no longer needs any more data, may issue a
 close prematurely, i.e., before reaching the _end of stream_:
 
-    0             1       2
-    +-------------+-------+-----------+
-    | <SIGNATURE> | close | <CHANNEL> |
-    +-------------+-------+-----------+
+    0             1       2           3
+    +-------------+-------+-----------+--------+
+    | <SIGNATURE> | close | <CHANNEL> | nowait |
+    +-------------+-------+-----------+--------+
+                                      ^^^^^^^^^
+                                      optional
 
 This will make the server release any resources associated with this
-channel. The possible responses to this message are:
+channel. Close should wait the server to finish its business unless
+*nowait* is provided. The possible responses to this message are:
 
     0
     +------+
