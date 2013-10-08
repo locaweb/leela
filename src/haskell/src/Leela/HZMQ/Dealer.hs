@@ -100,7 +100,7 @@ worker pool ctx endpoint = do
             when (isJust mresult) (workLoop fh)
 
 forkWorker :: Control -> Pool -> Context -> String -> IO ()
-forkWorker ctrl pool ctx endpoint = forkOSSupervised (fmap not $ closed ctrl) (worker pool ctx endpoint)
+forkWorker ctrl pool ctx endpoint = forkSupervised (fmap not $ closed ctrl) (worker pool ctx endpoint)
 
 create :: Control -> String -> Cfg -> Context -> [String] -> IO Pool
 create ctrl name cfg ctx endpoints = do

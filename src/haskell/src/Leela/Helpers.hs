@@ -20,9 +20,9 @@ import Control.Monad
 import Control.Exception
 import Control.Concurrent
 
-forkOSSupervised :: IO Bool -> IO () -> IO ()
-forkOSSupervised check io = do
-  _ <- forkOS (superviseWith check "router.worker" io)
+forkSupervised :: IO Bool -> IO () -> IO ()
+forkSupervised check io = do
+  _ <- forkIO (superviseWith check "router.worker" io)
   return ()
 
 superviseWith :: IO Bool -> String -> IO () -> IO ()
