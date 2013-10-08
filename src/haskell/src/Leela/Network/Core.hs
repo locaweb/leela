@@ -243,9 +243,11 @@ process _ srv (Fetch sig fh) = do
   case mdev of
     Nothing  -> return $ Fail 404 $ Just "no such channel"
     Just dev -> do
-      answer <- fmap (foldr1 reduce) (blkreadIO 32 dev)
-      when (isEOF answer) $ (closeIO dev)
-      return answer
+      blocks <- blkreadIO 32 dev
+      case blocks of
+        [] -> closeIO dev >> return (Last Nothing)
+        _  -> let answer = foldr1 reduce blocks
+              in when (isEOF answer) (closeIO dev) >> return answer
 process _ srv (Close nowait sig fh) = do
   ldebug Network (printf "CLOSE %d" fh)
   closeFD srv nowait (sigUser sig, fh)
