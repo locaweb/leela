@@ -62,8 +62,8 @@ data Signature = Signature { sigUser  :: User
                            }
 
 data Query = Begin Signature [B.ByteString]
-           | Close Signature FH
-           | Fetch Signature FH Int
+           | Close Bool Signature FH
+           | Fetch Signature FH
 
 data Reply = Done FH
            | Last (Maybe RValue)
@@ -72,7 +72,7 @@ data Reply = Done FH
 
 data RValue = Path [(GUID, Label)]
             | List [RValue]
-            | Name Namespace Key
+            | Name B.ByteString B.ByteString Key
 
 isEOF :: Reply -> Bool
 isEOF m = isLast m || isFail m
@@ -111,13 +111,14 @@ encodeShow :: (Show s) => s -> B.ByteString
 encodeShow = B8.pack . show
 
 decode :: [B.ByteString] -> Either Reply Query
-decode (sig:"begin":lql)      = fmap (flip Begin lql) (readSignature sig)
-decode [sig,"close",fh]       = liftM2 Close (readSignature sig) (readDecimal fh)
-decode [sig,"fetch",fh,limit] = liftM3 Fetch (readSignature sig) (readDecimal fh) (readDecimal limit)
-decode _                      = Left $ Fail 400 (Just "syntax error")
+decode (sig:"begin":lql)        = fmap (flip Begin lql) (readSignature sig)
+decode [sig,"close",fh]         = liftM2 (Close False) (readSignature sig) (readDecimal fh)
+decode [sig,"close",fh,"force"] = liftM2 (Close True) (readSignature sig) (readDecimal fh)
+decode [sig,"fetch",fh]         = liftM2 Fetch (readSignature sig) (readDecimal fh)
+decode _                        = Left $ Fail 400 (Just "syntax error")
 
 encodeRValue :: RValue -> [B.ByteString]
-encodeRValue (Name n k)   = ["name", unpack n, unpack k]
+encodeRValue (Name u n k) = ["name", u, n, unpack k]
 encodeRValue (Path p)     = let f (g, l) acc = unpack l : unpack g : acc
                             in "path" : encodeShow (2 * length p) : foldr f [] p
 encodeRValue (List v)     = "list" : encodeShow (length v) : concatMap encodeRValue v

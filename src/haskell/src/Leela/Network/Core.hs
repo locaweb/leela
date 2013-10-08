@@ -101,14 +101,15 @@ selectFD srv ((User u), fh) = atomically $ do
   writeTVar (fdlist srv) newv
   return (fmap snd mdev)
 
-closeFD :: CoreServer -> (User, FH) -> IO ()
-closeFD srv ((User u), fh) = do
+closeFD :: CoreServer -> Bool -> (User, FH) -> IO ()
+closeFD srv nowait ((User u), fh) = do
   ldebug Network (printf "closing fd %s" (show k))
   atomically $ do
     db   <- readTVar (fdlist srv)
     case (M.lookup k db) of
       Nothing       -> return ()
-      Just (_, dev) -> do writeTVar (fdlist srv) (M.delete k db)
+      Just (_, dev) -> do when (not nowait) (linger dev)
+                          writeTVar (fdlist srv) (M.delete k db)
                           close dev
     where k = (u, fh)
 
@@ -143,7 +144,7 @@ fetch ctrl m selector callback0 =
                          load1 a (Just b) f dev
     where
       load1 a mb f dev = do
-        mlabels <- devreadIO dev
+        mlabels <- fmap (maybe (Left $ SomeException SystemExcept) id) (devreadIO dev)
         case mlabels of
           Left e       -> throwIO e
           Right []     -> callback0 EOF
@@ -159,7 +160,7 @@ fetch ctrl m selector callback0 =
             load1 a mb f dev
 
       load2 subdev callback = do
-        mnodes <- devreadIO subdev
+        mnodes <- fmap (maybe (Left $ SomeException SystemExcept) id) (devreadIO subdev)
         case mnodes of
           Left e      -> throwIO e
           Right []    -> callback []
@@ -196,20 +197,22 @@ evalLQL m dev (x:xs) = do
           _   -> return ()
     Match _ cursor -> navigate cursor (evalLQL m dev xs)
     Deref u g      -> do
-      (n, k) <- getName g m
-      if (root u `isDerivedOf` n)
-        then devwriteIO dev (Item $ Name n k) >> evalLQL m dev xs
+      (n0, k) <- getName g m
+      let (nU, n1) = underive n0
+          (nN, _)  = underive n1
+      if (root u `isDerivedOf` n0)
+        then devwriteIO dev (Item $ Name nU nN k) >> evalLQL m dev xs
         else devwriteIO dev (Fail 403 Nothing)
     where
-      navigate G.Tail cont                  = cont
-      navigate (G.Need r) cont              = eval dev m r $ \chunk -> do
+      navigate G.Tail cont                   = cont
+      navigate (G.Need r) cont               = eval dev m r $ \chunk -> do
         case chunk of
           EOF          -> cont
           Chunk cursor -> navigate cursor (return ())
       navigate (G.Item path links next) cont = do
         devwriteIO dev (Item $ makeList $ map (Path . (:path)) links)
         navigate next cont
-      navigate (G.Head g) cont              = do
+      navigate (G.Head g) cont               = do
         eval dev m (G.loadNode1 g Nothing Nothing G.done) $ \chunk -> do
           case chunk of
             EOF          -> cont
@@ -218,8 +221,10 @@ evalLQL m dev (x:xs) = do
 evalFinalizer :: FH -> Device Reply -> Either SomeException () -> IO ()
 evalFinalizer chan dev (Left e)  = do
   devwriteIO dev (encodeE e) `catch` ignore
+  closeIO dev
   linfo Network $ printf "[fd: %s] session terminated with failure: %s" (show chan) (show e)
-evalFinalizer chan _ (Right _)   = do
+evalFinalizer chan dev (Right _)   = do
+  closeIO dev
   linfo Network $ printf "[fd: %s] session terminated successfully" (show chan)
 
 process :: (GraphBackend m) => m -> CoreServer -> Query -> IO Reply
@@ -231,17 +236,17 @@ process m srv (Begin sig msg) = do
       (fh, dev) <- makeFD srv (sigUser sig)
       _         <- forkFinally (evalLQL m dev stmts) (evalFinalizer fh dev)
       return $ Done fh
-process _ srv (Fetch sig fh limit) = do
+process _ srv (Fetch sig fh) = do
   let channel = (sigUser sig, fh)
-  ldebug Network (printf "FETCH %d %d" fh limit)
+  ldebug Network (printf "FETCH %d" fh)
   mdev <- selectFD srv channel
   case mdev of
     Nothing  -> return $ Fail 404 $ Just "no such channel"
     Just dev -> do
-      answer <- fmap (foldr1 reduce) (blkreadIO limit dev)
-      when (isEOF answer) (closeFD srv channel)
+      answer <- fmap (foldr1 reduce) (blkreadIO 32 dev)
+      when (isEOF answer) $ (closeIO dev)
       return answer
-process _ srv (Close sig fh) = do
+process _ srv (Close nowait sig fh) = do
   ldebug Network (printf "CLOSE %d" fh)
-  closeFD srv (sigUser sig, fh)
+  closeFD srv nowait (sigUser sig, fh)
   return $ Last Nothing
