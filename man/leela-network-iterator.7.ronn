@@ -52,7 +52,7 @@ This represents user's request (notice the character *>* at the
 beginning of the string). The server reply is represented with the
 character *<*:
 
-    > part0 | part1 | ... | part_n
+    < part0 | part1 | ... | part_n
 
 ## REQUEST-RESPONSE PROTOCOL ##
 
@@ -120,10 +120,14 @@ created. Notice that <CHANNEL> is an opaque string.
 After a successful `begin` the user may fetch data from the server. In
 order to accomplish this, the following message must be sent:
 
-    0             1       2 
-    +-------------+-------+-----------+
-    | <SIGNATURE> | fetch | <CHANNEL> |
-    +-------------+-------+-----------+
+    0             1       2           3..n
+    +-------------+-------+-----------+-----------+
+    | <SIGNATURE> | fetch | <CHANNEL> | <BIN-STR> |
+    +-------------+-------+-----------+-----------+
+                                      ^^^^^^^^^^^^^
+                                      optional,
+                                      implementation
+                                      dependent
 
 <CHANNEL> is the result of the `begin` message. Suppose you are
 referencing a valid channel and the signature is valid:
@@ -155,7 +159,8 @@ or a `done` with or without payload indicating the _end of the stream_:
     | done | <BIN-STR> |
     +------+-----------+
            ^^^^^^^^^^^^^
-              optional
+           optional,
+           same as item
 
 When a `done` or `fail` messages are sent the server will send no
 further messages. Users must then send a `close` message to purge any
@@ -170,6 +175,10 @@ using a `storage` message. The syntax is:
     +-------------+-------+-----------+-----------+
     | <SIGNATURE> | store | <CHANNEL> | <BIN-STR> |
     +-------------+-------+-----------+-----------+
+                                      ^^^^^^^^^^^^^
+                                      optional,
+                                      implementation
+                                      dependent
 
 This produces no result. Again, the format of *<BIN-STR>* is
 implementation dependent.

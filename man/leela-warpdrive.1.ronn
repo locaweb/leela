@@ -50,7 +50,7 @@ Every *lql* statement must define which namespace to use with a
     1| using (system)
 
 This informs that you are referring to the *system
-namespace*. Vertexes are *always unique* modulo a *namespace*.
+namespace*. Vertexes names are *unique* whithin a *namespace*.
 
 Then the next three lines:
 
@@ -112,7 +112,7 @@ You may also perform a prefix or suffix match in the label using the
 
 Match queries can have arbitrary sizes too:
 
-    match (leela) -[zmq/lql]> (warpdrive) -> [/*native]> ()
+    match (leela) -[zmq/lql]> (warpdrive) -> -[*/native]> ()
 
 This should cover the basics of the *LQL*, following we provide
 details of the actual syntax and internals.
@@ -176,7 +176,7 @@ not interested in errors:
     < done | 1
     > <SIGNATURE> | fetch | 1
     < done
-    > <SIGNAGURE> | close | 1 | nowait
+    > <SIGNATURE> | close | 1
     < done
 
 Calling close without *nowait* flag waits for either error or
@@ -186,7 +186,7 @@ success. If you want to make sure everything went fine:
     < done | 1
     > <SIGNATURE> | fetch | 1
     < done
-    > <SIGNATURE> | close | 1
+    > <SIGNAGURE> | close | 1 | nowait
     < done
 
 ### ABNF ###
@@ -247,10 +247,10 @@ results:
 Extracts name and namespace from vertex references. The response is a
 `name` message:
 
-    0      1        2            3
-    +------+--------+------------+--------+
-    | name | <USER> | <NAMESPACE | <NAME> |
-    +------+--------+------------+--------+
+    0      1        2             3
+    +------+--------+-------------+--------+
+    | name | <USER> | <NAMESPACE> | <NAME> |
+    +------+--------+-------------+--------+
 
 ### EXAMPLES ###
 
@@ -308,7 +308,7 @@ performs a logical *and* and logical *or* respectively.
        < done | 1
        > <SIGNATURE> | fetch | 1
        < item | attr | 90a81bdaa85b5d9dfc4c0cd89d9edaf93255d5f4160cd67bead46a91
-              | "version" | 20130101T000000 | "warpdrive" | 4.0.0
+              | version | 20130101T000000 | warpdrive | 4.0.0
 
 2. Monitors a given vertex:
 
@@ -328,11 +328,12 @@ performs a logical *and* and logical *or* respectively.
 ### ABNF ###
 
     watch      = "watch" [SP where]
-    where      = p-key-name *(log-op SP p-key-name)
-    p-key-name = "(" key-name ")"
-               / key-name
+    where      = pair *(SP log-op SP p-pair)
+    p-pair     = "(" pair ")"
+               / pair
     log-op     = "&&" / "||"
-    key-name   = +key SP cmp-op SP DQUOTE +VCHAR DQUOTE
+    pair       = +VCHAR SP cmp-op SP val
+    val        = DQUOTE +VCHAR DQUOTE
     cmp-op     = "=="
                / "/="
                / "=*"
@@ -374,12 +375,13 @@ Writing or reading vertex's attributes.
 
 ### ABNF ###
 
-    attr         = "attr" SP CHAR+ "@" vertex SP action
-    vertex       = "(" +CHAR ")" *link
-    action       = get / put
+    attr         = "attr" SP +VCHAR "@" vertex SP action
+    vertex       = "(" +VCHAR ")"
+    action       = get / put / open
     get          = "get" [SP timestamp SP (timestamp / "NOW")] [SP get-with]
-    timestamp    = 4DIGIT 2DIGIT 2DIGIT "T" 2DIGIT 2DIGIT 2DIGIT
     put          = "put" [SP (timestamp / "NOW") SP value] [SP put-with]
+    open         = "open"
+    timestamp    = 4DIGIT 2DIGIT 2DIGIT "T" 2DIGIT 2DIGIT 2DIGIT
     value        = ["-"] +DIGIT ["." +DIGIT]
     get-with     = "with" SP key-func *("," SP key-func)
     key-func     = +key SP "=" SP +func
@@ -408,6 +410,8 @@ Writing or reading vertex's attributes.
                  / "[<=" value"]"
                  / "[==" value"]"
                  / "[/=" value"]"
+                 / func SP "." SP func
+                 
     put-with     = "with" SP key-name *("," SP key-name)
     key-name     = +key SP "=" SP +VCHAR
 
