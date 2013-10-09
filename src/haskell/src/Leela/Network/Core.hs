@@ -118,9 +118,9 @@ maybeCons Nothing  = id
 maybeCons (Just a) = (a:)
 
 store :: (GraphBackend m) => m -> Journal -> IO ()
-store m (PutNode n k g)  = putName n k g m
-store m (PutLabel lbls)  = mapM_ (\(a, l) -> putLabel a [l] m) lbls
-store m (PutLink lnks)   = mapM_ (\(a, b) -> putLink a [b] m) lnks
+store m (PutNode n k g)    = putName n k g m
+store m (PutLabel g lbls)  = putLabel g lbls m
+store m (PutLink g lnks)   = putLink g lnks m
 
 rechunk :: Int -> [a] -> [[a]]
 rechunk n = go 0 []

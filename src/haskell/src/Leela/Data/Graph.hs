@@ -115,9 +115,7 @@ putLink :: Link -> Result ()
 putLink lnk = putLinks [lnk]
 
 putLinks :: [Link] -> Result ()
-putLinks lnks = Done () [ PutLabel $ map (\(a, _, l) -> (a, l)) lnks,
-                          PutLink $ map (\(a, b, l) -> (labelRef a l, b)) lnks
-                        ]
+putLinks = Done () . concatMap (\(a, b, l) -> [PutLabel a [l], PutLink (labelRef a l) [b]])
 
 labelRef :: GUID -> Label -> GUID
 labelRef a l = rehash a $ unpack l
@@ -136,7 +134,7 @@ bindWith merge (Done r j) f                 = mergeLog (f r)
       mergeLog (Load (ByEdge a l b g) h) = Load (ByEdge a l b (\v -> mergeLog (g v))) (mergeLog h)
 
 bindAndLog :: Result r1 -> (r1 -> Result r) -> Result r
-bindAndLog = bindWith (++)
+bindAndLog = bindWith (\j0 j1 -> rechunk (j0 ++ j1))
 
 bindNoLog :: Result r1 -> (r1 -> Result r) -> Result r
 bindNoLog = bindWith f

@@ -15,14 +15,39 @@
 
 module Leela.Data.Journal
     ( Journal (..)
+    , rechunk
     ) where
 
-import Leela.Data.Namespace
+import qualified Data.Map as M
+import qualified Data.Set as S
+import           Data.List (nub)
+import           Leela.Data.Namespace
 
 -- | The log of write operations on the graph.  The idea is to provide
 -- serialization through logging, which gives us the nice feature of
 -- writing asynchronously and also the nasty hazard of
 -- read-after-write.
-data Journal = PutLink [(GUID, GUID)]
-             | PutLabel [(GUID, Label)]
+data Journal = PutLink GUID [GUID]
+             | PutLabel GUID [Label]
              | PutNode Namespace Key GUID
+             deriving (Eq)
+
+partition :: [Journal] -> ([(GUID, [GUID])], [(GUID, [Label])], [(Namespace, Key, GUID)])
+partition = go ([], [], [])
+    where
+      go acc []           = acc
+      go (a, b, c) (x:xs) =
+        case x of
+          PutLink g gs  -> go ((g,gs) : a, b, c) xs
+          PutLabel g ls -> go (a, (g,ls) : b, c) xs
+          PutNode n k g -> go (a, b, (n,k,g) : c) xs
+
+group :: (Ord v) => [(GUID, [v])] -> [(GUID, [v])]
+group = map (fmap S.toList) . M.toList . M.fromListWith S.union . map (fmap S.fromList)
+
+rechunk :: [Journal] -> [Journal]
+rechunk j = map (uncurry PutLink) (group links)
+            ++ map (uncurry PutLabel) (group labels)
+            ++ map (\(n, k, g) -> PutNode n k g) (nub nodes)
+    where
+      (links, labels, nodes) = partition j

@@ -160,8 +160,17 @@ parseStmt n =
   <|> parseStmtMatch n
   <|> parseStmtDeref n
 
+groupCreates :: Using -> [LQL] -> [LQL]
+groupCreates u = partition (Nothing, [])
+    where partition (Nothing, oStmt) []       = oStmt
+          partition (Just cStmt, oStmt) []    = Create u cStmt : oStmt
+          partition (cStmt, oStmt) (stmt:lql) =
+            case stmt of
+              Create _ r -> partition ((fmap (r >>) cStmt) `mplus` (Just r), oStmt) lql
+              _          -> partition (cStmt, stmt : oStmt) lql
+
 parseStmts :: Using -> Parser [LQL]
-parseStmts u = parseStmt u `sepBy1` newline
+parseStmts u = fmap (groupCreates u) (parseStmt u `sepBy1` newline)
 
 parseUsing :: Namespace -> Parser Using
 parseUsing user = do
