@@ -48,7 +48,7 @@ data Stream a = Chunk a
               | EOF
 
 ttl :: Int
-ttl = 300
+ttl = 30
 
 whenChunk :: (Stream a -> IO ()) -> Stream a -> IO ()
 whenChunk _ EOF   = return ()
