@@ -38,7 +38,7 @@
     (create-table cluster :search (column-definitions {:key :blob :code :int :name :varchar :primary-key [[:key :code] :name]}))))
 
 (defmacro with-connection [[conn endpoint] & body]
-  `(let [seed# (clojure.string/split ~endpoint #",")
+  `(let [seed# ~endpoint
          ~conn (client/connect (client/build-cluster {:contact-points seed#}))]
      (try
        ~@body

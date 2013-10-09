@@ -18,7 +18,8 @@
             [clojure.tools.logging :only [warn]]
             [leela.blackbox.config :as cfg])
   (:import  [org.zeromq ZMQ])
-  (:require [leela.blackbox.config :as config]
+  (:require [leela.blackbox.f :as f]
+            [leela.blackbox.config :as config]
             [leela.blackbox.network.zmqserver :as zserver]
             [leela.blackbox.storage.cassandra :as storage])
   (:gen-class))
@@ -44,5 +45,6 @@
 
     (config/zk-attach (:node options) (:zookeeper options) (maybe-cat "leela:leela" (:zk-authfile options)))
     (let [cfg (config/read-state :cassandra)]
-      (storage/with-session [cluster (get cfg :seed "127.0.0.1") (get cfg :keyspace "leela")]
-        (zserver/server-start (ZMQ/context 1) cluster)))))
+      (f/supervise
+       (storage/with-session [cluster (get cfg :seed ["127.0.0.1"]) (get cfg :keyspace "leela")]
+         (zserver/server-start (ZMQ/context 1) cluster))))))
