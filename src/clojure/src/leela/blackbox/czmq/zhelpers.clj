@@ -34,6 +34,7 @@
 (defn setup-socket [fh]
   (.setLinger fh 0)
   (.setReconnectIVL fh 1000)
+  (.setMaxMsgSize fh (* 1024 1024))
   fh)
 
 (defn make-pollitem [^ZMQ$Socket fh events]
