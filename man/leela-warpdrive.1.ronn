@@ -26,23 +26,24 @@ that allows the user to modify and query the graph.
 
 In *LQL*, there are currently five statements available:
 
+* `path`: to navigate through the graph;
+* `name`: to resolve the name and namespace of a guid;
 * `attr`: to modify and query properties;
-* `deref`: to resolve the name and namespace of a guid;
-* `watch`: monitors changes on a graph;
-* `match`: to navigate through the graph;
-* `create`: used to create nodes, labels and edges;
+* `make`: used to create nodes, labels and edges;
+* `kill`: remove edges or vertexes;
+* `scan`: monitors data in real-time;
 
-This section gives only a brief introduction about the last two and
+This section gives only a brief introduction about the first two and
 all clauses are properly defined in future sections.
 
 Let's start with an example. The following is a valid *LQL* statement
 (numbers are not part of the message):
 
     1| using (system)
-    2| create (leela)
-    3| create (warpdrive)
-    4| create (blackbox)
-    5| create (leela) -[zmq/lql]> (warpdrive) -[zmq/storage]> (blackbox);
+    2| make (leela)
+    3| make (warpdrive)
+    4| make (blackbox)
+    5| make (leela) -[zmq/lql]> (warpdrive) -[zmq/storage]> (blackbox);
 
 Every *lql* statement must define which namespace to use with a
 `using` message:
@@ -54,9 +55,9 @@ namespace*. Vertexes names are *unique* whithin a *namespace*.
 
 Then the next three lines:
 
-    2| create (leela)
-    3| create (warpdrive)
-    4| create (blackbox)
+    2| make (leela)
+    3| make (warpdrive)
+    4| make (blackbox)
 
 These create three vertexes: *leela*, *warpdrive* and *blackbox*
 respectively. This is a required step before creating *edges* as it
@@ -67,37 +68,37 @@ links two vertexes, establishing a path between them. We can always
 break down the multiple create statement into a series binary
 operations and still produce the same result:
 
-    create (leela) -[zmq/lql]> (warpdrive)
+    make (leela) -[zmq/lql]> (warpdrive)
 
 The above creates a path connecting *leela* to the vertex *warpdrive*
 with the label *zmq/lql*. The brackets delimit the string and the
 arrow (the string between the two vertexes) defines direction. So to
 create a path in the opposite direction we could either do:
 
-    create (warpdrive) -[zmq/lql]> (leela)
-    create (leela) <[zmq/lql]- (warpdrive)
+    make (warpdrive) -[zmq/lql]> (leela)
+    make (leela) <[zmq/lql]- (warpdrive)
 
 The above lines are equivalent. Continuing:
 
-    create (warpdrive) -[zmq/storage]> (blackbox);
+    make (warpdrive) -[zmq/storage]> (blackbox);
 
 This does exactly the same as the first component, except by the
 trailing semi-colon. This is used indicate the end of the statement
 and everything after it gets ignored.
 
-The other statement at our disposal is `match`. It shares the same
-syntax as the `create` statement:
+The other statement at our disposal is `path`. It shares the same
+syntax as the `make` statement:
 
-    match (leela)
+    path (leela)
 
 This will retrieve all *outgoing edges* the *leela* vertex may
-have. Supposing that the previous `create` statement has executed
+have. Supposing that the previous `make` statement has executed
 successfully then this would return the tuple (*warpdrive*,
 *zmq/lql*).
 
 We can also provide a path:
 
-    match (leela) -[zmq/lql]> ()
+    path (leela) -[zmq/lql]> ()
 
 Notice the empty parenthesis at the end of the path. This is used to
 express that we want to retrieve all vertexes that `leela` have an
@@ -106,13 +107,13 @@ outgoing edge to.
 You may also perform a prefix or suffix match in the label using the
 `*` character:
 
-    match (leela) -[zmq/*]> ()
-    match (leela) -[*/lql]> ()
-    match (leela) -[*]> ()
+    path (leela) -[zmq/*]> ()
+    path (leela) -[*/lql]> ()
+    path (leela) -[*]> ()
 
-Match queries can have arbitrary sizes too:
+Path queries can have arbitrary sizes too:
 
-    match (leela) -[zmq/lql]> (warpdrive) -> -[*/native]> ()
+    path (leela) -[zmq/lql]> (warpdrive) -> -[*/native]> ()
 
 This should cover the basics of the *LQL*, following we provide
 details of the actual syntax and internals.
@@ -129,7 +130,7 @@ The message must be sent inside a `begin` message as shown bellow. The
 examples in this page use the character *>* to represent a user's
 request and the character *<* a reply from the server:
 
-    > <SIGNATURE> | begin | using (leela) create (warpdrive);
+    > <SIGNATURE> | begin | using (leela) make (warpdrive);
     < done | 1
 
 The server will then reply with a valid channel. Then the user must
@@ -160,19 +161,19 @@ the server is done.
     lql   = "using" SP "(" +VCHAR ")" SP stmts ";"
     stmts = stmt *(LF stmt)
     stmt  = attr
-          / deref
-          / match
+          / name
+          / path
           / watch 
-          / create ; please refer to CREATE, MATCH,
-                   ; DEREF, ATTR and WATCH sections
+          / make ; please refer to MAKE, PATH,
+                   ; NAME, ATTR and WATCH sections
 
-## CREATE ##
+## MAKE ##
 
 Creates vertexes or edges. This statement produces no response (except
 when an error occurs), so there is no need to fetch them if you are
 not interested in errors:
 
-    > <SIGNATURE> | begin | using (leela) create (warpdrive);
+    > <SIGNATURE> | begin | using (leela) make (warpdrive);
     < done | 1
     > <SIGNATURE> | fetch | 1
     < done
@@ -182,7 +183,7 @@ not interested in errors:
 Calling close without *nowait* flag waits for either error or
 success. If you want to make sure everything went fine:
 
-    > <SIGNATURE> | begin | using (leela) create (warpdrive);
+    > <SIGNATURE> | begin | using (leela) make (warpdrive);
     < done | 1
     > <SIGNATURE> | fetch | 1
     < done
@@ -191,13 +192,13 @@ success. If you want to make sure everything went fine:
 
 ### ABNF ###
 
-    create = "create" SP vertex
+    make   = "make" SP vertex
     vertex = "(" +VCHAR ")" *(SP link)
     link   = (r-link / l-link) SP vertex
     r-link = "-[" +VCHAR "]>"
     l-link = "<[" +VCHAR "]-"
 
-## MATCH ##
+## PATH ##
 
 Find edges matching a given path. The server respond with zero or more
 `path` messages, one for each edge that has been found:
@@ -211,38 +212,38 @@ The first vertex is mandatory, you must provide a starting point. When
 specifying the labels, you may use wildcards, like the following
 examples:
 
-    match (a) -[foo*]> (); labels starting with foo
-    match (a) -[*foo]> (); labels ending with foo;
-    match (a) -[foobar]> (); exact match;
-    match (a) -[*]> (); any labels;
+    path (a) -[foo*]> (); labels starting with foo
+    path (a) -[*foo]> (); labels ending with foo;
+    path (a) -[foobar]> (); exact match;
+    path (a) -[*]> (); any labels;
 
 The path may put a constrain on intermediary nodes as well:
 
-    match (a) -[*]> (b); labels between (a) and (b)?
+    path (a) -[*]> (b); labels between (a) and (b)?
 
-An special case is a `match` on a single node. This is equivalent of
+An special case is a `path` on a single node. This is equivalent of
 asking all labels of the vertex, so these two produce the same
 results:
 
-    match (a);
-    match (a) -[*]> ();
+    path (a);
+    path (a) -[*]> ();
 
 ### EXAMPLES ###
 
-    > <SIGNATURE> | begin | using (leela) match (warpdrive);
+    > <SIGNATURE> | begin | using (leela) path (warpdrive);
     < done | 1
     > <SIGNATURE> | fetch | 1
-    > done | path | 2 | de76c3e567fca9d246f5f8d3b2e704a38c3c5e258988ab525f941db8 | foobar
+    > done | path | 2 | 0xde76c3e567fca9d246f5f8d3b2e704a38c3c5e258988ab525f941db8 | foobar
     > <SIGNATURE> | close | 1
     < done
 
 ### ABNF ###
 
-    match  = "match" SP vertex
+    path   = "path" SP vertex
     vertex = "(" *VCHAR ")" *(SP link)
     link   = "-[" +VCHAR "]>" SP vertex
 
-## DEREF ##
+## NAME ##
 
 Extracts name and namespace from vertex references. The response is a
 `name` message:
@@ -254,24 +255,24 @@ Extracts name and namespace from vertex references. The response is a
 
 ### EXAMPLES ###
 
-    > <SIGNATURE> | deref | <GUID>
+    > <SIGNATURE> | begin | using (leela) name 0xde76c3e567fca9d246f5f8d3b2e704a38c3c5e258988ab525f941db8;
     < done | 1
     > <SIGNATURE> | fetch | 1
-    < done | name | leela | dgvncsz0f | foobar
+    < done | name | dgvncsz0f | leela | foobar
     > <SIGNATURE> | close | 1
     < done
 
 ### ABNF ###
 
-    deref   = "deref" SP "0x" +HEXDIG
+    name   = "name" SP "0x" +HEXDIG
 
-## WATCH ##
+## SCAN ##
 
 Monitors changes on vertexes. Using without parameters monitors the
 entire namespace. Users may reduce the search space by filtering by
 either property name, vertex name or any metadata.
 
-Watch may send the following events:
+Scan may send the following events:
 
       0      1          2          3
       +------+----------+----------+---------+
@@ -288,8 +289,8 @@ following comparators:
 
 * ==: test for equality;
 * /=: test for inequality;
-* =*: prefix match;
-* *=: suffix match;
+* =*: prefix name;
+* *=: suffix name;
 
 The next attributes are always available, plus any metadata users send
 when creating an attribute:
@@ -304,7 +305,7 @@ performs a logical *and* and logical *or* respectively.
 
 1. Monitors the entire namespace:
 
-       > <SIGNATURE> | begin | using (leela) watch;
+       > <SIGNATURE> | begin | using (leela) scan;
        < done | 1
        > <SIGNATURE> | fetch | 1
        < item | attr | 90a81bdaa85b5d9dfc4c0cd89d9edaf93255d5f4160cd67bead46a91
@@ -312,22 +313,22 @@ performs a logical *and* and logical *or* respectively.
 
 2. Monitors a given vertex:
 
-       > <SIGNATURE> | begin | using (leela) watch node == "foobar";
+       > <SIGNATURE> | begin | using (leela) scan node == "foobar";
        ...
 
 3. Monitors a given attribute:
 
-       > <SIGNATURE> | begin | using (leela) watch attr == "version";
+       > <SIGNATURE> | begin | using (leela) scan attr == "version";
        ...
 
 4. Monitors attribute and metadata:
 
-       > <SIGNATURE> | begin | using (leela) watch attr == "cpu/idle" && source == "collectd";
+       > <SIGNATURE> | begin | using (leela) scan attr == "cpu/idle" && source == "collectd";
        ...
 
 ### ABNF ###
 
-    watch      = "watch" [SP where]
+    scan      = "scan" [SP where]
     where      = pair *(SP log-op SP p-pair)
     p-pair     = "(" pair ")"
                / pair
