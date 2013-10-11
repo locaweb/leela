@@ -8,6 +8,7 @@ import unittest
 import random
 import string
 import signal
+from collections import deque
 
 DEBUG = False
 
@@ -29,6 +30,13 @@ def pp(data):
 
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for x in range(size))
+
+def connection():
+    zook = ["tcp://warp0017.locaweb.com.br:4080"]
+    pool = deque(zook)
+    pool.rotate(random.randint(0, len(pool) - 1))
+
+    return (Connection(context(), pool[0]))
 
 class Timeout(object):
     class Timeout(Exception):
@@ -56,7 +64,7 @@ class Connection(object):
 
     def connect(self):
         self.socket = self.context.socket(zmq.REQ)
-        self.socket.connect(self.endpoint[0])
+        self.socket.connect(self.endpoint)
 
     def channel(self):
         when = time.time()
@@ -229,7 +237,7 @@ def setUpModule ():
 class UserLibTest (unittest.TestCase):
 
     def setUp(self):
-        self.conn = Connection(context(), ["tcp://warp0017.locaweb.com.br:4080"])
+        self.conn = connection()
         self.datacenter = id_generator()
 
     def test_database_is_empty (self):
