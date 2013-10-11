@@ -1,27 +1,15 @@
 # -*- coding: utf-8 -*-
 
-# TODO: 
-#   - Return a list of lists to the user. Why?
-#   - Write Functional Tests
-#       - Populate the test database
-#       - Authentication tests
-#       - Thread tests
-#   - Handle the Authentication process. How?
-#   - Handle the Zookeeper nodes as a Cursor
-#   - Write the Man documentation
-#   - Write the Pretty Printer (WarpDrive Protocol)
-#   - Provide Threads
-#   - Use Timeout
-#   - Handle Deref
-
 import sys
 import zmq
 import time
 import contextlib
 import unittest
+import random
+import string
+import signal
 
-DEBUG = True
-#DEBUG = False
+DEBUG = False
 
 def debug(prefix, ss):
     if (DEBUG):
@@ -38,6 +26,26 @@ def context():
 def pp(data):
     if ("fail" in data):
         return("fail: %s" % data[2])
+
+def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
+    return ''.join(random.choice(chars) for x in range(size))
+
+class Timeout(object):
+    class Timeout(Exception):
+        pass
+
+    def __init__(self, sec):
+        self.sec = sec
+
+    def __enter__(self):
+        signal.signal(signal.SIGALRM, self.raise_timeout)
+        signal.alarm(self.sec)
+
+    def __exit__(self, *args):
+        signal.alarm(0)
+
+    def raise_timeout(self, *args):
+        raise Timeout.Timeout()
 
 class Connection(object):
 
@@ -89,12 +97,11 @@ class Connection(object):
         return("usertest:0:0 0")
 
     @contextlib.contextmanager
-    def cursor(self, query, timeout=-1, nowait=False):
+    def cursor(self, query, timeout=10, nowait=False):
         self.connect()
         try:
             channel = self.execute(query)
-            yield(channel.fetchall())
-            #channel.close(nowait)
+            yield(channel.fetchall(timeout))
         finally:
             channel.close(nowait)
             self.close()
@@ -115,10 +122,10 @@ class Channel(object):
         self.conn.send(self.auth, zmq.SNDMORE)
         self.conn.send("close", zmq.SNDMORE)
         if nowait:
-            self.conn.send("%d" % self.chan, zmq.SNDMORE)
+            self.conn.send("%s" % self.chan, zmq.SNDMORE)
             self.conn.send("nowait")
         else:
-            self.conn.send("%d" % self.chan)
+            self.conn.send("%s" % self.chan)
 
         t = time.time() - self.when0
         debug("timing", "total: %.4f / %d / %d/s" % (t, self.read, self.read/t))
@@ -127,12 +134,13 @@ class Channel(object):
     def _eof(self, data):
         return("done" in data or "fail" in data)
 
-    def fetchall(self):
-        while (True):
-            if (self.closed):
-                break
-            for el in self.fetch():
-                yield el
+    def fetchall(self, timeout):
+        with Timeout(timeout):
+            while (True):
+                if (self.closed):
+                    break
+                for el in self.fetch():
+                    yield el
 
     def fetch(self):
         if (self.closed):
@@ -140,7 +148,7 @@ class Channel(object):
         self.when = time.time()
         self.conn.send(self.auth, zmq.SNDMORE)
         self.conn.send("fetch", zmq.SNDMORE)
-        self.conn.send("%d" % self.chan)
+        self.conn.send("%s" % self.chan)
         msg = self.conn.recv()
         self.read += len(msg)
         debug("timing", "fetch: %.4f / items: %d" % (time.time() - self.when, len(msg)))
@@ -218,26 +226,28 @@ def setUpModule ():
             chann = conn.execute(query)
             chann.close(nowait=True)
 
-def tearDownModule ():
-    pass
-
 class UserLibTest (unittest.TestCase):
 
     def setUp(self):
         self.conn = Connection(context(), ["tcp://warp0017.locaweb.com.br:4080"])
+        self.datacenter = id_generator()
 
     def test_database_is_empty (self):
-        with self.conn.cursor("using (test_database) path (test_ITA);") as cursor:
+        with self.conn.cursor("using (test_database) path (%s);" % self.datacenter) as cursor:
             for row in cursor:
                 self.assertEqual(row, [])
 
-    def test_make_node(self):
-        with self.conn.cursor("using (test_database) make (test_ITA);") as cursor:
+    def test_make_path(self):
+        with self.conn.cursor("using (test_database) make ({0})\nmake (hm6177)\nmake ({0}) -[machine]> (hm6177);".format(self.datacenter)) as cursor:
             for row in cursor:
                 pass
-        with self.conn.cursor("using (test_database) path (test_ITA);") as cursor:
-            for row in cursor:
-                print row
+
+        with self.conn.cursor("using (test_database) path (%s);" % self.datacenter) as cursor:
+            res = cursor.next()
+
+        with self.conn.cursor("using (test_database) name %s;" % res[1][1]) as cursor:
+            res = cursor.next()
+            self.assertEqual(res[-1], 'hm6177')
 
 if __name__ == '__main__':
     unittest.main(argv=[sys.argv[0]])
