@@ -1,5 +1,42 @@
 # -*- coding: utf-8 -*-
-
+#
+# Leela Query Library
+# ===================
+#
+# This library provides a user-friendly access to the Leela Query Language
+# implemented by the WarpDrive engine, using the ZeroMQ layer to build a
+# reliable streamer connection.
+#
+# The real intent is to hide the Leela Network Iterator protocol from the user
+# and gives some convenience as, user side timeouts, socket writes with no wait
+# response, load balancing distribution through the servers and automatic
+# socket/channel close on leaving context scope.
+#
+# Although all the benefits provided, the user are free, but not encouraged, to use
+# the low level library methods, but in this case a better knowledge on the ZeroMQ
+# suit is required.
+#
+#
+# Ex.
+# import lql
+#
+# conn = lql.connection()
+#
+# #Creates two nodes and a link labeled as "machine"
+# with self.conn.cursor("using (database) make (datacenter)\nmake (hm6177)\nmake (datacenter) -[machine]> (hm6177);") as cursor:
+#     for row in cursor:
+#       .
+#       .
+#       .
+#
+# #Query for the path of a given node name
+# with self.conn.cursor("using (database) path (datacenter);") as cursor:
+#     res = cursor.next()
+#
+# #Resolves a name against the hash related to
+# with self.conn.cursor("using (database) name %s;" % res[1][1]) as cursor:
+#     res = cursor.next()
+#
 import sys
 import zmq
 import time
