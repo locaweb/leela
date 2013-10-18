@@ -54,9 +54,6 @@ def debug(prefix, ss):
         for s in ss.splitlines():
             sys.stderr.write("[DEBUG] %s %s\n" % (prefix, s))
 
-def escape(s):
-    return(s.replace("\\", "\\\\").replace(")", "\\)").replace("]", "\\]"))
-
 def context():
     ctx = zmq.Context()
     return(ctx)
