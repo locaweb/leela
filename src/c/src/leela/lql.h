@@ -18,6 +18,10 @@
 #define __lql_h__
 #include <stdlib.h>
 
+struct context_t;
+struct connection_t;
+struct cursor_t;
+
 enum Type {NAME, PATH};
 
 /*
@@ -57,8 +61,8 @@ struct row_t
     enum Type row_type;
     union
     {
-        struct path_t;
-        struct name_t;
+        path_t;
+        name_t;
     };
 };
 
@@ -68,31 +72,31 @@ struct row_t
  * Returns:
  *      Context;
  * Error:
- *      Returns NULL and errno are setted.
+ *      Returns NULL
  */
-void * lql_context();
+context_t *leela_context_init();
 
 /*
  * Given a context and an endpoint, it returns
- * a socket that will be used to connect
+ * a Connection that will be used to attach
  * to the Pool of Leela Servers.
  * Returns:
- *      Socket;
+ *      Connection
  * Error:
- *      Returns NULL and errno are setted.
+ *      Returns NULL
  */
-void * lql_open(void *ctx, const char *endpoint);
+connection_t *leela_connection_init(context_t *ctx, const char *endpoint);
 
 /*
- * Given a socket and a query, it returns
+ * Given a connection and a query, it returns
  * a cursor that will be used to fetch data
  * from the Pool of Leela Servers.
  * Returns:
  *      Cursor;
  * Error:
- *      Returns NULL and errno are setted.
+ *      Returns NULL
  */
-void * lql_execute(void *socket, const char * query);
+cursor_t * leela_lql_execute(connection_t *con, const char * query);
 
 /*
  * Fetch in an iterative way, the data returned by
@@ -100,27 +104,28 @@ void * lql_execute(void *socket, const char * query);
  * back through the row argument as a structure
  * related to the data that it contains.
  * Returns:
- *      Zero            - Success;
- *      Negative Number - Error Code;
+ *       0:            - Success;
+ *      <0:            - Error Code;
  */
-int lql_cursor_next(void *cursor, struct row_t *row);
+int leela_cursor_next(cursor_t *cur, row_t *row);
 
 /*
  * Closes the socket associated with the cursor
  * and clean the linked list used to store data.
  * Returns:
- *      Zero            - Success;
- *      Negative Number - Error Code;
+ *      >0:            - Success;
+ *       0:            - Finished;
+ *      <0:            - Error Code;
  */
-int lql_cursor_close(void *cursor);
+int leela_cursor_close(cursor_t *cur);
 
 /*
  * Closes the context and free all process
  * used for communication purpose.
  * Returns:
- *      Zero            - Success;
- *      Negative Number - Error Code;
+ *       0:            - Success;
+ *      <0:            - Error Code;
  */
-int lql_context_close(void *context);
+int leela_context_close(void *ctx);
 
 #endif //__lql_h__
