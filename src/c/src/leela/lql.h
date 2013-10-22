@@ -16,7 +16,10 @@
 
 #ifndef __lql_h__
 #define __lql_h__
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <zmq.h>
 
 struct context_t;
 struct connection_t;
@@ -56,15 +59,15 @@ typedef struct name_t_
 /*
  *
  */
-struct row_t
+typedef struct row_t_
 {
     enum Type row_type;
     union
     {
-        path_t;
-        name_t;
+        path_t path;
+        name_t name;
     };
-};
+} row_t;
 
 /*
  * It returns a thread-safe context to be used

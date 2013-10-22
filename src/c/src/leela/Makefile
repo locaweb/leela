@@ -1,6 +1,8 @@
-CFLAGS := -fPIC -g -Wall -Werror
-CC := gcc -g
-LIBS := -L/usr/lib/x86_64-linux-gnu/ -lzmq
+CC := g++ -g
+LIBS := -L/usr/lib/x86_64-linux-gnu/ -lzmq -L. -lUnitTest++
+INC := -I/home/alex/Downloads/UnitTest++/src
+CFLAGS := -fPIC -g -Wall -Werror $(INC)
+LFLAGS := $(LIBS)
 MAJOR := 0
 MINOR := 0
 BUILD := 1
@@ -22,7 +24,7 @@ valg: $(NAME)_test
 		LD_LIBRARY_PATH=. valgrind --tool=memcheck --leak-check=yes --track-origins=yes ./$(NAME)_test
 
 $(NAME)_test: lib$(NAME).so
-		$(CC) $(NAME)_test.c -O0 -o $@ -L. -l$(NAME)
+		$(CC) $(NAME)_test.cpp -O0 -o $@ -L. -l$(NAME) $(INC) $(LIBS)
 
 lib$(NAME).so: lib$(NAME).so.$(VERSION)
 		ldconfig -v -n .
