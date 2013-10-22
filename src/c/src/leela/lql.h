@@ -22,7 +22,6 @@
 #include <zmq.h>
 
 struct context_t;
-struct connection_t;
 struct cursor_t;
 
 enum Type {NAME, PATH};
@@ -81,25 +80,26 @@ context_t *leela_context_init();
 
 /*
  * Given a context and an endpoint, it returns
- * a Connection that will be used to attach
+ * a Cursor that will be used to attach
  * to the Pool of Leela Servers.
  * Returns:
- *      Connection
+ *      Cursor
  * Error:
  *      Returns NULL
  */
-connection_t *leela_connection_init(context_t *ctx, const char *endpoint);
+cursor_t *leela_cursor_init(context_t *ctx, const char *endpoint);
 
 /*
- * Given a connection and a query, it returns
- * a cursor that will be used to fetch data
+ * Given a cursor and a query, it starts
+ * the query process to fetch data
  * from the Pool of Leela Servers.
  * Returns:
  *      Cursor;
  * Error:
- *      Returns NULL
+ *       0:            - Success;
+ *      <0:            - Error Code;
  */
-cursor_t * leela_lql_execute(connection_t *con, const char * query);
+int leela_lql_execute(cursor_t *cur, const char * query);
 
 /*
  * Fetch in an iterative way, the data returned by

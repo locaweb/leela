@@ -20,7 +20,7 @@ TEST(TestDatabaseIsEmpty)
     const char *query_matrix[] = {"using (test_database) path (%s);"};
     row_t *row = NULL;
     context_t *ctx = leela_context_init();
-    connection_t *con = leela_connection_init(ctx, "tcp://warp0017.locaweb.com.br:4080");
+    cursor_t *cur = leela_cursor_init(ctx, "tcp://warp0017.locaweb.com.br:4080");
     int len = 6;
     char *datacenter = (char *) malloc(sizeof(char *)*len);
     
@@ -32,15 +32,15 @@ TEST(TestDatabaseIsEmpty)
         char *query = (char *)malloc(sizeof(char *) * qlen);
 
         sprintf(query, query_matrix[i], datacenter);
-        cursor_t *cur = leela_lql_execute(con, query);
+        leela_lql_execute(cur, query);
 
         CHECK(leela_cursor_next(cur, row) == 0);
 
-        leela_cursor_close(cur);
         free(query);
     }
 
     free(datacenter);
+    leela_cursor_close(cur);
     leela_context_close(ctx);
 }
 
@@ -53,7 +53,7 @@ TEST(TestMakePath)
                                   "using (test_database) name %s;" };
     row_t *row = NULL;
     context_t *ctx = leela_context_init();
-    connection_t *con = leela_connection_init(ctx, "tcp://warp0017.locaweb.com.br:4080");
+    cursor_t *cur = leela_cursor_init(ctx, "tcp://warp0017.locaweb.com.br:4080");
     int len = 6;
     char *datacenter = (char *) malloc(sizeof(char *)*len);
     
@@ -65,7 +65,7 @@ TEST(TestMakePath)
         char *query = (char *)malloc(sizeof(char *) * qlen);
 
         sprintf(query, query_matrix[i], datacenter);
-        cursor_t *cur = leela_lql_execute(con, query);
+        leela_lql_execute(cur, query);
         leela_cursor_next(cur, row);
         while (row != NULL){
             leela_cursor_next(cur, row);
@@ -73,11 +73,11 @@ TEST(TestMakePath)
 
         CHECK(true);
 
-        leela_cursor_close(cur);
         free(query);
     }
 
     free(datacenter);
+    leela_cursor_close(cur);
     leela_context_close(ctx);
 }
 
