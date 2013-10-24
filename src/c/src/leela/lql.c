@@ -19,6 +19,8 @@ int send(cursor_t *cur, const char *s, int flags=0){
 
 char * recv(cursor_t *cur, int flags=0){
     char *msg = (char *)malloc(1);
+    msg[0] = 0;
+    int total_size = 0;
     while (1) 
     {
         zmq_msg_t message;
@@ -27,14 +29,16 @@ char * recv(cursor_t *cur, int flags=0){
         if (size == -1)
             return NULL;
         
-        msg = (char *)realloc(msg, size + 1);
-        memcpy (msg, zmq_msg_data (&message), size);
+        total_size += size + 1;
+        msg = (char *)realloc(msg, total_size + 1);
+        msg = strncat(msg, (const char *)zmq_msg_data (&message), size);
         zmq_msg_close (&message);
-        msg[size] = 0;
+        msg[total_size] = 0;
         int more;
         size_t more_size = sizeof (more);
-        zmq_getsockopt (cur->cur, ZMQ_RCVMORE, &more, &more_size);
         debug("<", msg);
+        msg = strncat(msg, "%", 1);
+        zmq_getsockopt (cur->cur, ZMQ_RCVMORE, &more, &more_size);
         if (!more)
             return(msg);
     }
@@ -75,13 +79,20 @@ int leela_lql_execute(cursor_t *cur, const char * query){
         return (res);
 
     char *msg = recv(cur);
+    debug("=", msg);
     const char *done = "done";
-    if (strncmp(done, msg, strlen(done)) != 0)
-        free(msg);
-        return(-1);
+    if (strncmp(done, strtok(msg, "%"), strlen(done)) != 0){
+        res = -1;
+    }
+    else{
+        static char * channel;
+        channel = strtok(NULL, "%");
+        debug("==", channel);
+        res = 0;
+    }
 
     free(msg);
-    return(0);
+    return(res);
 }
 
 int leela_cursor_next(cursor_t *cur, row_t *row){
