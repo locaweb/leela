@@ -18,7 +18,11 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Leela.  If not, see <http://www.gnu.org/licenses/>.
 
-module Leela.Network.Core where
+module Leela.Network.Core
+       ( CoreServer ()
+       , new
+       , process
+       ) where
 
 import qualified Data.Map as M
 import           Data.Maybe
@@ -60,25 +64,25 @@ new = do
   _     <- forkIO (forever (sleep 1 >> rungc (fdlist state)))
   return state
     where
-      makeState = atomically $ do
+      makeState = atomically $
         liftM2 CoreServer (newTVar 0) (newTVar M.empty)
 
 rungc :: (Ord k, Show k) => TVar (M.Map k (Int, Device a)) -> IO ()
-rungc tvar = do
-  atomically kill >>= mapM_ burry
-    where partition acc []       = acc
-          partition (a, b) ((k, (tick, dev)):xs)
-              | tick == 0 = partition ((k, dev) : a, b) xs
-              | otherwise = partition (a, (k, (tick - 1, dev)) : b) xs
+rungc tvar = atomically kill >>= mapM_ burry
+    where
+      partition acc []       = acc
+      partition (a, b) ((k, (tick, dev)):xs)
+        | tick == 0 = partition ((k, dev) : a, b) xs
+        | otherwise = partition (a, (k, (tick - 1, dev)) : b) xs
 
-          kill = do
-            (dead, alive) <- fmap (partition ([], []) . M.toList) (readTVar tvar)
-            writeTVar tvar (M.fromList alive)
-            return dead
+      kill = do
+        (dead, alive) <- fmap (partition ([], []) . M.toList) (readTVar tvar)
+        writeTVar tvar (M.fromList alive)
+        return dead
 
-          burry (k, dev) = do
-            lwarn Network $ printf "closing/purging unused channel: %s" (show k)
-            atomically $ close dev
+      burry (k, dev) = do
+        lwarn Network $ printf "closing/purging unused channel: %s" (show k)
+        atomically $ close dev
 
 nextfd :: CoreServer -> STM FH
 nextfd srv = do
@@ -108,14 +112,11 @@ closeFD srv nowait ((User u), fh) = do
     db   <- readTVar (fdlist srv)
     case (M.lookup k db) of
       Nothing       -> return ()
-      Just (_, dev) -> do when (not nowait) (linger dev)
+      Just (_, dev) -> do unless nowait (linger dev)
                           writeTVar (fdlist srv) (M.delete k db)
                           close dev
-    where k = (u, fh)
-
-maybeCons :: Maybe a -> [a] -> [a]
-maybeCons Nothing  = id
-maybeCons (Just a) = (a:)
+    where
+      k = (u, fh)
 
 store :: (GraphBackend m) => m -> Journal -> IO ()
 store m (PutNode n k g)    = putName n k g m
@@ -124,11 +125,12 @@ store m (PutLink g lnks)   = putLink g lnks m
 
 rechunk :: Int -> [a] -> [[a]]
 rechunk n = go 0 []
-    where go _ [] []      = []
-          go _ acc []     = [acc]
-          go k acc (x:xs)
-            | k == n      = acc : go 0 [x] xs
-            | otherwise   = go (k+1) (x:acc) xs
+    where
+      go _ [] []      = []
+      go _ acc []     = [acc]
+      go k acc (x:xs)
+        | k == n      = acc : go 0 [x] xs
+        | otherwise   = go (k+1) (x:acc) xs
 
 fetch :: (GraphBackend m, HasControl ctrl) => ctrl -> m -> Matcher r -> (Stream r -> IO ()) -> IO ()
 fetch ctrl m selector callback0 =
@@ -156,7 +158,7 @@ fetch ctrl m selector callback0 =
               Just b  -> getEdge subdev (map (, b) (M.keys keys)) m
             load2 subdev $ \guidNodes ->
               let labelNodes = map (\(lk, g) -> (g, fromJust $ M.lookup lk keys)) guidNodes
-              in when (not $ null labelNodes) (callback0 $ Chunk (f labelNodes))
+              in unless (null labelNodes) (callback0 $ Chunk (f labelNodes))
             load1 a mb f dev
 
       load2 subdev callback = do
@@ -183,37 +185,34 @@ eval _ m (G.Done r j) callback    = do
   callback (Chunk r)
   callback EOF
 
-deref :: (GraphBackend m) => m -> GUID -> IO (Namespace, Key)
-deref m g = getName g m
-
 evalLQL :: (GraphBackend m) => m -> Device Reply -> [LQL] -> IO ()
 evalLQL _ dev []     = devwriteIO dev (Last Nothing)
-evalLQL m dev (x:xs) = do
+evalLQL m dev (x:xs) =
   case x of
-    Create _ stmt  ->
+    PathStmt _ cursor -> navigate cursor (evalLQL m dev xs)
+    MakeStmt _ stmt   ->
       eval dev m stmt $ \chunk ->
         case chunk of
           EOF -> evalLQL m dev xs
           _   -> return ()
-    Match _ cursor -> navigate cursor (evalLQL m dev xs)
-    Deref u g      -> do
-      (n0, k) <- getName g m
-      let (nU, n1) = underive n0
-          (nN, _)  = underive n1
-      if (root u `isDerivedOf` n0)
-        then devwriteIO dev (Item $ Name nU nN k) >> evalLQL m dev xs
+    NameStmt u g      -> do
+      (nsTree, name) <- getName g m
+      let (nTree, nsUser) = underive nsTree
+          (nUser, _)  = underive nsUser
+      if (nsUser `isDerivedOf` (root u))
+        then devwriteIO dev (Item $ Name nUser nTree name) >> evalLQL m dev xs
         else devwriteIO dev (Fail 403 Nothing)
     where
       navigate G.Tail cont                   = cont
-      navigate (G.Need r) cont               = eval dev m r $ \chunk -> do
+      navigate (G.Need r) cont               = eval dev m r $ \chunk ->
         case chunk of
           EOF          -> cont
           Chunk cursor -> navigate cursor (return ())
       navigate (G.Item path links next) cont = do
         devwriteIO dev (Item $ makeList $ map (Path . (:path)) links)
         navigate next cont
-      navigate (G.Head g) cont               = do
-        eval dev m (G.loadNode1 g Nothing Nothing G.done) $ \chunk -> do
+      navigate (G.Head g) cont               =
+        eval dev m (G.loadNode1 g Nothing Nothing G.done) $ \chunk ->
           case chunk of
             EOF          -> cont
             Chunk links  -> devwriteIO dev (Item $ makeList $ map (Path . (:[])) links)

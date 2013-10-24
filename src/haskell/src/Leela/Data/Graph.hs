@@ -94,7 +94,7 @@ putNode :: Namespace -> Key -> Result ()
 putNode n k = Done () [PutNode n k (guid $ derive n k)]
 
 start :: GUID -> Cursor
-start g = Head g
+start = Head
 
 select :: Label -> Maybe GUID -> Cursor -> Cursor
 select _ _ Tail                                 = Tail
@@ -129,9 +129,9 @@ bindWith merge (Done r j) f                 = mergeLog (f r)
     where
       mergeLog (Done r1 j1)              = Done r1 (j `merge` j1)
       mergeLog (Fail c s)                = Fail c s
-      mergeLog (Load (ByLabel k l g) h)  = Load (ByLabel k l (\v -> mergeLog (g v))) (mergeLog h)
-      mergeLog (Load (ByNode k g) h)     = Load (ByNode k (\v -> mergeLog (g v))) (mergeLog h)
-      mergeLog (Load (ByEdge a l b g) h) = Load (ByEdge a l b (\v -> mergeLog (g v))) (mergeLog h)
+      mergeLog (Load (ByLabel k l g) h)  = Load (ByLabel k l (mergeLog . g)) (mergeLog h)
+      mergeLog (Load (ByNode k g) h)     = Load (ByNode k (mergeLog . g)) (mergeLog h)
+      mergeLog (Load (ByEdge a l b g) h) = Load (ByEdge a l b (mergeLog . g)) (mergeLog h)
 
 bindAndLog :: Result r1 -> (r1 -> Result r) -> Result r
 bindAndLog = bindWith (\j0 j1 -> rechunk (j0 ++ j1))
@@ -144,15 +144,17 @@ bindNoLog = bindWith f
 
 fmapR :: (r1 -> r) -> Result r1 -> Result r
 fmapR _ (Fail c s)                = Fail c s
-fmapR f (Load (ByLabel k l g) h)  = Load (ByLabel k l (\v -> fmapR f (g v))) (fmapR f h)
-fmapR f (Load (ByNode k g) h)     = Load (ByNode k (\v -> fmapR f (g v))) (fmapR f h)
-fmapR f (Load (ByEdge a l b g) h) = Load (ByEdge a l b (\v -> fmapR f (g v))) (fmapR f h)
+fmapR f (Load (ByLabel k l g) h)  = Load (ByLabel k l (fmapR f . g)) (fmapR f h)
+fmapR f (Load (ByNode k g) h)     = Load (ByNode k (fmapR f . g)) (fmapR f h)
+fmapR f (Load (ByEdge a l b g) h) = Load (ByEdge a l b (fmapR f . g)) (fmapR f h)
 fmapR f (Done r j)                = Done (f r) j
 
 instance Monad Result where
 
-  fail s   = Fail 500 s
-  return a = done a
+  return = done
+
+  fail = Fail 500
+
   f >>= g  = f `bindAndLog` g
 
 instance Functor Result where

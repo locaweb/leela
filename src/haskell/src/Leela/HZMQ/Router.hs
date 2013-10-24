@@ -17,13 +17,12 @@
 
 module Leela.HZMQ.Router
        ( Worker (..)
-       , Cfg (..)
-       , defaultCfg
        , startRouter
        ) where
 
 import           Data.Maybe
 import           System.ZMQ3
+import           Leela.Config
 import           Leela.Logger
 import           Control.Monad
 import           Leela.Helpers
@@ -31,17 +30,10 @@ import           Leela.Data.Time
 import qualified Data.ByteString as B
 import           Control.Exception
 import           Control.Concurrent
-import           Data.List.NonEmpty
+import           Data.List.NonEmpty (fromList)
 import           Leela.Data.QDevice
+import           Leela.Data.Endpoint
 import           Leela.HZMQ.ZHelpers
-
-data Cfg = Cfg { endpoint     :: String
-               , queueSize    :: Int
-               , capabilities :: Int
-               }
-
-defaultCfg :: Cfg
-defaultCfg = Cfg "tcp://*:4080" 32 16
 
 data Request = Request Time B.ByteString [B.ByteString]
 
@@ -67,12 +59,6 @@ logresult job me = do
       failOrSucc Nothing  = "ROUTER.ok"
       failOrSucc (Just e) = printf "ROUTER.fail[%s]" (show e)
 
--- request :: Device Request -> Request -> IO ()
--- request queue req = devwriteIO queue req
-
--- dequeueReq :: Device Request -> IO Request
--- dequeueReq queue = fmap fromJust $ devreadIO queue
-
 reply :: Request -> Socket Push -> [B.ByteString] -> IO ()
 reply job fh msg = sendMulti fh (fromList $ readPeer job : "" : msg)
 
@@ -89,11 +75,11 @@ worker job fh action = do
       reply job fh msg
 
 forkWorker :: Context -> String -> Request -> Worker -> IO ()
-forkWorker ctx addr job action = forkIO (do
+forkWorker ctx addr job action = void (forkIO $
   withSocket ctx Push $ \fh -> do
     connect fh addr
     configure fh
-    worker job fh action) >> return ()
+    void $ worker job fh action)
 
 recvRequest :: Receiver a => Socket a -> IO (Maybe Request)
 recvRequest fh = do
@@ -103,32 +89,31 @@ recvRequest fh = do
     (peer:"":msg) -> return $ Just (Request time peer msg)
     _             -> return Nothing
 
-startRouter :: Control -> String -> Cfg -> Worker -> Context -> IO ()
-startRouter ctrl name cfg action ctx = do
+startRouter :: Cfg -> Context -> Control -> String -> Worker -> IO ()
+startRouter cfg ctx ctrl conf action = do
+  capabilities <- fmap (maybe 64 id) (cfgGet asInt cfg conf "capabilities")
+  endpoint     <- fmap fromJust (cfgGet loadEndpoint cfg conf "endpoint")
   lnotice HZMQ $
-    printf "starting zmq.router: %s [qsize: %d, capabilities: %d, endpoint: %s]"
-           name
-           (queueSize cfg)
-           (capabilities cfg)
-           (endpoint cfg)
-  withSocket ctx Router $ \ifh -> do
+    printf "starting zmq.router: %s [capabilities: %d, endpoint: %s]"
+           conf
+           capabilities
+           (toEndpoint1 endpoint)
+  withSocket ctx Router $ \ifh ->
     withSocket ctx Pull $ \ofh -> do
       bind ofh oaddr
-      bind ifh (endpoint cfg)
+      bind ifh (toEndpoint1 endpoint)
       configure ifh
       configure ofh
-      superviseWith (fmap not $ closed ctrl) name (routingLoop ifh ofh)
-
+      superviseWith (notClosedIO ctrl) conf (routingLoop ifh ofh)
     where
-      oaddr = printf "inproc://%s.hzmq-router" name
-       
+      oaddr = printf "inproc://%s.hzmq-router" conf
+
       procRequest fh = do
         mreq <- recvRequest fh
         when (isJust mreq) (forkWorker ctx oaddr (fromJust mreq) action)
-       
+
       routingLoop :: Socket Router -> Socket Pull -> IO ()
       routingLoop ifh ofh = do
         [eifh, eofh] <- poll 1000 [Sock ifh [In] Nothing, Sock ofh [In] Nothing]
-        when (not $ null eifh) (procRequest ifh)
-        when (not $ null eofh) (fmap fromList (receiveMulti ofh) >>= sendMulti ifh)
-
+        unless (null eifh) (procRequest ifh)
+        unless (null eofh) (fmap fromList (receiveMulti ofh) >>= sendMulti ifh)

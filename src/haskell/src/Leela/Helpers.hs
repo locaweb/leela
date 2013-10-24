@@ -20,17 +20,21 @@ import Control.Monad
 import Control.Exception
 import Control.Concurrent
 
-forkSupervised :: IO Bool -> IO () -> IO ()
-forkSupervised check io = do
-  _ <- forkIO (superviseWith check "router.worker" io)
-  return ()
+forkSupervised :: IO Bool -> String -> IO () -> IO ()
+forkSupervised check name io =
+  void $ forkIO (superviseWith check name io)
+
+forkSupervised_ :: String -> IO () -> IO ()
+forkSupervised_ = forkSupervised (return True)
 
 superviseWith :: IO Bool -> String -> IO () -> IO ()
-superviseWith check name io = do
+superviseWith check name io =
   (foreverWith check io) `onException` restart
     where
-      restart = do linfo Global (printf "supervised thread [%s] has died" name)
-                   superviseWith check name io
+      restart = do
+        threadDelay 500000
+        linfo Global (printf "supervised thread [%s] has died" name)
+        superviseWith check name io
 
 ignore :: SomeException -> IO ()
 ignore _ = return ()

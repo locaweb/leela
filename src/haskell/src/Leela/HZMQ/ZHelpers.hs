@@ -18,6 +18,7 @@ module Leela.HZMQ.ZHelpers where
 import Data.Int
 import System.ZMQ3
 import Data.ByteString (ByteString)
+import Leela.Data.Endpoint
 
 recvTimeout :: (Receiver a) => Int64 -> Socket a -> IO (Maybe [ByteString])
 recvTimeout t s = do
@@ -34,3 +35,14 @@ configure fh = do
   setLinger (restrict (ms 0)) fh
   setReconnectInterval (restrict (ms 1)) fh
   setMaxMessageSize (restrict (1024*1024 :: Int)) fh
+
+toEndpoint :: Endpoint -> [String]
+toEndpoint e
+  | isTCP e   = map buildItem (eAddr e)
+  | otherwise = ["tcp://localhost:4080"]
+    where
+      buildItem (h, Nothing) = "tcp://" ++ h ++ ":50021"
+      buildItem (h, Just p)  = "tcp://" ++ h ++ ":" ++ show p
+
+toEndpoint1 :: Endpoint -> String
+toEndpoint1 = head . toEndpoint

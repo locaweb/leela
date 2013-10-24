@@ -15,17 +15,17 @@
 
 module Leela.Logger
        ( Facility (..)
-       , fmt
-       , setupLog
-       , ldebug
-       , linfo
-       , lnotice
-       , lwarn
-       , lerror
-       , lcritical
        , Priority (..)
-       , logsetup
+       , fmt
+       , linfo
+       , lwarn
+       , ldebug
+       , lerror
        , printf
+       , lnotice
+       , logsetup
+       , setupLog
+       , lcritical
        ) where
 
 import System.IO
@@ -38,8 +38,9 @@ import System.Log.Handler.Simple
 import Data.ByteString.Lazy.UTF8 (toString)
 import Data.ByteString.Lazy.Builder
 
-data Facility = Global
-              | HZMQ
+data Facility = HZMQ
+              | Global
+              | Config
               | Network
               | Storage
 
@@ -53,14 +54,12 @@ logsetup :: Priority -> IO ()
 logsetup prio = do
   h <- fmap (flip setFormatter myfmt) (streamHandler stderr prio)
   updateGlobalLogger rootLoggerName (setHandlers [h])
-  setupLog HZMQ (setLevel prio)
-  setupLog Global (setLevel prio)
-  setupLog Network (setLevel prio)
-  setupLog Storage (setLevel prio)
+  mapM_ (flip setupLog (setLevel prio)) [HZMQ, Global, Config, Network, Storage]
 
 facility :: Facility -> String
-facility Global  = "leela"
 facility HZMQ    = "leela.hzmq"
+facility Global  = "leela"
+facility Config  = "leela.config"
 facility Network = "leela.network"
 facility Storage = "leela.storage"
 
