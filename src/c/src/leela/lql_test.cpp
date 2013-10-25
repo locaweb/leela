@@ -40,7 +40,7 @@ TEST(TestDatabaseIsEmpty)
     }
 
     free(datacenter);
-    leela_cursor_close(cur);
+    leela_cursor_close(cur, 1);
     leela_context_close(ctx);
 }
 

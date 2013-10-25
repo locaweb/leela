@@ -4,6 +4,7 @@
 
 struct context_t    { void * ctx; };
 struct cursor_t     { void * cur; };
+static char * channel = NULL;
 
 void debug(const char *prefix, const char *ss){
     if (DEBUG){
@@ -21,8 +22,7 @@ char * recv(cursor_t *cur, int flags=0){
     char *msg = (char *)malloc(1);
     msg[0] = 0;
     int total_size = 0;
-    while (1) 
-    {
+    while (1){
         zmq_msg_t message;
         zmq_msg_init (&message);
         int size = zmq_msg_recv (&message, cur->cur, 0);
@@ -79,14 +79,13 @@ int leela_lql_execute(cursor_t *cur, const char * query){
         return (res);
 
     char *msg = recv(cur);
-    debug("=", msg);
     const char *done = "done";
     if (strncmp(done, strtok(msg, "%"), strlen(done)) != 0){
         res = -1;
     }
     else{
-        static char * channel;
-        channel = strtok(NULL, "%");
+        if (channel == NULL)
+            channel = strdup(strtok(NULL, "%"));
         debug("==", channel);
         res = 0;
     }
@@ -99,8 +98,31 @@ int leela_cursor_next(cursor_t *cur, row_t *row){
     return(0);
 }
 
-int leela_cursor_close(cursor_t *cur){
-    int res = zmq_close((reinterpret_cast<cursor_t *>(cur))->cur);
+int leela_cursor_close(cursor_t *cur, int nowait){
+    int res = 0;
+    res = send(cur, auth(), ZMQ_SNDMORE);
+    if (res < 0)
+        return (res);
+    res = send(cur, "close", ZMQ_SNDMORE);
+    if (res < 0)
+        return (res);
+    if(nowait){
+        res = send(cur, channel, ZMQ_SNDMORE);
+        if (res < 0)
+            return (res);
+        res = send(cur, "nowait");
+        if (res < 0)
+            return (res);
+    }
+    else{
+        res = send(cur, channel);
+        if (res < 0)
+            return (res);
+    }
+
+    res = zmq_close((reinterpret_cast<cursor_t *>(cur))->cur);
+    free(channel);
+    channel = NULL;
     free(cur);
     return(res);
 }

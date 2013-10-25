@@ -121,7 +121,7 @@ int leela_cursor_next(cursor_t *cur, row_t *row);
  *       0:            - Finished;
  *      <0:            - Error Code;
  */
-int leela_cursor_close(cursor_t *cur);
+int leela_cursor_close(cursor_t *cur, int nowait=0);
 
 /*
  * Closes the context and free all process
