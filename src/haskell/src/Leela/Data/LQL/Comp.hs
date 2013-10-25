@@ -46,7 +46,7 @@ class Source a where
     bytestring :: a -> B.ByteString
 
 hardspace :: Parser ()
-hardspace = char ' ' >> return ()
+hardspace = void $ char ' '
 
 parseKey :: Namespace -> Parser Key
 parseKey _ = do
@@ -80,13 +80,13 @@ qstring limit l r = word8 l >> anyWord8 >>= loop limit []
         | otherwise = anyWord8 >>= loop (lim - 1) (x : acc)
 
 newline :: Parser ()
-newline = char '\n' >> return ()
+newline = void $ char '\n'
 
 separator :: Parser ()
-separator = (char '\n' <|> char ' ') >> return ()
+separator = void (char '\n' <|> char ' ')
 
 semicolon :: Parser ()
-semicolon = char ';' >> return ()
+semicolon = void $ char ';'
 
 parseLink :: Namespace -> Parser (Direction Label)
 parseLink n = do
@@ -142,35 +142,35 @@ parseQuery1 n q = option q doParse
           then parseQuery1 n (select l Nothing q)
           else parseQuery1 n (select l (Just gb) q)
 
-parseStmtCreate :: Using -> Parser LQL
-parseStmtCreate n = "create " .*> liftM (Create n) (parseG (self n))
+parseStmtMake :: Using -> Parser LQL
+parseStmtMake n = "make " .*> liftM (MakeStmt n) (parseG (self n))
 
-parseStmtMatch :: Using -> Parser LQL
-parseStmtMatch n = "match " .*> liftM (Match n) (parseQuery (self n))
+parseStmtPath :: Using -> Parser LQL
+parseStmtPath n = "path " .*> liftM (PathStmt n) (parseQuery (self n))
 
 hexAlphabet :: [Word8]
 hexAlphabet = [0x78] ++ [0x30 .. 0x39] ++ [0x41 .. 0x46] ++ [0x61 .. 0x66]
 
-parseStmtDeref :: Using -> Parser LQL
-parseStmtDeref n = "deref " .*> liftM (Deref n . pack) (A.takeWhile (\c -> c `elem` hexAlphabet))
+parseStmtName :: Using -> Parser LQL
+parseStmtName n = "name " .*> liftM (NameStmt n . pack) (A.takeWhile (`elem` hexAlphabet))
 
 parseStmt :: Using -> Parser LQL
 parseStmt n =
-  parseStmtCreate n
-  <|> parseStmtMatch n
-  <|> parseStmtDeref n
+  parseStmtMake n
+  <|> parseStmtPath n
+  <|> parseStmtName n
 
-groupCreates :: Using -> [LQL] -> [LQL]
-groupCreates u = partition (Nothing, [])
+groupMakeStmts :: Using -> [LQL] -> [LQL]
+groupMakeStmts u = partition (Nothing, [])
     where partition (Nothing, oStmt) []       = oStmt
-          partition (Just cStmt, oStmt) []    = Create u cStmt : oStmt
+          partition (Just cStmt, oStmt) []    = MakeStmt u cStmt : oStmt
           partition (cStmt, oStmt) (stmt:lql) =
             case stmt of
-              Create _ r -> partition ((fmap (r >>) cStmt) `mplus` (Just r), oStmt) lql
-              _          -> partition (cStmt, stmt : oStmt) lql
+              MakeStmt _ r -> partition ((fmap (r >>) cStmt) `mplus` (Just r), oStmt) lql
+              _            -> partition (cStmt, stmt : oStmt) lql
 
 parseStmts :: Using -> Parser [LQL]
-parseStmts u = fmap (groupCreates u) (parseStmt u `sepBy1` newline)
+parseStmts u = fmap (groupMakeStmts u) (parseStmt u `sepBy1` newline)
 
 parseUsing :: Namespace -> Parser Using
 parseUsing user = do

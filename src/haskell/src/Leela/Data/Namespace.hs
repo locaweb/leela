@@ -81,7 +81,7 @@ tld :: Namespace
 tld = Namespace ""
 
 isDerivedOf :: Namespace -> Namespace -> Bool
-isDerivedOf (Namespace a) (Namespace b) = a `L.isPrefixOf` b
+isDerivedOf (Namespace a) (Namespace b) = b `L.isPrefixOf` a
 
 instance Domain B.ByteString where
 
@@ -93,8 +93,8 @@ instance Domain B.ByteString where
 instance Domain L.ByteString where
 
   derive (Namespace n) s
-    | L.elem sep s = throw UserExcept
-    | otherwise    = Namespace (s `L.append` (sep `L.cons` n))
+    | sep `L.elem` s = throw UserExcept
+    | otherwise      = Namespace (s `L.append` (sep `L.cons` n))
 
   underive (Namespace n) = let (s, n1) = L.break (== sep) n
                            in (s, Namespace $ L.drop 1 n1)

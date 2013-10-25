@@ -23,20 +23,23 @@ module Leela.Data.QDevice
        , HasControl (..)
        , open
        , close
-       , closed
        , linger
        , openIO
+       , closed
        , control
        , devnull
        , devread
        , blkread
        , closeIO
+       , closedIO
        , devwrite
        , lingerIO
        , blkreadIO
        , devreadIO
+       , notClosed
        , devwriteIO
        , trydevread
+       , notClosedIO
        , withControl
        ) where
 
@@ -68,9 +71,18 @@ withControl io = mask $ \restore -> do
   _    <- restore (io ctrl) `onException` closeIO ctrl
   closeIO ctrl
 
-closed :: HasControl ctrl => ctrl -> IO Bool
+closed :: HasControl ctrl => ctrl -> STM Bool
 closed box = let Control ctrl = ctrlof box
-             in readTVarIO ctrl
+             in readTVar ctrl
+
+notClosed :: HasControl ctrl => ctrl -> STM Bool
+notClosed = fmap not . closed
+
+notClosedIO :: HasControl ctrl => ctrl -> IO Bool
+notClosedIO = atomically . notClosed
+
+closedIO :: HasControl ctrl => ctrl -> IO Bool
+closedIO = atomically . closed
 
 open :: HasControl ctrl => ctrl -> Limit -> STM (Device a)
 open ctrl0 l = fmap (Device ctrl) (newTBQueue (max l 1))
@@ -86,7 +98,7 @@ close ctrl = let Control tvar = ctrlof ctrl
 linger :: HasControl ctrl => ctrl -> STM ()
 linger ctrl = let Control tvar = ctrlof ctrl
               in do isClosed <- readTVar tvar
-                    when (not isClosed) retry
+                    unless isClosed retry
 
 lingerIO :: HasControl ctrl => ctrl -> IO ()
 lingerIO = atomically . linger

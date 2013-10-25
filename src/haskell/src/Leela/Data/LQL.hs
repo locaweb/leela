@@ -27,9 +27,9 @@ data Using = Using { uUser  :: Namespace
                    }
     deriving (Eq)
 
-data LQL = Create Using (Result ())
-         | Match Using Cursor
-         | Deref Using GUID
+data LQL = MakeStmt Using (Result ())
+         | PathStmt Using Cursor
+         | NameStmt Using GUID
 
 class HasNamespace a where
 
@@ -47,14 +47,14 @@ instance HasNamespace Using where
 
 instance HasNamespace LQL where
 
-  self (Create r _) = self r
-  self (Match r _)  = self r
-  self (Deref r _)  = self r
+  self (MakeStmt r _) = self r
+  self (PathStmt r _)  = self r
+  self (NameStmt r _)  = self r
 
-  root (Create r _) = root r
-  root (Match r _)  = root r
-  root (Deref r _)  = root r
+  root (MakeStmt r _) = root r
+  root (PathStmt r _)  = root r
+  root (NameStmt r _)  = root r
 
-  top (Create r _) = top r
-  top (Match r _)  = top r
-  top (Deref r _)  = top r
+  top (MakeStmt r _) = top r
+  top (PathStmt r _)  = top r
+  top (NameStmt r _)  = top r
