@@ -1,5 +1,7 @@
 // lql_test.cpp
+extern "C"{
 #include "lql.h"
+}
 #include "UnitTest++.h"
 
 void id_generator(char *s, const int len) {
@@ -26,7 +28,7 @@ TEST(TestDatabaseIsEmpty)
     
     id_generator(datacenter, len);
 
-    int i, j;
+    int i;
     for (i = 0; i < 1; i++){
         int qlen = strlen(query_matrix[i]) + len + 1;
         char *query = (char *)malloc(sizeof(char *) * qlen);
@@ -59,7 +61,7 @@ TEST(TestMakePath)
     
     id_generator(datacenter, len);
 
-    int i, j;
+    int i;
     for (i = 0; i < 5; i++){
         int qlen = strlen(query_matrix[i]) + len + 1;
         char *query = (char *)malloc(sizeof(char *) * qlen);
@@ -77,7 +79,7 @@ TEST(TestMakePath)
     }
 
     free(datacenter);
-    leela_cursor_close(cur);
+    leela_cursor_close(cur, 0);
     leela_context_close(ctx);
 }
 

@@ -6,19 +6,19 @@ struct context_t    { void * ctx; };
 struct cursor_t     { void * cur; };
 static char * channel = NULL;
 
-void debug(const char *prefix, const char *ss){
+void leela_lql_debug(const char *prefix, const char *ss){
     if (DEBUG){
         fprintf(stderr, "[DEBUG] %s %s\n", prefix, ss);
     }
 }
 
-int send(cursor_t *cur, const char *s, int flags=0){
-    debug(">", s);
+int leela_lql_send(struct cursor_t *cur, const char *s, int flags){
+    leela_lql_debug(">", s);
     int size = zmq_send(cur->cur, s, strlen(s), flags);
     return (size);
 }
 
-char * recv(cursor_t *cur, int flags=0){
+char * leela_lql_recv(struct cursor_t *cur, int flags){
     char *msg = (char *)malloc(1);
     msg[0] = 0;
     int total_size = 0;
@@ -36,7 +36,7 @@ char * recv(cursor_t *cur, int flags=0){
         msg[total_size] = 0;
         int more;
         size_t more_size = sizeof (more);
-        debug("<", msg);
+        leela_lql_debug("<", msg);
         msg = strncat(msg, "%", 1);
         zmq_getsockopt (cur->cur, ZMQ_RCVMORE, &more, &more_size);
         if (!more)
@@ -44,13 +44,13 @@ char * recv(cursor_t *cur, int flags=0){
     }
 }
 
-const char *auth(void){
+const char *leela_lql_auth(void){
     const char *key = "usertest:0:0 0";
     return key;
 }
 
-context_t *leela_context_init(){
-    context_t *ctx = (context_t *)malloc(sizeof(context_t *));
+struct context_t *leela_context_init(){
+    struct context_t *ctx = (struct context_t *)malloc(sizeof(struct context_t));
     ctx->ctx = zmq_ctx_new();
 
     if (ctx->ctx != NULL)
@@ -59,34 +59,33 @@ context_t *leela_context_init(){
     return(NULL);
 }
 
-cursor_t *leela_cursor_init(context_t *ctx, const char *endpoint){
-    cursor_t *cur =  (cursor_t *)malloc(sizeof(cursor_t *));
+struct cursor_t *leela_cursor_init(struct context_t *ctx, const char *endpoint){
+    struct cursor_t *cur =  (struct cursor_t *)malloc(sizeof(struct cursor_t));
     cur->cur = zmq_socket (ctx->ctx, ZMQ_REQ);
     zmq_connect(cur->cur, endpoint);
     return(cur);
 }
 
-int leela_lql_execute(cursor_t *cur, const char * query){
+int leela_lql_execute(struct cursor_t *cur, const char * query){
     int res = 0;
-    res = send(cur, auth(), ZMQ_SNDMORE);
+    res = leela_lql_send(cur, leela_lql_auth(), ZMQ_SNDMORE);
     if (res < 0)
         return (res);
-    res = send(cur, "begin", ZMQ_SNDMORE);
+    res = leela_lql_send(cur, "begin", ZMQ_SNDMORE);
     if (res < 0)
         return (res);
-    res = send(cur, query);
+    res = leela_lql_send(cur, query, 0);
     if (res < 0)
         return (res);
 
-    char *msg = recv(cur);
-    const char *done = "done";
-    if (strncmp(done, strtok(msg, "%"), strlen(done)) != 0){
+    char *msg = leela_lql_recv(cur, 0);
+    if (strncmp(strtok(msg, "%"), "done", strlen("done")) != 0){
         res = -1;
     }
     else{
         if (channel == NULL)
             channel = strdup(strtok(NULL, "%"));
-        debug("==", channel);
+        leela_lql_debug("==", channel);
         res = 0;
     }
 
@@ -94,41 +93,60 @@ int leela_lql_execute(cursor_t *cur, const char * query){
     return(res);
 }
 
-int leela_cursor_next(cursor_t *cur, row_t *row){
-    return(0);
-}
-
-int leela_cursor_close(cursor_t *cur, int nowait){
+int leela_cursor_next(struct cursor_t *cur, row_t *row){
     int res = 0;
-    res = send(cur, auth(), ZMQ_SNDMORE);
+    res = leela_lql_send(cur, leela_lql_auth(), ZMQ_SNDMORE);
     if (res < 0)
         return (res);
-    res = send(cur, "close", ZMQ_SNDMORE);
+    res = leela_lql_send(cur, "fetch", ZMQ_SNDMORE);
+    if (res < 0)
+        return (res);
+    res = leela_lql_send(cur, channel, 0);
+    if (res < 0)
+        return (res);
+
+    char *msg = leela_lql_recv(cur, 0);
+    char *data = strdup(strtok(msg, "%"));
+    if (strncmp(data, "fail", strlen("fail")) == 0){
+        res = -1;
+    }
+    printf("%s\n", data);
+    free(data);
+    free(msg);
+    return(res);
+}
+
+int leela_cursor_close(struct cursor_t *cur, int nowait){
+    int res = 0;
+    res = leela_lql_send(cur, leela_lql_auth(), ZMQ_SNDMORE);
+    if (res < 0)
+        return (res);
+    res = leela_lql_send(cur, "close", ZMQ_SNDMORE);
     if (res < 0)
         return (res);
     if(nowait){
-        res = send(cur, channel, ZMQ_SNDMORE);
+        res = leela_lql_send(cur, channel, ZMQ_SNDMORE);
         if (res < 0)
             return (res);
-        res = send(cur, "nowait");
+        res = leela_lql_send(cur, "nowait", 0);
         if (res < 0)
             return (res);
     }
     else{
-        res = send(cur, channel);
+        res = leela_lql_send(cur, channel, 0);
         if (res < 0)
             return (res);
     }
 
-    res = zmq_close((reinterpret_cast<cursor_t *>(cur))->cur);
+    res = zmq_close(cur->cur);
     free(channel);
     channel = NULL;
     free(cur);
     return(res);
 }
 
-int leela_context_close(void *ctx){
-    int res = zmq_ctx_destroy((reinterpret_cast<context_t *>(ctx))->ctx);
+int leela_context_close(struct context_t *ctx){
+    int res = zmq_ctx_destroy(ctx->ctx);
     free(ctx);
     return(res);
 }

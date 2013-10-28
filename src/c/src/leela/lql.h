@@ -38,7 +38,6 @@ typedef struct path_t_
 {
     char           *guid;
     char           *label;
-    struct path_t_ *next;
 } path_t;
 
 /*
@@ -53,7 +52,6 @@ typedef struct name_t_
     char           *user;
     char           *tree;
     char           *name;
-    struct name_t_ *next;
 } name_t;
 
 /*
@@ -77,7 +75,7 @@ typedef struct row_t_
  * Error:
  *      Returns NULL
  */
-context_t *leela_context_init();
+struct context_t *leela_context_init();
 
 /*
  * Given a context and an endpoint, it returns
@@ -88,7 +86,7 @@ context_t *leela_context_init();
  * Error:
  *      Returns NULL
  */
-cursor_t *leela_cursor_init(context_t *ctx, const char *endpoint);
+struct cursor_t *leela_cursor_init(struct context_t *ctx, const char *endpoint);
 
 /*
  * Given a cursor and a query, it starts
@@ -100,7 +98,7 @@ cursor_t *leela_cursor_init(context_t *ctx, const char *endpoint);
  *       0:            - Success;
  *      <0:            - Error Code;
  */
-int leela_lql_execute(cursor_t *cur, const char * query);
+int leela_lql_execute(struct cursor_t *cur, const char * query);
 
 /*
  * Fetch in an iterative way, the data returned by
@@ -111,7 +109,7 @@ int leela_lql_execute(cursor_t *cur, const char * query);
  *       0:            - Success;
  *      <0:            - Error Code;
  */
-int leela_cursor_next(cursor_t *cur, row_t *row);
+int leela_cursor_next(struct cursor_t *cur, row_t *row);
 
 /*
  * Closes the socket associated with the cursor
@@ -121,7 +119,7 @@ int leela_cursor_next(cursor_t *cur, row_t *row);
  *       0:            - Finished;
  *      <0:            - Error Code;
  */
-int leela_cursor_close(cursor_t *cur, int nowait=0);
+int leela_cursor_close(struct cursor_t *cur, int nowait);
 
 /*
  * Closes the context and free all process
@@ -130,6 +128,6 @@ int leela_cursor_close(cursor_t *cur, int nowait=0);
  *       0:            - Success;
  *      <0:            - Error Code;
  */
-int leela_context_close(void *ctx);
+int leela_context_close(struct context_t *ctx);
 
 #endif //__lql_h__
