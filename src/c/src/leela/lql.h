@@ -25,7 +25,7 @@
 struct context_t;
 struct cursor_t;
 
-enum Type {NAME, PATH};
+enum Type {NAME, PATH, END};
 
 /*
  * Single direction linked list
@@ -36,8 +36,8 @@ enum Type {NAME, PATH};
  */
 typedef struct path_t_
 {
-    char           *guid;
     char           *label;
+    char           *guid;
 } path_t;
 
 /*
