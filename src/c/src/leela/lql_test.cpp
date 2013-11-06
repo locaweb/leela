@@ -32,8 +32,6 @@ TEST(TestDatabaseIsEmpty)
     zmq_version (&major, &minor, &patch);
     printf ("Current 0MQ version is %d.%d.%d\n", major, minor, patch);
 
-
-
     row_t *row = NULL;
     context_t *ctx = leela_context_init();
     CHECK(ctx != NULL);
@@ -92,7 +90,6 @@ TEST(TestMakePath)
     CHECK(datacenter != NULL);
     genRandom(datacenter);
     datacenter[len] = '\0';
-    int res = 0;
     char *name;
 
     int i;
@@ -115,11 +112,10 @@ TEST(TestMakePath)
             sprintf(query, query_matrix[i], name);
         else
             sprintf(query, query_matrix[i], datacenter);
-        res = leela_lql_execute(cur, query);
-        CHECK(res != -1);
 
-        res = leela_cursor_next(cur, row);
-        CHECK(res != -1);
+        CHECK(leela_lql_execute(cur, query) != -1);
+
+        CHECK(leela_cursor_next(cur, row) != -1);
         CHECK(row != NULL);
         if (row->row_type == PATH){
             printf("[PRG DEBUG] GUID : %s\n", row->path.guid);
