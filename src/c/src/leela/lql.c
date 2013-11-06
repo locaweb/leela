@@ -6,6 +6,7 @@ struct context_t    { void * ctx; };
 struct cursor_t     { void * cur; };
 static char * channel;
 static int sock_closed = 0;
+static int res = 0;
 
 void leela_lql_debug(const char *prefix, int size, const char *ss){
     if (DEBUG){ fprintf(stderr, "[LIB DEBUG] %s %.*s\n", prefix, size, ss); }
@@ -32,14 +33,49 @@ int leela_lql_send(struct cursor_t *cur, const char *s, int flags){
         leela_lql_debug(">", strlen(s), s);
         size_t size = zmq_send(cur->cur, s, strlen(s), flags);
         if (size == -1){ return(drop_connection(__FILE__, __LINE__)); }
-        return (size);
+        return(size);
     }
     return(-1);
 }
 
 const char *leela_lql_auth(void){
     const char *key = "usertest:0:0 0";
-    return key;
+    return(key);
+}
+
+size_t get_msg(struct cursor_t *cur, zmq_msg_t *message){
+    size_t size = 0;
+
+    if (zmq_msg_init (message) == -1){ return(drop_connection(__FILE__, __LINE__)); }
+
+    size = zmq_msg_recv (message, cur->cur, 0);
+    if (size == -1){ return(drop_connection(__FILE__, __LINE__)); }
+
+    return(size);
+}
+
+size_t get_data(struct cursor_t *cur, zmq_msg_t *message, char **msg){
+    size_t size = 0;
+
+    if (zmq_msg_close(message) == -1){ return(drop_connection(__FILE__, __LINE__)); }
+
+    size = get_msg(cur, message);
+    *msg = zmq_msg_data(message);
+    leela_lql_debug("<", size, *msg);
+
+    return(size);
+}
+
+int set_field(struct cursor_t *cur, zmq_msg_t *message, char **msg, char **field){
+    size_t size = get_data(cur, message, msg);
+
+    *field = (char *)malloc(sizeof(char)*(size + 1));
+
+    if(*field == NULL){ return(drop_connection(__FILE__, __LINE__)); }
+    strncpy(*field, *msg, size);
+    (*field)[size] = '\0';
+
+    return(EXIT_SUCCESS);
 }
 
 struct context_t *leela_context_init(){
@@ -139,36 +175,12 @@ int leela_lql_execute(struct cursor_t *cur, const char * query){
     return(EXIT_SUCCESS);
 }
 
-size_t get_msg(struct cursor_t *cur, zmq_msg_t *message){
-    size_t size = 0;
-
-    if (zmq_msg_init (message) == -1){ return(drop_connection(__FILE__, __LINE__)); }
-
-    size = zmq_msg_recv (message, cur->cur, 0);
-    if (size == -1){ return(drop_connection(__FILE__, __LINE__)); }
-
-    return size;
-}
-
-size_t get_data(struct cursor_t *cur, zmq_msg_t *message, char **msg){
-    size_t size = 0;
-
-    if (zmq_msg_close(message) == -1){ return(drop_connection(__FILE__, __LINE__)); }
-
-    size = get_msg(cur, message);
-    *msg = zmq_msg_data(message);
-    leela_lql_debug("<", size, *msg);
-
-    return size;
-}
-
 int leela_next(struct cursor_t *cur, row_t *row){
     size_t size = 0;
     int more;
     size_t more_size = sizeof (more);
     char *msg  = NULL;
     zmq_msg_t message;
-    int res = EXIT_SUCCESS;
 
     do{
         size = get_msg(cur, &message);
@@ -181,51 +193,55 @@ int leela_next(struct cursor_t *cur, row_t *row){
         }
 
         if (strncmp(msg, "done", size) == 0){
-            if (!more){ row->row_type = END; }
+            if (!more){
+                row->row_type = END;
+                res = EXIT_SUCCESS;
+            }
             else{
                 if (zmq_msg_close(&message) == -1){ return(drop_connection(__FILE__, __LINE__)); }
-                return(leela_next(cur, row));
+                res = leela_next(cur, row);
+                if (res == -1){ return(drop_connection(__FILE__, __LINE__)); }
+                more = 0;
+                return(res);
             }
         }
         else if (strncmp(msg, "item", size) == 0){
             if (zmq_msg_close(&message) == -1){ return(drop_connection(__FILE__, __LINE__)); }
-            return(leela_next(cur, row));
+            res = leela_next(cur, row);
+            if (res == -1){ return(drop_connection(__FILE__, __LINE__)); }
+            return(res);
         }
         else if (strncmp(msg, "list", size) == 0){
+            char *length = NULL;
+            if(set_field(cur, &message, &msg, &length) == -1){ return(drop_connection(__FILE__, __LINE__)); }
+
             if (zmq_msg_close(&message) == -1){ return(drop_connection(__FILE__, __LINE__)); }
-            return(leela_next(cur, row));
+
+            res = leela_next(cur, row);
+            if (res == -1){ return(drop_connection(__FILE__, __LINE__)); }
+            res += atoi(length);
+            free(length);
+            return(res);
         }
         else if (strncmp(msg, "path", size) == 0){
-            size = get_data(cur, &message, &msg);
+            char *length = NULL;
+
             row->row_type = PATH;
-            size = get_data(cur, &message, &msg);
-            row->path.label = (char *)malloc(sizeof(char)*(size + 1));
-            if(row->path.label == NULL){ return(drop_connection(__FILE__, __LINE__)); }
-            strncpy(row->path.label, msg, size);
-            row->path.label[size] = '\0';
-            size = get_data(cur, &message, &msg);
-            row->path.guid = (char *)malloc(sizeof(char)*(size + 1));
-            if(row->path.guid == NULL){ return(drop_connection(__FILE__, __LINE__)); }
-            strncpy(row->path.guid, msg, size);
-            row->path.guid[size] = '\0';
+            if(set_field(cur, &message, &msg, &length) == -1){ return(drop_connection(__FILE__, __LINE__)); }
+            res += (atoi(length) / 2 + atoi(length) % 2);
+
+            if(set_field(cur, &message, &msg, &(row->path.label)) == -1){ return(drop_connection(__FILE__, __LINE__)); }
+            if(set_field(cur, &message, &msg, &(row->path.guid)) == -1){ return(drop_connection(__FILE__, __LINE__)); }
+            res -= 1;
+            more = 0;
+            free(length);
         }
         else if (strncmp(msg, "name", size) == 0){
             row->row_type = NAME;
-            size = get_data(cur, &message, &msg);
-            row->name.user = (char *)malloc(sizeof(char)*(size + 1));
-            if(row->name.user == NULL){ return(drop_connection(__FILE__, __LINE__)); }
-            strncpy((row->name).user, msg, size);
-            row->name.user[size] = '\0';
-            size = get_data(cur, &message, &msg);
-            row->name.tree = (char *)malloc(sizeof(char)*(size + 1));
-            if(row->name.tree == NULL){ return(drop_connection(__FILE__, __LINE__)); }
-            strncpy(row->name.tree, msg, size);
-            row->name.tree[size] = '\0';
-            size = get_data(cur, &message, &msg);
-            row->name.name = (char *)malloc(sizeof(char)*(size + 1));
-            if(row->name.name == NULL){ return(drop_connection(__FILE__, __LINE__)); }
-            strncpy(row->name.name, msg, size);
-            row->name.name[size] = '\0';
+            if(set_field(cur, &message, &msg, &row->name.user) == -1){ return(drop_connection(__FILE__, __LINE__)); }
+            if(set_field(cur, &message, &msg, &row->name.tree) == -1){ return(drop_connection(__FILE__, __LINE__)); }
+            if(set_field(cur, &message, &msg, &row->name.name) == -1){ return(drop_connection(__FILE__, __LINE__)); }
+            more = 0;
         }
         else if (strncmp(msg, "fail", size) == 0){
             do{
@@ -254,9 +270,11 @@ int leela_next(struct cursor_t *cur, row_t *row){
 
 int leela_cursor_next(struct cursor_t *cur, row_t *row){
 
-    if (leela_lql_send(cur, leela_lql_auth(), ZMQ_SNDMORE) < 0){ return(drop_connection(__FILE__, __LINE__)); }
-    if (leela_lql_send(cur, "fetch", ZMQ_SNDMORE) < 0){ return(drop_connection(__FILE__, __LINE__)); }
-    if (leela_lql_send(cur, channel, 0) < 0){ return(drop_connection(__FILE__, __LINE__)); }
+    if(res == 0){
+        if (leela_lql_send(cur, leela_lql_auth(), ZMQ_SNDMORE) < 0){ return(drop_connection(__FILE__, __LINE__)); }
+        if (leela_lql_send(cur, "fetch", ZMQ_SNDMORE) < 0){ return(drop_connection(__FILE__, __LINE__)); }
+        if (leela_lql_send(cur, channel, 0) < 0){ return(drop_connection(__FILE__, __LINE__)); }
+    }
 
     return(leela_next(cur, row));
 }
