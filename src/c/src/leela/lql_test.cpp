@@ -115,44 +115,48 @@ TEST(TestMakePath)
 
         CHECK(leela_lql_execute(cur, query) != -1);
 
-        CHECK(leela_cursor_next(cur, row) != -1);
-        CHECK(row != NULL);
-        if (row->row_type == PATH){
-            printf("[PRG DEBUG] GUID : %s\n", row->path.guid);
-            printf("[PRG DEBUG] LABL : %s\n", row->path.label);
+        int res = 0;
+        do{
+            res = leela_cursor_next(cur, row);
+            CHECK(res != -1);
+            CHECK(row != NULL);
+            if (row->row_type == PATH){
+                printf("[PRG DEBUG] GUID : %s\n", row->path.guid);
+                printf("[PRG DEBUG] LABL : %s\n", row->path.label);
 
-            name = (char *)malloc(strlen(row->path.guid) + 1);
-            CHECK(name != NULL);
-            strncpy(name, row->path.guid, strlen(row->path.guid));
-            name[strlen(row->path.guid)] = '\0';
+                name = (char *)malloc(strlen(row->path.guid) + 1);
+                CHECK(name != NULL);
+                strncpy(name, row->path.guid, strlen(row->path.guid));
+                name[strlen(row->path.guid)] = '\0';
 
-            if(row->path.label != NULL){
-                free(row->path.label);
-                row->path.label = NULL;
+                if(row->path.label != NULL){
+                    free(row->path.label);
+                    row->path.label = NULL;
+                }
+                if(row->path.guid != NULL){
+                    free(row->path.guid);
+                    row->path.guid = NULL;
+                }
             }
-            if(row->path.guid != NULL){
-                free(row->path.guid);
-                row->path.guid = NULL;
-            }
-        }
-        if (row->row_type == NAME){
-            printf("[PRG DEBUG] USER : %s\n", row->name.user);
-            printf("[PRG DEBUG] TREE : %s\n", row->name.tree);
-            printf("[PRG DEBUG] NAME : %s\n", row->name.name);
+            if (row->row_type == NAME){
+                printf("[PRG DEBUG] USER : %s\n", row->name.user);
+                printf("[PRG DEBUG] TREE : %s\n", row->name.tree);
+                printf("[PRG DEBUG] NAME : %s\n", row->name.name);
 
-            if(row->name.user != NULL){
-                free(row->name.user);
-                row->name.user = NULL;
+                if(row->name.user != NULL){
+                    free(row->name.user);
+                    row->name.user = NULL;
+                }
+                if(row->name.tree != NULL){
+                    free(row->name.tree);
+                    row->name.tree = NULL;
+                }
+                if(row->name.name != NULL){
+                    free(row->name.name);
+                    row->name.name = NULL;
+                }
             }
-            if(row->name.tree != NULL){
-                free(row->name.tree);
-                row->name.tree = NULL;
-            }
-            if(row->name.name != NULL){
-                free(row->name.name);
-                row->name.name = NULL;
-            }
-        }
+        }while(res > 0);
         CHECK(leela_cursor_close(cur, 0) != -1);
         if(query != NULL){
             free(query);

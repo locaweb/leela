@@ -126,15 +126,11 @@ int leela_lql_execute(struct cursor_t *cur, const char * query){
     if (leela_lql_send(cur, "begin", ZMQ_SNDMORE) < 0) return(drop_connection(__FILE__, __LINE__));
     if (leela_lql_send(cur, query, 0) < 0) return(drop_connection(__FILE__, __LINE__));
 
-    if (zmq_msg_init (&message) == -1)
-        return(drop_connection(__FILE__, __LINE__));
-
-    size = zmq_msg_recv (&message, cur->cur, 0);
-    if (size == -1) return(drop_connection(__FILE__, __LINE__));
-
+    size = get_msg(cur, &message);
     msg  = zmq_msg_data(&message);
     msg[size] = '\0';
     leela_lql_debug("<", size, msg);
+
     if (strncmp(msg, "done", size) != 0){
         if (strncmp(msg, "fail", size) == 0){
             do{
