@@ -49,7 +49,7 @@ size_t get_msg(struct cursor_t *cur, zmq_msg_t *message){
     if (zmq_msg_init (message) == -1){ return(drop_connection(__FILE__, __LINE__)); }
 
     size = zmq_msg_recv (message, cur->cur, 0);
-    if (size == -1){ return(drop_connection(__FILE__, __LINE__)); }
+    if (size == -1){ return(EXIT_SUCCESS); }
 
     return(size);
 }
@@ -231,6 +231,8 @@ int leela_next(struct cursor_t *cur, row_t *row){
             res -= 1;
             more = 0;
             free(length);
+            if (zmq_msg_close(&message) == -1){ return(drop_connection(__FILE__, __LINE__)); }
+            return(res);
         }
         else if (strncmp(msg, "name", size) == 0){
             row->row_type = NAME;
@@ -238,6 +240,8 @@ int leela_next(struct cursor_t *cur, row_t *row){
             if(set_field(cur, &message, &msg, &row->name.tree) == -1){ return(drop_connection(__FILE__, __LINE__)); }
             if(set_field(cur, &message, &msg, &row->name.name) == -1){ return(drop_connection(__FILE__, __LINE__)); }
             more = 0;
+            if (zmq_msg_close(&message) == -1){ return(drop_connection(__FILE__, __LINE__)); }
+            return(res);
         }
         else if (strncmp(msg, "fail", size) == 0){
             do{
