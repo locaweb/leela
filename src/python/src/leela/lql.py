@@ -261,7 +261,7 @@ def setUpModule ():
         return("using (test_namespace) %s;" % "\n".join(lt))
 
     if len(sys.argv) > 1: 
-        conn = Connection(context(), ["tcp://warp0017.locaweb.com.br:4080"])
+        conn = connection()
         conn.connect()
         for x in range(10):
             query = create_mc(x)
