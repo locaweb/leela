@@ -23,14 +23,124 @@ void genRandom(char *str){
         str[z] = alphanum[rand() % stringLength];
 }
 
+void create(char **query, const char *orig, const char *label, const char *dest){
+    int dl = 32 + (2*(strlen(orig) + 1)) + (strlen(label) + 1) + (2*(strlen(dest) + 1));
+    int dq = dl;
+    if (*query != NULL)
+        dq += strlen(*query) + 1;
+
+    char *tmp = (char *)malloc(sizeof(char) * dq);
+    if (tmp != NULL){
+        if(*query != NULL){
+            strncpy(tmp, *query, strlen(*query));
+            tmp[strlen(*query)] = '\0';
+            free(*query);
+        }
+        else{
+            strncpy(tmp, "", 1);
+            tmp[1] = '\0';
+        }
+        *query = tmp;
+    }
+    else{
+        free(*query);
+        free(tmp);
+        exit(1);
+    }
+
+    tmp = (char *)malloc(sizeof(char) * dl);
+    const char * str = "make (%s)\nmake (%s)\nmake (%s) -[%s]> (%s)\n";
+    sprintf(tmp, str, orig, dest, orig, label, dest);
+    strncat(*query, tmp, dl);
+    free(tmp);
+}
+
+void gen_ni_name(char **mac, int num, int k){
+    int x = num * 8 + k;
+    char *temp = (char *)malloc(sizeof(char)*3);
+    *mac = (char *)malloc(sizeof(char)*19);
+    strncpy(*mac, "", 1);
+    (*mac)[1] = '\0';
+
+    while(x > 0){
+        sprintf(temp, "%02x", x%256);
+        strncat(*mac, temp, 2);
+        strncat(*mac, ":", 1);
+        x /= 256;
+    }
+    while(strlen(*mac) < 16){
+        strncat(*mac, "00", 2);
+        strncat(*mac, ":", 1);
+    }
+    (*mac)[strlen(*mac) - 1] = '\0';
+    free(temp);
+}
+
+char * create_mc(int x){
+    char *query = NULL;
+
+    char *machine = (char *)malloc(sizeof(char)*(strlen("hm0000") + 1));
+    sprintf(machine, "hm%04d", x);
+
+    char *sw = (char *)malloc(sizeof(char)*(strlen("sw0000") + 1));
+    sprintf(sw, "sw%04d", (x*8)/64);
+
+    create(&query, "ITA", "machine", machine);
+    create(&query, "ITA", "switch", sw);
+
+    int k;
+    for(k = 0; k < 8; k++){
+        char *mac = NULL;
+        gen_ni_name(&mac, x, k);
+
+        create(&query, machine, "nic", mac);
+        create(&query, mac, "link", sw);
+
+        free(mac);
+    }
+
+    char *res = (char *)malloc(sizeof(char)*(strlen("using (test_database) ;") + strlen(query) + 2));
+    query[strlen(query) - 1] = '\0';
+    sprintf(res, "using (test_database) %s;", query);
+    free(machine);
+    free(sw);
+    free(query);
+    return(res);
+}
+
+struct TestSetUp
+{
+    TestSetUp()
+    {
+        context_t *ctx = leela_context_init();
+
+        int x;
+        row_t *row = NULL;
+        for(x = 0; x < 1; x++){
+            cursor_t *cur = leela_cursor_init(ctx, "tcp://warp0017.locaweb.com.br:4080");
+            row = (row_t *)malloc(sizeof(row_t));
+            char *query = create_mc(x);
+
+            leela_lql_execute(cur, query);
+            leela_cursor_next(cur, row);
+
+            leela_cursor_close(cur, 1);
+            if(query != NULL){
+                free(query);
+                query = NULL;
+            }
+            if(row != NULL){
+                free(row);
+                row = NULL;
+            }
+        }
+        leela_context_close(ctx);
+    }
+};
+
 TEST(TestDatabaseIsEmpty)
 {
     const char *query_matrix[] = {"using (test_database) path (%s);"};
-
-
-    int major, minor, patch;
-    zmq_version (&major, &minor, &patch);
-    printf ("Current 0MQ version is %d.%d.%d\n", major, minor, patch);
 
     row_t *row = NULL;
     context_t *ctx = leela_context_init();
@@ -121,8 +231,8 @@ TEST(TestMakePath)
             CHECK(res != -1);
             CHECK(row != NULL);
             if (row->row_type == PATH){
-                printf("[PRG DEBUG] GUID : %s\n", row->path.guid);
                 printf("[PRG DEBUG] LABL : %s\n", row->path.label);
+                printf("[PRG DEBUG] GUID : %s\n", row->path.guid);
 
                 name = (char *)malloc(strlen(row->path.guid) + 1);
                 CHECK(name != NULL);
@@ -176,6 +286,63 @@ TEST(TestMakePath)
         free(datacenter);
         datacenter = NULL;
     }
+    CHECK(leela_context_close(ctx) != -1);
+}
+
+TEST_FIXTURE(TestSetUp, TestItemAndList)
+{
+    row_t *row = (row_t *)malloc(sizeof(row_t));
+    context_t *ctx = leela_context_init();
+    CHECK(ctx != NULL);
+    cursor_t *cur = leela_cursor_init(ctx, "tcp://warp0017.locaweb.com.br:4080");
+    CHECK(cur != NULL);
+
+    CHECK(leela_lql_execute(cur, "using (test_database) path (hm0000);") != -1);
+
+    int res = 0;
+    do{
+        res = leela_cursor_next(cur, row);
+        CHECK(res != -1);
+        CHECK(row != NULL);
+        if (row->row_type == PATH){
+            printf("[PRG DEBUG] LABL : %s\n", row->path.label);
+            printf("[PRG DEBUG] GUID : %s\n", row->path.guid);
+
+            if(row->path.label != NULL){
+                free(row->path.label);
+                row->path.label = NULL;
+            }
+            if(row->path.guid != NULL){
+                free(row->path.guid);
+                row->path.guid = NULL;
+            }
+        }
+        if (row->row_type == NAME){
+            printf("[PRG DEBUG] USER : %s\n", row->name.user);
+            printf("[PRG DEBUG] TREE : %s\n", row->name.tree);
+            printf("[PRG DEBUG] NAME : %s\n", row->name.name);
+
+            if(row->name.user != NULL){
+                free(row->name.user);
+                row->name.user = NULL;
+            }
+            if(row->name.tree != NULL){
+                free(row->name.tree);
+                row->name.tree = NULL;
+            }
+            if(row->name.name != NULL){
+                free(row->name.name);
+                row->name.name = NULL;
+            }
+        }
+    }while(res > 0);
+
+    if(row != NULL){
+        free(row);
+        row = NULL;
+    }
+
+    CHECK(leela_cursor_close(cur, 1) != -1);
     CHECK(leela_context_close(ctx) != -1);
 }
 
