@@ -1,0 +1,37 @@
+-*- mode: markdown; -*-
+
+# leela_cursor_close(3) -- leela cursor finisher #
+
+## SYNOPSIS ##
+
+    #include "lql.h"
+    
+    int leela_cursor_close(struct cursor_t *cur, int nowait);
+
+## DESCRIPTION ##
+
+Closes the socket associated with the cursor.
+
+## RETURN VALUE ##
+
+**Value equals zero**: Success.
+
+## ERRORS ##
+
+**-1**: Some error occurred.
+
+## SEE ALSO ##
+
+leela_query_library(3), leela_context_init(3), leela_cursor_init(3), leela_lql_execute(3), leela_cursor_next(3), leela_context_close(3), leela-warpdrive(1)
+
+## AUTHORS ##
+
+This manual page has been written by Alexandre Baaklini <abaaklini@gmail.com>
+
+## RESOURCES ##
+
+Source code available at http://github.com/locaweb/leela
+
+## COPYING ##
+
+Please refer to COPYING file.

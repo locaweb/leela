@@ -116,7 +116,7 @@ struct TestSetUp
 
         int x;
         row_t *row = NULL;
-        for(x = 0; x < 1; x++){
+        for(x = 0; x < 10; x++){
             cursor_t *cur = leela_cursor_init(ctx, "tcp://warp0017.locaweb.com.br:4080");
             row = (row_t *)malloc(sizeof(row_t));
             char *query = create_mc(x);
@@ -297,7 +297,7 @@ TEST_FIXTURE(TestSetUp, TestItemAndList)
     cursor_t *cur = leela_cursor_init(ctx, "tcp://warp0017.locaweb.com.br:4080");
     CHECK(cur != NULL);
 
-    CHECK(leela_lql_execute(cur, "using (test_database) path (hm0000);") != -1);
+    CHECK(leela_lql_execute(cur, "using (test_database) path (ITA);") != -1);
 
     int res = 0;
     do{

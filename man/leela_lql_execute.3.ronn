@@ -1,0 +1,37 @@
+-*- mode: markdown; -*-
+
+# leela_lql_execute(3) -- leela query dispatcher #
+
+## SYNOPSIS ##
+
+    #include "lql.h"
+    
+    int leela_lql_execute(struct cursor_t *cur, const char *query);
+
+## DESCRIPTION ##
+
+Given a cursor and a query, it submits the query string to the Leela Server.
+
+## RETURN VALUE ##
+
+**Value equals zero**: Success.
+
+## ERRORS ##
+
+**-1**: Some error occurred.
+
+## SEE ALSO ##
+
+leela_query_library(3), leela_context_init(3), leela_cursor_init(3), leela_cursor_next(3), leela_cursor_close(3), leela_context_close(3), leela-warpdrive(1)
+
+## AUTHORS ##
+
+This manual page has been written by Alexandre Baaklini <abaaklini@gmail.com>
+
+## RESOURCES ##
+
+Source code available at http://github.com/locaweb/leela
+
+## COPYING ##
+
+Please refer to COPYING file.

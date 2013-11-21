@@ -27,26 +27,12 @@ struct cursor_t;
 
 enum Type {NAME, PATH, END};
 
-/*
- * Single direction linked list
- * to handle the PATH command
- * response. The structure fields
- * are related to the data requested
- * by the user.
- */
 typedef struct path_t_
 {
     char           *label;
     char           *guid;
 } path_t;
 
-/*
- * Single direction linked list
- * to handle the NAME command
- * response. The structure fields
- * are related to the data requested
- * by the user.
- */
 typedef struct name_t_
 {
     char           *user;
@@ -54,9 +40,6 @@ typedef struct name_t_
     char           *name;
 } name_t;
 
-/*
- *
- */
 typedef struct row_t_
 {
     enum Type row_type;
@@ -67,67 +50,16 @@ typedef struct row_t_
     };
 } row_t;
 
-/*
- * It returns a thread-safe context to be used
- * to connects to the Pool of Leela Servers
- * Returns:
- *      Context;
- * Error:
- *      Returns NULL
- */
 struct context_t *leela_context_init();
 
-/*
- * Given a context and an endpoint, it returns
- * a Cursor that will be used to attach
- * to the Pool of Leela Servers.
- * Returns:
- *      Cursor
- * Error:
- *      Returns NULL
- */
 struct cursor_t *leela_cursor_init(struct context_t *ctx, const char *endpoint);
 
-/*
- * Given a cursor and a query, it starts
- * the query process to fetch data
- * from the Pool of Leela Servers.
- * Returns:
- *      Cursor;
- * Error:
- *       0:            - Success;
- *      <0:            - Error Code;
- */
 int leela_lql_execute(struct cursor_t *cur, const char * query);
 
-/*
- * Fetch in an iterative way, the data returned by
- * the Pool of Leela Servers. The data is returned
- * back through the row argument as a structure
- * related to the data that it contains.
- * Returns:
- *       0:            - Success;
- *      <0:            - Error Code;
- */
 int leela_cursor_next(struct cursor_t *cur, row_t *row);
 
-/*
- * Closes the socket associated with the cursor
- * and clean the linked list used to store data.
- * Returns:
- *      >0:            - Success;
- *       0:            - Finished;
- *      <0:            - Error Code;
- */
 int leela_cursor_close(struct cursor_t *cur, int nowait);
 
-/*
- * Closes the context and free all process
- * used for communication purpose.
- * Returns:
- *       0:            - Success;
- *      <0:            - Error Code;
- */
 int leela_context_close(struct context_t *ctx);
 
 #endif //__lql_h__

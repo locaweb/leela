@@ -1,0 +1,47 @@
+-*- mode: markdown; -*-
+
+# leela_query_library(3) -- leela query library api manual #
+
+## SYNOPSIS ##
+
+    #include "lql.h"
+    
+    struct context_t *leela_context_init();
+    struct cursor_t *leela_cursor_init(struct context_t *ctx, const char *endpoint);
+    int leela_lql_execute(struct cursor_t *cur, const char *query);
+    int leela_cursor_next(struct cursor_t *cur, row_t *row);
+    int leela_cursor_close(struct cursor_t *cur, int nowait);
+    int leela_context_close(struct context_t *ctx);
+
+    cc [flags] files -llql [libraries]
+
+## DESCRIPTION ##
+
+This library provides a user-friendly access to the Leela Query Language
+implemented by the WarpDrive engine, using the ZeroMQ layer to build a
+reliable streamer connection.
+
+The real intent is to hide the Leela Network Iterator protocol from the user
+and gives some convenience as, user side timeouts, socket writes with no wait
+response, load balancing distribution through the servers and automatic
+socket/channel close on leaving context scope.
+
+Although all the benefits provided, the user are free, but not encouraged, to use
+the low level library methods, but in this case a better knowledge on the ZeroMQ
+suit is required.
+
+## SEE ALSO ##
+
+leela_context_init(3), leela_cursor_init(3), leela_lql_execute(3), leela_cursor_next(3), leela_cursor_close(3), leela_context_close(3), leela-warpdrive(1)
+
+## AUTHORS ##
+
+This manual page has been written by Alexandre Baaklini <abaaklini@gmail.com>
+
+## RESOURCES ##
+
+Source code available at http://github.com/locaweb/leela
+
+## COPYING ##
+
+Please refer to COPYING file.
