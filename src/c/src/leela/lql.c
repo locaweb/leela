@@ -7,6 +7,7 @@ struct cursor_t     { void * cur; };
 static char * channel;
 static int sock_closed = 0;
 static int res = 0;
+static int timeout = -1;
 
 void leela_lql_debug(const char *prefix, int size, const char *ss){
     if (DEBUG){ fprintf(stderr, "[LIB DEBUG] %s %.*s\n", prefix, size, ss); }
@@ -47,6 +48,10 @@ size_t get_msg(struct cursor_t *cur, zmq_msg_t *message){
     size_t size = 0;
 
     if (zmq_msg_init (message) == -1){ return(drop_connection(__FILE__, __LINE__)); }
+
+    if (zmq_setsockopt(cur->cur, ZMQ_RCVTIMEO, &timeout, sizeof(timeout)) == -1){
+        return(drop_connection(__FILE__, __LINE__));
+    }
 
     size = zmq_msg_recv (message, cur->cur, 0);
     if (size == -1){ return(EXIT_SUCCESS); }
@@ -268,8 +273,9 @@ int leela_next(struct cursor_t *cur, row_t *row){
     return(res);
 }
 
-int leela_cursor_next(struct cursor_t *cur, row_t *row){
+int leela_cursor_next(struct cursor_t *cur, row_t *row, int tmout){
 
+    timeout = tmout;
     if(res == 0){
         if (leela_lql_send(cur, leela_lql_auth(), ZMQ_SNDMORE) < 0){ return(drop_connection(__FILE__, __LINE__)); }
         if (leela_lql_send(cur, "fetch", ZMQ_SNDMORE) < 0){ return(drop_connection(__FILE__, __LINE__)); }

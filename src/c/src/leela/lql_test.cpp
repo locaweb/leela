@@ -122,7 +122,7 @@ struct TestSetUp
             char *query = create_mc(x);
 
             leela_lql_execute(cur, query);
-            leela_cursor_next(cur, row);
+            leela_cursor_next(cur, row, 1000);
 
             leela_cursor_close(cur, 1);
             if(query != NULL){
@@ -165,7 +165,7 @@ TEST(TestDatabaseIsEmpty)
 
         row = (row_t *)malloc(sizeof(row_t));
         CHECK(row != NULL);
-        CHECK(leela_cursor_next(cur, row) != -1);
+        CHECK(leela_cursor_next(cur, row, 1000) != -1);
 
         if(query != NULL){
             free(query);
@@ -227,7 +227,7 @@ TEST(TestMakePath)
 
         int res = 0;
         do{
-            res = leela_cursor_next(cur, row);
+            res = leela_cursor_next(cur, row, 1000);
             CHECK(res != -1);
             CHECK(row != NULL);
             if (row->row_type == PATH){
@@ -301,7 +301,7 @@ TEST_FIXTURE(TestSetUp, TestItemAndList)
 
     int res = 0;
     do{
-        res = leela_cursor_next(cur, row);
+        res = leela_cursor_next(cur, row, 1000);
         CHECK(res != -1);
         CHECK(row != NULL);
         if (row->row_type == PATH){
