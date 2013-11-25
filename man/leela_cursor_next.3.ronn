@@ -6,7 +6,7 @@
 
     #include "lql.h"
     
-    int leela_cursor_next(struct cursor_t *cur, row_t *row);
+    int leela_cursor_next(struct cursor_t *cur, row_t *row, int tmout);
 
 ## DESCRIPTION ##
 

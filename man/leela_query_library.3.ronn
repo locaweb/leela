@@ -9,7 +9,7 @@
     struct context_t *leela_context_init();
     struct cursor_t *leela_cursor_init(struct context_t *ctx, const char *endpoint);
     int leela_lql_execute(struct cursor_t *cur, const char *query);
-    int leela_cursor_next(struct cursor_t *cur, row_t *row);
+    int leela_cursor_next(struct cursor_t *cur, row_t *row, int tmout);
     int leela_cursor_close(struct cursor_t *cur, int nowait);
     int leela_context_close(struct context_t *ctx);
 
