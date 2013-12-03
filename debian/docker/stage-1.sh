@@ -4,7 +4,7 @@ set -e
 set -x
 
 docker_build () {
-  docker build -t leela/dev .
+  docker build -rm -t leela/dev .
 }
 
 stage1_installpkg () {
@@ -28,6 +28,7 @@ stage1_installghc () {
   cd /opt/cabal-install-1.18.0.2
   ./bootstrap.sh --global
 
+  cabal update
   cabal install happy --symlink-bindir=/usr/bin
   cabal install alex --symlink-bindir=/usr/bin
 }
@@ -37,8 +38,16 @@ stage1_installclj () {
   echo debconf shared/accepted-oracle-license-v1-1 select true | debconf-set-selections
   echo debconf shared/accepted-oracle-license-v1-1 seen true | debconf-set-selections
   apt-key adv --keyserver keyserver.ubuntu.com --recv-keys EEA14886
-  apt-get update && apt-get -q --yes --force-yes \
-    install oracle-java7-installer
+  apt-get update && apt-get install -q --yes --force-yes \
+    automake pkg-config libtool \
+    oracle-java7-installer
+
+  wget -O - https://github.com/zeromq/jzmq/archive/v2.2.2.tar.gz | tar -x -z -C /opt
+  cd /opt/jzmq-2.2.2
+  ./autogen.sh
+  ./configure --prefix=/usr
+  make
+  make install
 
   wget -O /usr/bin/lein https://raw.github.com/technomancy/leiningen/stable/bin/lein
   chmod 755 /usr/bin/lein

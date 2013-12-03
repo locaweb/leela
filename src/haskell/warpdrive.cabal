@@ -18,7 +18,7 @@ source-repository head
   location: git://github.com/locaweb/leela.git
 
 executable warpdrive
-  main-is:          Leela/warpdrive.hs
+  main-is:          warpdrive.hs
   ghc-options:      -threaded -rtsopts -W -Wall 
   build-depends:    stm               (>= 2.4  && < 3)
                   , hzk               (>= 1.0  && < 2)

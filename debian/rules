@@ -1,0 +1,33 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+bin_lein    ?= lein
+bin_cabal   ?= cabal
+
+%:
+	dh $@
+
+warpdrive-build:
+	dh_testdir
+	cd src/haskell; { \
+          $(bin_cabal) sandbox init; \
+          $(bin_cabal) install --only-dependencies; \
+          $(bin_cabal) configure -O2; \
+          $(bin_cabal) build; \
+        }
+
+warpdrive-clean:
+	rm -f src/haskell/cabal.sandbox.config
+	rm -r -f src/haskell/dist src/haskell/.cabal-sandbox
+
+blackbox-clean:
+	rm -r -f src/clojure/target
+
+blackbox-build:
+	cd src/clojure; env LEIN_ROOT=ok $(bin_lein) uberjar
+	cp -a /usr/lib/libjzmq*.so* src/clojure/target
+
+override_dh_auto_clean: warpdrive-clean blackbox-clean
+	dh_clean
+
+override_dh_auto_build: warpdrive-build blackbox-build

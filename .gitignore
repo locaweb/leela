@@ -14,3 +14,12 @@
 /src/haskell/dist/
 /docker/app/leela-dist.tgz
 /docker/app/leela.tar.gz
+/src/haskell/.cabal-sandbox
+/src/haskell/cabal.sandbox.config
+/debian/leela/
+/debian/leela-blackbox/
+/debian/leela-warpdrive/
+/debian/*.debhelper
+/debian/*.debhelper.log
+/debian/files
+/debian/*.substvars
