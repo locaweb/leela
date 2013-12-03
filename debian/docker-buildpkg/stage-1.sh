@@ -11,8 +11,8 @@ stage1_installpkg () {
   echo "deb http://cdn.debian.net/debian wheezy main non-free contrib" > /etc/apt/sources.list
   echo "deb http://cdn.debian.net/debian wheezy-backports main" > /etc/apt/sources.list.d/backports.list
   apt-get update && apt-get install -q --yes --force-yes \
-    libncursesw5-dev libffi-dev libzmq3-dev zlib1g-dev \
-    wget ca-certificates
+    libncursesw5-dev libffi-dev libzmq3-dev zlib1g-dev libzookeeper-mt-dev \
+    wget ca-certificates debhelper devscripts
 }
 
 stage1_installghc () {
@@ -27,6 +27,9 @@ stage1_installghc () {
   wget -O - http://www.haskell.org/cabal/release/cabal-install-1.18.0.2/cabal-install-1.18.0.2.tar.gz | tar -x -z -C /opt
   cd /opt/cabal-install-1.18.0.2
   ./bootstrap.sh --global
+
+  cabal install happy --symlink-bindir=/usr/bin
+  cabal install alex --symlink-bindir=/usr/bin
 }
 
 stage1_installclj () {
@@ -37,9 +40,8 @@ stage1_installclj () {
   apt-get update && apt-get -q --yes --force-yes \
     install oracle-java7-installer
 
-  wget -O /opt/leingen.sh https://raw.github.com/technomancy/leiningen/stable/bin/lein
-  chmod 755 /opt/leingen.sh
-  /opt/leingen.sh
+  wget -O /usr/bin/lein https://raw.github.com/technomancy/leiningen/stable/bin/lein
+  chmod 755 /usr/bin/lein
 }
 
 if [ "$(basename $0)" = in-target.sh ]
