@@ -36,15 +36,16 @@
     (warn "creating table search")
     (create-table cluster :search (column-definitions {:key :blob :code :int :name :varchar :primary-key [[:key :code] :name]}))))
 
-(defmacro with-connection [[conn endpoint] & body]
-  `(let [seed# ~endpoint
-         ~conn (client/connect (client/build-cluster {:contact-points seed#}))]
+(defmacro with-connection [[conn endpoint options] & body]
+  `(let [~conn (client/connect (client/build-cluster {:contact-points ~endpoint
+                                                      :credentials (:credentials ~options)
+                                                      :max-connections-per-host (:connections ~options)}))]
      (try
        ~@body
        (finally (.shutdown ~conn)))))
 
-(defmacro with-session [[cluster endpoint keyspace] & body]
-  `(with-connection [~cluster ~endpoint]
+(defmacro with-session [[cluster endpoint keyspace & options] & body]
+  `(with-connection [~cluster ~endpoint ~(first options)]
      (check-schema ~cluster ~keyspace)
      ~@body))
 
