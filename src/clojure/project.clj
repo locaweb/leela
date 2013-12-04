@@ -10,7 +10,4 @@
                  [org.clojure/data.json "0.2.3"]
                  [org.clojure/tools.cli "0.2.4"]
                  [clojurewerkz/cassaforte "1.2.0"]
-                 [org.clojure/tools.logging "0.2.6"]
-                 [org.apache.zookeeper/zookeeper "3.4.5" :exclusions [javax.jms/jms
-                                                                      com.sun.jmx/jmxri
-                                                                      com.sun.jdmk/jmxtools]]])
+                 [org.clojure/tools.logging "0.2.6"]])

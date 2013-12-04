@@ -14,8 +14,7 @@
 ;; along with Leela.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns leela.blackbox.czmq.router
-  (:use     [clojure.tools.logging :only [trace debug error info warn]]
-            [leela.blackbox.config :as cfg])
+  (:use     [clojure.tools.logging :only [trace debug error info warn]])
   (:import  [org.zeromq ZMQ ZMQ$Poller])
   (:require [leela.blackbox.f :as f]
             [leela.blackbox.czmq.zhelpers :as z]))
@@ -45,31 +44,29 @@
       (error e "error evaluating worker")
       (cons peer (cons "" (:onerr worker))))))
 
-(defn run-worker [watch ctx endpoint queue worker]
+(defn run-worker [ctx endpoint queue worker]
   (with-open [fh (.socket ctx ZMQ/PUSH)]
     (trace (format "ENTER:run-worker %s" endpoint))
     (.connect (z/setup-socket fh) endpoint)
-    (f/forever-with
-     watch
+    (f/forever
      (let [item (.poll queue 1 s)]
        (when item (z/sendmulti fh (evaluate worker item)))))))
 
-(defn fork-worker [watch ctx endpoint queue worker]
-  (.start (Thread. #(f/supervise-with watch (run-worker watch ctx endpoint queue worker)))))
+(defn fork-worker [ctx endpoint queue worker]
+  (.start (Thread. #(f/supervise (run-worker ctx endpoint queue worker)))))
 
-(defn router-start1 [ctx worker]
+(defn router-start1 [ctx worker cfg]
   (trace "ENTER:router-start1")
   (with-open [ifh (.socket ctx ZMQ/ROUTER)
               ofh (.socket ctx ZMQ/PULL)]
-    (let [[cfg watch] (cfg/get-state :zmqrouter)
-          queue       (make-queue (:queue-size cfg))
-          ipcendpoint (format "inproc://blackbox.v%d" (:version cfg))]
+    (let [queue       (make-queue (:queue-size cfg))
+          ipcendpoint "inproc://blackbox.router"]
       (info (format "router-start1; config=%s" cfg))
       (.bind (z/setup-socket ofh) ipcendpoint)
       (.bind (z/setup-socket ifh) (:endpoint cfg))
-      (dotimes [_ (:capabilities cfg)] (fork-worker watch ctx ipcendpoint queue worker))
-      (f/supervise-with watch (routing-loop ifh ofh queue))))
+      (dotimes [_ (:capabilities cfg)] (fork-worker ctx ipcendpoint queue worker))
+      (f/supervise (routing-loop ifh ofh queue))))
   (trace "EXIT:router-start1"))
 
-(defmacro router-start [ctx worker]
-  `(f/supervise (router-start1 ~ctx ~worker)))
+(defmacro router-start [ctx worker cfg]
+  `(f/supervise (router-start1 ~ctx ~worker ~cfg)))

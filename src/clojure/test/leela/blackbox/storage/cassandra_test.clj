@@ -4,19 +4,18 @@
             [clojurewerkz.cassaforte.embedded]
             [clojurewerkz.cassaforte.multi.cql])
   (:require [leela.blackbox.f :as f]
-            [leela.blackbox.config :as cfg]
             [clojurewerkz.cassaforte.client :as client]
             [leela.blackbox.storage.cassandra :as storage]))
 
 (defn storage-cleanup [f]
-  (storage/with-session [cluster "127.0.0.1" "leela"]
+  (storage/with-session [cluster ["127.0.0.1"] "leela"]
     (storage/truncate-all cluster))
   (f))
 
 (use-fixtures :each storage-cleanup)
 
 (deftest test-cassandra-backend
-  (storage/with-session [cluster "127.0.0.1" "leela"]
+  (storage/with-session [cluster ["127.0.0.1"] "leela"]
 
     (testing "getindex with no data"
       (is (= [] (storage/getindex cluster "0x00" 0))))
@@ -65,6 +64,7 @@
       (storage/putlink cluster "0x00" "0x03")
       (storage/with-limit 1
         (is (= ["0x01"] (storage/getlink cluster "0x00")))
-        (is (= ["0x02"] (storage/getlink cluster "0x00" "0x01")))
-        (is (= ["0x03"] (storage/getlink cluster "0x00" "0x02")))
-        (is (= [] (storage/getlink cluster "0x00" "0x03")))))))
+        (is (= ["0x01"] (storage/getlink cluster "0x00" "0x01")))
+        (is (= ["0x02"] (storage/getlink cluster "0x00" "0x02")))
+        (is (= ["0x03"] (storage/getlink cluster "0x00" "0x03")))
+        (is (= [] (storage/getlink cluster "0x00" "0x04")))))))

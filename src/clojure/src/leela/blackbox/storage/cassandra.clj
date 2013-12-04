@@ -19,7 +19,6 @@
             [clojurewerkz.cassaforte.multi.cql])
   (:require [clojure.string :as s]
             [leela.blackbox.f :as f]
-            [leela.blackbox.config :as cfg]
             [clojurewerkz.cassaforte.client :as client]))
 
 (def +limit+ 256)

@@ -158,5 +158,5 @@
 (defn zmqworker [cluster]
   {:onjob #(handle-message cluster %) :onerr (msg-fail 500)})
 
-(defn server-start [ctx cluster]
-  (router/router-start ctx (zmqworker cluster)))  
+(defn server-start [ctx cluster options]
+  (router/router-start ctx (zmqworker cluster) options))

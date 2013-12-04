@@ -15,11 +15,10 @@
 
 (ns leela.blackbox.blackbox
   (:use     [clojure.tools.cli :only [cli]]
-            [clojure.tools.logging :only [warn]]
-            [leela.blackbox.config :as cfg])
+            [clojure.tools.logging :only [warn]])
   (:import  [org.zeromq ZMQ])
-  (:require [leela.blackbox.f :as f]
-            [leela.blackbox.config :as config]
+  (:require [clojure.string :as string]
+            [leela.blackbox.f :as f]
             [leela.blackbox.network.zmqserver :as zserver]
             [leela.blackbox.storage.cassandra :as storage])
   (:gen-class))
@@ -34,17 +33,20 @@
                                    ["--help" "this message"
                                     :default false
                                     :flag true]
-                                   ["--zookeeper" "the zookeeper address to connect to"
-                                    :default "127.0.0.1:2181/leela"]
-                                   ["--zk-authfile" "the file to read the credentials from"]
-                                   ["--node" "the nodename to report and also to read config from"
-                                    :default (.. java.net.InetAddress getLocalHost getHostName)])]
+                                   ["--cassandra" "the cassandra hosts [comma separated] to connect to"
+                                    :default "localhost"]
+                                   ["--keyspace" "the keyspace to use"
+                                    :default "leela"]
+                                   ["--capabilities" "the number of workers to fork"
+                                    :default 64]
+                                   ["--queue-size" "the number of outstanding requests"
+                                    :default 32]
+                                   ["--endpoint" "the binding address"
+                                    :default "tcp://*:50021"])]
     (when (:help options)
       (println banner)
       (System/exit 0))
 
-    (config/zk-attach (:node options) (:zookeeper options) (maybe-cat "leela:leela" (:zk-authfile options)))
-    (let [cfg (config/read-state :cassandra)]
-      (f/supervise
-       (storage/with-session [cluster (get cfg :seed ["127.0.0.1"]) (get cfg :keyspace "leela")]
-         (zserver/server-start (ZMQ/context 1) cluster))))))
+    (f/supervise
+     (storage/with-session [cluster (string/split (:cassandra options) ",") (:keyspace options)]
+       (zserver/server-start (ZMQ/context 1) cluster options)))))

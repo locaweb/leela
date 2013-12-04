@@ -14,7 +14,8 @@
 ;; along with Leela.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns leela.blackbox.f
-  (:use     [clojure.tools.logging :only [error]])
+  (:use     [clojure.tools.logging :only [error]]
+            [clojure.inspector])
   (:require [clojure.data.json :as json]))
 
 (defmacro forever [& body]
@@ -59,7 +60,9 @@
 (def json-to-str json/write-str)
 
 (defn bytes-to-str [bytes]
-  (String. bytes +charset-utf8+))
+  (if (instance? String bytes)
+    bytes
+    (String. bytes +charset-utf8+)))
 
 (defn str-to-bytes [s]
   (.getBytes s +charset-utf8+))
