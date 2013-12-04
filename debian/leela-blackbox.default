@@ -1,0 +1,17 @@
+# The username to connect to cassandra
+LEELA_BLACKBOX_USERNAME=leela
+
+# The password to connect to cassandra
+LEELA_BLACKBOX_PASSWORD=leela
+
+# The cassandra cluster to connect to (use multiple nodes to increase availability)
+LEELA_BLACKBOX_CASSANDRA=localhost
+
+# The endpoint to bind to (do not use *)
+LEELA_BLACKBOX_ENDPOINT=tcp://localhost:50021
+
+# The path to register on zookeeper
+LEELA_BLACKBOX_WATCHDOG_PATH=/leela/blackbox/$(uuid)
+
+# The zookeeper cluster to connect to
+LEELA_BLACKBOX_WATCHDOG_ZOOKEEPER=localhost:2181

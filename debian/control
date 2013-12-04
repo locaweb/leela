@@ -13,5 +13,5 @@ Description: Leela - Scalable metrics monitoring engine (server module)
 
 Package: leela-blackbox
 Architecture: any
-Depends: ${misc:Depends}, libzmq3, java7-runtime
+Depends: ${misc:Depends}, libzmq3, java7-runtime, daemon, netcat, coreutils, tractorbeam, uuid
 Description: Leela - Scalable metrics monitoring engine (storage module)

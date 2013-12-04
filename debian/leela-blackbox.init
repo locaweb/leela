@@ -17,24 +17,32 @@ GROUP=leela
 
 . /lib/lsb/init-functions
 [ -x /usr/bin/daemon               ] || exit 1
-[ -r "/etc/default/leela/blackbox" ] && . /etc/default/leela/blackbox
+[ -r "/etc/default/leela-blackbox" ] && . /etc/default/leela-blackbox
 
-start() {
-  daemon --delay 60 -r -o /var/log/leela/blackbox.log \
+start_watchdog () {
+  daemon --delay 10 -r -o /var/log/leela/blackbox-watchdog.log \
+    -u $USER:$GROUP -P /var/run/leela -n leela-blackbox-watchdog -- \
+    tractorbeam send --zookeeper "$LEELA_BLACKBOX_WATCHDOG_ZOOKEEPER" --exec /usr/bin/leela-blackbox-watchdog.sh --path "${LEELA_BLACKBOX_WATCHDOG_PATH}" "$LEELA_BLACKBOX_WATHDOG_OPTIONS"
+}
+
+stop_watchdog () {
+  daemon -P /var/run/leela -n leela-blackbox-watchdog --stop
+}
+
+start () {
+  daemon --delay 10 -r -o /var/log/leela/blackbox.log \
     -e LEELA_BLACKBOX_USERNAME="$LEELA_BLACKBOX_USERNAME" \
     -e LEELA_BLACKBOX_PASSWORD="$LEELA_BLACKBOX_PASSWORD" \
     -u $USER:$GROUP -P /var/run/leela -n leela-blackbox -- \
     java -jar /usr/lib/blackbox.jar \
     --cassandra ${LEELA_BLACKBOX_CASSANDRA:-localhost} \
-    --keyspace ${LEELA_BLACKBOX_KEYSPACE:-leela} \
     --username '$LEELA_BLACKBOX_USERNAME' \
     --password '$LEELA_BLACKBOX_PASSWORD' \
     --endpoint ${LEELA_BLACKBOX_ENDPOINT:-tcp://localhost:50021} \
-    --capabilities ${LEELA_BLACKBOX_CAPABILITIES:-64} \
-    --queue-size ${LEELA_BLACKBOX_QUEUESIZE:-32}
+    "$LEELA_BLACKBOX_OPTIONS"
 }
 
-stop() {
+stop () {
   daemon --stop -P /var/run/leela -n leela-blackbox
 }
 
@@ -50,6 +58,14 @@ case "$1" in
   (restart)
     stop
     start
+    ;;
+
+  (stop-watchdog)
+    stop_watchdog
+    ;;
+
+  (start-watchdog)
+    start_watchdog
     ;;
 
   (*)

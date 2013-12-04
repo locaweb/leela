@@ -30,4 +30,7 @@ blackbox-build:
 override_dh_auto_clean: warpdrive-clean blackbox-clean
 	dh_clean
 
+override_dh_installinit:
+	dh_installinit --no-start
+
 override_dh_auto_build: warpdrive-build blackbox-build
