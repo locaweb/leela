@@ -20,10 +20,10 @@ module Leela.Network.ZMQServer
        ) where
 
 import System.ZMQ3
-import Leela.Config
 import Leela.HZMQ.Router
 import Leela.Network.Core
 import Leela.Data.QDevice
+import Leela.Data.Endpoint
 import Leela.Storage.Backend
 import Leela.Network.Protocol
 
@@ -34,6 +34,6 @@ worker m srv = Worker f (return . encode . encodeE)
               Left err -> return $ encode err
               Right q  -> fmap encode (process m srv q)
 
-startServer :: (GraphBackend m) => Cfg -> Context -> Control -> m -> String -> IO ()
-startServer cfg ctx ctrl storage conf =
-  fmap (worker storage) new >>= startRouter cfg ctx ctrl conf
+startServer :: (GraphBackend m) => Endpoint -> Context -> Control -> m -> IO ()
+startServer addr ctx ctrl storage =
+  fmap (worker storage) new >>= startRouter addr ctx ctrl

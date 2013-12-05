@@ -15,16 +15,16 @@
 
 module Leela.HZMQ.Dealer
        ( Dealer
+       , DealerConf (..)
        , create
        , request
        , destroy
        ) where
 
-import           Data.List (isPrefixOf)
+import           Data.IORef
 import           Data.Maybe
 import           System.ZMQ3 hiding (Dealer, destroy, backlog)
 import           Leela.Logger
-import           Leela.Config
 import           Control.Monad
 import           Leela.Helpers
 import           Leela.Data.Pool
@@ -43,6 +43,12 @@ data Job = Job { jtime :: Time
                , jmsg  :: [B.ByteString]
                , slot  :: TMVar (Maybe [B.ByteString])
                }
+
+data DealerConf = DealerConf { timeout      :: Int
+                             , backlog      :: Int
+                             , endpoint     :: IORef [Endpoint]
+                             , capabilities :: Int
+                             }
 
 newtype Dealer = Dealer (Device Job, Pool Endpoint (TMVar ()))
 
@@ -68,18 +74,18 @@ logresult job me = do
       failOrSucc Nothing  = "DEALER.ok"
       failOrSucc (Just e) = printf "DEALER.fail[%s]" (show e)
 
-execWorker :: Context -> Int -> IO (Maybe Job) -> Endpoint-> IO ()
-execWorker ctx timeout dequeue endpoint = withSocket ctx Req $ \fh -> do
-  connect fh (toZmq (error "unknown endpoint") endpoint)
+execWorker :: DealerConf -> Context -> IO (Maybe Job) -> Endpoint -> IO ()
+execWorker cfg ctx dequeue addr = withSocket ctx Req $ \fh -> do
+  connect fh (toZmq (error "unknown endpoint") addr)
   configure fh
   workLoop fh
     where
-      timeout64 = fromIntegral timeout
+      timeout64 = fromIntegral (timeout cfg)
 
       workLoop fh = do
         mjob <- dequeue
         case mjob of
-          Nothing  -> ldebug HZMQ $ printf "worker is quitting: %s" (show endpoint)
+          Nothing  -> ldebug HZMQ $ printf "worker is quitting: %s" (show addr)
           Just job -> do
             mres <- try (sendMulti fh (fromList $ jmsg job))
             case mres of
@@ -92,15 +98,13 @@ execWorker ctx timeout dequeue endpoint = withSocket ctx Req $ \fh -> do
                 logresult job (maybe (Just $ SomeException TimeoutExcept) (const Nothing) mresult)
                 when (isJust mresult) (workLoop fh)
 
-create :: Cfg -> Context -> Control -> String -> String -> IO Dealer
-create cfg ctx ctrl conf remote = do
-  backlog <- fmap (maybe 64 id) (cfgGet asInt cfg conf "backlog")
-  lnotice HZMQ $
-    printf "creating zmq.dealer: conf: %s, remote: %s, backlog: %d" conf remote backlog
-  queue <- openIO ctrl backlog
+create :: DealerConf -> Context -> Control -> IO Dealer
+create cfg ctx ctrl = do
+  lnotice HZMQ "creating zmq.dealer"
+  queue <- openIO ctrl (backlog cfg)
   pool  <- createPool (createWorker queue) destroyWorker
   void $ forkSupervised (notClosedIO ctrl) "dealer/watcher" $ do
-    updatePool pool =<< cfgGetM loadEndpoint cfg (remote `isPrefixOf`) "endpoint"
+    updatePool pool =<< readIORef (endpoint cfg)
     threadDelay 1000000
   return (Dealer (queue, pool))
     where
@@ -113,22 +117,20 @@ create cfg ctx ctrl conf remote = do
       aliveCheck ctl = atomically $
         liftM2 (&&) (isEmptyTMVar ctl) (notClosed ctrl)
 
-      destroyWorker endpoint ctl = do
+      destroyWorker addr ctl = do
         lnotice HZMQ $
-          printf "dropping zmq.dealer/worker: endpoint=%s" (show endpoint)
+          printf "dropping zmq.dealer/worker: endpoint=%s" (show addr)
         void $ atomically $ tryPutTMVar ctl ()
 
-      createWorker queue endpoint = do
-        ctl          <- newEmptyTMVarIO
-        timeout      <- fmap (maybe 10000 id) (cfgGet asInt cfg conf "timeout-in-ms")
-        capabilities <- fmap (maybe 8 id) (cfgGet asInt cfg conf "capabilities")
+      createWorker queue addr = do
+        ctl <- newEmptyTMVarIO
         lnotice HZMQ $
-          printf "creating zmq.dealer/worker: endpoint=%s, capabilities=%d, timeout=%d" (show endpoint) capabilities timeout
-        replicateM_ capabilities $
+          printf "creating zmq.dealer/worker: endpoint=%s, capabilities=%d, timeout=%d" (show addr) (capabilities cfg) (timeout cfg)
+        replicateM_ (capabilities cfg) $
           forkSupervised
             (aliveCheck ctl)
-            ("dealer.worker/" ++ (show endpoint))
-            (execWorker ctx timeout (dequeue ctl queue) endpoint)
+            ("dealer.worker/" ++ (show addr))
+            (execWorker cfg ctx (dequeue ctl queue) addr)
         return ctl
 
 destroy :: Dealer -> IO ()

@@ -22,7 +22,6 @@ module Leela.HZMQ.Router
 
 import           Data.Maybe
 import           System.ZMQ3
-import           Leela.Config
 import           Leela.Logger
 import           Control.Monad
 import           Leela.Helpers
@@ -89,14 +88,10 @@ recvRequest fh = do
     (peer:"":msg) -> return $ Just (Request time peer msg)
     _             -> return Nothing
 
-startRouter :: Cfg -> Context -> Control -> String -> Worker -> IO ()
-startRouter cfg ctx ctrl conf action = do
-  capabilities <- fmap (maybe 64 id) (cfgGet asInt cfg conf "capabilities")
-  endpoint     <- fmap fromJust (cfgGet loadEndpoint cfg conf "endpoint")
+startRouter :: Endpoint -> Context -> Control -> Worker -> IO ()
+startRouter endpoint ctx ctrl action = do
   lnotice HZMQ $
-    printf "starting zmq.router: %s [capabilities: %d, endpoint: %s]"
-           conf
-           capabilities
+    printf "starting zmq.router: %s"
            (toEndpoint1 endpoint)
   withSocket ctx Router $ \ifh ->
     withSocket ctx Pull $ \ofh -> do
@@ -104,9 +99,9 @@ startRouter cfg ctx ctrl conf action = do
       bind ifh (toEndpoint1 endpoint)
       configure ifh
       configure ofh
-      superviseWith (notClosedIO ctrl) conf (routingLoop ifh ofh)
+      superviseWith (notClosedIO ctrl) (show endpoint) (routingLoop ifh ofh)
     where
-      oaddr = printf "inproc://%s.hzmq-router" conf
+      oaddr = printf "inproc://hzmq.router%s" (show endpoint)
 
       procRequest fh = do
         mreq <- recvRequest fh

@@ -18,9 +18,10 @@
 module Main (main) where
 
 import HFlags
+import Data.IORef
 import System.ZMQ3
-import Leela.Config
 import Leela.Logger
+import Leela.Naming
 import Control.Monad
 import Leela.HZMQ.Dealer
 import Control.Concurrent
@@ -40,8 +41,7 @@ defineEQFlag "debuglevel" [|NOTICE :: Priority|] "LOGLEVEL" "The debug level to 
 
 defineEQFlag "zookeeper" [|defaultZookeeper :: Endpoint|] "ZOOKEEPER" "The zookeeper cluster to connect to"
 
-defineEQFlag "warpdrive_endpoint" [|defaultEndpoint :: Endpoint|] "ENDPOINT" "The endpoint to bind to"
-defineFlag "warpdrive_capabilities" (64 :: Int) "Number of worker threads"
+defineEQFlag "endpoint" [|defaultEndpoint :: Endpoint|] "ENDPOINT" "The endpoint to bind to"
 
 defineFlag "blackbox_backlog" (32 :: Int) "Maximum number of pending connections"
 defineFlag "blackbox_capabilities" (4 :: Int) "Numer of worker threads (per endpoint)"
@@ -50,30 +50,25 @@ defineFlag "blackbox_timeout_in_ms" (5000 :: Int) "Maximum allowed time to wait 
 signal :: MVar () -> IO ()
 signal x = tryPutMVar x () >> return ()
 
-putenv :: Cfg -> IO ()
-putenv cfg = do
-  cfgWrite cfg Local "warpdrive" [ ("endpoint", fromShow flags_warpdrive_endpoint)
-                                 , ("capabilities", fromShow  flags_warpdrive_capabilities)
-                                 ]
-  cfgWrite cfg Local "blackbox" [ ("backlog", fromShow flags_blackbox_backlog)
-                                , ("capabilities", fromShow flags_blackbox_capabilities)
-                                , ("timeout_in_ms", fromShow flags_blackbox_timeout_in_ms)
-                                ]
-
 main :: IO ()
 main = do
   void $ $initHFlags "warpdrive - leela property graph engine"
-  cfg   <- cfgOpen flags_zookeeper ["/live/blackbox"]
-  alive <- newEmptyMVar
+  alive    <- newEmptyMVar
+  blackbox <- newIORef []
   logsetup flags_debuglevel
-  putenv cfg
   void $ installHandler sigTERM (Catch $ signal alive) Nothing
   void $ installHandler sigINT (Catch $ signal alive) Nothing
   lwarn Global "warpdrive: starting..."
+  void $ forkIO $ resolver blackbox flags_zookeeper "/naming/blackbox"
   withContext $ \ctx -> do
     withControl $ \ctrl -> do
-      storage <- fmap zmqbackend $ create cfg ctx ctrl "blackbox" "/live/blackbox"
-      void $ forkFinally (startServer cfg ctx ctrl storage "warpdrive") (\_ -> signal alive)
+      let cfg = DealerConf flags_blackbox_timeout_in_ms
+                           flags_blackbox_backlog
+                           blackbox
+                           flags_blackbox_capabilities
+      storage <- fmap zmqbackend $ create cfg ctx ctrl
+      void $ forkFinally (startServer flags_endpoint ctx ctrl storage) $ \e -> do
+        lwarn Global (printf "warpdrive has died: %s" (show e))
+        signal alive
       takeMVar alive
-      cfgClose cfg
   lwarn Global "warpdrive: bye!"
