@@ -10,6 +10,7 @@ bin_cabal   ?= cabal
 warpdrive-build:
 	dh_testdir
 	cd src/haskell; { \
+          $(bin_cabal) update; \
           $(bin_cabal) sandbox init; \
           $(bin_cabal) install --only-dependencies; \
           $(bin_cabal) configure -O2; \
