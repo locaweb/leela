@@ -14,52 +14,110 @@
  * along with Leela.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __lql_h__
-#define __lql_h__
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#ifndef __leela_lql_h__
+#define __leela_lql_h__
+
 #include <zmq.h>
-#include <assert.h>
+#include <stdbool.h>
+#include "leela/status.h"
+#include "leela/endpoint.h"
 
-struct context_t;
-struct cursor_t;
+typedef struct lql_cursor_t lql_cursor_t;
+typedef struct lql_context_t lql_context_t;
 
-enum Type {NAME, PATH, END};
+enum lql_row_type {NAME, PATH};
 
-typedef struct path_t_
+//! A simple 2-tuple type;
+typedef struct
 {
-    char           *label;
-    char           *guid;
-} path_t;
+  char *fst;
+  char *snd;
+} lql_tuple2_t;
 
-typedef struct name_t_
+//! A path entry as defined in warpdrive(1);
+typedef struct lql_path_t
 {
-    char           *user;
-    char           *tree;
-    char           *name;
-} name_t;
+  int          size;      //!^ The number of path entries;
+  lql_tuple2_t *entries;  //!^ The path entries;
+} lql_path_t;
 
-typedef struct row_t_
+//! A name entry as defined in warpdrive(1);
+typedef struct
 {
-    enum Type row_type;
-    union
-    {
-        path_t path;
-        name_t name;
-    };
-} row_t;
+  char *user;             //!^ The owner of this node;
+  char *tree;             //!^ The namespace of this node;
+  char *name;             //!^ The name of this name;
+} lql_name_t;
 
-struct context_t *leela_context_init();
+/*! Initializes the leela context. You should call this only once and
+ *  shared it in the program. It is ok, though unecessary, to have
+ *  multiple contexts.
+ *
+ *  \param zookeeper The endpoint of the zookeeper to connect. This is
+ *  used to discover the instances of warpdrive to use.
+ *  
+ *  \return * NULL     : an error has ocurred;
+ *          * otherwise: the context has been sucessfully initialized;
+ */
+struct lql_context_t *lql_context_init(const leela_endpoint_t *zookeeper);
 
-struct cursor_t *leela_cursor_init(struct context_t *ctx, const char *endpoint);
+/*! Creates a new cursor.  This selects one available warpdrive
+ *  instance to connect to. The actual load balancing algorithm is RR.
+ *
+ *  Once you get a cursor you may use it only once, i.e., only one
+ *  call to `lql_cursor_execute'.
+ *
+ *  \param ctx The context to use;
+ *
+ *  \return * NULL     : an error has ocurred;
+ *          * otherwise: the cursor has been sucessfully initialized;
+ */
+struct lql_cursor_t *lql_cursor_init(lql_context_t *ctx);
 
-int leela_lql_execute(struct cursor_t *cur, const char * query);
+/*! Executes a query. Make sure you invoke `lql_cursor_next';
+ *
+ *  \param cursor A valid cursor to use;
+ *  \param query The lql query to execute;
+ *
+ *  \return * LEELA_OK      : success;
+ *          * LEELA_ERROR   : any error has ocurred;
+ *          * LEELA_BAD_ARGS: the cursor is not valid;
+ */
+leela_status lql_cursor_execute(lql_cursor_t *cursor, const char *query);
 
-int leela_cursor_next(struct cursor_t *cur, row_t *row, int tmout);
+/*! Retrieves the next row out of a cursor;
+ *
+ *  \param cursor A valid cursor to use;
+ *  
+ *  \param timeout_in_ms The maximum amount of time (in milliseconds)
+ *         to wait for an answer from the server;
+ *
+ *  \return 
+ */
+leela_status lql_cursor_next(lql_cursor_t *cursor, int timeout_in_ms);
 
-int leela_cursor_close(struct cursor_t *cur, int nowait);
+/*! Terminates a cursor. Remember to always call this function after
+ *  you are done iterating.
+ *
+ *  \param cursor The cursor to close;
+ *  
+ *  \param nowait * true : Let the server cleans up its resources
+ *                         asynchronously. This may return faster at
+ *                         the server's expenses;
+ *                * false: Waits for the server before returning
+ *                         to the caller;
+ */
+leela_status lql_cursor_close(lql_cursor_t *cursor, bool nowait);
 
-int leela_context_close(struct context_t *ctx);
+/*! Terminates the context. This may block if there are outstanding
+ *  open cursors. Make sure to close them all or this may never
+ *  return;
+ *
+ *  \param ctx The context to close;
+ *
+ *  \return * LEELA_OK   : success;
+ *          * LEELA_ERROR: could not close the context;
+ */
+leela_status lql_context_close(lql_context_t *ctx);
 
-#endif //__lql_h__
+#endif
