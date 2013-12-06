@@ -15,70 +15,85 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 USER=leela
 GROUP=leela
 
+LOGDIR=/var/log/leela/warpdrive
+RUNDIR=/var/run/leela/warpdrive
+
 . /lib/lsb/init-functions
 [ -x /usr/bin/daemon                ] || exit 1
 [ -r "/etc/default/leela-warpdrive" ] && . /etc/default/leela-warpdrive
 
 leela_grantaccess () {
-  for file in "$@"
-  do; touch $file; chown $USER:$GROUP $file; done
+  mkdir -p $LOGDIR
+  mkdir -p $RUNDIR
+  chown $USER $LOGDIR
+  chown $USER $RUNDIR
 }
 
 leela_watchdog_start () {
-  local logfile pidfile
-  logfile=/var/log/leela/warpdrive-watchdog.log
-  pidfile=/var/run/leela/warpdrive-watchdog.pid
-  leela_grantaccess $logfile $pidfile
-  daemon --delay 10 -r -o /var/log/leela/warpdrive-watchdog.log \
-    -u $USER:$GROUP -P /var/run/leela -n leela-warpdrive-watchdog -- \
-    tractorbeam send --zookeeper "$LEELA_WARPDRIVE_ZOOKEEPER" --exec /usr/bin/leela-warpdrive-watchdog.sh --path "${LEELA_WARPDRIVE_WATCHDOG_PATH}" "$LEELA_WARPDRIVE_WATHDOG_OPTIONS"
+  local zookeeper
+  zookeeper=$(echo $LEELA_WARPDRIVE_ZOOKEEPER | cut -c 7-)
+  leela_grantaccess
+  daemon --delay 10 -r -o $LOGDIR/watchdog.log \
+    -u $USER:$GROUP -P $RUNDIR -n watchdog -- \
+    tractorbeam send --zookeeper $zookeeper --exec /usr/bin/leela-warpdrive-watchdog.sh --path "${LEELA_WARPDRIVE_WATCHDOG_PATH}" $LEELA_WARPDRIVE_WATHDOG_OPTS
+}
+
+leela_daemon_start () {
+  leela_grantaccess
+  daemon --delay 10 -r -o $LOGDIR/daemon.log \
+    -u $USER:$GROUP -P $RUNDIR -n daemon -- \
+    warpdrive \
+    --zookeeper ${LEELA_WARPDRIVE_ZOOKEEPER}
+    --endpoint ${LEELA_WARPDRIVE_ENDPOINT:-tcp://localhost:50021} \
+    $LEELA_WARPDRIVE_OPTS
+}
+
+leela_daemon_stop () {
+  leela_grantaccess
+  daemon --stop -P $RUNDIR -n daemon
 }
 
 leela_watchdog_stop () {
-  daemon -P /var/run/leela -n leela-warpdrive-watchdog --stop
-}
-
-leela_start () {
-  local logfile pidfile
-  logfile=/var/log/leela/warpdrive.log
-  pidfile=/var/run/leela/warpdrive.pid
-  leela_grantaccess $logfile $pidfile
-  daemon --delay 10 -r -o /var/log/leela/warpdrive.log \
-    -u $USER:$GROUP -p $logfile -n leela-warpdrive -- \
-    /usr/bin/warpdrive \
-    --zookeeper "$LEELA_WARPDRIVE_ZOOKEEPER" \
-    --endpoint ${LEELA_WARPDRIVE_ENDPOINT:-tcp://localhost:50021} \
-    "$LEELA_WARPDRIVE_OPTIONS"
-}
-
-leela_stop () {
-  daemon --stop -P /var/run/leela -n leela-warpdrive
+  leela_grantaccess
+  daemon --stop -P $RUNDIR -n watchdog
 }
 
 case "$1" in
   (start)
-    leela_start
-    ;;
-
-  (stop)
-    leela_stop
-    ;;
-  
-  (restart)
-    leela_stop
-    leela_start
-    ;;
-
-  (stop-watchdog)
-    leela_watchdog_stop
-    ;;
-
-  (start-watchdog)
+    leela_daemon_start
     leela_watchdog_start
     ;;
 
+  (stop)
+    leela_watchdog_stop
+    leela_daemon_stop
+    ;;
+
+  (restart)
+    leela_watchdog_stop
+    leela_daemon_stop
+    leela_watchdog_start
+    leela_daemon_start
+    ;;
+
+  (watchdog-stop)
+    leela_watchdog_stop
+    ;;
+
+  (watchdog-start)
+    leela_watchdog_start
+    ;;
+
+  (daemon-stop)
+    leela_daemon_stop
+    ;;
+
+  (daemon-start)
+    leela_daemon_start
+    ;;
+
   (*)
-    echo "Usage: $0 {start|stop|restart}" >&2
+    echo "Usage: $0 {start|stop|restart|daemon-stop|daemon-start|watchdog-start|watchdog-stop}" >&2
     exit 1
     ;;
 

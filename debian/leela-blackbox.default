@@ -16,8 +16,11 @@ LEELA_BLACKBOX_WATCHDOG_PATH=/naming/blackbox/$(uuid)
 # The zookeeper cluster to connect to
 LEELA_BLACKBOX_WATCHDOG_ZOOKEEPER=tcp://localhost:2181/leela
 
+# Extra options for JVM
+LEELA_BLACKBOX_JVMOPTS="-XX:+UseThreadPriorities -XX:ThreadPriorityPolicy=42 -Xms4G -Xmx4G -Xmn1G -Xss256k -XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:+CMSParallelRemarkEnabled -XX:SurvivorRatio=8 -XX:MaxTenuringThreshold=1 -XX:CMSInitiatingOccupancyFraction=75 -XX:+UseCMSInitiatingOccupancyOnly -XX:+UseTLAB -XX:+UseCondCardMark -Djava.net.preferIPv4Stack=true -Dcom.sun.management.jmxremote.port=7199 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false"
+
 # Extra options for blackbox
-# LEELA_BLACKBOX_OPTIONS=
+# LEELA_BLACKBOX_OPTS=
 
 # Extra options for watchdog
-# LEELA_BLACKBOX_WATCHDOG_OPTIONS=
+# LEELA_BLACKBOX_WATCHDOG_OPTS=

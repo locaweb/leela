@@ -8,7 +8,7 @@ LEELA_WARPDRIVE_WATCHDOG_PATH=/naming/warpdrive/$(uuid)
 LEELA_WARPDRIVE_ZOOKEEPER=tcp://localhost:2181/leela
 
 # Extra options for blackbox
-LEELA_WARPDRIVE_OPTIONS="+RTS -N -RTS"
+LEELA_WARPDRIVE_OPTS="+RTS -N -RTS"
 
 # Extra options for watchdog
-# LEELA_WARPDRIVE_WATCHDOG_OPTIONS=
+# LEELA_WARPDRIVE_WATCHDOG_OPTS=

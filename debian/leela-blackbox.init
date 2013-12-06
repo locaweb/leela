@@ -15,71 +15,86 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 USER=leela
 GROUP=leela
 
+LOGDIR=/var/log/leela/blackbox
+RUNDIR=/var/run/leela/blackbox
+
 . /lib/lsb/init-functions
 [ -x /usr/bin/daemon               ] || exit 1
 [ -r "/etc/default/leela-blackbox" ] && . /etc/default/leela-blackbox
 
 leela_grantaccess () {
-  for file in "$@"
-  do; touch $file; chown $USER:$GROUP $file; done
+  mkdir -p $LOGDIR
+  mkdir -p $RUNDIR
+  chown $USER $LOGDIR
+  chown $USER $RUNDIR
 }
 
 leela_watchdog_start () {
-  local logfile pidfile zookeeper
-  logfile=/var/log/leela/blackbox-watchdog.log
-  pidfile=/var/run/leela/blackbox-watchdog.pid
+  local zookeeper
   zookeeper=$(echo $LEELA_BLACKBOX_WATCHDOG_ZOOKEEPER | cut -c 7-)
-  leela_grantaccess $logfile $pidfile
-  daemon --delay 10 -r -o $logfile \
-    -u $USER:$GROUP -p $pidfile -n leela-blackbox-watchdog -- \
-    tractorbeam send --zookeeper "$zookeeper" --exec /usr/bin/leela-blackbox-watchdog.sh --path "${LEELA_BLACKBOX_WATCHDOG_PATH}" "$LEELA_BLACKBOX_WATHDOG_OPTIONS"
+  leela_grantaccess
+  daemon --delay 10 -r -o $LOGDIR/watchdog.log \
+    -u $USER:$GROUP -P $RUNDIR -n watchdog -- \
+    tractorbeam send --zookeeper $zookeeper --exec /usr/bin/leela-blackbox-watchdog.sh --path "${LEELA_BLACKBOX_WATCHDOG_PATH}" $LEELA_BLACKBOX_WATHDOG_OPTS
+}
+
+leela_daemon_start () {
+  leela_grantaccess
+  env \
+    LEELA_BLACKBOX_USERNAME="$LEELA_BLACKBOX_USERNAME" \
+    LEELA_BLACKBOX_PASSWORD="$LEELA_BLACKBOX_PASSWORD" \
+    daemon --delay 10 -r -o $LOGDIR/daemon.log \
+      -u $USER:$GROUP -P $RUNDIR -n daemon -- \
+      java -jar $LEELA_BLACKBOX_JVMOPTS /usr/lib/blackbox.jar \
+      --cassandra ${LEELA_BLACKBOX_CASSANDRA:-localhost} \
+      --username '$LEELA_BLACKBOX_USERNAME' \
+      --password '$LEELA_BLACKBOX_PASSWORD' \
+      --endpoint ${LEELA_BLACKBOX_ENDPOINT:-tcp://localhost:50023} \
+      $LEELA_BLACKBOX_OPTS
+}
+
+leela_daemon_stop () {
+  leela_grantaccess
+  daemon --stop -P $RUNDIR -n daemon
 }
 
 leela_watchdog_stop () {
-  daemon -P /var/run/leela -n leela-blackbox-watchdog --stop
-}
-
-leela_start () {
-  local logfile pidfile
-  logfile=/var/log/leela/blackbox.log
-  pidfile=/var/run/leela/blackbox.pid
-  leela_grantaccess $logfile $pidfile
-  daemon --delay 10 -r -o $logfile \
-    -e LEELA_BLACKBOX_USERNAME="$LEELA_BLACKBOX_USERNAME" \
-    -e LEELA_BLACKBOX_PASSWORD="$LEELA_BLACKBOX_PASSWORD" \
-    -u $USER:$GROUP -p $pidfile -n leela-blackbox -- \
-    java -jar /usr/lib/blackbox.jar \
-    --cassandra ${LEELA_BLACKBOX_CASSANDRA:-localhost} \
-    --username '$LEELA_BLACKBOX_USERNAME' \
-    --password '$LEELA_BLACKBOX_PASSWORD' \
-    --endpoint ${LEELA_BLACKBOX_ENDPOINT:-tcp://localhost:50023} \
-    "$LEELA_BLACKBOX_OPTIONS"
-}
-
-leela_stop () {
-  daemon --stop -P /var/run/leela -n leela-blackbox
+  leela_grantaccess
+  daemon --stop -P $RUNDIR -n watchdog
 }
 
 case "$1" in
   (start)
-    leela_start
+    leela_daemon_start
+    leela_watchdog_start
     ;;
 
   (stop)
-    leela_stop
-    ;;
-  
-  (restart)
-    leela_stop
-    leela_start
+    leela_watchdog_stop
+    leela_daemon_stop
     ;;
 
-  (stop-watchdog)
+  (restart)
+    leela_watchdog_stop
+    leela_daemon_stop
+    leela_watchdog_start
+    leela_daemon_start
+    ;;
+
+  (watchdog-stop)
     leela_watchdog_stop
     ;;
 
-  (start-watchdog)
+  (watchdog-start)
     leela_watchdog_start
+    ;;
+
+  (daemon-stop)
+    leela_daemon_stop
+    ;;
+
+  (daemon-start)
+    leela_daemon_start
     ;;
 
   (*)
