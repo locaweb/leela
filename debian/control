@@ -8,7 +8,7 @@ Homepage: https://github.com/locaweb/leela
 
 Package: leela-warpdrive
 Architecture: any
-Depends: ${misc:Depends}, libffi5, libzmq3, zlib1g
+Depends: ${misc:Depends}, libffi5, libzmq3, zlib1g, libgmp10
 Description: Leela - Scalable metrics monitoring engine (server module)
 
 Package: leela-blackbox
