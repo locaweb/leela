@@ -35,7 +35,11 @@ leela_watchdog_start () {
   leela_grantaccess
   daemon --delay 10 -r -o $LOGDIR/watchdog.log \
     -u $USER:$GROUP -P $RUNDIR -n watchdog -- \
-    tractorbeam send --zookeeper $zookeeper --exec /usr/bin/leela-blackbox-watchdog.sh --path "${LEELA_BLACKBOX_WATCHDOG_PATH}" $LEELA_BLACKBOX_WATHDOG_OPTS
+    tractorbeam send \
+      --zookeeper $zookeeper \
+      --exec /usr/bin/leela-blackbox-watchdog.sh \
+      --path "${LEELA_BLACKBOX_WATCHDOG_PATH}" \
+      $LEELA_BLACKBOX_WATHDOG_OPTS
 }
 
 leela_daemon_start () {
