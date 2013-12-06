@@ -27,6 +27,7 @@ blackbox-clean:
 blackbox-build:
 	cd src/clojure; env LEIN_ROOT=ok $(bin_lein) uberjar
 	cp -a /usr/lib/libjzmq*.so* src/clojure/target
+	cp src/clojure/target/blackbox-4.0.0-standalone.jar src/clojure/target/blackbox.jar
 
 override_dh_auto_clean: warpdrive-clean blackbox-clean
 	dh_clean

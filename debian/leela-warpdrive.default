@@ -1,0 +1,14 @@
+# The endpoint to bind to [do not use *, other services use this]
+LEELA_WARPDRIVE_ENDPOINT=tcp://localhost:50021
+
+# The path to register on zookeeper [make sure they this name is unique]
+LEELA_WARPDRIVE_WATCHDOG_PATH=/naming/warpdrive/$(uuid)
+
+# The zookeeper cluster to connect to [for discovering blackbox instances and reporting itself]
+LEELA_WARPDRIVE_ZOOKEEPER=tcp://localhost:2181/leela
+
+# Extra options for blackbox
+LEELA_WARPDRIVE_OPTIONS="+RTS -N -RTS"
+
+# Extra options for watchdog
+# LEELA_WARPDRIVE_WATCHDOG_OPTIONS=

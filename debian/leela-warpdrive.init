@@ -1,0 +1,87 @@
+#! /bin/bash
+
+### BEGIN INIT INFO
+# Provides:          leela-warpdrive
+# Required-Start:    $local_fs $remote_fs $network $syslog
+# Required-Stop:     $local_fs $remote_fs $network $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Leela - Scalable metrics monitoring engine (server module)
+# Description:       Leela - Scalable metrics monitoring engine (server module)
+### END INIT INFO
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+USER=leela
+GROUP=leela
+
+. /lib/lsb/init-functions
+[ -x /usr/bin/daemon                ] || exit 1
+[ -r "/etc/default/leela-warpdrive" ] && . /etc/default/leela-warpdrive
+
+leela_grantaccess () {
+  for file in "$@"
+  do; touch $file; chown $USER:$GROUP $file; done
+}
+
+leela_watchdog_start () {
+  local logfile pidfile
+  logfile=/var/log/leela/warpdrive-watchdog.log
+  pidfile=/var/run/leela/warpdrive-watchdog.pid
+  leela_grantaccess $logfile $pidfile
+  daemon --delay 10 -r -o /var/log/leela/warpdrive-watchdog.log \
+    -u $USER:$GROUP -P /var/run/leela -n leela-warpdrive-watchdog -- \
+    tractorbeam send --zookeeper "$LEELA_WARPDRIVE_ZOOKEEPER" --exec /usr/bin/leela-warpdrive-watchdog.sh --path "${LEELA_WARPDRIVE_WATCHDOG_PATH}" "$LEELA_WARPDRIVE_WATHDOG_OPTIONS"
+}
+
+leela_watchdog_stop () {
+  daemon -P /var/run/leela -n leela-warpdrive-watchdog --stop
+}
+
+leela_start () {
+  local logfile pidfile
+  logfile=/var/log/leela/warpdrive.log
+  pidfile=/var/run/leela/warpdrive.pid
+  leela_grantaccess $logfile $pidfile
+  daemon --delay 10 -r -o /var/log/leela/warpdrive.log \
+    -u $USER:$GROUP -p $logfile -n leela-warpdrive -- \
+    /usr/bin/warpdrive \
+    --zookeeper "$LEELA_WARPDRIVE_ZOOKEEPER" \
+    --endpoint ${LEELA_WARPDRIVE_ENDPOINT:-tcp://localhost:50021} \
+    "$LEELA_WARPDRIVE_OPTIONS"
+}
+
+leela_stop () {
+  daemon --stop -P /var/run/leela -n leela-warpdrive
+}
+
+case "$1" in
+  (start)
+    leela_start
+    ;;
+
+  (stop)
+    leela_stop
+    ;;
+  
+  (restart)
+    leela_stop
+    leela_start
+    ;;
+
+  (stop-watchdog)
+    leela_watchdog_stop
+    ;;
+
+  (start-watchdog)
+    leela_watchdog_start
+    ;;
+
+  (*)
+    echo "Usage: $0 {start|stop|restart}" >&2
+    exit 1
+    ;;
+
+esac
+
+#DEBHELPER#

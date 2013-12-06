@@ -1,4 +1,4 @@
-src/clojure/target/blackbox-4.0.0-standalone.jar /usr/lib/
+src/clojure/target/blackbox.jar /usr/lib/
 src/clojure/target/libjzmq.so /usr/lib/
 src/clojure/target/libjzmq.so.0 /usr/lib/
 src/clojure/target/libjzmq.so.0.0.0 /usr/lib/

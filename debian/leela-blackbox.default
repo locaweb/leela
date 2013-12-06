@@ -14,7 +14,7 @@ LEELA_BLACKBOX_ENDPOINT=tcp://localhost:50023
 LEELA_BLACKBOX_WATCHDOG_PATH=/naming/blackbox/$(uuid)
 
 # The zookeeper cluster to connect to
-LEELA_BLACKBOX_WATCHDOG_ZOOKEEPER=localhost:2181/leela
+LEELA_BLACKBOX_WATCHDOG_ZOOKEEPER=tcp://localhost:2181/leela
 
 # Extra options for blackbox
 # LEELA_BLACKBOX_OPTIONS=
