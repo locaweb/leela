@@ -22,6 +22,8 @@
 #include "leela/status.h"
 #include "leela/endpoint.h"
 
+#define LQL_DEFAULT_TIMEOUT 60
+
 typedef struct lql_cursor_t lql_cursor_t;
 typedef struct lql_context_t lql_context_t;
 
@@ -50,64 +52,68 @@ typedef struct
 } lql_name_t;
 
 /*! Initializes the leela context. You should call this only once and
- *  shared it in the program. It is ok, though unecessary, to have
+ *  share it in the program. It is ok, though unecessary, to have
  *  multiple contexts.
  *
  *  \param zookeeper The endpoint of the zookeeper to connect. This is
  *  used to discover the instances of warpdrive to use.
+ *
+ *  \param path The path to look for warpdrive instances (usually
+ *  /naming/warpdrive);
  *  
  *  \return * NULL     : an error has ocurred;
  *          * otherwise: the context has been sucessfully initialized;
  */
-struct lql_context_t *lql_context_init(const leela_endpoint_t *zookeeper);
+lql_context_t *leela_lql_context_init(const leela_endpoint_t *zookeeper, const char *path);
 
 /*! Creates a new cursor.  This selects one available warpdrive
- *  instance to connect to. The actual load balancing algorithm is RR.
+ *  instance to connect to. The actual load balancing algorithm is
+ *  implementation dependent.
  *
- *  Once you get a cursor you may use it only once, i.e., only one
- *  call to `lql_cursor_execute'.
+ *  The cursor can be used to execute a single statement. If you need
+ *  to perform more queries, you must create another cursor.
  *
  *  \param ctx The context to use;
  *
+ *  \param username, secret The credentials to authenticate (must not be NULL);
+ *
+ *  \param timeout_in_ms The maximum amount of time (in milliseconds)
+ *         to wait for an answer from the server. Use (-1) to wait
+ *         forever and (0) to use the default (implementation defined)
+ *         timeout;
+ *  
  *  \return * NULL     : an error has ocurred;
  *          * otherwise: the cursor has been sucessfully initialized;
  */
-struct lql_cursor_t *lql_cursor_init(lql_context_t *ctx);
+lql_cursor_t *leela_lql_cursor_init(lql_context_t *ctx, const char *username, const char *secret, int timeout_in_ms);
 
-/*! Executes a query. Make sure you invoke `lql_cursor_next';
+/*! Executes a query. To consume the results use leela_cursor_next
  *
  *  \param cursor A valid cursor to use;
  *  \param query The lql query to execute;
  *
- *  \return * LEELA_OK      : success;
- *          * LEELA_ERROR   : any error has ocurred;
- *          * LEELA_BAD_ARGS: the cursor is not valid;
+ *  \return * LEELA_OK     : success;
+ *          * LEELA_ERROR  : any error has ocurred;
+ *          * LEELA_BADARGS: the cursor is not valid;
  */
-leela_status lql_cursor_execute(lql_cursor_t *cursor, const char *query);
+leela_status leela_lql_cursor_execute(lql_cursor_t *cursor, const char *query);
 
 /*! Retrieves the next row out of a cursor;
  *
  *  \param cursor A valid cursor to use;
  *  
- *  \param timeout_in_ms The maximum amount of time (in milliseconds)
- *         to wait for an answer from the server;
- *
- *  \return 
+ *  \return LEELA_OK success;
+ *  \return LEELA_EOF there are no more entries;
+ *  \return LEELA_TIMEOUT the operation has timed out;
  */
-leela_status lql_cursor_next(lql_cursor_t *cursor, int timeout_in_ms);
+leela_status leela_lql_cursor_next(lql_cursor_t *cursor);
 
 /*! Terminates a cursor. Remember to always call this function after
  *  you are done iterating.
  *
  *  \param cursor The cursor to close;
- *  
- *  \param nowait * true : Let the server cleans up its resources
- *                         asynchronously. This may return faster at
- *                         the server's expenses;
- *                * false: Waits for the server before returning
- *                         to the caller;
  */
-leela_status lql_cursor_close(lql_cursor_t *cursor, bool nowait);
+leela_status leela_lql_cursor_close(lql_cursor_t *cursor);
 
 /*! Terminates the context. This may block if there are outstanding
  *  open cursors. Make sure to close them all or this may never
@@ -118,6 +124,6 @@ leela_status lql_cursor_close(lql_cursor_t *cursor, bool nowait);
  *  \return * LEELA_OK   : success;
  *          * LEELA_ERROR: could not close the context;
  */
-leela_status lql_context_close(lql_context_t *ctx);
+leela_status leela_lql_context_close(lql_context_t *ctx);
 
 #endif

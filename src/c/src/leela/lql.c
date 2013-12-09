@@ -1,361 +1,338 @@
-#include "lql.h"
+/* This file is part of Leela.
+ *
+ * Leela is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Leela is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Leela.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <zmq.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <pthread.h>
+#include "leela/lql.h"
+#include "leela/debug.h"
+#include "leela/status.h"
+#include "leela/string.h"
+#include "leela/naming.h"
 
 #define DEBUG 1
 
-struct context_t    { void * ctx; };
-struct cursor_t     { void * cur; };
-static char * channel;
-static int sock_closed = 0;
-static int res = 0;
-static int timeout = -1;
+struct lql_context_t
+{
+  void            *zmqctx;
+  size_t           selector;
+  leela_naming_t  *naming;
+  pthread_mutex_t  mutex;
+};
 
-void leela_lql_debug(const char *prefix, int size, const char *ss){
-    if (DEBUG){ fprintf(stderr, "[LIB DEBUG] %s %.*s\n", prefix, size, ss); }
-}
+struct lql_cursor_t {
+  void      *socket;
+  char      *username;
+  char      *secret;
+  char      *channel;
+  int        timeout;
+  size_t     elems[2];
+  zmq_msg_t *buffer;
+};
 
-int leela_lql_send(struct cursor_t *cur, const char *s, int flags){
-    size_t size = -1;
-    if (!sock_closed){
-        leela_lql_debug(">", strlen(s), s);
-        size = zmq_send(cur->cur, s, strlen(s), flags);
-        if (size == -1) { goto handle_error; }
-    }
-    return(size);
-
-handle_error:
-    sock_closed = 1;
-    return(-1);
-}
-
-const char *leela_lql_auth(void){
-    const char *key = "usertest:0:0 0";
-    return(key);
-}
-
-size_t get_msg(struct cursor_t *cur, zmq_msg_t *message){
-    size_t size = -1;
-
-    if (zmq_msg_init (message) == -1){ goto handle_error; }
-    if (zmq_setsockopt(cur->cur, ZMQ_RCVTIMEO, &timeout, sizeof(timeout)) == -1){ goto handle_error; }
-
-    size = zmq_msg_recv (message, cur->cur, 0);
-    if (size == -1){ return(EXIT_SUCCESS); }
-
-    return(size);
-
-handle_error:
-    sock_closed = 1;
-    return(-1);
-}
-
-size_t get_data(struct cursor_t *cur, zmq_msg_t *message, char **msg){
-    size_t size = -1;
-
-    if (zmq_msg_close(message) == -1){ goto handle_error; }
-
-    size = get_msg(cur, message);
-    *msg = zmq_msg_data(message);
-    leela_lql_debug("<", size, *msg);
-
-    return(size);
-
-handle_error:
-    sock_closed = 1;
-    return(-1);
-}
-
-int set_field(struct cursor_t *cur, zmq_msg_t *message, char **msg, char **field){
-    size_t size = get_data(cur, message, msg);
-
-    *field = (char *)malloc(sizeof(char)*(size + 1));
-
-    if(*field == NULL){ goto handle_error; }
-    strncpy(*field, *msg, size);
-    (*field)[size] = '\0';
-
-    return(EXIT_SUCCESS);
-
-handle_error:
-    sock_closed = 1;
-    if(*field != NULL){
-        free(*field);
-        *field = NULL;
-    }
-    return(-1);
-}
-
-struct context_t *leela_context_init(){
-    struct context_t *ctx = (struct context_t *)malloc(sizeof(struct context_t));
-    if(ctx == NULL){ goto handle_error; }
-
-    ctx->ctx = zmq_ctx_new();
-
-    if(ctx->ctx == NULL){ goto handle_error; }
-    return(ctx);
-
-handle_error:
-    if(ctx != NULL){
-        free(ctx);
-        ctx = NULL;
-    }
+static
+leela_endpoint_t *__select_endpoint(lql_context_t *ctx)
+{
+  leela_naming_value_t *snapshot = leela_naming_query(ctx->naming);
+  if (snapshot == NULL)
+  {
+    LEELA_DEBUG0("0 warpdrive instances found!");
     return(NULL);
-}
+  }
 
-struct cursor_t *leela_cursor_init(struct context_t *ctx, const char *endpoint){
-    struct cursor_t *cur =  (struct cursor_t *)malloc(sizeof(struct cursor_t));
-    if(cur == NULL){ goto handle_error; }
-
-    cur->cur = zmq_socket (ctx->ctx, ZMQ_REQ);
-    if(cur->cur == NULL){
-        sock_closed = 1;
-        goto handle_error;
-    }
-    sock_closed = 0;
-
-    if (zmq_connect(cur->cur, endpoint) == -1){
-        sock_closed = 1;
-        goto handle_error;
-    }
-    return(cur);
-
-handle_error:
-    if(cur != NULL){
-        free(cur);
-        cur = NULL;
-    }
-    sock_closed = 1;
+  if (pthread_mutex_lock(&ctx->mutex) != 0)
+  {
+    LEELA_DEBUG0("could not acquire an exclusive lock");
+    leela_naming_value_free(snapshot);
     return(NULL);
+  }
+
+  size_t k;
+  leela_naming_value_t *iterator;
+
+  iterator = snapshot;
+  for (k=0; iterator!=NULL; k+=1)
+  { iterator = iterator->next; }
+
+  iterator      = snapshot;
+  ctx->selector = (ctx->selector + 1) % k;
+  for (k=ctx->selector; k!=0; k-=1)
+  { iterator = iterator->next; }
+  pthread_mutex_unlock(&ctx->mutex);
+
+  return(iterator->endpoint);
 }
 
-int leela_lql_execute(struct cursor_t *cur, const char * query){
-    size_t size = 0;
-    int more;
-    size_t more_size = sizeof (more);
-    char *msg  = NULL;
-    zmq_msg_t message;
-
-    if (leela_lql_send(cur, leela_lql_auth(), ZMQ_SNDMORE) < 0) { goto handle_error; }
-    if (leela_lql_send(cur, "begin", ZMQ_SNDMORE) < 0) { goto handle_error; }
-    if (leela_lql_send(cur, query, 0) < 0) { goto handle_error; }
-
-    size = get_msg(cur, &message);
-    msg  = zmq_msg_data(&message);
-    msg[size] = '\0';
-    leela_lql_debug("<", size, msg);
-
-    if (strncmp(msg, "done", size) != 0){
-        if (strncmp(msg, "fail", size) == 0){
-            do{
-                size = zmq_msg_recv (&message, cur->cur, 0);
-                if (size == -1){ goto handle_error; }
-                msg  = zmq_msg_data(&message);
-                leela_lql_debug("<", size, msg);
-
-                if (zmq_getsockopt (cur->cur, ZMQ_RCVMORE, &more, &more_size) == -1) { goto handle_error; }
-
-            }while(more);
-            sock_closed = 1;
-        }
-        else { goto handle_error; }
-    }
-    else{
-        if (channel == NULL){
-            if (zmq_getsockopt (cur->cur, ZMQ_RCVMORE, &more, &more_size) == -1){ goto handle_error; }
-
-            if(more){
-                size = zmq_msg_recv (&message, cur->cur, 0);
-                if (size == -1){ goto handle_error; }
-
-                channel = (char *)malloc(sizeof(char)*(size + 1));
-                if(channel == NULL){ goto handle_error; }
-                strncpy(channel, zmq_msg_data(&message), size);
-                channel[size] = '\0';
-            }
-            else { goto handle_error; }
-        }
-        leela_lql_debug("<", size, channel);
-        return(EXIT_SUCCESS);
-    }
-
-    if (zmq_msg_close(&message) == -1){ goto handle_error; }
-    return(EXIT_SUCCESS);
-
-handle_error:
-    sock_closed = 1;
-    if(channel != NULL){
-        free(channel);
-        channel = NULL;
-    }
-    return(-1);
+static
+char *__signature(lql_cursor_t *cursor, va_list args)
+{
+  (void) args;
+  size_t bufflen  = strlen(cursor->username) + 8;
+  char *signature = (char *) malloc(bufflen);
+  snprintf(signature, bufflen, "%s:0:0 0", cursor->username);
+  return(signature);
 }
 
-int leela_next(struct cursor_t *cur, row_t *row){
-    size_t size = 0;
-    int more;
-    size_t more_size = sizeof (more);
-    char *msg  = NULL;
-    zmq_msg_t message;
-    char *length = NULL;
+static
+int __zmq_sendmsg_str(lql_cursor_t *cursor, const char *data, ...)
+{
+  LEELA_TRACE("[%x] > %s|", socket, data);
+  int rc = -1;
+  va_list args;
+  
+  va_start(args, data);
+  char *signature = __signature(cursor, args);
+  if (signature == NULL)
+  { goto handle_error; }
+  va_end(args);
 
-    do{
-        size = get_msg(cur, &message);
-        msg = zmq_msg_data(&message);
-        leela_lql_debug("<", size, msg);
+  va_start(args, data);
+  const char *part = NULL;
+  const char *last = NULL;
+  do
+  {
+    if (part != NULL)
+    { last = part; }
+    else
+    { last = signature; }
+    part = va_arg(args, const char *);
 
-        if (zmq_getsockopt (cur->cur, ZMQ_RCVMORE, &more, &more_size) == -1){ goto handle_error; }
-
-        if (strncmp(msg, "done", size) == 0){
-            if (!more){
-                row->row_type = END;
-                res = EXIT_SUCCESS;
-            }
-            else{
-                if (zmq_msg_close(&message) == -1){ goto handle_error; }
-                res = leela_next(cur, row);
-                if (res == -1){ goto handle_error; }
-
-                more = 0;
-                return(res);
-            }
-        }
-        else if (strncmp(msg, "item", size) == 0){
-            if (zmq_msg_close(&message) == -1){ goto handle_error; }
-
-            res = leela_next(cur, row);
-            if (res == -1){ goto handle_error; }
-
-            return(res);
-        }
-        else if (strncmp(msg, "list", size) == 0){
-            if(set_field(cur, &message, &msg, &length) == -1){ goto handle_error; }
-
-            if (zmq_msg_close(&message) == -1){ goto handle_error; }
-
-            res = leela_next(cur, row);
-            if (res == -1){ goto handle_error; }
-            res += atoi(length);
-            if(length != NULL){
-                free(length);
-                length = NULL;
-            }
-            return(res);
-        }
-        else if (strncmp(msg, "path", size) == 0){
-            row->row_type = PATH;
-            if(set_field(cur, &message, &msg, &length) == -1){ goto handle_error; }
-            res += (atoi(length) / 2 + atoi(length) % 2);
-
-            if(set_field(cur, &message, &msg, &(row->path.label)) == -1){ goto handle_error; }
-            if(set_field(cur, &message, &msg, &(row->path.guid)) == -1){ goto handle_error; }
-            res -= 1;
-            more = 0;
-            if(length != NULL){
-                free(length);
-                length = NULL;
-            }
-            if (zmq_msg_close(&message) == -1){ goto handle_error; }
-            return(res);
-        }
-        else if (strncmp(msg, "name", size) == 0){
-            row->row_type = NAME;
-            if(set_field(cur, &message, &msg, &row->name.user) == -1){ goto handle_error; }
-            if(set_field(cur, &message, &msg, &row->name.tree) == -1){ goto handle_error; }
-            if(set_field(cur, &message, &msg, &row->name.name) == -1){ goto handle_error; }
-            more = 0;
-            if (zmq_msg_close(&message) == -1){ goto handle_error; }
-            return(res);
-        }
-        else if (strncmp(msg, "fail", size) == 0){
-            do{
-                size = get_data(cur, &message, &msg);
-                zmq_getsockopt (cur->cur, ZMQ_RCVMORE, &more, &more_size);
-            }while(more);
-
-            goto handle_error;
-        }
-        else{
-            goto handle_error;
-        }
-
-        if (zmq_getsockopt (cur->cur, ZMQ_RCVMORE, &more, &more_size) == -1){
-            goto handle_error;
-        }
-
-    }while(more);
-
-    if (zmq_msg_close(&message) == -1){ goto handle_error; }
-    return(res);
+    rc = zmq_send(cursor->socket, last, strlen(last), (part == NULL ? 0 : ZMQ_SNDMORE));
+    if (rc == -1)
+    { goto handle_error; }
+  } while (part != NULL);
 
 handle_error:
-    sock_closed = 1;
-    if(length != NULL){
-        free(length);
-        length = NULL;
-    }
-    return(-1);
+  va_end(args);
+  free(signature);
+  return(rc);
 }
 
-int leela_cursor_next(struct cursor_t *cur, row_t *row, int tmout){
-
-    timeout = tmout;
-    if(res == 0){
-        if (leela_lql_send(cur, leela_lql_auth(), ZMQ_SNDMORE) < 0){ goto handle_error; }
-        if (leela_lql_send(cur, "fetch", ZMQ_SNDMORE) < 0){ goto handle_error; }
-        if (leela_lql_send(cur, channel, 0) < 0){ goto handle_error; }
-    }
-
-    return(leela_next(cur, row));
-
-handle_error:
-    sock_closed = 1;
-    return(-1);
+static
+int __zmq_recvmsg(void *socket, zmq_msg_t *msg, int timeout)
+{
+  zmq_pollitem_t items[1];
+  items[0].socket = socket;
+  items[0].events = ZMQ_POLLIN;
+  int rc = zmq_poll(items, 1, timeout);
+  if (rc == 1)
+  { return(zmq_msg_recv(socket, msg, 0)); }
+  return(-1);
 }
 
-int leela_cursor_close(struct cursor_t *cur, int nowait){
-    if (!sock_closed){
-        if (leela_lql_send(cur, leela_lql_auth(), ZMQ_SNDMORE) < 0){ goto handle_error; }
-        if (leela_lql_send(cur, "close", ZMQ_SNDMORE) < 0){ goto handle_error; }
-        if(nowait){
-            if (leela_lql_send(cur, channel, ZMQ_SNDMORE) < 0){ goto handle_error; }
-            if (leela_lql_send(cur, "nowait", 0) < 0){ goto handle_error; }
-        }
-        else{
-            if (leela_lql_send(cur, channel, 0) < 0){ goto handle_error; }
-        }
+static
+int __zmq_recvmsg_str(void *socket, zmq_msg_t *msg, char *buff, int buflen, int timeout)
+{
+  int rc = __zmq_recvmsg(socket, msg, timeout);
 
-        if (zmq_close(cur->cur) == -1){ goto handle_error; }
-    }
-
-    sock_closed = 1;
-    if (channel != NULL){
-        free(channel);
-        channel = NULL;
-    }
-
-    if (cur != NULL){
-        free(cur);
-        cur = NULL;
-    }
-    return(EXIT_SUCCESS);
-
-handle_error:
-    sock_closed = 1;
+  if (buflen < rc)
+  {
+    LEELA_DEBUG("[%x] buffer is too small: %d x %d", buflen, rc);
     return(-1);
+  }
+
+  if (rc != -1)
+  {
+    memcpy(buff, zmq_msg_data(msg), rc);
+    LEELA_TRACE("[%x] < %s|", socket, rc);
+    buff[rc] = '\0';
+  }
+
+  return(rc);
 }
 
-int leela_context_close(struct context_t *ctx){
-    if (zmq_ctx_destroy(ctx->ctx) == -1){ goto handle_error; }
-    if (ctx != NULL){
-        free(ctx);
-        ctx = NULL;
-    }
-    return(EXIT_SUCCESS);
+static
+char *__zmq_recvmsg_copystr(void *socket, zmq_msg_t *msg, int timeout)
+{
+  int rc = __zmq_recvmsg(socket, msg, timeout);
+  if (rc == -1)
+  { return(NULL); }
+
+  size_t buflen = zmq_msg_size(msg);
+  char *buffer  = malloc(buflen + 1);
+  if (buffer != NULL)
+  {
+    memcpy(buffer, zmq_msg_data(msg), buflen);
+    buffer[buflen] = '\0';
+  }
+  return(buffer);
+}
+
+static
+bool __zmq_recvmsg_done(void *socket, zmq_msg_t *msg, int timeout)
+{
+  char buffer[5];
+  if (__zmq_recvmsg_str(socket, msg, buffer, 5, timeout) != -1
+      && strcmp(buffer, "done") == 0)
+  { return(true); }
+  return(false);
+}
+
+lql_context_t *leela_lql_context_init(const leela_endpoint_t *zookeeper, const char *path)
+{
+  pthread_mutex_t mutex;
+  if (pthread_mutex_init(&mutex, NULL) != 0)
+  { return(NULL); }
+
+  lql_context_t *ctx = (lql_context_t *) malloc(sizeof(lql_context_t));
+  if (ctx != NULL)
+  {
+    ctx->selector = 0;
+    ctx->mutex    = mutex;
+    ctx->naming   = leela_naming_init(zookeeper, path);
+    ctx->zmqctx   = zmq_ctx_new();
+    if (ctx->naming == NULL || ctx->zmqctx == NULL)
+    { goto handle_error; }
+  }
+  return(ctx);
 
 handle_error:
-    sock_closed = 1;
-    if (ctx != NULL){
-        free(ctx);
-        ctx = NULL;
+  leela_lql_context_close(ctx);
+  return(NULL);
+}
+
+lql_cursor_t *leela_lql_cursor_init(lql_context_t *ctx, const char *username, const char *secret, int timeout_in_ms)
+{
+  leela_endpoint_t *endpoint = NULL;
+  char *zmqendpoint          = NULL;
+  lql_cursor_t *cursor       = (lql_cursor_t *) malloc(sizeof(lql_cursor_t));
+  if (cursor == NULL)
+  { return(NULL); }
+  cursor->socket   = NULL;
+  cursor->channel  = NULL;
+  cursor->buffer   = NULL;
+  cursor->username = leela_strdup(username);
+  cursor->secret   = leela_strdup(secret);
+  cursor->timeout  = (timeout_in_ms == 0 ? LQL_DEFAULT_TIMEOUT : timeout_in_ms);
+
+  if (cursor->username == NULL || cursor->secret == NULL)
+  { goto handle_error; }
+
+  zmq_msg_t buffer;
+  if (zmq_msg_init(&buffer) == -1)
+  { goto handle_error; }
+  cursor->buffer = &buffer;
+
+  endpoint = __select_endpoint(ctx);
+  if (endpoint == NULL)
+  {
+    LEELA_DEBUG0("no warpdrive instance found!");
+    goto handle_error;
+  }
+
+  zmqendpoint = (endpoint == NULL ? NULL : leela_endpoint_dump(endpoint));
+  if (zmqendpoint == NULL)
+  { goto handle_error; }
+
+  cursor->socket = zmq_socket(ctx->zmqctx, ZMQ_REQ);
+  if (cursor->socket == NULL)
+  { goto handle_error; }
+
+  if (zmq_connect(cursor->socket, zmqendpoint) != 0)
+  { goto handle_error; }
+
+  leela_endpoint_free(endpoint);
+  free(zmqendpoint);
+  LEELA_TRACE("cursor has been created: %x", cursor);
+  return(cursor);
+
+handle_error:
+  leela_lql_cursor_close(cursor);
+  leela_endpoint_free(endpoint);
+  free(zmqendpoint);
+  return(NULL);
+}
+
+leela_status leela_lql_execute(lql_cursor_t *cursor, const char *query)
+{
+  if (cursor->channel != NULL)
+  { return(LEELA_BADARGS); }
+
+  leela_status rc = LEELA_ERROR;
+  if (__zmq_sendmsg_str(cursor->socket, "begin", query, NULL) == -1)
+  { goto handle_error; }
+
+  if (! __zmq_recvmsg_done(cursor->socket, cursor->buffer, cursor->timeout))
+  {
+    LEELA_DEBUG("error executing statement: %s", query);
+    goto handle_error;
+  }
+
+  cursor->channel = __zmq_recvmsg_copystr(cursor->socket, cursor->buffer, cursor->timeout);
+  if (cursor->channel == NULL)
+  {
+    LEELA_DEBUG0("protocol error: bad channel!");
+    goto handle_error;
+  }
+
+  rc = LEELA_OK;
+
+handle_error:
+  return(rc);
+}
+
+leela_status leela_next(lql_cursor_t *cursor)
+{
+  if (__zmq_sendmsg_str(cursor, "fetch", cursor->channel) == -1)
+  { return(LEELA_ERROR); }
+
+  if (__zmq_recvmsg(cursor->socket, cursor->buffer, cursor->timeout) == -1)
+  { return(LEELA_ERROR); }
+
+  return(LEELA_OK);
+}
+
+leela_status leela_lql_cursor_close(lql_cursor_t *cursor)
+{
+  leela_status rc = LEELA_ERROR;
+  if (cursor != NULL)
+  {
+    if (cursor->socket != NULL && cursor->channel != NULL)
+    {
+      if (__zmq_sendmsg_str(cursor->socket, "close", cursor->channel) != -1)
+      {
+        if (__zmq_recvmsg_done(cursor->socket, cursor->buffer, cursor->timeout))
+        { rc = LEELA_OK; }
+      }
     }
-    return(-1);
+    free(cursor->channel);
+    free(cursor->username);
+    free(cursor->secret);
+    if (cursor->buffer != NULL)
+    { zmq_msg_close(cursor->buffer); }
+    if (cursor->socket != NULL)
+    { zmq_close(cursor->socket); }
+    free(cursor);
+  }
+  return(rc);
+}
+
+leela_status leela_lql_context_close(lql_context_t *ctx)
+{
+  if (ctx != NULL)
+  {
+    pthread_mutex_destroy(&ctx->mutex);
+    if (ctx->zmqctx != NULL)
+    { zmq_ctx_destroy(ctx->zmqctx); }
+    if (ctx->naming != NULL)
+    { leela_naming_shutdown(ctx->naming, NULL); }
+    free(ctx);
+    return(LEELA_OK);
+  }
+  return(LEELA_ERROR);
 }
