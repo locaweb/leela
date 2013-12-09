@@ -29,6 +29,7 @@ struct leela_naming_t
   char                   *endpoint;
   bool                    cancel;
   pthread_t               thread;
+  pthread_cond_t         *notify;
   pthread_mutex_t         mutex;
   leela_naming_value_t *state;
 };
@@ -93,8 +94,8 @@ static
 void *__resolve_loop(void *data)
 {
   srand(time(NULL));
-  int nextin                 = 0;
-  zhandle_t *zh              = NULL;
+  int nextin             = 0;
+  zhandle_t *zh          = NULL;
   leela_naming_t *naming = (leela_naming_t *) data;
   do
   {
@@ -130,8 +131,14 @@ void *__resolve_loop(void *data)
       pthread_mutex_unlock(&naming->mutex);
     }
 
+    if (naming->notify != NULL)
+    { pthread_cond_signal(naming->notify); }
+    naming->notify = NULL;
+
+    if (naming->cancel)
+    { break; }
     LEELA_DEBUG("naming thread: %s next-in %d seconds", naming->resource, nextin);
-  } while (! naming->cancel);
+  } while (true);
 
   if (zh != NULL)
   { zookeeper_close(zh); }
@@ -143,6 +150,10 @@ void *__resolve_loop(void *data)
 
 leela_naming_t *leela_naming_init(const leela_endpoint_t *endpoint, const char *resource)
 {
+  pthread_cond_t notify;
+  if (pthread_cond_init(&notify, NULL) != 0)
+  { return(NULL); }
+
   leela_naming_t *naming = (leela_naming_t *) malloc(sizeof(leela_naming_t));
   if (naming == NULL)
   { return(NULL); }
@@ -150,6 +161,7 @@ leela_naming_t *leela_naming_init(const leela_endpoint_t *endpoint, const char *
   naming->endpoint = NULL;
   naming->state    = NULL;
   naming->cancel   = false;
+  naming->notify   = &notify;
 
   naming->endpoint = leela_endpoint_dump(endpoint);
   if (naming->endpoint == NULL)
@@ -164,6 +176,12 @@ leela_naming_t *leela_naming_init(const leela_endpoint_t *endpoint, const char *
   { goto handle_error; }
 
   pthread_create(&naming->thread, NULL, __resolve_loop, naming);
+  if (pthread_mutex_lock(&naming->mutex) == 0)
+  {
+    pthread_cond_wait(&notify, &naming->mutex);
+    pthread_mutex_unlock(&naming->mutex);
+  }
+  pthread_cond_destroy(&notify);
   return(naming);
 
 handle_error:
@@ -173,16 +191,13 @@ handle_error:
   return(NULL);
 }
 
-void leela_naming_shutdown(leela_naming_t *naming, leela_naming_value_t **result)
+void leela_naming_shutdown(leela_naming_t *naming)
 {
   naming->cancel = true;
   pthread_join(naming->thread, NULL);
   free(naming->resource);
   free(naming->endpoint);
-  if (result != NULL)
-  { *result = naming->state; }
-  else
-  { leela_naming_value_free(naming->state); }
+  leela_naming_value_free(naming->state);
   pthread_mutex_destroy(&naming->mutex);
   free(naming);
 }

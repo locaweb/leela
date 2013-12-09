@@ -41,7 +41,7 @@ static
 void __zk_write(zhandle_t *zh, const char *path, const char *data)
 { zoo_create(zh, path, data, (data == NULL ? 0 : strlen(data) + 1), &ZOO_OPEN_ACL_UNSAFE, 0, NULL, 0); }
 
-TEST(test_leela_naming__)
+TEST(test_leela_naming)
 {
   zhandle_t *zh = zookeeper_init("localhost:2181", NULL, 60000, NULL, NULL, 0);
   __zk_rmrf(zh, "/leela-dev");
@@ -53,9 +53,8 @@ TEST(test_leela_naming__)
 
   leela_endpoint_t *endpoint     = leela_endpoint_load("tcp://localhost:2181;");
   leela_naming_t *naming         = leela_naming_init(endpoint, "/leela-dev");
-  leela_naming_value_t *snapshot = NULL;
-  leela_naming_shutdown(naming, &snapshot);
-  leela_naming_value_t *item = snapshot;
+  leela_naming_value_t *snapshot = leela_naming_query(naming);
+  leela_naming_value_t *item     = snapshot;
   for (int k=0; k<3; k+=1)
   {
     CHECK(item != NULL);
@@ -63,7 +62,7 @@ TEST(test_leela_naming__)
     item = item->next;
   }
   CHECK(item->next == NULL);
-
-  leela_naming_value_free(snapshot);
+  leela_naming_shutdown(naming);
   leela_endpoint_free(endpoint);
+  leela_naming_value_free(snapshot);
 }

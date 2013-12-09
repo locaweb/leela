@@ -15,6 +15,7 @@
 #ifndef __leela_naming_h__
 #define __leela_naming_h__
 
+#include <pthread.h>
 #include "leela/endpoint.h"
 
 #ifdef __cplusplus
@@ -37,6 +38,9 @@ typedef struct leela_naming_value_t
  *  
  *  \param resource The resource to monitor;
  *
+ *  \param cc If you provide this the lib will notify when the first
+ *  iteration finishes (this may be NULL);
+ *
  *  \return NULL      : there was an error and the naming could not be created;
  *  \return :otherwise: success;
  */
@@ -56,12 +60,8 @@ void leela_naming_value_free(leela_naming_value_t *);
 /*! Terminates the naming thread. This functions waits for the
  *  naming thread to finish and this guarantees that it will query
  *  the zookeeper server at least once
- *
- * \param The last value found on zookeeper. This may be NULL in which
- * case the value gets discarded. When this is not null you are
- * responsible for freeing the memory
  */
-void leela_naming_shutdown(leela_naming_t *, leela_naming_value_t **result);
+void leela_naming_shutdown(leela_naming_t *);
 
 #ifdef __cplusplus
 }

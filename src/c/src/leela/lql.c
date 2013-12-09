@@ -328,7 +328,7 @@ leela_status leela_lql_context_close(lql_context_t *ctx)
     if (ctx->zmqctx != NULL)
     { zmq_ctx_destroy(ctx->zmqctx); }
     if (ctx->naming != NULL)
-    { leela_naming_shutdown(ctx->naming, NULL); }
+    { leela_naming_shutdown(ctx->naming); }
     free(ctx);
     return(LEELA_OK);
   }
