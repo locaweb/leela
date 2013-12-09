@@ -25,20 +25,20 @@
 #include "leela/string.h"
 #include "leela/naming.h"
 
-struct leela_resolver_t
+struct leela_naming_t
 {
   char                   *resource;
   char                   *endpoint;
   bool                    cancel;
   pthread_t               thread;
   pthread_mutex_t         mutex;
-  leela_resolver_value_t *state;
+  leela_naming_value_t *state;
 };
 
 static
-leela_resolver_value_t *__value_init()
+leela_naming_value_t *__value_init()
 {
-  leela_resolver_value_t *value = (leela_resolver_value_t *) malloc(sizeof(leela_resolver_value_t));
+  leela_naming_value_t *value = (leela_naming_value_t *) malloc(sizeof(leela_naming_value_t));
   if (value != NULL)
   {
     value->next     = NULL;
@@ -48,7 +48,7 @@ leela_resolver_value_t *__value_init()
 }
 
 static
-leela_resolver_value_t *__zk_dump_tree(zhandle_t *zh, leela_resolver_value_t *result, const char *path, char *buffer, int bufflen0)
+leela_naming_value_t *__zk_dump_tree(zhandle_t *zh, leela_naming_value_t *result, const char *path, char *buffer, int bufflen0)
 {
   int bufflen = bufflen0;
   int rc      = zoo_get(zh, path, 0, buffer, &bufflen, NULL);
@@ -97,7 +97,7 @@ void *__resolve_loop(void *data)
   srand(time(NULL));
   int nextin                 = 0;
   zhandle_t *zh              = NULL;
-  leela_resolver_t *resolver = (leela_resolver_t *) data;
+  leela_naming_t *naming = (leela_naming_t *) data;
   do
   {
     if (zh != NULL)
@@ -106,111 +106,111 @@ void *__resolve_loop(void *data)
     sleep(nextin);
     nextin = 5 + rand() % 10;
 
-    zh = zookeeper_init(resolver->endpoint + 6, NULL, 60000, NULL, NULL, 0);
+    zh = zookeeper_init(naming->endpoint + 6, NULL, 60000, NULL, NULL, 0);
     if (zh == NULL)
     {
-      LEELA_DEBUG("could not connect to zookeeper: %s => %s", resolver->resource, resolver->endpoint);
+      LEELA_DEBUG("could not connect to zookeeper: %s => %s", naming->resource, naming->endpoint);
       continue;
     }
 
-    LEELA_DEBUG("fetching data from zookeeper: %s => %s", resolver->resource, resolver->endpoint);
-    leela_resolver_value_t *state = __value_init();
-    int bufflen                   = 1024 * 1024;
-    char *buffer                  = (char *) malloc(bufflen);
-    leela_resolver_value_t *rc    = __zk_dump_tree(zh, state, resolver->resource, buffer, bufflen);
+    LEELA_DEBUG("fetching data from zookeeper: %s => %s", naming->resource, naming->endpoint);
+    leela_naming_value_t *state = __value_init();
+    int bufflen                 = 1024 * 1024;
+    char *buffer                = (char *) malloc(bufflen);
+    leela_naming_value_t *rc    = __zk_dump_tree(zh, state, naming->resource, buffer, bufflen);
     free(buffer);
     if (rc == NULL)
     {
-      LEELA_DEBUG("error reading from zookeeper: %s => %s", resolver->resource, resolver->endpoint);
-      leela_resolver_value_free(state);
+      LEELA_DEBUG("error reading from zookeeper: %s => %s", naming->resource, naming->endpoint);
+      leela_naming_value_free(state);
       continue;
     }
-    if (pthread_mutex_lock(&resolver->mutex) == 0)
+    if (pthread_mutex_lock(&naming->mutex) == 0)
     {
-      leela_resolver_value_free(resolver->state);
-      resolver->state = state;
-      pthread_mutex_unlock(&resolver->mutex);
+      leela_naming_value_free(naming->state);
+      naming->state = state;
+      pthread_mutex_unlock(&naming->mutex);
     }
 
-    LEELA_DEBUG("naming thread: %s next-in %d seconds", resolver->resource, nextin);
-  } while (! resolver->cancel);
+    LEELA_DEBUG("naming thread: %s next-in %d seconds", naming->resource, nextin);
+  } while (! naming->cancel);
 
   if (zh != NULL)
   { zookeeper_close(zh); }
 
-  LEELA_DEBUG("terminating naming thread: %s", resolver->resource);
+  LEELA_DEBUG("terminating naming thread: %s", naming->resource);
 
   return(NULL);
 }
 
-leela_resolver_t *leela_resolver_init(const leela_endpoint_t *endpoint, const char *resource)
+leela_naming_t *leela_naming_init(const leela_endpoint_t *endpoint, const char *resource)
 {
-  leela_resolver_t *resolver = (leela_resolver_t *) malloc(sizeof(leela_resolver_t));
-  if (resolver == NULL)
+  leela_naming_t *naming = (leela_naming_t *) malloc(sizeof(leela_naming_t));
+  if (naming == NULL)
   { return(NULL); }
-  resolver->resource = NULL;
-  resolver->endpoint = NULL;
-  resolver->state    = NULL;
-  resolver->cancel   = false;
+  naming->resource = NULL;
+  naming->endpoint = NULL;
+  naming->state    = NULL;
+  naming->cancel   = false;
 
-  resolver->endpoint = leela_endpoint_dump(endpoint);
-  if (resolver->endpoint == NULL)
+  naming->endpoint = leela_endpoint_dump(endpoint);
+  if (naming->endpoint == NULL)
   { return(NULL); }
-  resolver->endpoint[strlen(resolver->endpoint) - 1] = '\0';
+  naming->endpoint[strlen(naming->endpoint) - 1] = '\0';
 
-  resolver->resource = leela_strdup(resource);
-  if (resolver->resource == NULL)
+  naming->resource = leela_strdup(resource);
+  if (naming->resource == NULL)
   { goto handle_error; }
 
-  if (pthread_mutex_init(&resolver->mutex, NULL) != 0)
+  if (pthread_mutex_init(&naming->mutex, NULL) != 0)
   { goto handle_error; }
 
-  pthread_create(&resolver->thread, NULL, __resolve_loop, resolver);
-  return(resolver);
+  pthread_create(&naming->thread, NULL, __resolve_loop, naming);
+  return(naming);
 
 handle_error:
-  free(resolver->resource);
-  free(resolver->endpoint);
-  free(resolver);
+  free(naming->resource);
+  free(naming->endpoint);
+  free(naming);
   return(NULL);
 }
 
-void leela_resolver_shutdown(leela_resolver_t *resolver, leela_resolver_value_t **result)
+void leela_naming_shutdown(leela_naming_t *naming, leela_naming_value_t **result)
 {
-  resolver->cancel = true;
-  pthread_join(resolver->thread, NULL);
-  free(resolver->resource);
-  free(resolver->endpoint);
+  naming->cancel = true;
+  pthread_join(naming->thread, NULL);
+  free(naming->resource);
+  free(naming->endpoint);
   if (result != NULL)
-  { *result = resolver->state; }
+  { *result = naming->state; }
   else
-  { leela_resolver_value_free(resolver->state); }
-  pthread_mutex_destroy(&resolver->mutex);
-  free(resolver);
+  { leela_naming_value_free(naming->state); }
+  pthread_mutex_destroy(&naming->mutex);
+  free(naming);
 }
 
-void leela_resolver_value_free(leela_resolver_value_t *value)
+void leela_naming_value_free(leela_naming_value_t *value)
 {
   while (value != NULL)
   {
-    leela_resolver_value_t *tmp = value;
+    leela_naming_value_t *tmp = value;
     leela_endpoint_free(tmp->endpoint);
     value = tmp->next;
     free(tmp);
   }
 }
 
-leela_resolver_value_t *leela_resolver_query(leela_resolver_t *resolver)
+leela_naming_value_t *leela_naming_query(leela_naming_t *naming)
 {
-  if (pthread_mutex_lock(&resolver->mutex) != 0)
+  if (pthread_mutex_lock(&naming->mutex) != 0)
   { return(NULL); }
 
-  leela_resolver_value_t *value = NULL;
-  if (resolver->state != NULL)
+  leela_naming_value_t *value = NULL;
+  if (naming->state != NULL)
   {
-    value                         = __value_init();
-    leela_resolver_value_t *tmp   = value;
-    leela_resolver_value_t *state = resolver->state;
+    value                       = __value_init();
+    leela_naming_value_t *tmp   = value;
+    leela_naming_value_t *state = naming->state;
     while (state != NULL && tmp != NULL)
     {
       if (state->endpoint != NULL)
@@ -222,6 +222,6 @@ leela_resolver_value_t *leela_resolver_query(leela_resolver_t *resolver)
       state = state->next;
     };
   }
-  pthread_mutex_unlock(&resolver->mutex);
+  pthread_mutex_unlock(&naming->mutex);
   return(value);
 }

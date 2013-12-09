@@ -17,12 +17,13 @@
 #ifndef __leela_status_h__
 #define __leela_status_h__
 
-enum leela_status {
+typedef enum leela_status
+{
   LEELA_OK       = 0,
   LEELA_EOF      = 1,
   LEELA_BADARGS  = 2,
   LEELA_TIMEOUT  = 3,
   LEELA_ERROR    = -1
-};
+} leela_status;
 
 #endif

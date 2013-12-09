@@ -36,7 +36,6 @@ void __zk_rmrf(zhandle_t *zh, const char *path)
       free(child);
     }
   }
-
   zoo_delete(zh, path, -1);
 }
 
@@ -54,11 +53,11 @@ TEST(test_leela_naming__)
   __zk_write(zh, "/leela-dev/child-2", "tcp://localhost:8082;");
   zookeeper_close(zh);
 
-  leela_endpoint_t *endpoint       = leela_endpoint_load("tcp://localhost:2181;");
-  leela_resolver_t *resolver       = leela_resolver_init(endpoint, "/leela-dev");
-  leela_resolver_value_t *snapshot = NULL;
-  leela_resolver_shutdown(resolver, &snapshot);
-  leela_resolver_value_t *item = snapshot;
+  leela_endpoint_t *endpoint     = leela_endpoint_load("tcp://localhost:2181;");
+  leela_naming_t *naming         = leela_naming_init(endpoint, "/leela-dev");
+  leela_naming_value_t *snapshot = NULL;
+  leela_naming_shutdown(naming, &snapshot);
+  leela_naming_value_t *item = snapshot;
   for (int k=0; k<3; k+=1)
   {
     CHECK(item != NULL);
@@ -67,6 +66,6 @@ TEST(test_leela_naming__)
   }
   CHECK(item->next == NULL);
 
-  leela_resolver_value_free(snapshot);
+  leela_naming_value_free(snapshot);
   leela_endpoint_free(endpoint);
 }
