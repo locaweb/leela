@@ -33,7 +33,7 @@ typedef struct leela_resolver_value_t
 } leela_resolver_value_t;
 
 /*! Intializes the resolver thread. This constantly queries zookeeper
- *  for updates about this particular resource.
+ *  for updates about this particular resource
  *
  *  \param zookeeper The endpoint for the zookeeper cluster to use;
  *  
@@ -44,20 +44,24 @@ typedef struct leela_resolver_value_t
  */
 leela_resolver_t *leela_resolver_init(const leela_endpoint_t *zookeeper, const char *resource);
 
-/*! Returns the endpoints found under this resource;
+/*! Returns the endpoints found under this resource
  *
  *  \return NULL     : zero endpoints found;
  *  \return otherwise: A valid endpoint;
  */
 leela_resolver_value_t *leela_resolver_query(leela_resolver_t *);
 
-/*! Frees memory;
+/*! Frees memory
  */
 void leela_resolver_value_free(leela_resolver_value_t *);
 
-/*! Terminates the resolver thread.
+/*! Terminates the resolver thread. This functions waits for the
+ *  resolver thread to finish and this guarantees that it will query
+ *  the zookeeper server at least once
  *
- * \param The last value found on zookeeper. This may be NULL.
+ * \param The last value found on zookeeper. This may be NULL in which
+ * case the value gets discarded. When this is not null you are
+ * responsible for freeing the memory
  */
 void leela_resolver_shutdown(leela_resolver_t *, leela_resolver_value_t **result);
 
