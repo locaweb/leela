@@ -25,6 +25,8 @@ char *leela_strdup(const char *);
 
 char *leela_strndup(const char *, size_t);
 
+char *leela_join(const char *, ...);
+
 #ifdef __cplusplus
 }
 #endif

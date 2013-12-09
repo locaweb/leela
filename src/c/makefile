@@ -1,17 +1,17 @@
 
-CFLAGS = -W -Wall -std=c99 -pedantic
+CFLAGS = -W -Wall -pedantic
 
 SRC_FILES = $(wildcard src/leela/*.c)
 OBJ_FILES = $(subst .c,.o,$(SRC_FILES))
 
-compile: override CFLAGS += -Isrc
+$(OBJ_FILES): override CFLAGS += -Isrc -std=c99
+
 compile: $(OBJ_FILES)
 
+try_leela: override CXXFLAGS += -g -Isrc -I/usr/include/unittest++
+try_leela: override LDLIBS += -lUnitTest++ -lzookeeper_mt -lpthread -lzmq
 try_leela: try/*.cc $(OBJ_FILES)
 
-test: override CFLAGS += -g -Isrc
-test: override LDLIBS += -lUnitTest++
-test: override CXXFLAGS += -g -Isrc -I/usr/include/unittest++
 test: try_leela
 	./try_leela
 

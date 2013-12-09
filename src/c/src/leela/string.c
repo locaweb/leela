@@ -15,9 +15,9 @@
  */
 
 #include <string.h>
-#include "leela/string.h"
-
+#include <stdarg.h>
 #include <stdlib.h>
+#include "leela/string.h"
 
 char *leela_strdup(const char *s)
 { return(leela_strndup(s, strlen(s))); }
@@ -29,4 +29,36 @@ char *leela_strndup(const char *s, size_t l)
   { strncpy(d, s, l); }
   d[l] = '\0';
   return(d);
+}
+
+char *leela_join(const char *base, ...)
+{
+  size_t baselen   = strlen(base);
+  size_t offset    = baselen;
+  char *str        = NULL;
+  const char *item = NULL;
+
+  va_list args;
+  va_start(args, base);
+  while ((item = va_arg(args, const char *)) != NULL)
+  { baselen += strlen(item); }
+  va_end(args);
+
+  str = (char *) malloc(baselen + 1); 
+  if (str == NULL)
+  { return(NULL); }
+
+  va_start(args, base);
+  strcpy(str, base);
+  while ((item = va_arg(args, char*)) != NULL)
+  {
+    if (strcmp(item, "") == 0)
+    { continue; }
+    strcpy(str+offset, item);
+    offset += strlen(item);
+  }
+  str[offset] = '\0';
+  va_end(args);
+
+  return(str);
 }

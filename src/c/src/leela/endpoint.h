@@ -17,6 +17,7 @@
 #ifndef __leela_endpoint_h__
 #define __leela_endpoint_h__
 
+#include <stdlib.h>
 #include <inttypes.h>
 
 #ifdef __cplusplus
