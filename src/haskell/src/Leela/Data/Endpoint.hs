@@ -19,7 +19,6 @@ module Leela.Data.Endpoint
        , isTCP
        , isUDP
        , toZmq
-       , isUNIX
        , toZookeeper
        , loadEndpoint
        , dumpEndpoint
@@ -30,7 +29,7 @@ module Leela.Data.Endpoint
 
 import           Data.Word
 import           Data.Monoid
-import           Data.Attoparsec
+import           Data.Attoparsec as A
 import qualified Data.ByteString as B
 import           Control.Applicative
 import qualified Data.ByteString.Lazy as L
@@ -40,17 +39,11 @@ import qualified Data.ByteString.Lazy.Char8 as L8
 import           Data.ByteString.Lazy.Builder
 
 data Endpoint = TCP { eAddr :: [(String, Maybe Word16)]
-                    , eUser :: Maybe B.ByteString
-                    , ePass :: Maybe B.ByteString
                     , ePath :: String
                     }
               | UDP { eAddr :: [(String, Maybe Word16)]
-                    , eUser :: Maybe B.ByteString
-                    , ePass :: Maybe B.ByteString
                     , ePath :: String
                     }
-              | UNIX { ePath :: String
-                     }
               deriving (Eq, Ord)
 
 isTCP :: Endpoint -> Bool
@@ -60,10 +53,6 @@ isTCP _       = False
 isUDP :: Endpoint -> Bool
 isUDP (UDP{}) = True
 isUDP _       = False
-
-isUNIX :: Endpoint -> Bool
-isUNIX (UNIX _) = True
-isUNIX _        = False
 
 qstring :: (Word8 -> Bool) -> Parser (Maybe Word8, B.ByteString)
 qstring p = cont []
@@ -81,6 +70,7 @@ qstring p = cont []
           _
             | p c       -> return (Just c, B.pack $ reverse acc)
             | otherwise -> cont (c:acc)
+
 readWord :: B.ByteString -> Maybe Word16
 readWord = fmap (fromIntegral . fst) . B8.readInt
 
@@ -95,26 +85,22 @@ splitAddr = map (f . splitColon) . B.split 0x3b
     where
       f (h, mp) = (B8.unpack h, mp >>= readWord)
 
-parseURL :: ([(String, Maybe Word16)] -> Maybe B.ByteString -> Maybe B.ByteString -> String -> a) -> Parser a
+parseURL :: ([(String, Maybe Word16)] -> String -> a) -> Parser a
 parseURL f = do
-  (w, userOrAddr) <- qstring (`elem` [0x40, 0x2f])
+  (w, addr) <- qstring (`elem` [0x2f, 0x3b])
   case w of
-    Just 0x40 -> do
-      let (user, mpass) = splitColon userOrAddr
-      (_, addrs) <- qstring (== 0x2f)
-      path       <- fmap B8.unpack takeByteString
-      return (f (splitAddr addrs) (Just user) mpass path)
     Just 0x2f -> do
       path <- fmap B8.unpack takeByteString
-      return (f (splitAddr userOrAddr) Nothing Nothing path)
-    Nothing   -> return (f (splitAddr userOrAddr) Nothing Nothing "")
+      if ((null path) || (last path) /= ';')
+        then fail "bad path"
+        else return (f (splitAddr addr) ('/' : init path))
+    Just 0x3b -> return (f (splitAddr addr) "")
     _         -> fail "unknonw endpoint"
 
 parseEndpoint :: Parser Endpoint
 parseEndpoint =
   "tcp://" .*> parseURL TCP
   <|> "udp://" .*> parseURL UDP
-  <|> "unix://" .*> fmap (UNIX . B8.unpack) takeByteString
 
 escape :: Word8 -> B.ByteString -> B.ByteString
 escape w s = let sep    = B.pack [0x5c, w]
@@ -136,35 +122,20 @@ loadEndpoint s =
 dumpEndpoint :: Endpoint -> L.ByteString
 dumpEndpoint endpoint =
   case endpoint of
-    TCP addrs user pass path -> toLazyByteString $ string7 "tcp://"
-                                  <> dumpAuth user pass
-                                  <> dumpAddrs addrs
-                                  <> char7 '/'
-                                  <> string7 path
-    UDP addrs user pass path -> toLazyByteString $ string7 "udp://"
-                                  <> dumpAuth user pass
-                                  <> dumpAddrs addrs
-                                  <> char7 '/'
-                                  <> string7 path
-    UNIX path                -> toLazyByteString $ string7 "unix://"
-                                  <> string7 path
+    TCP addrs path -> toLazyByteString $ string7 "tcp://"
+                      <> dumpAddrs addrs
+                      <> string7 path
+                      <> char7 ';'
+    UDP addrs path -> toLazyByteString $ string7 "udp://"
+                      <> dumpAddrs addrs
+                      <> string7 path
+                      <> char7 ';'
     where
       buildAddr (h, Nothing) = string7 h
       buildAddr (h, Just p)  = string7 h <> char7 ':' <> (string7 $ show p)
 
       dumpAddrs []     = error "empty addr"
       dumpAddrs (x:xs) = foldr (\a acc -> buildAddr a <> char7 ';' <> acc) (buildAddr x) xs
-
-      dumpAuth Nothing Nothing   = mempty
-      dumpAuth (Just u) Nothing  = byteString (escape 0x3a u)
-                                   <> string7 ":@"
-      dumpAuth Nothing (Just p)  = char7 ':'
-                                   <> byteString (escape 0x40 p)
-                                   <> char7 '@'
-      dumpAuth (Just u) (Just p) = byteString (escape 0x3a u)
-                                   <> char7 ':'
-                                   <> byteString (escape 0x40 p)
-                                   <> char7 '@'
 
 toZookeeper :: String -> Endpoint -> String
 toZookeeper defEndpoint e
@@ -174,7 +145,7 @@ toZookeeper defEndpoint e
       showAddrs []           = Nothing
       showAddrs (addr:addrs) = let f = \val acc -> acc ++ "," ++ showAddr val
                                    z = showAddr addr
-                               in Just (foldr f z addrs ++  "/" ++ (ePath e))
+                               in Just (foldr f z addrs ++  (ePath e))
 
       showAddr (h, Nothing) = h ++ ":2181"
       showAddr (h, Just p)  = h ++ ":" ++ show p
