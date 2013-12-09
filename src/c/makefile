@@ -13,6 +13,7 @@ try_leela: override LDLIBS += -lUnitTest++ -lzookeeper_mt -lpthread -lzmq
 try_leela: try/*.cc $(OBJ_FILES)
 
 test: try_leela
+	nc -z localhost 2181 || { echo "could not connect to zookeeper: localhost:2181"; exit 1; }
 	./try_leela
 
 # test: override CXXFLAGS += -Isrc -I/usr/include/unittest++
