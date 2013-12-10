@@ -81,7 +81,7 @@ splitColon s = let (l, r) = B.break (== 0x3a) s
                     else (l, Just $ B.drop 1 r)
 
 splitAddr :: B.ByteString -> [(String, Maybe Word16)]
-splitAddr = map (f . splitColon) . B.split 0x3b
+splitAddr = map (f . splitColon) . B.split 0x2c
     where
       f (h, mp) = (B8.unpack h, mp >>= readWord)
 
@@ -135,7 +135,7 @@ dumpEndpoint endpoint =
       buildAddr (h, Just p)  = string7 h <> char7 ':' <> (string7 $ show p)
 
       dumpAddrs []     = error "empty addr"
-      dumpAddrs (x:xs) = foldr (\a acc -> buildAddr a <> char7 ';' <> acc) (buildAddr x) xs
+      dumpAddrs (x:xs) = foldr (\a acc -> buildAddr a <> char7 ',' <> acc) (buildAddr x) xs
 
 toZookeeper :: String -> Endpoint -> String
 toZookeeper defEndpoint e

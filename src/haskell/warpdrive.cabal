@@ -9,7 +9,7 @@ maintainer:    DiegoSouza
 build-type:    Simple
 description:   this program is the leela backbone. This provides a property-graph
                engine and a metrics monitoring system through LQL language.
-license-file:  ../../APACHE-2.0
+license-file:  ../../LICENSE
 cabal-version: >= 1.16
 
 source-repository head

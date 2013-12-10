@@ -32,10 +32,10 @@ import Leela.Network.ZMQServer
 import Leela.Storage.Backend.ZMQ
 
 defaultZookeeper :: Endpoint
-defaultZookeeper = TCP [("localhost", Just 2181)] Nothing Nothing "leela"
+defaultZookeeper = TCP [("localhost", Just 2181)] "leela"
 
 defaultEndpoint :: Endpoint
-defaultEndpoint = TCP [("*", Just 50021)] Nothing Nothing ""
+defaultEndpoint = TCP [("*", Just 50021)] ""
 
 defineEQFlag "debuglevel" [|NOTICE :: Priority|] "LOGLEVEL" "The debug level to use"
 
