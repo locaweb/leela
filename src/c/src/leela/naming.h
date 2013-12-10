@@ -41,10 +41,13 @@ typedef struct leela_naming_value_t
  *  \param cc If you provide this the lib will notify when the first
  *  iteration finishes (this may be NULL);
  *
+ *  \param maxdelay The maximum amount of time to wait between
+ *  consecute calls;
+ *
  *  \return NULL      : there was an error and the naming could not be created;
  *  \return :otherwise: success;
  */
-leela_naming_t *leela_naming_init(const leela_endpoint_t *zookeeper, const char *resource);
+leela_naming_t *leela_naming_init(const leela_endpoint_t *zookeeper, const char *resource, int maxdelay);
 
 /*! Returns the endpoints found under this resource
  *

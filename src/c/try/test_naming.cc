@@ -17,42 +17,23 @@
 #include <unistd.h>
 #include <UnitTest++.h>
 #include <zookeeper/zookeeper.h>
+#include "helpers.hh"
 #include "leela/naming.h"
 #include "leela/string.h"
 #include "leela/endpoint.h"
 
-static
-void __zk_rmrf(zhandle_t *zh, const char *path)
-{
-  struct String_vector children;
-  if (zoo_get_children(zh, path, 0, &children) == ZOK)
-  {
-    for (int k=0; k<children.count; k+=1)
-    {
-      char *child = leela_join(path, "/", children.data[k], NULL);
-      __zk_rmrf(zh, child);
-      free(child);
-    }
-  }
-  zoo_delete(zh, path, -1);
-}
-
-static
-void __zk_write(zhandle_t *zh, const char *path, const char *data)
-{ zoo_create(zh, path, data, (data == NULL ? 0 : strlen(data) + 1), &ZOO_OPEN_ACL_UNSAFE, 0, NULL, 0); }
-
 TEST(test_leela_naming)
 {
   zhandle_t *zh = zookeeper_init("localhost:2181", NULL, 60000, NULL, NULL, 0);
-  __zk_rmrf(zh, "/leela-dev");
-  __zk_write(zh, "/leela-dev", NULL);
-  __zk_write(zh, "/leela-dev/child-0", "tcp://localhost:8080;");
-  __zk_write(zh, "/leela-dev/child-1", "tcp://localhost:8081;");
-  __zk_write(zh, "/leela-dev/child-2", "tcp://localhost:8082;");
+  test_leela_zk_rmrf(zh, "/leela-dev");
+  test_leela_zk_write(zh, "/leela-dev", NULL);
+  test_leela_zk_write(zh, "/leela-dev/child-0", "tcp://localhost:8080;");
+  test_leela_zk_write(zh, "/leela-dev/child-1", "tcp://localhost:8081;");
+  test_leela_zk_write(zh, "/leela-dev/child-2", "tcp://localhost:8082;");
   zookeeper_close(zh);
 
   leela_endpoint_t *endpoint     = leela_endpoint_load("tcp://localhost:2181;");
-  leela_naming_t *naming         = leela_naming_init(endpoint, "/leela-dev");
+  leela_naming_t *naming         = leela_naming_init(endpoint, "/leela-dev", 2);
   leela_naming_value_t *snapshot = leela_naming_query(naming);
   leela_naming_value_t *item     = snapshot;
   for (int k=0; k<3; k+=1)
@@ -61,7 +42,7 @@ TEST(test_leela_naming)
     CHECK(item->endpoint != NULL);
     item = item->next;
   }
-  CHECK(item->next == NULL);
+  CHECK(item == NULL);
   leela_naming_shutdown(naming);
   leela_endpoint_free(endpoint);
   leela_naming_value_free(snapshot);

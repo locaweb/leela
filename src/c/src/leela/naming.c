@@ -26,6 +26,7 @@
 struct leela_naming_t
 {
   char                   *resource;
+  int                     maxdelay;
   char                   *endpoint;
   bool                    cancel;
   pthread_t               thread;
@@ -91,7 +92,15 @@ leela_naming_value_t *__zk_dump_tree(zhandle_t *zh, leela_naming_value_t *result
 }
 
 static
-void *__resolve_loop(void *data)
+void __naming_notify(leela_naming_t *naming)
+{
+  if (naming->notify != NULL)
+  { pthread_cond_signal(naming->notify); }
+  naming->notify = NULL;
+}
+
+static
+void *__naming_loop(void *data)
 {
   srand(time(NULL));
   int nextin             = 0;
@@ -102,13 +111,19 @@ void *__resolve_loop(void *data)
     if (zh != NULL)
     { zookeeper_close(zh); }
 
-    sleep(nextin);
-    nextin = 5 + rand() % 10;
+    LEELA_DEBUG("naming thread: %s sleeping %d seconds", naming->resource, nextin);
+    for (; nextin > 0 && !naming->cancel; nextin -= 1)
+    { sleep(1); }
+    if (naming->cancel)
+    { break; }
+    nextin = rand() % naming->maxdelay;
 
     zh = zookeeper_init(naming->endpoint + 6, NULL, 60000, NULL, NULL, 0);
     if (zh == NULL)
     {
       LEELA_DEBUG("could not connect to zookeeper: %s => %s", naming->resource, naming->endpoint);
+      __naming_notify(naming);
+      nextin = 1;
       continue;
     }
 
@@ -122,6 +137,8 @@ void *__resolve_loop(void *data)
     {
       LEELA_DEBUG("error reading from zookeeper: %s => %s", naming->resource, naming->endpoint);
       leela_naming_value_free(state);
+      __naming_notify(naming);
+      nextin = 1;
       continue;
     }
     if (pthread_mutex_lock(&naming->mutex) == 0)
@@ -130,25 +147,14 @@ void *__resolve_loop(void *data)
       naming->state = state;
       pthread_mutex_unlock(&naming->mutex);
     }
-
-    if (naming->notify != NULL)
-    { pthread_cond_signal(naming->notify); }
-    naming->notify = NULL;
-
-    if (naming->cancel)
-    { break; }
-    LEELA_DEBUG("naming thread: %s next-in %d seconds", naming->resource, nextin);
+    __naming_notify(naming);
   } while (true);
 
-  if (zh != NULL)
-  { zookeeper_close(zh); }
-
   LEELA_DEBUG("terminating naming thread: %s", naming->resource);
-
   return(NULL);
 }
 
-leela_naming_t *leela_naming_init(const leela_endpoint_t *endpoint, const char *resource)
+leela_naming_t *leela_naming_init(const leela_endpoint_t *endpoint, const char *resource, int maxdelay)
 {
   pthread_cond_t notify;
   if (pthread_cond_init(&notify, NULL) != 0)
@@ -157,6 +163,7 @@ leela_naming_t *leela_naming_init(const leela_endpoint_t *endpoint, const char *
   leela_naming_t *naming = (leela_naming_t *) malloc(sizeof(leela_naming_t));
   if (naming == NULL)
   { return(NULL); }
+  naming->maxdelay = maxdelay;
   naming->resource = NULL;
   naming->endpoint = NULL;
   naming->state    = NULL;
@@ -175,7 +182,7 @@ leela_naming_t *leela_naming_init(const leela_endpoint_t *endpoint, const char *
   if (pthread_mutex_init(&naming->mutex, NULL) != 0)
   { goto handle_error; }
 
-  pthread_create(&naming->thread, NULL, __resolve_loop, naming);
+  pthread_create(&naming->thread, NULL, __naming_loop, naming);
   if (pthread_mutex_lock(&naming->mutex) == 0)
   {
     pthread_cond_wait(&notify, &naming->mutex);
@@ -221,16 +228,25 @@ leela_naming_value_t *leela_naming_query(leela_naming_t *naming)
   leela_naming_value_t *value = NULL;
   if (naming->state != NULL)
   {
-    value                       = __value_init();
-    leela_naming_value_t *tmp   = value;
+    leela_naming_value_t *llist = NULL;
     leela_naming_value_t *state = naming->state;
-    while (state != NULL && tmp != NULL)
+    while (state != NULL)
     {
       if (state->endpoint != NULL)
       {
-        tmp->endpoint = leela_endpoint_dup(state->endpoint);
-        tmp->next     = (state->next == NULL ? NULL : __value_init());
-        tmp           = tmp->next;
+        if (llist == NULL)
+        {
+          llist = __value_init();
+          value = llist;
+        }
+        else
+        {
+          llist->next = __value_init();
+          llist       = llist->next;
+        }
+        if (llist == NULL)
+        { break; }
+        llist->endpoint = leela_endpoint_dup(state->endpoint);
       }
       state = state->next;
     };

@@ -29,7 +29,11 @@ extern "C" {
 typedef struct lql_cursor_t lql_cursor_t;
 typedef struct lql_context_t lql_context_t;
 
-enum lql_row_type {NAME, PATH};
+typedef enum
+{
+  LQL_NAME,
+  LQL_PATH
+} lql_row_type;
 
 //! A simple 2-tuple type;
 typedef struct
@@ -109,6 +113,21 @@ leela_status leela_lql_cursor_execute(lql_cursor_t *cursor, const char *query);
  *  \return LEELA_TIMEOUT the operation has timed out;
  */
 leela_status leela_lql_cursor_next(lql_cursor_t *cursor);
+
+/*! Retrieves the current row type. Notice you *must* invoke
+ * `leela_lql_cursor_next' and it *must* return `LEELA_OK' prior
+ * calling this function.
+ */
+lql_row_type leela_lql_msg_type(lql_cursor_t *cursor);
+
+/*! Extracts the name message from the cursor. Use this function only
+ *  if the message type is LQL_NAME (refer to
+ *  leela_lql_msg_type);
+ */
+lql_name_t *leela_lql_msg_name(lql_cursor_t *cursor);
+
+void leela_lql_msg_name_free(lql_name_t *);
+void leela_lql_msg_path_free(lql_path_t *);
 
 /*! Terminates a cursor. Remember to always call this function after
  *  you are done iterating.
