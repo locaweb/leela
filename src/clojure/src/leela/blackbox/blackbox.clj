@@ -28,6 +28,9 @@
     (System/getenv (subs u 1))
     u))
 
+(defn to-zmq-endpoint [e]
+  (subs e 0 (dec (count e))))
+
 (defn -main [& args]
   (let [[options args banner] (cli args
                                    ["--help" "this message"
@@ -49,14 +52,15 @@
                                     :default 32
                                     :parse-fn #(Integer/parseInt %)]
                                    ["--endpoint" "the binding address"
-                                    :default "tcp://*:50021"])]
+                                    :default "tcp://localhost:50021;"])]
     (when (:help options)
       (println banner)
       (System/exit 0))
 
     (let [cassandra-args {:credentials {:username (maybe-getenv (:username options))
                                         :password (maybe-getenv (:password options))}
-                          :connections (:capabilities options)}]
+                          :connections (:capabilities options)}
+          endpoint       (to-zmq-endpoint (:endpoint options))]
       (f/supervise
        (storage/with-session [cluster (:cassandra options) (:keyspace options) cassandra-args]
-         (zserver/server-start (ZMQ/context 1) cluster options))))))
+         (zserver/server-start (ZMQ/context 1) cluster (assoc options :endpoint endpoint)))))))

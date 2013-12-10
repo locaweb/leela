@@ -31,7 +31,7 @@ leela_grantaccess () {
 
 leela_watchdog_start () {
   local zookeeper
-  zookeeper=$(echo $LEELA_BLACKBOX_WATCHDOG_ZOOKEEPER | cut -c 7-)
+  zookeeper=$(echo ${LEELA_BLACKBOX_WATCHDOG_ZOOKEEPER%;} | cut -c 7-)
   leela_grantaccess
   daemon --delay 10 -r -o $LOGDIR/watchdog.log \
     -u $USER:$GROUP -P $RUNDIR -n watchdog -- \
