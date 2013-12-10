@@ -18,11 +18,6 @@ test: try_leela
 	[ -n "$(LEELA_ENDPOINT)" ] || { echo "missing environ variable: LEELA_ENDPOINT (eg.: LEELA_ENDPOINT='tcp://localhost:4080;'"; exit 1; }
 	env LEELA_ENDPOINT="$(LEELA_ENDPOINT)" ./try_leela
 
-# test: override CXXFLAGS += -Isrc -I/usr/include/unittest++
-# test: override LDFLAGS += -lUnitTest++
-# test: compile
-# 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -otry_leela try/*.cc $(OBJ_FILES) $(LDFLAGS)
-
 clean:
 	rm -f $(OBJ_FILES)
 	rm -f try_leela

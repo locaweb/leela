@@ -118,7 +118,7 @@ int __zmq_sendmsg_str(lql_cursor_t *cursor, const char *data, ...)
       part = data;
     }
 
-    LEELA_TRACE("[cursor/%x] > |%s|", cursor, last);
+    LEELA_TRACE("[cursor/%s] > |%s|", cursor->channel == NULL ? "" : cursor->channel, last);
     rc = zmq_send(cursor->socket, last, strlen(last), (part == NULL ? 0 : ZMQ_SNDMORE));
     if (rc == -1)
     { goto handle_error; }
@@ -138,7 +138,9 @@ int __zmq_recvmsg(lql_cursor_t *cursor)
   items[0].events = ZMQ_POLLIN;
   int rc = zmq_poll(items, 1, cursor->timeout);
   if (rc == 1)
-  { return(zmq_msg_recv(&cursor->buffer, cursor->socket, 0)); }
+  {
+    return(zmq_msg_recv(&cursor->buffer, cursor->socket, 0));
+  }
   return(-1);
 }
 
@@ -148,7 +150,7 @@ int __zmq_recvmsg_str(lql_cursor_t *cursor, char *buff, int buflen)
   int rc = __zmq_recvmsg(cursor);
   if (buflen < rc)
   {
-    LEELA_DEBUG("[cursor/%x] buffer is too small: %d x %d", cursor, buflen, rc);
+    LEELA_DEBUG("[cursor/%s] buffer is too small: %d x %d", cursor->channel, buflen, rc);
     return(-1);
   }
 
@@ -158,6 +160,7 @@ int __zmq_recvmsg_str(lql_cursor_t *cursor, char *buff, int buflen)
     buff[rc] = '\0';
   }
 
+  LEELA_TRACE("[cursor/%s] < |%s|", cursor->channel == NULL ? "" : cursor->channel, buff);
   return(rc);
 }
 
@@ -175,6 +178,8 @@ char *__zmq_recvmsg_copystr(lql_cursor_t *cursor)
     memcpy(buffer, zmq_msg_data(&cursor->buffer), buflen);
     buffer[buflen] = '\0';
   }
+
+  LEELA_TRACE("[cursor/%s] < |%s|", cursor->channel == NULL ? "" : cursor->channel, buffer);
   return(buffer);
 }
 
@@ -254,6 +259,7 @@ lql_cursor_t *leela_lql_cursor_init(lql_context_t *ctx, const char *username, co
   if (zmqendpoint == NULL)
   { goto handle_error; }
   zmqendpoint[strlen(zmqendpoint) - 1] = '\0';
+  LEELA_TRACE("next backend: %s", zmqendpoint);
 
   cursor->socket = zmq_socket(ctx->zmqctx, ZMQ_REQ);
   if (cursor->socket == NULL)
@@ -378,6 +384,36 @@ lql_name_t *leela_lql_msg_name(lql_cursor_t *cursor)
   return(NULL);
 }
 
+lql_path_t *leela_lql_msg_path(lql_cursor_t *cursor)
+{
+  if (cursor->row != LQL_PATH)
+  { return(NULL); }
+
+  lql_path_t *path = (lql_path_t *) malloc(sizeof(lql_path_t));
+  if (path != NULL)
+  {
+    uint32_t elems = cursor->elems[1] / 2;
+    path->size     = 0;
+    path->entries  = (lql_tuple2_t *) malloc(elems * sizeof(lql_tuple2_t));
+
+    uint32_t k;
+    for (k=0; k<elems; k+=1)
+    {
+      path->entries[k].fst = __zmq_recvmsg_copystr(cursor);
+      path->entries[k].snd = __zmq_recvmsg_copystr(cursor);
+      path->size          += 1;
+      if (path->entries[k].fst == NULL
+          || path->entries[k].snd == NULL)
+      { break; }
+    }
+    if (k == elems)
+    { return(path); }
+  }
+
+  leela_lql_msg_path_free(path);
+  return(NULL);
+}
+
 void leela_lql_msg_name_free(lql_name_t *name)
 {
   if (name != NULL)
@@ -387,6 +423,20 @@ void leela_lql_msg_name_free(lql_name_t *name)
     free(name->name);
     free(name);
   }
+}
+
+void leela_lql_msg_path_free(lql_path_t *path)
+{
+  if (path == NULL)
+  { return; }
+
+  for (int k=0; k<path->size; k+=1)
+  {
+    free(path->entries[k].fst);
+    free(path->entries[k].snd);
+  }
+  free(path->entries);
+  free(path);
 }
 
 leela_status leela_lql_cursor_close(lql_cursor_t *cursor)

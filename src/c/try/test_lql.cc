@@ -90,6 +90,50 @@ TEST(test_leela_resolve_name)
   CHECK_EQUAL("testing", name->tree);
   CHECK_EQUAL("leela", name->name);
   leela_lql_msg_name_free(name);
+  CHECK_EQUAL(LEELA_EOF, leela_lql_cursor_next(cursor));
+  CHECK_EQUAL(LEELA_OK, leela_lql_cursor_close(cursor));
+
+  CHECK_EQUAL(LEELA_OK, leela_lql_context_close(context));
+  leela_endpoint_free(endpoint);
+}
+
+TEST(test_leela_resolve_path)
+{
+  zhandle_t *zh = zookeeper_init("localhost:2181", NULL, 60000, NULL, NULL, 0);
+  test_leela_zk_rmrf(zh, "/leela-dev");
+  test_leela_zk_write(zh, "/leela-dev", NULL);
+  test_leela_zk_write(zh, "/leela-dev/naming", NULL);
+  test_leela_zk_write(zh, "/leela-dev/naming/warpdrive", NULL);
+  test_leela_zk_write(zh, "/leela-dev/naming/warpdrive/1", std::getenv("LEELA_ENDPOINT"));
+  zookeeper_close(zh);
+
+  leela_endpoint_t *endpoint = leela_endpoint_load("tcp://localhost:2181/leela-dev;");
+  lql_context_t *context     = leela_lql_context_init(endpoint, "/naming/warpdrive");
+  lql_cursor_t *cursor;
+
+  cursor = leela_lql_cursor_init(context, "dgvncsz0f", "", 1000);
+  CHECK_EQUAL(LEELA_OK, leela_lql_cursor_execute(cursor, "using (testing) make (leela)\nmake (module)\nmake (warpdrive)\nmake (blackbox);"));
+  CHECK_EQUAL(LEELA_EOF, leela_lql_cursor_next(cursor));
+  CHECK_EQUAL(LEELA_OK, leela_lql_cursor_close(cursor));
+
+  cursor = leela_lql_cursor_init(context, "dgvncsz0f", "", 1000);
+  CHECK_EQUAL(LEELA_OK, leela_lql_cursor_execute(cursor, "using (testing) make (leela) -[module]> (warpdrive) -[module]> (blackbox);"));
+  CHECK_EQUAL(LEELA_EOF, leela_lql_cursor_next(cursor));
+  CHECK_EQUAL(LEELA_OK, leela_lql_cursor_close(cursor));
+
+  cursor = leela_lql_cursor_init(context, "dgvncsz0f", "", 1000);
+  CHECK_EQUAL(LEELA_OK, leela_lql_cursor_execute(cursor, "using (testing) path (leela) -[module]> () -[module]> ();"));
+  CHECK_EQUAL(LEELA_OK, leela_lql_cursor_next(cursor));
+  CHECK_EQUAL(LQL_PATH, leela_lql_msg_type(cursor));
+  lql_path_t *path = leela_lql_msg_path(cursor);
+  CHECK(path != NULL);
+  CHECK_EQUAL(2, path->size);
+  CHECK_EQUAL("module", path->entries[0].fst);
+  CHECK_EQUAL("0x17a47529e3f5398fbbdec1831fcfdb102f6c5b3cf1f0a127db7a916d", path->entries[0].snd);
+  CHECK_EQUAL("module", path->entries[1].fst);
+  CHECK_EQUAL("0x77ba03cf506747085f8952200ed916a5761009051845a7c308f3b014", path->entries[1].snd);
+  leela_lql_msg_path_free(path);
+  CHECK_EQUAL(LEELA_EOF, leela_lql_cursor_next(cursor));
   CHECK_EQUAL(LEELA_OK, leela_lql_cursor_close(cursor));
 
   CHECK_EQUAL(LEELA_OK, leela_lql_context_close(context));
