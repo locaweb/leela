@@ -244,9 +244,14 @@ leela_naming_value_t *leela_naming_query(leela_naming_t *naming)
           llist->next = __value_init();
           llist       = llist->next;
         }
-        if (llist == NULL)
-        { break; }
-        llist->endpoint = leela_endpoint_dup(state->endpoint);
+        if (llist != NULL)
+        { llist->endpoint = leela_endpoint_dup(state->endpoint); }
+        if (llist == NULL || llist->endpoint == NULL)
+        {
+          leela_naming_value_free(value);
+          value = NULL;
+          break;
+        }
       }
       state = state->next;
     };
