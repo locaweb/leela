@@ -112,7 +112,7 @@ TEST(test_leela_resolve_path)
   lql_cursor_t *cursor;
 
   cursor = leela_lql_cursor_init(context, "dgvncsz0f", "", 1000);
-  CHECK_EQUAL(LEELA_OK, leela_lql_cursor_execute(cursor, "using (testing) make (leela)\nmake (module)\nmake (warpdrive)\nmake (blackbox);"));
+  CHECK_EQUAL(LEELA_OK, leela_lql_cursor_execute(cursor, "using (testing) make (leela), make (module), make (warpdrive), make (blackbox);"));
   CHECK_EQUAL(LEELA_EOF, leela_lql_cursor_next(cursor));
   CHECK_EQUAL(LEELA_OK, leela_lql_cursor_close(cursor));
 

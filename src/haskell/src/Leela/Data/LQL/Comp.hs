@@ -80,7 +80,8 @@ qstring limit l r = word8 l >> anyWord8 >>= loop limit []
         | otherwise = anyWord8 >>= loop (lim - 1) (x : acc)
 
 newline :: Parser ()
-newline = void $ char '\n'
+newline = void $ (string ", "
+                  <|> string "\n")
 
 separator :: Parser ()
 separator = void (char '\n' <|> char ' ')

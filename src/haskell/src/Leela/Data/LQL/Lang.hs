@@ -73,7 +73,7 @@ deref guid = Document (string7 "deref " <> build guid)
   <> build node
 
 (<$>) :: Document -> Document -> Document
-(<$>) (Document l) (Document r) = Document (l <> char7 '\n' <> r)
+(<$>) (Document l) (Document r) = Document (l <> char7 ', ' <> r)
 
 render :: Document -> L.ByteString
 render (Document doc) = toLazyByteString (doc <> char7 ';')
