@@ -83,13 +83,13 @@ TEST(test_leela_resolve_name)
   cursor = leela_lql_cursor_init(context, "dgvncsz0f", "", 1000);
   CHECK_EQUAL(LEELA_OK, leela_lql_cursor_execute(cursor, "using (testing) name 0x2242b7b65b677c562ec89a989ed132e384e01a7b0d1241246ea891e6;"));
   CHECK_EQUAL(LEELA_OK, leela_lql_cursor_next(cursor));
-  CHECK_EQUAL(LQL_NAME, leela_lql_msg_type(cursor));
-  lql_name_t *name = leela_lql_msg_name(cursor);
+  CHECK_EQUAL(LQL_NAME, leela_lql_fetch_type(cursor));
+  lql_name_t *name = leela_lql_fetch_name(cursor);
   CHECK(name != NULL);
   CHECK_EQUAL("dgvncsz0f", name->user);
   CHECK_EQUAL("testing", name->tree);
   CHECK_EQUAL("leela", name->name);
-  leela_lql_msg_name_free(name);
+  leela_lql_name_free(name);
   CHECK_EQUAL(LEELA_EOF, leela_lql_cursor_next(cursor));
   CHECK_EQUAL(LEELA_OK, leela_lql_cursor_close(cursor));
 
@@ -124,15 +124,15 @@ TEST(test_leela_resolve_path)
   cursor = leela_lql_cursor_init(context, "dgvncsz0f", "", 1000);
   CHECK_EQUAL(LEELA_OK, leela_lql_cursor_execute(cursor, "using (testing) path (leela) -[module]> () -[module]> ();"));
   CHECK_EQUAL(LEELA_OK, leela_lql_cursor_next(cursor));
-  CHECK_EQUAL(LQL_PATH, leela_lql_msg_type(cursor));
-  lql_path_t *path = leela_lql_msg_path(cursor);
+  CHECK_EQUAL(LQL_PATH, leela_lql_fetch_type(cursor));
+  lql_path_t *path = leela_lql_fetch_path(cursor);
   CHECK(path != NULL);
   CHECK_EQUAL(2, path->size);
   CHECK_EQUAL("module", path->entries[0].fst);
   CHECK_EQUAL("0x17a47529e3f5398fbbdec1831fcfdb102f6c5b3cf1f0a127db7a916d", path->entries[0].snd);
   CHECK_EQUAL("module", path->entries[1].fst);
   CHECK_EQUAL("0x77ba03cf506747085f8952200ed916a5761009051845a7c308f3b014", path->entries[1].snd);
-  leela_lql_msg_path_free(path);
+  leela_lql_path_free(path);
   CHECK_EQUAL(LEELA_EOF, leela_lql_cursor_next(cursor));
   CHECK_EQUAL(LEELA_OK, leela_lql_cursor_close(cursor));
 

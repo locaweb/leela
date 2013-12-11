@@ -51,10 +51,63 @@ static
 PyObject *pylql_cursor_execute(PyObject *, PyObject *);
 
 static
+PyObject *pylql_cursor_next(PyObject *, PyObject *);
+
+static
+PyObject *pylql_cursor_fetch(PyObject *, PyObject *);
+
+static
 void pylql_context_free(PyObject *);
 
 static
 void pylql_cursor_free(PyObject *);
+
+static
+PyObject *__make_name_msg(lql_name_t *name)
+{
+  PyObject *tuple = PyTuple_New(3);
+  if (tuple == NULL)
+  { return(NULL); }
+
+  PyTuple_SetItem(tuple, 0, PyString_FromString(name->user));
+  PyTuple_SetItem(tuple, 1, PyString_FromString(name->tree));
+  PyTuple_SetItem(tuple, 2, PyString_FromString(name->name));
+  return(tuple);
+}
+
+static
+PyObject *__make_path_msg(lql_path_t *path)
+{
+  PyObject *tuple = PyTuple_New(path->size);
+  if (tuple == NULL)
+  { return(NULL); }
+
+  for (int k=0; k<path->size; k+=1)
+  {
+    PyObject *entry = PyTuple_New(2);
+    if (entry == NULL)
+    {
+      Py_DECREF(tuple);
+      return(NULL);
+    }
+
+    if (PyTuple_SetItem(entry, 0, PyString_FromString(path->entries[k].fst)) != 0
+        || PyTuple_SetItem(entry, 1, PyString_FromString(path->entries[k].snd)) != 0)
+    {
+      Py_DECREF(tuple);
+      Py_DECREF(entry);
+      return(NULL);
+    }
+
+    if (PyTuple_SetItem(tuple, k, entry) != 0)
+    {
+      Py_DECREF(tuple);
+      return(NULL);
+    }
+  }
+
+  return(tuple);
+}
 
 static
 PyObject *__pyendpoint_type()
@@ -85,6 +138,12 @@ PyMethodDef pylql_cursor_methods[] = {
    NULL
   },
   {"execute", pylql_cursor_execute, METH_VARARGS,
+   NULL,
+  },
+  {"next", pylql_cursor_next, METH_VARARGS,
+   NULL
+  },
+  {"fetch", pylql_cursor_fetch, METH_VARARGS,
    NULL,
   },
   {NULL}
@@ -236,6 +295,72 @@ PyObject *pylql_cursor_execute(PyObject *self, PyObject *args)
 
   PyErr_SetString(PyExc_RuntimeError, "could not execute query!");
   return(NULL);
+}
+
+PyObject *pylql_cursor_next(PyObject *self, PyObject *args)
+{
+  pylql_cursor_t *cursor = (pylql_cursor_t *) self;
+  leela_status rc = leela_lql_cursor_next(cursor->cursor);
+  if (rc == LEELA_OK)
+  { Py_RETURN_TRUE; }
+  else if (rc == LEELA_EOF)
+  { Py_RETURN_FALSE; }
+  else
+  {
+    PyErr_SetString(PyExc_RuntimeError, "error reading");
+    return(NULL);
+  }
+}
+
+PyObject *pylql_cursor_fetch(PyObject *self, PyObject *args)
+{
+  pylql_cursor_t *cursor = (pylql_cursor_t *) self;
+  lql_row_type row       = leela_lql_fetch_type(cursor->cursor);
+  PyObject *pyrow        = PyTuple_New(2);
+  PyObject *value        = NULL;
+  PyObject *type         = NULL;
+  if (pyrow == NULL)
+  { return(NULL); }
+
+  if (row == LQL_NAME_MSG)
+  {
+    lql_name_t *name = leela_lql_fetch_name(cursor->cursor);
+    if (name != NULL)
+    {
+      value = __make_name_msg(name);
+      type  = PyString_FromString("name");
+      leela_lql_name_free(name);
+    }
+  }
+  else if (row == LQL_PATH_MSG)
+  {
+    lql_path_t *path = leela_lql_fetch_path(cursor->cursor);
+    if (path != NULL)
+    {
+      value = __make_path_msg(path);
+      type  = PyString_FromString("path");
+      leela_lql_path_free(path);
+    }
+  }
+
+  if (type == NULL || value == NULL)
+  {
+    Py_XDECREF(type);
+    Py_XDECREF(value);
+    Py_DECREF(pyrow);
+    if (PyErr_Occurred() == NULL)
+    { PyErr_SetString(PyExc_RuntimeError, "error reading"); }
+    return(NULL);
+  }
+
+  if (PyTuple_SetItem(pyrow, 0, type) != 0
+      || PyTuple_SetItem(pyrow, 1, value) != 0)
+  {
+    Py_DECREF(row);
+    return(NULL);
+  }
+
+  return(pyrow);
 }
 
 void pylql_context_free(PyObject *self)

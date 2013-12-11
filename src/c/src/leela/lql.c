@@ -333,10 +333,10 @@ leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
   }
 
   if (strncmp(buffer, "name", 4) == 0)
-  { cursor->row = LQL_NAME; }
+  { cursor->row = LQL_NAME_MSG; }
   else if (strncmp(buffer, "path", 4) == 0)
   {
-    cursor->row = LQL_PATH;
+    cursor->row = LQL_PATH_MSG;
     if (! __zmq_recvmsg_uint32(cursor, cursor->elems + 1))
     { return(LEELA_ERROR); }
   }
@@ -356,12 +356,12 @@ leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
   return(LEELA_OK);
 }
 
-lql_row_type leela_lql_msg_type(lql_cursor_t *cursor)
+lql_row_type leela_lql_fetch_type(lql_cursor_t *cursor)
 { return(cursor->row); }
 
-lql_name_t *leela_lql_msg_name(lql_cursor_t *cursor)
+lql_name_t *leela_lql_fetch_name(lql_cursor_t *cursor)
 {
-  if (cursor->row != LQL_NAME)
+  if (cursor->row != LQL_NAME_MSG)
   { return(NULL); }
 
   lql_name_t *name = (lql_name_t *) malloc(sizeof(lql_name_t));
@@ -380,13 +380,13 @@ lql_name_t *leela_lql_msg_name(lql_cursor_t *cursor)
     { return(name); }
   }
 
-  leela_lql_msg_name_free(name);
+  leela_lql_name_free(name);
   return(NULL);
 }
 
-lql_path_t *leela_lql_msg_path(lql_cursor_t *cursor)
+lql_path_t *leela_lql_fetch_path(lql_cursor_t *cursor)
 {
-  if (cursor->row != LQL_PATH)
+  if (cursor->row != LQL_PATH_MSG)
   { return(NULL); }
 
   lql_path_t *path = (lql_path_t *) malloc(sizeof(lql_path_t));
@@ -410,11 +410,11 @@ lql_path_t *leela_lql_msg_path(lql_cursor_t *cursor)
     { return(path); }
   }
 
-  leela_lql_msg_path_free(path);
+  leela_lql_path_free(path);
   return(NULL);
 }
 
-void leela_lql_msg_name_free(lql_name_t *name)
+void leela_lql_name_free(lql_name_t *name)
 {
   if (name != NULL)
   {
@@ -425,7 +425,7 @@ void leela_lql_msg_name_free(lql_name_t *name)
   }
 }
 
-void leela_lql_msg_path_free(lql_path_t *path)
+void leela_lql_path_free(lql_path_t *path)
 {
   if (path == NULL)
   { return; }

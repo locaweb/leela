@@ -111,7 +111,7 @@ PyObject *pyleela_naming_destroy(PyObject *self, PyObject *args)
 
   leela_naming_t *naming = (leela_naming_t *) PyCapsule_GetPointer(capsule, "_leela_naming.naming");
   if (naming != NULL)
-  { leela_naming_shutdown(naming); }
+  { leela_naming_stop(naming); }
 
   Py_RETURN_NONE;
 }
