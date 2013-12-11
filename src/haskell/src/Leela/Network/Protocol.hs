@@ -115,7 +115,7 @@ decode (sig:"begin":lql)         = fmap (flip Begin lql) (readSignature sig)
 decode [sig,"close",fh]          = liftM2 (Close False) (readSignature sig) (readDecimal fh)
 decode [sig,"close",fh,"nowait"] = liftM2 (Close True) (readSignature sig) (readDecimal fh)
 decode [sig,"fetch",fh]          = liftM2 Fetch (readSignature sig) (readDecimal fh)
-decode _                         = Left $ Fail 400 (Just "syntax error")
+decode _                         = Left $ Fail 400 (Just "syntax error: bad frame")
 
 encodeRValue :: RValue -> [B.ByteString]
 encodeRValue (Name u n k) = ["name", u, n, unpack k]

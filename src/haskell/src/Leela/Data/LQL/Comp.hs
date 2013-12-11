@@ -80,8 +80,7 @@ qstring limit l r = word8 l >> anyWord8 >>= loop limit []
         | otherwise = anyWord8 >>= loop (lim - 1) (x : acc)
 
 newline :: Parser ()
-newline = void $ (string ", "
-                  <|> string "\n")
+newline = void $ (string ", " <|> string "\n ")
 
 separator :: Parser ()
 separator = void (char '\n' <|> char ' ')
@@ -188,9 +187,9 @@ loads :: (Source i) => Parser a -> i -> Either String a
 loads p = parseOnly p . bytestring
 
 chkloads :: (Source i) => Parser a -> [i] -> Either String a
-chkloads p = go (parse p B.empty)
+chkloads p (x:xs) = go (parse p (bytestring x)) xs
     where
-      go r []     = eitherResult r
+      go r []     = eitherResult (feed r B.empty)
       go r (i:is) = go (feed r (bytestring i)) is
 
 instance Source B.ByteString where
