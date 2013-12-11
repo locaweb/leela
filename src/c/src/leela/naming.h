@@ -27,7 +27,7 @@ typedef struct leela_naming_t leela_naming_t;
 //! A linked-list of endpoints
 typedef struct leela_naming_value_t
 {
-  leela_endpoint_t              *endpoint;
+  leela_endpoint_t            *endpoint;
   struct leela_naming_value_t *next;
 } leela_naming_value_t;
 
@@ -47,7 +47,7 @@ typedef struct leela_naming_value_t
  *  \return NULL      : there was an error and the naming could not be created;
  *  \return :otherwise: success;
  */
-leela_naming_t *leela_naming_init(const leela_endpoint_t *zookeeper, const char *resource, int maxdelay);
+leela_naming_t *leela_naming_start(const leela_endpoint_t *zookeeper, const char *resource, int maxdelay);
 
 /*! Returns the endpoints found under this resource
  *
@@ -64,7 +64,7 @@ void leela_naming_value_free(leela_naming_value_t *);
  *  naming thread to finish and this guarantees that it will query
  *  the zookeeper server at least once
  */
-void leela_naming_shutdown(leela_naming_t *);
+void leela_naming_stop(leela_naming_t *);
 
 #ifdef __cplusplus
 }

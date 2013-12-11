@@ -33,7 +33,7 @@ TEST(test_leela_naming)
   zookeeper_close(zh);
 
   leela_endpoint_t *endpoint     = leela_endpoint_load("tcp://localhost:2181;");
-  leela_naming_t *naming         = leela_naming_init(endpoint, "/leela-dev", 2);
+  leela_naming_t *naming         = leela_naming_start(endpoint, "/leela-dev", 2);
   leela_naming_value_t *snapshot = leela_naming_query(naming);
   leela_naming_value_t *item     = snapshot;
   for (int k=0; k<3; k+=1)
@@ -43,7 +43,7 @@ TEST(test_leela_naming)
     item = item->next;
   }
   CHECK(item == NULL);
-  leela_naming_shutdown(naming);
+  leela_naming_stop(naming);
   leela_endpoint_free(endpoint);
   leela_naming_value_free(snapshot);
 }

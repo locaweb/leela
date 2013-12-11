@@ -217,7 +217,7 @@ lql_context_t *leela_lql_context_init(const leela_endpoint_t *zookeeper, const c
   {
     ctx->selector = 0;
     ctx->mutex    = mutex;
-    ctx->naming   = leela_naming_init(zookeeper, path, LQL_DEFAULT_TIMEOUT);
+    ctx->naming   = leela_naming_start(zookeeper, path, LQL_DEFAULT_TIMEOUT);
     ctx->zmqctx   = zmq_ctx_new();
     if (ctx->naming == NULL || ctx->zmqctx == NULL)
     { goto handle_error; }
@@ -259,7 +259,7 @@ lql_cursor_t *leela_lql_cursor_init(lql_context_t *ctx, const char *username, co
   if (zmqendpoint == NULL)
   { goto handle_error; }
   zmqendpoint[strlen(zmqendpoint) - 1] = '\0';
-  LEELA_TRACE("next backend: %s", zmqendpoint);
+  LEELA_DEBUG("select backend: %s", zmqendpoint);
 
   cursor->socket = zmq_socket(ctx->zmqctx, ZMQ_REQ);
   if (cursor->socket == NULL)
@@ -469,7 +469,7 @@ leela_status leela_lql_context_close(lql_context_t *ctx)
     if (ctx->zmqctx != NULL)
     { zmq_ctx_destroy(ctx->zmqctx); }
     if (ctx->naming != NULL)
-    { leela_naming_shutdown(ctx->naming); }
+    { leela_naming_stop(ctx->naming); }
     free(ctx);
     return(LEELA_OK);
   }

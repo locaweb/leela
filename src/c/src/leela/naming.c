@@ -154,7 +154,7 @@ void *__naming_loop(void *data)
   return(NULL);
 }
 
-leela_naming_t *leela_naming_init(const leela_endpoint_t *endpoint, const char *resource, int maxdelay)
+leela_naming_t *leela_naming_start(const leela_endpoint_t *endpoint, const char *resource, int maxdelay)
 {
   pthread_cond_t notify;
   if (pthread_cond_init(&notify, NULL) != 0)
@@ -198,7 +198,7 @@ handle_error:
   return(NULL);
 }
 
-void leela_naming_shutdown(leela_naming_t *naming)
+void leela_naming_stop(leela_naming_t *naming)
 {
   naming->cancel = true;
   pthread_join(naming->thread, NULL);
