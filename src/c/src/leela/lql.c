@@ -340,6 +340,11 @@ leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
     if (! __zmq_recvmsg_uint32(cursor, cursor->elems + 1))
     { return(LEELA_ERROR); }
   }
+  else if (strncmp(buffer, "item", 4) == 0)
+  {
+    cursor->elems[0] = 1;
+    return(leela_lql_cursor_next(cursor));
+  }
   else if (strncmp(buffer, "done", 4) == 0)
   {
     if (zmq_msg_more(&cursor->buffer))
