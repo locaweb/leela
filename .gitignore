@@ -25,3 +25,5 @@
 /debian/*.substvars
 /src/c/try_leela
 /src/c/libleela.so.4.0.0
+/src/python/build
+/src/c/libleela4.0.0.so
