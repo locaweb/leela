@@ -76,11 +76,11 @@
                             (limit +limit+)))))
 
 (defn hasindex [cluster k code name]
-  (first (map #(:name %) (select cluster
-                                 :search
-                                 (columns :name)
-                                 (where :key (f/hexstr-to-bytes k) :code code :name name)
-                                 (limit 1)))))
+  (map #(:name %) (select cluster
+                          :search
+                          (columns :name)
+                          (where :key (f/hexstr-to-bytes k) :code code :name name)
+                          (limit 1))))
 
 (defn putlink [cluster a b]
   (insert cluster :graph {:a (f/hexstr-to-bytes a) :b (f/hexstr-to-bytes b)}))

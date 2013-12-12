@@ -41,11 +41,6 @@
 (defn msg-label [labels]
   (cons "label" labels))
 
-(defn msg-label1 [label]
-  (if-not label
-    (msg-fail 404)
-    (msg-label [label])))
-
 (defn exec-getname [cluster msg]
   (if (not= (count msg) 1)
     (msg-fail 400)
@@ -115,7 +110,7 @@
     "all" (msg-label (exec-getlabel-all cluster (subvec msg 1)))
     "pre" (msg-label (exec-getlabel-prefix cluster (subvec msg 1)))
     "suf" (msg-label (exec-getlabel-suffix cluster (subvec msg 1)))
-    "ext" (msg-label1 (exec-getlabel-exact cluster (subvec msg 1)))
+    "ext" (msg-label (exec-getlabel-exact cluster (subvec msg 1)))
     (msg-fail 400)))
 
 (defn exec-putlabel [cluster msg]
