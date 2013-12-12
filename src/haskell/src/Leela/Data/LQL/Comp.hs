@@ -187,6 +187,7 @@ loads :: (Source i) => Parser a -> i -> Either String a
 loads p = parseOnly p . bytestring
 
 chkloads :: (Source i) => Parser a -> [i] -> Either String a
+chkloads p []     = Left "empty data"
 chkloads p (x:xs) = go (parse p (bytestring x)) xs
     where
       go r []     = eitherResult (feed r B.empty)
