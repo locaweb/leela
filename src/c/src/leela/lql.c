@@ -139,6 +139,8 @@ int __zmq_recvmsg(lql_cursor_t *cursor)
   int rc = zmq_poll(items, 1, cursor->timeout);
   if (rc == 1)
   {
+    if (cursor->elems[1] > 0)
+    { cursor->elems[1] -= 1; }
     return(zmq_msg_recv(&cursor->buffer, cursor->socket, 0));
   }
   return(-1);
@@ -315,8 +317,15 @@ leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
   { return(LEELA_BADARGS); }
 
   char buffer[5];
-  if (cursor->elems[0] == 0)
+  if (cursor->elems[0] == 0 || cursor->elems[1] > 0)
   {
+    int frames;
+    cursor->elems[1] = 0;
+    cursor->elems[0] = 0;
+    for (frames=0; zmq_msg_more(&cursor->buffer); frames+=1)
+    { __zmq_recvmsg(cursor); }
+    if (frames > 0)
+    { LEELA_DEBUG("skipping %d frames [invoking next without fetch?]", frames); }
     if (__zmq_sendmsg_str(cursor, "fetch", cursor->channel, NULL) == -1)
     { return(LEELA_ERROR); }
   }
@@ -333,7 +342,10 @@ leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
   }
 
   if (strncmp(buffer, "name", 4) == 0)
-  { cursor->row = LQL_NAME_MSG; }
+  {
+    cursor->row      = LQL_NAME_MSG;
+    cursor->elems[1] = 3;
+  }
   else if (strncmp(buffer, "path", 4) == 0)
   {
     cursor->row = LQL_PATH_MSG;
