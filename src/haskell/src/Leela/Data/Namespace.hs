@@ -45,7 +45,7 @@ import qualified Data.ByteString.Lazy as L
 import           Data.ByteString.Base16
 
 newtype GUID = GUID (Digest SHA224)
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, Show)
 
 newtype Namespace = Namespace L.ByteString
     deriving (Eq, Ord, Show)
