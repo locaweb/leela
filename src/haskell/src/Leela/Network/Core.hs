@@ -148,9 +148,10 @@ fetch ctrl m selector callback0 =
       load1 a mb f dev = do
         mlabels <- fmap (maybe (Left $ SomeException SystemExcept) id) (devreadIO dev)
         case mlabels of
-          Left e       -> throwIO e
-          Right []     -> callback0 EOF
-          Right labels -> do
+          Left e            -> throwIO e
+          Right (0, [])     -> callback0 (Chunk $ f [])
+          Right (_, [])     -> callback0 EOF
+          Right (_, labels) -> do
             let keys = M.fromList $ map (\l -> (G.labelRef a l, l)) labels
             subdev <- openIO ctrl 4
             case mb of
@@ -164,9 +165,9 @@ fetch ctrl m selector callback0 =
       load2 subdev callback = do
         mnodes <- fmap (maybe (Left $ SomeException SystemExcept) id) (devreadIO subdev)
         case mnodes of
-          Left e      -> throwIO e
-          Right []    -> callback []
-          Right nodes -> callback nodes >> load2 subdev callback
+          Left e           -> throwIO e
+          Right (_, [])    -> callback []
+          Right (_, nodes) -> callback nodes >> load2 subdev callback
 
 eval :: (GraphBackend m, HasControl ctrl) => ctrl -> m -> Result r -> (Stream r -> IO ()) -> IO ()
 eval _ _ (G.Fail 404 _) _         = throwIO NotFoundExcept
@@ -227,12 +228,12 @@ evalFinalizer chan dev (Right _)   = do
   linfo Network $ printf "[fd: %s] session terminated successfully" (show chan)
 
 process :: (GraphBackend m) => m -> CoreServer -> Query -> IO Reply
-process m srv (Begin sig msg) = do
-  ldebug Network (printf "BEGIN %s" (show msg))
+process m srv (Begin sig msg) =
   case (chkloads (parseLQL (namespaceFrom sig)) msg) of
     Left _      -> return $ Fail 400 (Just "syntax error")
     Right stmts -> do
       (fh, dev) <- makeFD srv (sigUser sig)
+      lnotice Network (printf "BEGIN %s %d" (show msg) fh)
       _         <- forkFinally (evalLQL m dev stmts) (evalFinalizer fh dev)
       return $ Done fh
 process _ srv (Fetch sig fh) = do
@@ -248,6 +249,6 @@ process _ srv (Fetch sig fh) = do
         _  -> let answer = foldr1 reduce blocks
               in when (isEOF answer) (closeIO dev) >> return answer
 process _ srv (Close nowait sig fh) = do
-  ldebug Network (printf "CLOSE %d" fh)
+  lnotice Network (printf "CLOSE %d" fh)
   closeFD srv nowait (sigUser sig, fh)
   return $ Last Nothing

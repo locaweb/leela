@@ -38,6 +38,8 @@ data Mode a = All (Maybe a)
             | Suffix a a
             | Precise a
 
+type Page = Int
+
 pageSize :: Int
 pageSize = 512
 
@@ -47,13 +49,13 @@ class GraphBackend m where
 
   putName  :: Namespace -> Key -> GUID -> m -> IO ()
 
-  getEdge  :: Device (Either SomeException [(GUID, GUID)]) -> [(GUID, GUID)] -> m -> IO ()
+  getEdge  :: Device (Either SomeException (Page, [(GUID, GUID)])) -> [(GUID, GUID)] -> m -> IO ()
 
-  getLink  :: Device (Either SomeException [(GUID, GUID)]) -> [GUID] -> m -> IO ()
+  getLink  :: Device (Either SomeException (Page, [(GUID, GUID)])) -> [GUID] -> m -> IO ()
 
   putLink  :: GUID -> [GUID] -> m -> IO ()
 
-  getLabel :: Device (Either SomeException [Label]) -> GUID -> (Mode Label) -> m -> IO ()
+  getLabel :: Device (Either SomeException (Page, [Label])) -> GUID -> (Mode Label) -> m -> IO ()
 
   putLabel :: GUID -> [Label] -> m -> IO ()
 

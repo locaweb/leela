@@ -1,4 +1,5 @@
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE BangPatterns  #-}
 
 -- This file is part of Leela.
 --
@@ -57,20 +58,18 @@ instance GraphBackend ZMQBackend where
       Done -> return ()
       _    -> throwIO SystemExcept
 
-  getLabel dev _ (Precise l) _ = do devwriteIO dev (Right [l])
-                                    devwriteIO dev (Right [])
-  getLabel dev g mode m        = void $ forkFinally (fetch Nothing) (devwriteIO dev)
+  getLabel dev g mode m        = void $ forkFinally (fetch 0 Nothing) (devwriteIO dev)
       where
-        fetch page = do
+        fetch !at page = do
           reply <- send (dealer m) (GetLabel g $ maybe mode id page)
           case reply of
-            Label []                 -> return []
+            Label []                 -> return (at, [])
             Label xs
-              | length xs < pageSize -> devwriteIO dev (Right xs) >> return []
-              | otherwise            -> do devwriteIO dev (Right $ init xs)
+              | length xs < pageSize -> devwriteIO dev (Right (at, xs)) >> return (at+1, [])
+              | otherwise            -> do devwriteIO dev (Right (at, init xs))
                                            case (nextPage mode (last xs)) of
-                                             Nothing -> return []
-                                             p       -> fetch p
+                                             Nothing -> return (at + 1, [])
+                                             p       -> fetch (at + 1) p
             _                        -> throwIO SystemExcept
 
   putLabel g lbls m = do
@@ -79,29 +78,29 @@ instance GraphBackend ZMQBackend where
       Done -> return ()
       _    -> throwIO SystemExcept
 
-  getEdge dev guids m = void $ forkFinally (fetch guids) (devwriteIO dev)
+  getEdge dev guids m = void $ forkFinally (fetch 0 guids) (devwriteIO dev)
       where
-        fetch []     = return []
-        fetch (x:xs) = do
+        fetch !at []     = return (at, [])
+        fetch !at (x:xs) = do
           reply <- send (dealer m) (uncurry HasLink x)
           case reply of
-            Link [] -> fetch xs
-            Link _  -> do devwriteIO dev (Right [x])
-                          fetch xs
+            Link [] -> fetch at xs
+            Link _  -> do devwriteIO dev (Right (at, [x]))
+                          fetch (at + 1) xs
             _       -> throwIO SystemExcept
 
-  getLink dev keys m = void $ forkFinally (fetch keys Nothing) (devwriteIO dev)
+  getLink dev keys m = void $ forkFinally (fetch 0 keys Nothing) (devwriteIO dev)
       where
-        fetch [] _        = return []
-        fetch (g:gs) page = do
+        fetch !at [] _        = return (at, [])
+        fetch !at (g:gs) page = do
           reply <- send (dealer m) (GetLink g page)
           case reply of
-            Link []                  -> fetch gs Nothing
+            Link []                  -> fetch at gs Nothing
             Link xs
-              | length xs < pageSize -> do devwriteIO dev (Right (map (g, ) xs))
-                                           fetch gs Nothing
-              | otherwise            -> do devwriteIO dev (Right (map (g, ) (init xs)))
-                                           fetch (g:gs) (Just $ last xs)
+              | length xs < pageSize -> do devwriteIO dev (Right (at, map (g, ) xs))
+                                           fetch (at + 1) gs Nothing
+              | otherwise            -> do devwriteIO dev (Right (at, map (g, ) (init xs)))
+                                           fetch (at + 1) (g:gs) (Just $ last xs)
             _                        -> throwIO SystemExcept
 
   putLink g lnks m = do
