@@ -34,14 +34,14 @@
     (create-table
      cluster :graph
      (column-definitions {:a :blob :b :blob :primary-key [:a :b]})
-     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}})))
+     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
   (when-not (describe-table cluster keyspace :search)
     (warn "creating table search")
     (create-table
      cluster
      :search
      (column-definitions {:key :blob :code :int :name :varchar :primary-key [[:key :code] :name]})
-     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}}))))
+     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}}))))
 
 (defmacro with-connection [[conn endpoint options] & body]
   `(let [~conn (client/connect (client/build-cluster {:contact-points ~endpoint
