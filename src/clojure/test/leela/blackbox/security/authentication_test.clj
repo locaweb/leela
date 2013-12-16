@@ -23,10 +23,4 @@
 
     (testing "timestamp outside window."
       (is (= false (authentication/valid-time? (-> 11 minutes from-now) now 10))))
-
-    (testing "timestamp matchs the first window edge."
-      (is (= true (authentication/valid-time? (-> 10 minutes ago) now 10))))
-
-    (testing "timestamp matchs the last window edge."
-      (is (= false (authentication/valid-time? (-> 10 minutes from-now) now 10))))
   )

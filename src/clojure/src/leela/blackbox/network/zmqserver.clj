@@ -74,6 +74,15 @@
           (storage/putlink cluster a b))
         (msg-done)))))
 
+(defn exec-dellink [cluster msg]
+  (if (< (count msg) 1)
+    (msg-fail 400)
+    (let [[a & links] msg]
+      (storage/with-consistency :quorum
+        (doseq [b links]
+          (storage/dellink cluster a b))
+        (msg-done)))))
+
 (defn exec-getlabel-exact [cluster msg]
   (if (not= (count msg) 2)
     (msg-fail 400)
@@ -138,7 +147,8 @@
     (msg-fail 400)))
 
 (defn handle-del [cluster msg]
-  (msg-fail 500))
+  "link" (exec-dellink cluster (subvec msg 1))
+  (msg-fail 400))
 
 (defn handle-message [cluster msg]
   (if (< (count msg) 1)

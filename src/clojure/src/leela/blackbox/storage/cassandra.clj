@@ -92,6 +92,9 @@
 (defn putlink [cluster a b]
   (insert cluster :graph {:a (f/hexstr-to-bytes a) :b (f/hexstr-to-bytes b)}))
 
+(defn dellink [cluster a b]
+  (delete cluster :graph (where :a (f/hexstr-to-bytes a) :b (f/hexstr-to-bytes b))))
+
 (defn getlink [cluster k & page]
   (map #(f/bytes-to-hexstr (:b %)) (select cluster
                                            :graph
