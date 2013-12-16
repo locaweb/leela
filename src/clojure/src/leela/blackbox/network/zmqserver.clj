@@ -147,8 +147,9 @@
     (msg-fail 400)))
 
 (defn handle-del [cluster msg]
-  "link" (exec-dellink cluster (subvec msg 1))
-  (msg-fail 400))
+  (case (first msg)
+    "link" (exec-dellink cluster (subvec msg 1))
+    (msg-fail 400)))
 
 (defn handle-message [cluster msg]
   (if (< (count msg) 1)
