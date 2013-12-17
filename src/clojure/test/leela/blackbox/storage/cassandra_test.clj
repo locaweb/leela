@@ -85,7 +85,5 @@
       (storage/putlink cluster "0x00" "0x03")
 
       (storage/dellink cluster "0x00")
-      (storage/dellink cluster "0x00")
-      (storage/dellink cluster "0x00")
       (is (= [] (storage/getlink cluster "0x00" "0x"))))
       ))
