@@ -1,11 +1,20 @@
 #!/usr/bin/make -f
 # -*- makefile -*-
 
+version      = $(shell src/scripts/read-version)
+
 bin_lein    ?= lein
 bin_cabal   ?= cabal
+bin_python  ?= python
 
 %:
 	dh $@
+
+zookeeper-build:
+	dpkg -l libzookeeper-mt2 1>/dev/null 2>/dev/null && {\
+          echo misc:Depends=libzookeeper-mt2 > debian/leela-c.substvars; \
+          cp debian/leela-c.substvars debian/leela-warpdrive.substvars; \
+        } || rm -f debian/*substvars
 
 warpdrive-build:
 	dh_testdir
@@ -27,12 +36,34 @@ blackbox-clean:
 blackbox-build:
 	cd src/clojure; env LEIN_ROOT=ok $(bin_lein) uberjar
 	cp -a /usr/lib/libjzmq*.so* src/clojure/target
-	cp src/clojure/target/blackbox-4.0.0-standalone.jar src/clojure/target/blackbox.jar
+	cp src/clojure/target/blackbox-*-standalone.jar src/clojure/target/blackbox.jar
 
-override_dh_auto_clean: warpdrive-clean blackbox-clean
+clib-build:
+	$(MAKE) -C src/c build
+
+clib-clean:
+	$(MAKE) -C src/c clean
+
+pylib-build:
+	cd src/python; $(bin_python) setup.py build
+
+pylib-clean:
+	cd src/python; $(bin_python) setup.py clean -a
+
+clib-install:
+	mkdir -p debian/leela-c/usr/lib
+	cp -p src/c/libleela.so* debian/leela-c/usr/lib
+	test -f debian/leela-c.substvars || \
+          cp -p /usr/lib/libzookeeper* debian/leela-c/usr/lib
+
+pylib-install:
+	cd src/python; $(bin_python) setup.py install --install-layout=deb --root=../../debian/leela-python
+
+override_dh_auto_clean: warpdrive-clean blackbox-clean clib-clean
+	rm -f debian/*substvars
 	dh_clean
 
-override_dh_installinit:
+override_dh_installinit: clib-install pylib-install
 	dh_installinit --no-start
 
-override_dh_auto_build: warpdrive-build blackbox-build
+override_dh_auto_build: zookeeper-build warpdrive-build blackbox-build clib-build pylib-build
