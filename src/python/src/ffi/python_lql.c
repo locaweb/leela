@@ -200,7 +200,9 @@ PyObject *pylql_context_init(PyTypeObject *type, PyObject *args, PyObject *kwarg
       return(NULL);
     }
 
+    Py_BEGIN_ALLOW_THREADS
     self->context = leela_lql_context_init(endpoint->endpoint, path);
+    Py_END_ALLOW_THREADS
     if (self->context == NULL)
     {
       Py_DECREF(self);
@@ -230,7 +232,9 @@ PyObject *pylql_cursor_init(PyTypeObject *type, PyObject *args, PyObject *kwargs
       return(NULL);
     }
 
+    Py_BEGIN_ALLOW_THREADS
     self->cursor = leela_lql_cursor_init(context->context, username, secret, timeout);
+    Py_END_ALLOW_THREADS
     if (self->cursor == NULL)
     {
       Py_DECREF(self);
@@ -246,7 +250,9 @@ PyObject *pylql_context_close(PyObject *self, PyObject *args)
 {
   (void) args;
   pylql_context_t *context = (pylql_context_t *) self;
+  Py_BEGIN_ALLOW_THREADS
   leela_lql_context_close(context->context);
+  Py_END_ALLOW_THREADS
   context->context = NULL;
   Py_RETURN_NONE;
 }
@@ -255,7 +261,9 @@ PyObject *pylql_cursor_close(PyObject *self, PyObject *args)
 {
   (void) args;
   pylql_cursor_t *cursor = (pylql_cursor_t *) self;
+  Py_BEGIN_ALLOW_THREADS
   leela_lql_cursor_close(cursor->cursor);
+  Py_END_ALLOW_THREADS
   cursor->cursor = NULL;
   Py_RETURN_NONE;
 }
@@ -289,7 +297,10 @@ PyObject *pylql_cursor_execute(PyObject *self, PyObject *args)
   if (! PyArg_ParseTuple(args, "s", &query))
   { return(NULL); }
 
-  leela_status rc = leela_lql_cursor_execute(cursor->cursor, query);
+  leela_status rc;
+  Py_BEGIN_ALLOW_THREADS
+  rc = leela_lql_cursor_execute(cursor->cursor, query);
+  Py_END_ALLOW_THREADS
   if (rc == LEELA_OK)
   { Py_RETURN_NONE; }
 
@@ -300,7 +311,11 @@ PyObject *pylql_cursor_execute(PyObject *self, PyObject *args)
 PyObject *pylql_cursor_next(PyObject *self, PyObject *args)
 {
   pylql_cursor_t *cursor = (pylql_cursor_t *) self;
-  leela_status rc = leela_lql_cursor_next(cursor->cursor);
+
+  leela_status rc;
+  Py_BEGIN_ALLOW_THREADS
+  rc = leela_lql_cursor_next(cursor->cursor);
+  Py_END_ALLOW_THREADS
   if (rc == LEELA_OK)
   { Py_RETURN_TRUE; }
   else if (rc == LEELA_EOF)
@@ -324,7 +339,10 @@ PyObject *pylql_cursor_fetch(PyObject *self, PyObject *args)
 
   if (row == LQL_NAME_MSG)
   {
-    lql_name_t *name = leela_lql_fetch_name(cursor->cursor);
+    lql_name_t *name;
+    Py_BEGIN_ALLOW_THREADS
+    name = leela_lql_fetch_name(cursor->cursor);
+    Py_END_ALLOW_THREADS
     if (name != NULL)
     {
       value = __make_name_msg(name);
@@ -334,7 +352,10 @@ PyObject *pylql_cursor_fetch(PyObject *self, PyObject *args)
   }
   else if (row == LQL_PATH_MSG)
   {
-    lql_path_t *path = leela_lql_fetch_path(cursor->cursor);
+    lql_path_t *path;
+    Py_BEGIN_ALLOW_THREADS
+    path = leela_lql_fetch_path(cursor->cursor);
+    Py_END_ALLOW_THREADS
     if (path != NULL)
     {
       value = __make_path_msg(path);
