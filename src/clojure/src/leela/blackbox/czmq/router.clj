@@ -30,8 +30,7 @@
       (.put queue [peer msg]))))
 
 (defn routing-loop [ifh ofh queue]
-  (trace "ENTER:routing-loop")
-  (let [[ifh-info ofh-info] (z/poll 1000 [ifh [ZMQ$Poller/POLLIN] ofh [ZMQ$Poller/POLLIN]])]
+  (let [[ifh-info ofh-info] (z/poll -1 [ifh [ZMQ$Poller/POLLIN] ofh [ZMQ$Poller/POLLIN]])]
     (when (.isReadable ifh-info)
       (enqueue ifh queue))
     (when (.isReadable ofh-info)
@@ -39,10 +38,13 @@
 
 (defn evaluate [worker [peer msg]]
   (try
-    (cons peer (cons "" ((:onjob worker) msg)))
+    (let [reply ((:onjob worker) msg)]
+      (debug (format "REQUEST/DONE: %s ~> %s" (pr-str (map f/bytes-to-str msg)) (pr-str reply)))
+      (cons peer (cons "" reply)))
     (catch Exception e
-      (error e "error evaluating worker")
-      (cons peer (cons "" (:onerr worker))))))
+      (let [reply (:onerr worker)]
+        (debug (format "REQUEST/FAIL: %s ~> %s" (pr-str (map f/bytes-to-str msg)) (pr-str reply)))
+        (cons peer (cons "" reply))))))
 
 (defn run-worker [ctx endpoint queue worker]
   (with-open [fh (.socket ctx ZMQ/PUSH)]
