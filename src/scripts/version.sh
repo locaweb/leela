@@ -7,47 +7,10 @@ major=$1
 minor=$2
 build=$3
 
-read_version () {
-  if [ -z "$1" -a -z "$2" -a -z "$3" ]
-  then
-    major=$(sed -r '/^v/ba; d; :a s/v([0-9]+)\.[0-9]+\.[0-9]+.*/\1/; q' CHANGELOG)
-    minor=$(sed -r '/^v/ba; d; :a s/v[0-9]+\.([0-9]+)\.[0-9]+.*/\1/; q' CHANGELOG)
-    build=$(sed -r '/^v/ba; d; :a s/v[0-9]+\.[0-9]+\.([0-9]+).*/\1/; q' CHANGELOG)
-  else
-    [ -z "$major" ] && read -p "major: " major
-    [ -z "$minor" ] && read -p "minor: " minor
-    [ -z "$build" ] && read -p "build: " build
-  fi
-  version="$major.$minor.$build"
-}
+. src/scripts/read-version.sh
 
 print_usage () {
   echo "[usage] version.sh MAJOR MINOR BUILD"
-}
-
-check_environ () {
-  test -z "$major" && {
-    print_usage
-    echo "major can not be blank" >&2
-    exit 1
-  }
-
-  test -z "$minor" && {
-    print_usage
-    echo "minor can not be blank" >&2
-    exit 1
-  }
-
-  test -z "$build" && {
-    print_usage
-    echo "build can not be blank" >&2
-    exit 1
-  }
-
-  test -x "$bin_sed" || {
-    echo "$bin_sed (sed) program not found or not executable" >&2
-    exit 1
-  }
 }
 
 update_version () {
@@ -195,4 +158,3 @@ update_version $leela_root/src/clojure/project.clj
 update_version $leela_root/src/haskell/warpdrive.cabal
 update_version $leela_root/src/c/makefile
 update_version $leela_root/src/python/setup.py
-
