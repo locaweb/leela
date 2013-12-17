@@ -1,11 +1,11 @@
-LEELA_VERSION = 4.0.0
+LEELA_VERSION = $(shell ../scripts/read-version.sh)
 
 CFLAGS = -O2 -Wall -pedantic
 
 SRC_FILES = $(wildcard src/leela/*.c)
 OBJ_FILES = $(subst .c,.o,$(SRC_FILES))
 
-build: libleela$(LEELA_VERSION).so
+build: libleela.so.$(LEELA_VERSION)
 
 try_leela: override CPPFLAGS += -DLEELA_TRACING -pthread
 try_leela: override CXXFLAGS += -g -Isrc -Itry -I/usr/include/unittest++
@@ -21,9 +21,10 @@ test: try_leela
 clean:
 	rm -f $(OBJ_FILES)
 	rm -f try_leela
-	rm -f libleela*.so
+	rm -f libleela.so*
 
 $(OBJ_FILES): override CFLAGS += -Isrc -std=c99 -fPIC -pthread -fstack-protector
 
-libleela$(LEELA_VERSION).so: $(OBJ_FILES)
+libleela.so.$(LEELA_VERSION): $(OBJ_FILES)
 	$(CC) $(LDFLAGS) -pthread -shared -Wl,-soname,$(@) -o$(@) $(OBJ_FILES) $(LDLIBS) -lzookeeper_mt -lzmq
+	ln -s $(@) libleela.so
