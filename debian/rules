@@ -8,13 +8,7 @@ bin_cabal   ?= cabal
 bin_python  ?= python
 
 %:
-	dh $@
-
-zookeeper-build:
-	dpkg -l libzookeeper-mt2 1>/dev/null 2>/dev/null && {\
-          echo misc:Depends=libzookeeper-mt2 > debian/leela-c.substvars; \
-          cp debian/leela-c.substvars debian/leela-warpdrive.substvars; \
-        } || rm -f debian/*substvars
+	dh $@ --with python2
 
 warpdrive-build:
 	dh_testdir
@@ -53,7 +47,7 @@ pylib-clean:
 clib-install:
 	mkdir -p debian/leela-c/usr/lib
 	cp -p src/c/libleela.so* debian/leela-c/usr/lib
-	test -f debian/leela-c.substvars || \
+	dpkg -l libzookeeper-mt2 1>/dev/null || \
           cp -p /usr/lib/libzookeeper* debian/leela-c/usr/lib
 
 pylib-install:
@@ -66,4 +60,4 @@ override_dh_auto_clean: warpdrive-clean blackbox-clean clib-clean
 override_dh_installinit: clib-install pylib-install
 	dh_installinit --no-start
 
-override_dh_auto_build: zookeeper-build warpdrive-build blackbox-build clib-build pylib-build
+override_dh_auto_build: warpdrive-build blackbox-build clib-build pylib-build

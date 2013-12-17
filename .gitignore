@@ -19,6 +19,8 @@
 /debian/leela/
 /debian/leela-blackbox/
 /debian/leela-warpdrive/
+/debian/leela-c/
+/debian/leela-python/
 /debian/*.debhelper
 /debian/*.debhelper.log
 /debian/files
