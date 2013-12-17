@@ -344,7 +344,7 @@ leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
   if (strncmp(buffer, "name", 4) == 0)
   {
     cursor->row      = LQL_NAME_MSG;
-    cursor->elems[1] = 3;
+    cursor->elems[1] = 4;
   }
   else if (strncmp(buffer, "path", 4) == 0)
   {
@@ -384,10 +384,12 @@ lql_name_t *leela_lql_fetch_name(lql_cursor_t *cursor)
   lql_name_t *name = (lql_name_t *) malloc(sizeof(lql_name_t));
   if (name != NULL)
   {
+    name->guid = NULL;
     name->user = NULL;
     name->tree = NULL;
     name->name = NULL;
 
+    name->guid = __zmq_recvmsg_copystr(cursor);
     name->user = __zmq_recvmsg_copystr(cursor);
     name->tree = __zmq_recvmsg_copystr(cursor);
     name->name = __zmq_recvmsg_copystr(cursor);
@@ -435,6 +437,7 @@ void leela_lql_name_free(lql_name_t *name)
 {
   if (name != NULL)
   {
+    free(name->guid);
     free(name->user);
     free(name->tree);
     free(name->name);

@@ -71,7 +71,7 @@ data Reply = Done FH
 
 data RValue = Path [(GUID, Label)]
             | List [RValue]
-            | Name B.ByteString B.ByteString Key
+            | Name GUID B.ByteString B.ByteString Key
 
 isEOF :: Reply -> Bool
 isEOF m = isLast m || isFail m
@@ -117,10 +117,10 @@ decode [sig,"fetch",fh]          = liftM2 Fetch (readSignature sig) (readDecimal
 decode _                         = Left $ Fail 400 (Just "syntax error: bad frame")
 
 encodeRValue :: RValue -> [B.ByteString]
-encodeRValue (Name u n k) = ["name", u, n, unpack k]
-encodeRValue (Path p)     = let f (g, l) acc = unpack l : unpack g : acc
-                            in "path" : encodeShow (2 * length p) : foldr f [] p
-encodeRValue (List v)     = "list" : encodeShow (length v) : concatMap encodeRValue v
+encodeRValue (Name g u n k) = ["name", unpack g, u, n, unpack k]
+encodeRValue (Path p)       = let f (g, l) acc = unpack l : unpack g : acc
+                              in "path" : encodeShow (2 * length p) : foldr f [] p
+encodeRValue (List v)       = "list" : encodeShow (length v) : concatMap encodeRValue v
 
 encode :: Reply -> [B.ByteString]
 encode (Done fh)              = ["done", encodeShow fh]

@@ -189,9 +189,9 @@ evalLQL storage dev (x:xs) =
     NameStmt u g      -> do
       (nsTree, name) <- getName g storage
       let (nTree, nsUser) = underive nsTree
-          (nUser, _)  = underive nsUser
+          (nUser, _)      = underive nsUser
       if (nsUser `isDerivedOf` (root u))
-        then devwriteIO dev (Item $ Name nUser nTree name) >> evalLQL storage dev xs
+        then devwriteIO dev (Item $ Name g nUser nTree name) >> evalLQL storage dev xs
         else devwriteIO dev (Fail 403 Nothing)
     KillStmt _ a mb   -> do
       unlink a mb storage
