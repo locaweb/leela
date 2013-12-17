@@ -19,8 +19,7 @@ update_version () {
   echo " updating file: $1"
   [ "$name" = project.clj     ] && $bin_sed -i '/^(defproject blackbox/c\(defproject blackbox "'$version'"' $1
   [ "$name" = warpdrive.cabal ] && $bin_sed -i -r 's/^version:( *).*/version:\1'$version'/' $1
-  [ "$name" = makefile        ] && $bin_sed -i -r 's/^LEELA_VERSION( *)=.*/LEELA_VERSION\1= '$version'/' $1
-  [ "$name" = setup.py        ] && $bin_sed -i -r 's/^version( *)=.*/version\1= "'$version'"/' $1
+  [ "$name" = setup.py        ] && $bin_sed -i -r 's/^( *)version( *)= *".*"(.*)/\1version\2= "'$version'"\3/' $1
 }
 
 write_c_hversion () {
@@ -156,5 +155,4 @@ write_hsversion $leela_root/src/haskell/src/Leela/Version.hs
 write_clversion $leela_root/src/clojure/src/leela/version.clj
 update_version $leela_root/src/clojure/project.clj
 update_version $leela_root/src/haskell/warpdrive.cabal
-update_version $leela_root/src/c/makefile
 update_version $leela_root/src/python/setup.py

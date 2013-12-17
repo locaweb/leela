@@ -1,7 +1,10 @@
 --*-- mode: text; --*--
 
+v4.1.0 | 2013-12-17
+  * kill statement | dgvncsz0f, aabaklini;
+
 v4.0.0 | 2013-08-01
-  * creating warpdrive [graph engine & key-value/timeline store] | dgvncsz0f;
+  * creating warpdrive [graph engine] | dgvncsz0f;
   * leela query language: new universal input | dgvncsz0f;
   * stream response: new universal output protocol | dgvncsz0f;
   * 0mq library for transport | dgvncsz0f;
