@@ -45,6 +45,9 @@ class Source a where
 
     bytestring :: a -> B.ByteString
 
+zero :: Key
+zero = pack L.empty
+
 hardspace :: Parser ()
 hardspace = void $ char ' '
 
@@ -131,8 +134,6 @@ parseQuery n = do
 parseQuery1 :: Namespace -> Cursor -> Parser Cursor
 parseQuery1 n q = option q doParse
     where
-      zero = pack L.empty
-
       doParse = do
         hardspace
         l <- parseRLink n
@@ -154,11 +155,25 @@ hexAlphabet = [0x78] ++ [0x30 .. 0x39] ++ [0x41 .. 0x46] ++ [0x61 .. 0x66]
 parseStmtName :: Using -> Parser LQL
 parseStmtName n = "name " .*> liftM (NameStmt n . pack) (A.takeWhile (`elem` hexAlphabet))
 
+parseStmtKill :: Using -> Parser LQL
+parseStmtKill n = "kill " .*> doParse
+    where
+      doParse = do
+        (_, ga) <- parseKeyAsGUID (self n)
+        hardspace
+        l       <- parseRLink (self n)
+        hardspace
+        (b, gb) <- parseKeyAsGUID (self n)
+        if (b == zero)
+          then return $ KillStmt n (rehash ga $ unpack l) Nothing
+          else return $ KillStmt n (rehash ga $ unpack l) (Just gb)
+
 parseStmt :: Using -> Parser LQL
 parseStmt n =
   parseStmtMake n
   <|> parseStmtPath n
   <|> parseStmtName n
+  <|> parseStmtKill n
 
 groupMakeStmts :: Using -> [LQL] -> [LQL]
 groupMakeStmts u = partition (Nothing, [])
@@ -187,7 +202,7 @@ loads :: (Source i) => Parser a -> i -> Either String a
 loads p = parseOnly p . bytestring
 
 chkloads :: (Source i) => Parser a -> [i] -> Either String a
-chkloads p []     = Left "empty data"
+chkloads _ []     = Left "empty data"
 chkloads p (x:xs) = go (parse p (bytestring x)) xs
     where
       go r []     = eitherResult (feed r B.empty)

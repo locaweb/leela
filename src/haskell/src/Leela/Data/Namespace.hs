@@ -26,7 +26,6 @@ module Leela.Data.Namespace
     , GUID ()
     -- * Top-level namespace
     , tld
-    , Data.Hashable.hash
     -- * Querying
     , isDerivedOf
     -- * Hashing
@@ -36,7 +35,6 @@ module Leela.Data.Namespace
 
 import           Data.Word
 import           Crypto.Hash
-import           Data.Hashable
 import           Data.Byteable
 import qualified Data.ByteString as B
 import           Control.Exception
@@ -162,7 +160,3 @@ instance Identifier GUID L.ByteString where
   pack s = (pack $ L.toStrict s)
 
   unpack g = L.fromStrict (unpack g)
-
-instance Hashable GUID where
-
-  hashWithSalt salt (GUID s) = hashWithSalt salt (toBytes s)

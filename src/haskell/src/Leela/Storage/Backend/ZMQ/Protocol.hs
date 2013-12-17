@@ -34,7 +34,7 @@ data Query = GetName GUID
            | GetLink GUID (Maybe GUID)
            | HasLink GUID GUID
            | GetLabel GUID (Mode Label)
-           | Unlink GUID GUID
+           | Unlink GUID (Maybe GUID)
 
 data Reply = Done
            | Name Namespace Key
@@ -66,7 +66,8 @@ encode (GetLabel g m)       = "get" : "label" : encodeMode g m
 encode (PutName n k g)      = ["put", "name", unpack g, unpack n, unpack k]
 encode (PutLink g xs)       = "put" : "link" : unpack g : map unpack xs
 encode (PutLabel g xs)      = "put" : "label" : unpack g : map unpack xs
-encode (Unlink a b)         = ["del", "link", unpack a, unpack b]
+encode (Unlink a Nothing)   = ["del", "link", unpack a]
+encode (Unlink a (Just b))  = ["del", "link", unpack a, unpack b]
 
 decode :: [B.ByteString] -> Reply
 decode ["done"]         = Done

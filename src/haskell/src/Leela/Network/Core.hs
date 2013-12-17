@@ -119,30 +119,21 @@ closeFD srv nowait ((User u), fh) = do
       k = (u, fh)
 
 store :: (GraphBackend m) => m -> Journal -> IO ()
-store m (PutNode n k g)    = putName n k g m
-store m (PutLabel g lbls)  = putLabel g lbls m
-store m (PutLink g lnks)   = putLink g lnks m
-
-rechunk :: Int -> [a] -> [[a]]
-rechunk n = go 0 []
-    where
-      go _ [] []      = []
-      go _ acc []     = [acc]
-      go k acc (x:xs)
-        | k == n      = acc : go 0 [x] xs
-        | otherwise   = go (k+1) (x:acc) xs
+store storage (PutNode n k g)    = putName n k g storage
+store storage (PutLabel g lbls)  = putLabel g lbls storage
+store storage (PutLink g lnks)   = putLink g lnks storage
 
 fetch :: (GraphBackend m, HasControl ctrl) => ctrl -> m -> Matcher r -> (Stream r -> IO ()) -> IO ()
-fetch ctrl m selector callback0 =
+fetch ctrl storage selector callback0 =
   case selector of
     ByLabel k l f  -> do dev <- openIO ctrl 2
-                         getLabel dev k (glob l) m
+                         getLabel dev k (glob l) storage
                          load1 k Nothing f dev
     ByNode k f     -> do dev <- openIO ctrl 2
-                         getLabel dev k (All Nothing) m
+                         getLabel dev k (All Nothing) storage
                          load1 k Nothing f dev
     ByEdge a l b f -> do dev <- openIO ctrl 2
-                         getLabel dev a (glob l) m
+                         getLabel dev a (glob l) storage
                          load1 a (Just b) f dev
     where
       load1 a mb f dev = do
@@ -155,8 +146,8 @@ fetch ctrl m selector callback0 =
             let keys = M.fromList $ map (\l -> (G.labelRef a l, l)) labels
             subdev <- openIO ctrl 4
             case mb of
-              Nothing -> getLink subdev (M.keys keys) m
-              Just b  -> getEdge subdev (map (, b) (M.keys keys)) m
+              Nothing -> getLink subdev (M.keys keys) storage
+              Just b  -> getEdge subdev (map (, b) (M.keys keys)) storage
             load2 subdev $ \guidNodes ->
               let labelNodes = map (\(lk, g) -> (g, fromJust $ M.lookup lk keys)) guidNodes
               in unless (null labelNodes) (callback0 $ Chunk (f labelNodes))
@@ -173,39 +164,42 @@ eval :: (GraphBackend m, HasControl ctrl) => ctrl -> m -> Result r -> (Stream r 
 eval _ _ (G.Fail 404 _) _         = throwIO NotFoundExcept
 eval _ _ (G.Fail code msg) _      = do lwarn Network (printf "eval has failed: %d/%s" code msg)
                                        throwIO SystemExcept
-eval ctrl m (G.Load f g) callback =
-  catch (fetch ctrl m f $ \chunk ->
+eval ctrl storage (G.Load f g) callback =
+  catch (fetch ctrl storage f $ \chunk ->
            case chunk of
              EOF     -> callback EOF
-             Chunk r -> eval ctrl m r (whenChunk callback))
+             Chunk r -> eval ctrl storage r (whenChunk callback))
         (\e -> case e of
-                 NotFoundExcept -> eval ctrl m g callback
+                 NotFoundExcept -> eval ctrl storage g callback
                  _              -> throwIO e)
-eval _ m (G.Done r j) callback    = do
-  mapM_ (store m) j
+eval _ storage (G.Done r j) callback    = do
+  mapM_ (store storage) j
   callback (Chunk r)
   callback EOF
 
 evalLQL :: (GraphBackend m) => m -> Device Reply -> [LQL] -> IO ()
 evalLQL _ dev []     = devwriteIO dev (Last Nothing)
-evalLQL m dev (x:xs) =
+evalLQL storage dev (x:xs) =
   case x of
-    PathStmt _ cursor -> navigate cursor (evalLQL m dev xs)
+    PathStmt _ cursor -> navigate cursor (evalLQL storage dev xs)
     MakeStmt _ stmt   ->
-      eval dev m stmt $ \chunk ->
+      eval dev storage stmt $ \chunk ->
         case chunk of
-          EOF -> evalLQL m dev xs
+          EOF -> evalLQL storage dev xs
           _   -> return ()
     NameStmt u g      -> do
-      (nsTree, name) <- getName g m
+      (nsTree, name) <- getName g storage
       let (nTree, nsUser) = underive nsTree
           (nUser, _)  = underive nsUser
       if (nsUser `isDerivedOf` (root u))
-        then devwriteIO dev (Item $ Name nUser nTree name) >> evalLQL m dev xs
+        then devwriteIO dev (Item $ Name nUser nTree name) >> evalLQL storage dev xs
         else devwriteIO dev (Fail 403 Nothing)
+    KillStmt _ a mb   -> do
+      unlink a mb storage
+      evalLQL storage dev xs
     where
       navigate G.Tail cont                   = cont
-      navigate (G.Need r) cont               = eval dev m r $ \chunk ->
+      navigate (G.Need r) cont               = eval dev storage r $ \chunk ->
         case chunk of
           EOF          -> cont
           Chunk cursor -> navigate cursor (return ())
@@ -213,7 +207,7 @@ evalLQL m dev (x:xs) =
         devwriteIO dev (Item $ makeList $ map (Path . (:path)) links)
         navigate next cont
       navigate (G.Head g) cont               =
-        eval dev m (G.loadNode1 g Nothing Nothing G.done) $ \chunk ->
+        eval dev storage (G.loadNode1 g Nothing Nothing G.done) $ \chunk ->
           case chunk of
             EOF          -> cont
             Chunk links  -> devwriteIO dev (Item $ makeList $ map (Path . (:[])) links)
@@ -228,13 +222,13 @@ evalFinalizer chan dev (Right _)   = do
   linfo Network $ printf "[fd: %s] session terminated successfully" (show chan)
 
 process :: (GraphBackend m) => m -> CoreServer -> Query -> IO Reply
-process m srv (Begin sig msg) =
+process storage srv (Begin sig msg) =
   case (chkloads (parseLQL (namespaceFrom sig)) msg) of
     Left _      -> return $ Fail 400 (Just "syntax error")
     Right stmts -> do
       (fh, dev) <- makeFD srv (sigUser sig)
       lnotice Network (printf "BEGIN %s %d" (show msg) fh)
-      _         <- forkFinally (evalLQL m dev stmts) (evalFinalizer fh dev)
+      _         <- forkFinally (evalLQL storage dev stmts) (evalFinalizer fh dev)
       return $ Done fh
 process _ srv (Fetch sig fh) = do
   let channel = (sigUser sig, fh)

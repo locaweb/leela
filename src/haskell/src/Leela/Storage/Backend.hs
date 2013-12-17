@@ -59,7 +59,7 @@ class GraphBackend m where
 
   putLabel :: GUID -> [Label] -> m -> IO ()
 
-  unlink   :: GUID -> GUID -> m -> IO ()
+  unlink   :: GUID -> Maybe GUID -> m -> IO ()
 
 glob :: Label -> Mode Label
 glob l
@@ -94,4 +94,4 @@ instance GraphBackend AnyBackend where
 
   putLink g lnks (AnyBackend b) = putLink g lnks b
 
-  unlink a b (AnyBackend be) = unlink a b be
+  unlink a mb (AnyBackend b) = unlink a mb b

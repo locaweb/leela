@@ -109,8 +109,8 @@ instance GraphBackend ZMQBackend where
       Done -> return ()
       _    -> throwIO SystemExcept
 
-  unlink a b m = do
-    reply <- send (dealer m) (Unlink a b)
+  unlink a mb m = do
+    reply <- send (dealer m) (Unlink a mb)
     case reply of
       Done -> return ()
       _    -> throwIO SystemExcept
