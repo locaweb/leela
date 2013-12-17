@@ -78,4 +78,14 @@
       (storage/dellink cluster "0x00" "0x02")
       (storage/dellink cluster "0x00" "0x03")
       (is (= [] (storage/getlink cluster "0x00" "0x"))))
+
+    (testing "getlink after dellink with no optional argument"
+      (storage/putlink cluster "0x00" "0x01")
+      (storage/putlink cluster "0x00" "0x02")
+      (storage/putlink cluster "0x00" "0x03")
+
+      (storage/dellink cluster "0x00")
+      (storage/dellink cluster "0x00")
+      (storage/dellink cluster "0x00")
+      (is (= [] (storage/getlink cluster "0x00" "0x"))))
       ))
