@@ -42,7 +42,7 @@ pylib-build:
 	cd src/python; $(bin_python) setup.py build
 
 pylib-clean:
-	cd src/python; $(bin_python) setup.py clean -a
+	rm -rf src/python/build
 
 clib-install:
 	mkdir -p debian/leela-c/usr/lib
