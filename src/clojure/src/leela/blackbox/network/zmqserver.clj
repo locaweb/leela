@@ -79,9 +79,11 @@
     (msg-fail 400)
     (let [[a & links] msg]
       (storage/with-consistency :quorum
-        (doseq [b links]
-          (storage/dellink cluster a b))
-        (msg-done)))))
+        (if (seq links)
+          (doseq [b links]
+            (storage/dellink cluster a b))
+          (storage/dellink cluster a)))
+      (msg-done))))
 
 (defn exec-getlabel-exact [cluster msg]
   (if (not= (count msg) 2)

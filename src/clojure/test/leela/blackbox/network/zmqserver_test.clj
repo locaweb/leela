@@ -75,7 +75,12 @@
 
     (testing "dellink after putlink"
       (server/handle-message cluster ["put" "link" "0x00" "0x01" "0x02" "0x03"])
-      (is (= (server/msg-done) (server/handle-message cluster ["del" "link" "0x00" "0x01" "0x02" "0x03"])))
+      (is (= (server/msg-done) (server/handle-message cluster ["del" "link" "0x00" "0x01"])))
+      (is (= (server/msg-link ["0x02" "0x03"]) (server/handle-message cluster ["get" "link" "0x00"]))))
+
+    (testing "dellink after putlink (all)"
+      (server/handle-message cluster ["put" "link" "0x00" "0x01" "0x02" "0x03"])
+      (is (= (server/msg-done) (server/handle-message cluster ["del" "link" "0x00"])))
       (is (= (server/msg-link []) (server/handle-message cluster ["get" "link" "0x00"]))))
 
     (testing "getlink with no data"
