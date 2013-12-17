@@ -2,6 +2,9 @@
 
 v4.1.0 | 2013-12-17
   * kill statement | dgvncsz0f, aabaklini;
+  * name statement reply no includes the requested guid | dgvncsz0f;
+  * c client library | dgvncsz0f;
+  * python client library | dgvncsz0f;
 
 v4.0.0 | 2013-08-01
   * creating warpdrive [graph engine] | dgvncsz0f;
