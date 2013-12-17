@@ -70,12 +70,20 @@
       (server/handle-message cluster ["put" "label" "0x03" "foobar"])
       (is (= (server/msg-label ["foobar"]) (server/handle-message cluster ["get" "label" "ext" "0x03" "foobar"]))))
 
+    (testing "dellink with no data"
+      (is (= (server/msg-done) (server/handle-message cluster ["del" "link" "0x00" "0x"]))))
+
+    (testing "dellink after putlink"
+      (server/handle-message cluster ["put" "link" "0x00" "0x01" "0x02" "0x03"])
+      (is (= (server/msg-done) (server/handle-message cluster ["del" "link" "0x00" "0x01" "0x02" "0x03"])))
+      (is (= (server/msg-link []) (server/handle-message cluster ["get" "link" "0x00"]))))
+
     (testing "getlink with no data"
-      (is (= (server/msg-fail 404)) (server/handle-message cluster ["get" "link" "0x00" "0x"])))
+      (is (= (server/msg-link []) (server/handle-message cluster ["get" "link" "0x00" "0x"]))))
 
     (testing "getlink after putlink"
       (server/handle-message cluster ["put" "link" "0x00" "0x01" "0x02" "0x03"])
-      (is (= (server/msg-link ["0x01" "0x02" "0x03"])) (server/handle-message cluster ["get" "link" "0x00" "0x"])))
+      (is (= (server/msg-link ["0x01" "0x02" "0x03"]) (server/handle-message cluster ["get" "link" "0x00" "0x"]))))
 
     (testing "getlink pagination"
       (server/handle-message cluster ["put" "link" "0x00" "0x01" "0x02" "0x03"])
