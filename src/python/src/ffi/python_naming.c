@@ -34,7 +34,7 @@ static
 PyObject *pyleela_naming_start(PyObject *, PyObject *);
 
 static
-PyObject *pyleela_naming_destroy(PyObject *, PyObject *);
+PyObject *pyleela_naming_stop(PyObject *, PyObject *);
 
 static
 PyObject *pyleela_naming_query(PyObject *, PyObject *);
@@ -46,8 +46,8 @@ PyMethodDef __functions[] = {
    METH_VARARGS,
    NULL
   },
-  {"destroy",
-   pyleela_naming_destroy,
+  {"stop",
+   pyleela_naming_stop,
    METH_VARARGS,
    NULL
   },
@@ -98,10 +98,32 @@ PyObject *pyleela_naming_start(PyObject *self, PyObject *args)
   if (naming == NULL)
   { Py_RETURN_NONE; }
 
+#if PY_VERSION_HEX < 0x02070000
+  return(PyCObject_FromVoidPtr(naming, NULL));
+#else
   return(PyCapsule_New(naming, "_leela_naming.naming", NULL));
+#endif
 }
 
-PyObject *pyleela_naming_destroy(PyObject *self, PyObject *args)
+#if PY_VERSION_HEX < 0x02070000
+static
+PyObject *pyleela_naming_stop(PyObject *self, PyObject *args)
+{
+  (void) self;
+  PyObject *capsule;
+
+  if (! PyArg_ParseTuple(args, "O!", &PyCObject_Type, &capsule))
+  { return(NULL); }
+
+  leela_naming_t *naming = (leela_naming_t *) PyCObject_AsVoidPtr(capsule);
+  if (naming != NULL)
+  { leela_naming_stop(naming); }
+
+  Py_RETURN_NONE;
+}
+#else
+static
+PyObject *pyleela_naming_stop(PyObject *self, PyObject *args)
 {
   (void) self;
   PyObject *capsule;
@@ -115,6 +137,7 @@ PyObject *pyleela_naming_destroy(PyObject *self, PyObject *args)
 
   Py_RETURN_NONE;
 }
+#endif
 
 PyObject *pyleela_naming_query(PyObject *self, PyObject *args)
 {
@@ -127,12 +150,21 @@ PyObject *pyleela_naming_query(PyObject *self, PyObject *args)
   if (pytype == NULL)
   { return(NULL); }
 
+#if PY_VERSION_HEX < 0x02070000
+  if (! PyArg_ParseTuple(args, "O!", &PyCObject_Type, &capsule))
+  { return(NULL); }
+
+  leela_naming_t *naming = (leela_naming_t *) PyCObject_AsVoidPtr(capsule);
+  if (naming == NULL)
+  { goto handle_error; }
+#else
   if (! PyArg_ParseTuple(args, "O!", &PyCapsule_Type, &capsule))
   { return(NULL); }
 
   leela_naming_t *naming = (leela_naming_t *) PyCapsule_GetPointer(capsule, "_leela_naming.naming");
   if (naming == NULL)
   { goto handle_error; }
+#endif
 
   snapshot = leela_naming_query(naming);
   iterator = snapshot;
