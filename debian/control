@@ -20,7 +20,9 @@ Description: Leela - Scalable metrics monitoring engine (storage module)
 Package: leela-c
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: Leela - Scalable metrics monitoring engine (c library)
 
 Package: leela-python
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: Leela - Scalable metrics monitoring engine (python library)
