@@ -193,8 +193,8 @@ evalLQL storage dev (x:xs) =
       if (nsUser `isDerivedOf` (root u))
         then devwriteIO dev (Item $ Name g nUser nTree name) >> evalLQL storage dev xs
         else devwriteIO dev (Fail 403 Nothing)
-    KillStmt _ a mb   -> do
-      unlink a mb storage
+    KillStmt _ links  -> do
+      mapM_ (\(a, mb) -> unlink a mb storage) links
       evalLQL storage dev xs
     where
       navigate G.Tail cont                   = cont

@@ -29,8 +29,14 @@ suite = testGroup "Parser"
   [ testGroup "kill"
     [ testCase "kill (a) -[l]> (b)" $
         (count "using (leela) kill (a) -[l]> (b);") @?= 1
-    , testCase "kill a -[l]> (*)" $
+    , testCase "kill a -[l]> ()" $
         (count "using (leela) kill (a) -[l]> ();") @?= 1
+    , testCase "kill (a) <[l]- (b)" $
+        (count "using (leela) kill (a) <[l]- (b);") @?= 1
+    , testCase "kill () <[l]- (b)" $
+        (count "using (leela) kill () <[l]- (b);") @?= 1
+    , testCase "kill (a) -[l]- (b)" $
+        (count "using (leela) kill (a) -[l]- (b);") @?= 1
     ]
   , testGroup "make"
     [ testCase "make (a)" $
@@ -57,5 +63,11 @@ suite = testGroup "Parser"
         (count "using (leela) path (a) -[l*]> (b);") @?= 1
     , testCase "path (a) -[*l]> ()" $
         (count "using (leela) path (a) -[l*]> (b);") @?= 1
+    ]
+  , testGroup "many"
+    [ testCase "using ," $
+      (count "using (leela) path (a), make (a), make (b);" @?= 2) -- grouping make statements
+    , testCase "using \\n" $
+      (count "using (leela) path (a)\nmake (a)\nmake (b);" @?= 2) -- grouping make statements
     ]
   ]

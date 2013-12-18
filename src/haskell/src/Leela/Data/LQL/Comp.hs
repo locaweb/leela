@@ -82,7 +82,7 @@ qstring limit l r = word8 l >> anyWord8 >>= loop limit []
         | otherwise = anyWord8 >>= loop (lim - 1) (x : acc)
 
 newline :: Parser ()
-newline = void $ (string ", " <|> string "\n ")
+newline = void $ (string ", " <|> string "\n")
 
 separator :: Parser ()
 separator = void (char '\n' <|> char ' ')
@@ -158,14 +158,17 @@ parseStmtKill :: Using -> Parser LQL
 parseStmtKill n = "kill " .*> doParse
     where
       doParse = do
-        (_, ga) <- parseKeyAsGUID (self n)
+        (a, ga) <- parseKeyAsGUID (self n)
         hardspace
-        l       <- parseRLink (self n)
+        dl      <- parseLink (self n)
         hardspace
         (b, gb) <- parseKeyAsGUID (self n)
-        if (b == zero)
-          then return $ KillStmt n (rehash ga $ unpack l) Nothing
-          else return $ KillStmt n (rehash ga $ unpack l) (Just gb)
+        case dl of
+          R l -> return $ KillStmt n [ (rehash ga $ unpack l, if (b == zero) then Nothing else Just gb)]
+          L l -> return $ KillStmt n [ (rehash gb $ unpack l, if (a == zero) then Nothing else Just ga)]
+          B l -> return $ KillStmt n [ (rehash ga $ unpack l, Just gb)
+                                     , (rehash gb $ unpack l, Just ga)
+                                     ]
 
 parseStmt :: Using -> Parser LQL
 parseStmt n =

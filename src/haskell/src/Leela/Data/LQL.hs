@@ -29,7 +29,7 @@ data Using = Using { uUser  :: Namespace
 data LQL = MakeStmt Using (Result ())
          | PathStmt Using Cursor
          | NameStmt Using GUID
-         | KillStmt Using GUID (Maybe GUID)
+         | KillStmt Using [(GUID, Maybe GUID)]
 
 class HasNamespace a where
 
@@ -47,17 +47,17 @@ instance HasNamespace Using where
 
 instance HasNamespace LQL where
 
-  self (MakeStmt r _)   = self r
-  self (PathStmt r _)   = self r
-  self (NameStmt r _)   = self r
-  self (KillStmt r _ _) = self r
+  self (MakeStmt r _) = self r
+  self (PathStmt r _) = self r
+  self (NameStmt r _) = self r
+  self (KillStmt r _) = self r
 
-  root (MakeStmt r _)   = root r
-  root (PathStmt r _)   = root r
-  root (NameStmt r _)   = root r
-  root (KillStmt r _ _) = root r
+  root (MakeStmt r _) = root r
+  root (PathStmt r _) = root r
+  root (NameStmt r _) = root r
+  root (KillStmt r _) = root r
 
-  top (MakeStmt r _)   = top r
-  top (PathStmt r _)   = top r
-  top (NameStmt r _)   = top r
-  top (KillStmt r _ _) = top r
+  top (MakeStmt r _) = top r
+  top (PathStmt r _) = top r
+  top (NameStmt r _) = top r
+  top (KillStmt r _) = top r
