@@ -148,7 +148,7 @@ server could encode a `name` and a `path` in a single `item` message:
 
     > <SIGNATURE> | fetch | 1
     < item | list | 2
-        | name | dgvncsz0f | leela | foobar
+        | name | de76c3e567fca9d246f5f8d3b2e704a38c3c5e258988ab525f941db8 | dgvncsz0f | leela | foobar
         | path | 2 | de76c3e567fca9d246f5f8d3b2e704a38c3c5e258988ab525f941db8 | foobar
     * line breaks just for legibility purposes
 
@@ -248,17 +248,17 @@ results:
 Extracts name and namespace from vertex references. The response is a
 `name` message:
 
-    0      1        2             3
-    +------+--------+-------------+--------+
-    | name | <USER> | <NAMESPACE> | <NAME> |
-    +------+--------+-------------+--------+
+    0      1        2        3             4
+    +------+--------+--------+-------------+--------+
+    | name | <GUID> | <USER> | <NAMESPACE> | <NAME> |
+    +------+--------+--------+-------------+--------+
 
 ### EXAMPLES ###
 
     > <SIGNATURE> | begin | using (leela) name 0xde76c3e567fca9d246f5f8d3b2e704a38c3c5e258988ab525f941db8;
     < done | 1
     > <SIGNATURE> | fetch | 1
-    < done | name | dgvncsz0f | leela | foobar
+    < done | name | 0xde76c3e567fca9d246f5f8d3b2e704a38c3c5e258988ab525f941db8 | dgvncsz0f | leela | foobar
     > <SIGNATURE> | close | 1
     < done
 
