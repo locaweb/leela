@@ -1,4 +1,5 @@
 ;; Copyright 2013 (c) Diego Souza <dsouza@c0d3.xxx>
+;; Copyright 2013 (c) Alexandre Baaklini <abaaklini@gmail.com>
 ;;  
 ;; Licensed under the Apache License, Version 2.0 (the "License");
 ;; you may not use this file except in compliance with the License.
@@ -34,6 +35,12 @@
      cluster :graph
      (column-definitions {:a :blob :b :blob :primary-key [:a :b]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
+  (when-not (describe-table cluster keyspace :tsattr)
+    (warn "creating table tsattr")
+    (create-table
+     cluster :tsattr
+     (column-definitions {:key :blob :test_map (map-type :int :blob) :primary-key [:key]})
+     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
   (when-not (describe-table cluster keyspace :search)
     (warn "creating table search")
     (create-table
@@ -64,7 +71,7 @@
      ~@body))
 
 (defn truncate-all [cluster]
-  (doseq [t [:graph :search]]
+  (doseq [t [:graph :search :tsattr]]
     (truncate cluster t)))
 
 (defn putindex [cluster k code name]
@@ -91,9 +98,6 @@
 (defn putlink [cluster a b]
   (insert cluster :graph {:a (f/hexstr-to-bytes a) :b (f/hexstr-to-bytes b)}))
 
-;;(defn dellink [cluster a & b]
-;;  (delete cluster :graph (where :a (f/hexstr-to-bytes a) :b (f/hexstr-to-bytes b))))
-
 (defn dellink [cluster a & b]
   (delete cluster
            :graph
@@ -109,3 +113,16 @@
                                              (where :a (f/hexstr-to-bytes k) :b [:>= (f/hexstr-to-bytes (first page))])
                                              (where :a (f/hexstr-to-bytes k)))
                                            (limit +limit+))))
+
+(defn putattr [cluster k timest value]
+  ;;(drop-table cluster :tsattr))
+  ;;(alter-table cluster :tsattr (add-column :test_map (map-type :int :blob))))
+  (insert cluster :tsattr {:key (f/hexstr-to-bytes k) :test_map {timest (f/hexstr-to-bytes value)}}))
+;;(defn putattr [cluster k timest value]
+;;  (update cluster :tsattr {:test_map {timest (f/hexstr-to-bytes value)}}
+;;          (where :key (f/str-to-bytes k))))
+
+(defn getattr [cluster k timest]
+  (map #(f/bytes-to-hexstr (get % timest)) (select cluster
+                                               :tsattr
+                                               [(f/hexstr-to-bytes k) :test_map])))

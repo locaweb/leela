@@ -12,6 +12,8 @@
     (storage/truncate-all cluster))
   (f))
 
+(defmacro dbg[x] `(let [x# ~x] (println "dbg:" '~x "=" x#) x#))
+
 (use-fixtures :each storage-cleanup)
 
 (deftest test-cassandra-backend
@@ -68,6 +70,15 @@
         (is (= ["0x02"] (storage/getlink cluster "0x00" "0x02")))
         (is (= ["0x03"] (storage/getlink cluster "0x00" "0x03")))
         (is (= [] (storage/getlink cluster "0x00" "0x04")))))
+
+    (testing "putattr time profile"
+      (storage/putattr cluster "0x00" 1 "0x00"))
+      ;(storage/putattr cluster (clojure.string/join ["0x00" (str 1)]) "0x01" "0x00"))
+      ;;(println
+      ;;  ((dotimes
+      ;;     [n 1]
+      ;;     (storage/putattr cluster "0x00" 1 "0x00"))))
+      ;;(is (= [] [])))
 
     (testing "getlink after dellink"
       (storage/putlink cluster "0x00" "0x01")
