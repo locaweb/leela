@@ -115,14 +115,11 @@
                                            (limit +limit+))))
 
 (defn putattr [cluster k timest value]
-  ;;(drop-table cluster :tsattr))
-  ;;(alter-table cluster :tsattr (add-column :test_map (map-type :int :blob))))
-  (insert cluster :tsattr {:key (f/hexstr-to-bytes k) :test_map {timest (f/hexstr-to-bytes value)}}))
-;;(defn putattr [cluster k timest value]
-;;  (update cluster :tsattr {:test_map {timest (f/hexstr-to-bytes value)}}
-;;          (where :key (f/str-to-bytes k))))
+  (update cluster :tsattr {:test_map {timest (f/hexstr-to-bytes value)}}
+          (where :key (f/str-to-bytes k))))
 
 (defn getattr [cluster k timest]
   (map #(f/bytes-to-hexstr (get % timest)) (select cluster
                                                :tsattr
-                                               [(f/hexstr-to-bytes k) :test_map])))
+                                               [0 :test_map])))
+                                               ;;[(f/str-to-bytes k) :test_map])))
