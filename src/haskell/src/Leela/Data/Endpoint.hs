@@ -18,8 +18,6 @@ module Leela.Data.Endpoint
        ( Endpoint (..)
        , isTCP
        , isUDP
-       , toZmq
-       , toZookeeper
        , loadEndpoint
        , dumpEndpoint
        , parseEndpoint
@@ -33,79 +31,35 @@ import           Data.Attoparsec as A
 import qualified Data.ByteString as B
 import           Control.Applicative
 import qualified Data.ByteString.Lazy as L
-import           Data.Attoparsec.Char8 ((.*>))
+import           Data.Attoparsec.Char8 ((.*>), decimal)
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as L8
 import           Data.ByteString.Lazy.Builder
 
-data Endpoint = TCP { eAddr :: [(String, Maybe Word16)]
-                    , ePath :: String
-                    }
-              | UDP { eAddr :: [(String, Maybe Word16)]
-                    , ePath :: String
-                    }
+data Endpoint = TCP String Word16 String
+              | UDP String Word16 String
               deriving (Eq, Ord)
 
 isTCP :: Endpoint -> Bool
-isTCP (TCP{}) = True
-isTCP _       = False
+isTCP (TCP _ _ _) = True
+isTCP _           = False
 
 isUDP :: Endpoint -> Bool
-isUDP (UDP{}) = True
-isUDP _       = False
+isUDP (UDP _ _ _) = True
+isUDP _           = False
 
-qstring :: (Word8 -> Bool) -> Parser (Maybe Word8, B.ByteString)
-qstring p = cont []
-    where
-      cont acc = do
-        eof <- atEnd
-        if eof
-          then return (Nothing, B.pack $ reverse acc)
-          else go acc
-
-      go acc = do
-        c <- anyWord8
-        case c of
-          0x5c          -> anyWord8 >>= \c1 -> cont (c1:acc)
-          _
-            | p c       -> return (Just c, B.pack $ reverse acc)
-            | otherwise -> cont (c:acc)
-
-readWord :: B.ByteString -> Maybe Word16
-readWord = fmap (fromIntegral . fst) . B8.readInt
-
-splitColon :: B.ByteString -> (B.ByteString, Maybe B.ByteString)
-splitColon s = let (l, r) = B.break (== 0x3a) s
-               in if (B.null r)
-                    then (s, Nothing)
-                    else (l, Just $ B.drop 1 r)
-
-splitAddr :: B.ByteString -> [(String, Maybe Word16)]
-splitAddr = map (f . splitColon) . B.split 0x2c
-    where
-      f (h, mp) = (B8.unpack h, mp >>= readWord)
-
-parseURL :: ([(String, Maybe Word16)] -> String -> a) -> Parser a
+parseURL :: (String -> Word16 -> String -> a) -> Parser a
 parseURL f = do
-  (w, addr) <- qstring (`elem` [0x2f, 0x3b])
-  case w of
-    Just 0x2f -> do
-      path <- fmap B8.unpack takeByteString
-      if ((null path) || (last path) /= ';')
-        then fail "bad path"
-        else return (f (splitAddr addr) ('/' : init path))
-    Just 0x3b -> return (f (splitAddr addr) "")
-    _         -> fail "unknonw endpoint"
+  host <- fmap B8.unpack $ A.takeWhile (/= 0x3a)
+  _    <- A.word8 0x3a
+  port <- decimal
+  path <- fmap B8.unpack takeByteString
+  return $ f host port path
 
 parseEndpoint :: Parser Endpoint
 parseEndpoint =
   "tcp://" .*> parseURL TCP
   <|> "udp://" .*> parseURL UDP
-
-escape :: Word8 -> B.ByteString -> B.ByteString
-escape w s = let sep    = B.pack [0x5c, w]
-                 chunks = B.split w s
-             in B.intercalate sep chunks
 
 loadEndpointStr :: String -> Maybe Endpoint
 loadEndpointStr = loadEndpoint . B8.pack
@@ -122,44 +76,18 @@ loadEndpoint s =
 dumpEndpoint :: Endpoint -> L.ByteString
 dumpEndpoint endpoint =
   case endpoint of
-    TCP addrs path -> toLazyByteString $ string7 "tcp://"
-                      <> dumpAddrs addrs
-                      <> string7 path
-                      <> char7 ';'
-    UDP addrs path -> toLazyByteString $ string7 "udp://"
-                      <> dumpAddrs addrs
-                      <> string7 path
-                      <> char7 ';'
-    where
-      buildAddr (h, Nothing) = string7 h
-      buildAddr (h, Just p)  = string7 h <> char7 ':' <> (string7 $ show p)
-
-      dumpAddrs []     = error "empty addr"
-      dumpAddrs (x:xs) = foldr (\a acc -> buildAddr a <> char7 ',' <> acc) (buildAddr x) xs
-
-toZookeeper :: String -> Endpoint -> String
-toZookeeper defEndpoint e
-  | isTCP e   = maybe defEndpoint id $ showAddrs (eAddr e)
-  | otherwise = defEndpoint
-    where
-      showAddrs []           = Nothing
-      showAddrs (addr:addrs) = let f = \val acc -> acc ++ "," ++ showAddr val
-                                   z = showAddr addr
-                               in Just (foldr f z addrs ++  (ePath e))
-
-      showAddr (h, Nothing) = h ++ ":2181"
-      showAddr (h, Just p)  = h ++ ":" ++ show p
-
-toZmq :: String -> Endpoint -> String
-toZmq defEndpoint e
-  | isTCP e   = maybe defEndpoint id $ showAddrs (eAddr e)
-  | otherwise = defEndpoint
-    where
-      showAddrs []       = Nothing
-      showAddrs (addr:_) = ("tcp://" ++) <$> showAddr addr
-
-      showAddr (_, Nothing) = Nothing
-      showAddr (h, Just p)  = Just $ h ++ ":" ++ show p
+    TCP host port path
+      -> toLazyByteString $ string7 "tcp://"
+         <> string7 host
+         <> char7 ':'
+         <> string7 (show port)
+         <> string7 path
+    UDP host port path
+      -> toLazyByteString $ string7 "udp://"
+         <> string7 host
+         <> char7 ':'
+         <> string7 (show port)
+         <> string7 path
 
 instance Read Endpoint where
 

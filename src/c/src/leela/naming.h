@@ -16,6 +16,7 @@
 #define __leela_naming_h__
 
 #include <pthread.h>
+#include "leela/lql.h"
 #include "leela/endpoint.h"
 
 #ifdef __cplusplus
@@ -25,46 +26,50 @@ extern "C" {
 typedef struct leela_naming_t leela_naming_t;
 
 //! A linked-list of endpoints
-typedef struct leela_naming_value_t
+typedef struct leela_naming_cluster_t
 {
-  leela_endpoint_t            *endpoint;
-  struct leela_naming_value_t *next;
-} leela_naming_value_t;
+  size_t             size;
+  leela_endpoint_t **endpoint;
+} leela_naming_cluster_t;
 
-/*! Intializes the naming thread. This constantly queries zookeeper
- *  for updates about this particular resource
+/*! Intializes the naming thread. You must provide at least one
+ * warpdrive node that will be used to discover information about the
+ * cluster.
  *
- *  \param zookeeper The endpoint for the zookeeper cluster to use;
+ *  \param warpdrive The endpoint to discover information about the
+ *  cluster. This last element of this list must be NULL;
  *  
- *  \param resource The resource to monitor;
- *
- *  \param cc If you provide this the lib will notify when the first
- *  iteration finishes (this may be NULL);
- *
  *  \param maxdelay The maximum amount of time to wait between
  *  consecute calls;
  *
  *  \return NULL      : there was an error and the naming could not be created;
  *  \return :otherwise: success;
  */
-leela_naming_t *leela_naming_start(const leela_endpoint_t *zookeeper, const char *resource, int maxdelay);
+leela_naming_t *leela_naming_init(const leela_endpoint_t *const *warpdrive, int maxdelay);
 
-/*! Returns the endpoints found under this resource
+/*! Starts the discover thread. This functions waits for the naming
+ *  thread to query a warpdrive instance.
+ *
+ *  \return true : succesfully connected to the warpdrive cluster;
+ *  \return false: could not connect to any machine;
+ */
+bool leela_naming_start(leela_naming_t *naming, lql_context_t *ctx);
+
+/*! Returns the endpoints found under this resource.
  *
  *  \return NULL     : zero endpoints found;
  *  \return otherwise: A valid endpoint;
  */
-leela_naming_value_t *leela_naming_query(leela_naming_t *);
+leela_naming_cluster_t *leela_naming_discover(leela_naming_t *);
 
 /*! Frees memory
  */
-void leela_naming_value_free(leela_naming_value_t *);
+void leela_naming_cluster_free(leela_naming_cluster_t *);
 
-/*! Terminates the naming thread. This functions waits for the
- *  naming thread to finish and this guarantees that it will query
- *  the zookeeper server at least once
+/*! Terminates the naming thread. This functions waits for the naming
+ *  thread to finish, so it may take up to a second to return.
  */
-void leela_naming_stop(leela_naming_t *);
+void leela_naming_destroy(leela_naming_t *);
 
 #ifdef __cplusplus
 }

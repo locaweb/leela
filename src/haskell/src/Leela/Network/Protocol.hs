@@ -70,6 +70,7 @@ data Reply = Done FH
            | Fail Int (Maybe String)
 
 data RValue = Path [(GUID, Label)]
+            | Stat [(B.ByteString, B.ByteString)]
             | List [RValue]
             | Name GUID B.ByteString B.ByteString Key
 
@@ -121,6 +122,7 @@ encodeRValue (Name g u n k) = ["name", unpack g, u, n, unpack k]
 encodeRValue (Path p)       = let f (g, l) acc = unpack l : unpack g : acc
                               in "path" : encodeShow (2 * length p) : foldr f [] p
 encodeRValue (List v)       = "list" : encodeShow (length v) : concatMap encodeRValue v
+encodeRValue (Stat prop)    = "stat" : encodeShow (2 * length prop) : concatMap (\(a, b) -> [a, b]) prop
 
 encode :: Reply -> [B.ByteString]
 encode (Done fh)              = ["done", encodeShow fh]

@@ -22,12 +22,6 @@
 extern "C" {
 #endif
 
-typedef struct
-{
-  char     *host;
-  uint16_t  port;
-} leela_addr_t;
-
 typedef enum leela_protocol
 {
   PROTO_TCP,
@@ -37,20 +31,17 @@ typedef enum leela_protocol
 typedef struct
 {
   leela_protocol    protocol;
-  size_t            addrlen;  //!^ The number of `addr' items;
-  leela_addr_t     *addrs;
+  char             *host;
+  uint16_t          port;
   char             *path;
 } leela_endpoint_t;
 
 /*! Parses an endpoint. The syntax this parses recognizes is the
  *  following:
- *      tcp|udp://host_0:port_0[,...,host_n:port_n][/path]
+ *      tcp|udp://host:port[/path]
  *
  *  Example:
- *      tcp://foo:80,foo:81,foo:82/root
- *
- *  N.B.:
- *      The maximum number of components is 512;
+ *      tcp://localhost:4080/root
  *
  *  \param endpoint The string to parse;
  *  
@@ -69,6 +60,10 @@ char *leela_endpoint_dump(const leela_endpoint_t *);
 /*! Duplicates an endpoint;
  */
 leela_endpoint_t *leela_endpoint_dup(const leela_endpoint_t *);
+
+/*! Duplicates an endpoint;
+ */
+leela_endpoint_t *leela_endpoint_dup2(leela_endpoint_t *dst, const leela_endpoint_t *src);
 
 /*! Frees memory.
  */

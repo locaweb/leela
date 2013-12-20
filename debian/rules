@@ -47,8 +47,6 @@ pylib-clean:
 clib-install:
 	mkdir -p debian/leela-c/usr/lib
 	cp -p src/c/libleela.so* debian/leela-c/usr/lib
-	dpkg -l libzookeeper-mt2 1>/dev/null || \
-          cp -p /usr/lib/libzookeeper* debian/leela-c/usr/lib
 
 pylib-install:
 	cd src/python; $(bin_python) setup.py install --install-layout=deb --root=../../debian/leela-python

@@ -18,77 +18,45 @@
 #include <string.h>
 #include <stdbool.h>
 #include <pthread.h>
-#include <zookeeper/zookeeper.h>
+#include <sys/select.h>
 #include "leela/debug.h"
 #include "leela/string.h"
 #include "leela/naming.h"
 
 struct leela_naming_t
 {
-  char                   *resource;
+  unsigned int            rnd0;
   int                     maxdelay;
-  char                   *endpoint;
   bool                    cancel;
   pthread_t               thread;
   pthread_cond_t         *notify;
   pthread_mutex_t         mutex;
-  leela_naming_value_t *state;
+  lql_context_t          *context;
+  leela_naming_cluster_t *cluster;
 };
 
 static
-leela_naming_value_t *__value_init()
+leela_naming_cluster_t *__cluster_init(size_t size)
 {
-  leela_naming_value_t *value = (leela_naming_value_t *) malloc(sizeof(leela_naming_value_t));
-  if (value != NULL)
+  if (size == 0)
+  { return(NULL); }
+  leela_naming_cluster_t *cluster = (leela_naming_cluster_t *) malloc(sizeof(leela_naming_cluster_t));
+  if (cluster != NULL)
   {
-    value->next     = NULL;
-    value->endpoint = NULL;
-  }
-  return(value);
-}
-
-static
-leela_naming_value_t *__zk_dump_tree(zhandle_t *zh, leela_naming_value_t *result, const char *path, char *buffer, int bufflen0)
-{
-  int bufflen = bufflen0;
-  int rc      = zoo_get(zh, path, 0, buffer, &bufflen, NULL);
-  if (rc != ZOK)
-  {
-    LEELA_DEBUG("error reading path from zookeeper: %s [rc=%d]", path, rc);
-    return(NULL);
-  }
-
-  int offset=0;
-  for (int k=0; result!=NULL && k<=bufflen; k+=1)
-  {
-    if (k == bufflen || buffer[k] == '\n')
+    cluster->size     = size;
+    cluster->endpoint = (leela_endpoint_t **) malloc(size * sizeof(leela_endpoint_t *));
+    if (cluster->endpoint == NULL)
     {
-      buffer[k] = '\0';
-      result->endpoint = leela_endpoint_load(buffer + offset);
-      if (result->endpoint != NULL)
-      {
-        LEELA_DEBUG("found endpoint: %s => %s", path, buffer+offset);
-        result->next = __value_init();
-        result       = result->next;
-      }
-      offset = k + 1;
+      free(cluster);
+      cluster = NULL;
+    }
+    else
+    {
+      for (size_t k=0; k<cluster->size; k+=1)
+      { cluster->endpoint[k] = NULL; }
     }
   }
-
-  struct String_vector children;
-  rc = zoo_get_children(zh, path, 0, &children);
-  if (rc != ZOK)
-  { return(NULL); }
-  for (int32_t k=0; result != NULL && k<children.count; k+=1)
-  {
-    char *tmp = leela_join(path, "/", children.data[k], NULL);
-    if (tmp == NULL)
-    { return(NULL); }
-    result = __zk_dump_tree(zh, result, tmp, buffer, bufflen0);
-    free(tmp);
-  }
-
-  return(result);
+  return(cluster);
 }
 
 static
@@ -100,162 +68,247 @@ void __naming_notify(leela_naming_t *naming)
 }
 
 static
-void *__naming_loop(void *data)
+leela_naming_cluster_t *__naming_discover2(leela_naming_t *naming, const leela_endpoint_t *endpoint)
 {
-  srand(time(NULL));
-  int nextin             = 0;
-  zhandle_t *zh          = NULL;
-  leela_naming_t *naming = (leela_naming_t *) data;
-  do
+  lql_cursor_t *cursor           = leela_lql_cursor_init2(naming->context, endpoint, "nobody", "", 1000);
+  lql_stat_t *stat               = NULL;
+  leela_naming_cluster_t *result = NULL;
+  if (cursor == NULL)
+  { return(NULL); }
+  if (leela_lql_cursor_execute(cursor, "using (system) stat;") != LEELA_OK)
+  { goto handle_error; }
+  if (leela_lql_cursor_next(cursor) != LEELA_OK || leela_lql_fetch_type(cursor) != LQL_STAT_MSG)
+  { goto handle_error; }
+
+  stat = leela_lql_fetch_stat(cursor);
+  if (stat == NULL || stat->size == 0)
+  { goto handle_error; }
+
+  size_t count = 0;
+  for (size_t k=0; k<stat->size; k+=1)
   {
-    if (zh != NULL)
-    { zookeeper_close(zh); }
+    lql_tuple2_t *entry = (stat->attrs + k);
+    if (strcmp(entry->fst, "endpoint/warpdrive") == 0)
+    { count += 1; }
+  }
 
-    LEELA_DEBUG("naming thread: %s sleeping %d seconds", naming->resource, nextin);
-    for (; nextin > 0 && !naming->cancel; nextin -= 1)
-    { sleep(1); }
-    if (naming->cancel)
-    { break; }
-    nextin = rand() % naming->maxdelay;
+  result = __cluster_init(count);
+  if (result == NULL)
+  { goto handle_error; }
 
-    zh = zookeeper_init(naming->endpoint + 6, NULL, 60000, NULL, NULL, 0);
-    if (zh == NULL)
+  count = 0;
+  for (size_t k=0; k<stat->size; k+=1)
+  {
+    lql_tuple2_t *entry = (stat->attrs + k);
+    if (strcmp(entry->fst, "endpoint/warpdrive") == 0)
     {
-      LEELA_DEBUG("could not connect to zookeeper: %s => %s", naming->resource, naming->endpoint);
-      __naming_notify(naming);
-      nextin = 1;
-      continue;
+      result->endpoint[count] = leela_endpoint_load(entry->snd);
+      if (result->endpoint[count] == NULL)
+      { goto handle_error; }
+      count += 1;
     }
+  }
 
-    LEELA_DEBUG("fetching data from zookeeper: %s => %s", naming->resource, naming->endpoint);
-    leela_naming_value_t *state = __value_init();
-    int bufflen                 = 1024 * 1024;
-    char *buffer                = (char *) malloc(bufflen);
-    leela_naming_value_t *rc    = __zk_dump_tree(zh, state, naming->resource, buffer, bufflen);
-    free(buffer);
-    if (rc == NULL)
-    {
-      LEELA_DEBUG("error reading from zookeeper: %s => %s", naming->resource, naming->endpoint);
-      leela_naming_value_free(state);
-      __naming_notify(naming);
-      nextin = 1;
-      continue;
-    }
-    if (pthread_mutex_lock(&naming->mutex) == 0)
-    {
-      leela_naming_value_free(naming->state);
-      naming->state = state;
-      pthread_mutex_unlock(&naming->mutex);
-    }
-    __naming_notify(naming);
-  } while (true);
+  if (count == 0)
+  { goto handle_error; }
 
-  LEELA_DEBUG("terminating naming thread: %s", naming->resource);
+  leela_lql_stat_free(stat);
+  leela_lql_cursor_close(cursor);
+  return(result);
+
+handle_error:
+  leela_naming_cluster_free(result);
+  leela_lql_stat_free(stat);
+  leela_lql_cursor_close(cursor);
   return(NULL);
 }
 
-leela_naming_t *leela_naming_start(const leela_endpoint_t *endpoint, const char *resource, int maxdelay)
+static
+leela_naming_cluster_t *__naming_discover(leela_naming_t *naming)
 {
+  leela_naming_cluster_t *cur_cluster = leela_naming_discover(naming);
+  leela_naming_cluster_t *new_cluster = NULL;
+  if (cur_cluster != NULL)
+  {
+    for (size_t k=0; k<cur_cluster->size; k+=1)
+    {
+      new_cluster = __naming_discover2(naming, cur_cluster->endpoint[k]);
+      if (new_cluster != NULL)
+      { break; }
+    }
+  }
+  LEELA_DEBUG("naming_discover: cur_cluster: %d, new_cluster: %d",
+              (cur_cluster == NULL ? 0 : cur_cluster->size),
+              (new_cluster == NULL ? 0 : new_cluster->size));
+  leela_naming_cluster_free(cur_cluster);
+  return(new_cluster);
+}
+
+static
+void *__naming_loop(void *data)
+{
+  LEELA_DEBUG0("ENTER:naming loop");
+  leela_naming_t *naming = (leela_naming_t *) data;
+  do
+  {
+    leela_naming_cluster_t *cluster = NULL;
+    if (naming->context != NULL)
+    { cluster = __naming_discover(naming); }
+
+    if (pthread_mutex_lock(&naming->mutex) == 0)
+    {
+      leela_naming_cluster_free(naming->cluster);
+      naming->cluster = cluster;
+      pthread_mutex_unlock(&naming->mutex);
+    }
+    __naming_notify(naming);
+
+    int w_sec, w_usec;
+    if (naming->context == NULL || naming->cluster == NULL)
+    {
+      w_sec  = 0;
+      w_usec = 250000;
+    }
+    else
+    {
+      w_sec  = ((unsigned int) rand_r(&naming->rnd0)) % naming->maxdelay;
+      w_usec = 0;
+    }
+    while (!naming->cancel && (w_sec > 0 || w_usec > 0))
+    {
+      struct timeval tv;
+      tv.tv_sec  = (w_sec > 0 ? 1 : 0);
+      tv.tv_usec = (w_usec > 0 ? w_usec : 0);
+      select(0, NULL, NULL, NULL, &tv);
+      w_sec     -= 1;
+      w_usec     = 0;
+    }
+  } while (! naming->cancel);
+  LEELA_DEBUG0("EXIT:naming loop");
+  return(NULL);
+}
+
+bool leela_naming_start(leela_naming_t *naming, lql_context_t *context)
+{
+  bool ok = false;
+  pthread_mutex_t mutex;
+  if (pthread_mutex_init(&mutex, NULL) != 0)
+  { return(false); }
+
   pthread_cond_t notify;
   if (pthread_cond_init(&notify, NULL) != 0)
-  { return(NULL); }
+  {
+    pthread_mutex_destroy(&mutex);
+    return(false);
+  }
 
+  naming->notify  = &notify;
+  naming->context = context;
+
+  if (pthread_mutex_lock(&mutex) == 0)
+  {
+    pthread_cond_wait(&notify, &mutex);
+    pthread_mutex_unlock(&mutex);
+  }
+  else
+  { LEELA_DEBUG0("could not acquire exclusive lock!"); }
+
+  if (pthread_mutex_lock(&naming->mutex) == 0)
+  {
+    ok = naming->cluster != NULL;
+    pthread_mutex_unlock(&naming->mutex);
+  }
+
+  pthread_cond_destroy(&notify);
+  pthread_mutex_destroy(&mutex);
+
+  return(ok);
+}
+
+leela_naming_t *leela_naming_init(const leela_endpoint_t *const *warpdrive, int maxdelay)
+{
   leela_naming_t *naming = (leela_naming_t *) malloc(sizeof(leela_naming_t));
   if (naming == NULL)
   { return(NULL); }
+  naming->rnd0     = time(0);
   naming->maxdelay = maxdelay;
-  naming->resource = NULL;
-  naming->endpoint = NULL;
-  naming->state    = NULL;
   naming->cancel   = false;
-  naming->notify   = &notify;
+  naming->cluster  = NULL;
+  naming->context  = NULL;
+  naming->notify   = NULL;
 
-  naming->endpoint = leela_endpoint_dump(endpoint);
-  if (naming->endpoint == NULL)
-  { return(NULL); }
-  naming->endpoint[strlen(naming->endpoint) - 1] = '\0';
-
-  naming->resource = leela_strdup(resource);
-  if (naming->resource == NULL)
+  const leela_endpoint_t *const *iterator = warpdrive;
+  size_t k = 0;
+  while (iterator[k] != NULL)
+  { k += 1; }
+  naming->cluster = __cluster_init(k);
+  if (naming->cluster == NULL)
   { goto handle_error; }
+  for (k=0; warpdrive[k]!=NULL; k+=1)
+  {
+    naming->cluster->endpoint[k] = leela_endpoint_dup(warpdrive[k]);
+    if (naming->cluster->endpoint[k] == NULL)
+    { goto handle_error; }
+  }
 
   if (pthread_mutex_init(&naming->mutex, NULL) != 0)
   { goto handle_error; }
 
   pthread_create(&naming->thread, NULL, __naming_loop, naming);
-  if (pthread_mutex_lock(&naming->mutex) == 0)
-  {
-    pthread_cond_wait(&notify, &naming->mutex);
-    pthread_mutex_unlock(&naming->mutex);
-  }
-  pthread_cond_destroy(&notify);
   return(naming);
 
 handle_error:
-  free(naming->resource);
-  free(naming->endpoint);
+  leela_naming_cluster_free(naming->cluster);
   free(naming);
   return(NULL);
 }
 
-void leela_naming_stop(leela_naming_t *naming)
+void leela_naming_destroy(leela_naming_t *naming)
 {
   naming->cancel = true;
   pthread_join(naming->thread, NULL);
-  free(naming->resource);
-  free(naming->endpoint);
-  leela_naming_value_free(naming->state);
+  leela_naming_cluster_free(naming->cluster);
   pthread_mutex_destroy(&naming->mutex);
   free(naming);
 }
 
-void leela_naming_value_free(leela_naming_value_t *value)
+void leela_naming_cluster_free(leela_naming_cluster_t *cluster)
 {
-  while (value != NULL)
+  if (cluster != NULL)
   {
-    leela_naming_value_t *tmp = value;
-    leela_endpoint_free(tmp->endpoint);
-    value = tmp->next;
-    free(tmp);
+    for (size_t k=0; k<cluster->size; k+=1)
+    { leela_endpoint_free(cluster->endpoint[k]); }
+    free(cluster->endpoint);
+    free(cluster);
   }
 }
 
-leela_naming_value_t *leela_naming_query(leela_naming_t *naming)
+leela_naming_cluster_t *leela_naming_discover(leela_naming_t *naming)
 {
   if (pthread_mutex_lock(&naming->mutex) != 0)
-  { return(NULL); }
-
-  leela_naming_value_t *value = NULL;
-  if (naming->state != NULL)
   {
-    leela_naming_value_t *llist = NULL;
-    leela_naming_value_t *state = naming->state;
-    while (state != NULL)
+    LEELA_DEBUG0("could not acquire exclusive lock!");
+    return(NULL);
+  }
+
+  leela_naming_cluster_t *cluster = NULL;
+  if (naming->cluster != NULL)
+  {
+    cluster = __cluster_init(naming->cluster->size);
+    if (cluster != NULL)
     {
-      if (state->endpoint != NULL)
+      for (size_t k=0; k<naming->cluster->size; k+=1)
       {
-        if (llist == NULL)
+        cluster->endpoint[k] = leela_endpoint_dup(naming->cluster->endpoint[k]);
+        if (cluster->endpoint[k] == NULL)
         {
-          llist = __value_init();
-          value = llist;
-        }
-        else
-        {
-          llist->next = __value_init();
-          llist       = llist->next;
-        }
-        if (llist != NULL)
-        { llist->endpoint = leela_endpoint_dup(state->endpoint); }
-        if (llist == NULL || llist->endpoint == NULL)
-        {
-          leela_naming_value_free(value);
-          value = NULL;
+          leela_naming_cluster_free(cluster);
+          cluster = NULL;
           break;
         }
       }
-      state = state->next;
-    };
+    }
   }
   pthread_mutex_unlock(&naming->mutex);
-  return(value);
+  return(cluster);
 }

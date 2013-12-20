@@ -38,6 +38,12 @@ suite = testGroup "Parser"
     , testCase "kill (a) -[l]- (b)" $
         (count "using (leela) kill (a) -[l]- (b);") @?= 1
     ]
+  , testGroup "stat"
+    [ testCase "stat (namespace == system)" $
+        (count "using (system) stat;") @?= 1
+    , testCase "stat (namespace /= system)" $
+        (count "using (leela) stat;") @?= 0
+    ]
   , testGroup "make"
     [ testCase "make (a)" $
         (count "using (leela) make (a);") @?= 1

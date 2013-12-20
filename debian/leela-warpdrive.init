@@ -30,13 +30,11 @@ leela_grantaccess () {
 }
 
 leela_watchdog_start () {
-  local zookeeper
-  zookeeper=$(echo ${LEELA_WARPDRIVE_ZOOKEEPER%;} | cut -c 7-)
   leela_grantaccess
   daemon --delay 10 -r -o $LOGDIR/watchdog.log \
     -u $USER:$GROUP -P $RUNDIR -n watchdog -- \
     tractorbeam send \
-      --zookeeper $zookeeper \
+      --zookeeper $LEELA_WARPDRIVE_ZOOKEEPER \
       --exec /usr/bin/leela-warpdrive-watchdog.sh \
       --path "${LEELA_WARPDRIVE_WATCHDOG_PATH}" \
       $LEELA_WARPDRIVE_WATHDOG_OPTS

@@ -26,10 +26,11 @@ data Using = Using { uUser  :: Namespace
                    }
     deriving (Eq)
 
-data LQL = MakeStmt Using (Result ())
+data LQL = StatStmt Using
+         | MakeStmt Using (Result ())
          | PathStmt Using Cursor
          | NameStmt Using GUID
-         | KillStmt Using [(GUID, Maybe GUID)]
+         | KillStmt Using (Result ())
 
 class HasNamespace a where
 
@@ -47,16 +48,19 @@ instance HasNamespace Using where
 
 instance HasNamespace LQL where
 
+  self (StatStmt r)   = self r
   self (MakeStmt r _) = self r
   self (PathStmt r _) = self r
   self (NameStmt r _) = self r
   self (KillStmt r _) = self r
 
+  root (StatStmt r)   = root r
   root (MakeStmt r _) = root r
   root (PathStmt r _) = root r
   root (NameStmt r _) = root r
   root (KillStmt r _) = root r
 
+  top (StatStmt r)   = top r
   top (MakeStmt r _) = top r
   top (PathStmt r _) = top r
   top (NameStmt r _) = top r

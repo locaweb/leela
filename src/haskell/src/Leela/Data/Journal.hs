@@ -28,18 +28,20 @@ import           Leela.Data.Namespace
 -- read-after-write.
 data Journal = PutLink GUID [GUID]
              | PutLabel GUID [Label]
+             | DelLink GUID [GUID]
              | PutNode Namespace Key GUID
              deriving (Eq)
 
-partition :: [Journal] -> ([(GUID, [GUID])], [(GUID, [Label])], [(Namespace, Key, GUID)])
-partition = go ([], [], [])
+partition :: [Journal] -> ([(GUID, [GUID])], [(GUID, [Label])], [(Namespace, Key, GUID)], [(GUID, [GUID])])
+partition = go ([], [], [], [])
     where
-      go acc []           = acc
-      go (a, b, c) (x:xs) =
+      go acc []              = acc
+      go (a, b, c, d) (x:xs) =
         case x of
-          PutLink g gs  -> go ((g,gs) : a, b, c) xs
-          PutLabel g ls -> go (a, (g,ls) : b, c) xs
-          PutNode n k g -> go (a, b, (n,k,g) : c) xs
+          PutLink g gs  -> go ((g,gs) : a, b, c, d) xs
+          PutLabel g ls -> go (a, (g,ls) : b, c, d) xs
+          PutNode n k g -> go (a, b, (n,k,g) : c, d) xs
+          DelLink g gs  -> go (a, b, c, (g,gs) : d) xs
 
 group :: (Ord v) => [(GUID, [v])] -> [(GUID, [v])]
 group = map (fmap S.toList) . M.toList . M.fromListWith S.union . map (fmap S.fromList)
@@ -48,5 +50,6 @@ rechunk :: [Journal] -> [Journal]
 rechunk j = map (uncurry PutLink) (group links)
             ++ map (uncurry PutLabel) (group labels)
             ++ map (\(n, k, g) -> PutNode n k g) (nub nodes)
+            ++ map (uncurry DelLink) (group unlinks)
     where
-      (links, labels, nodes) = partition j
+      (links, labels, nodes, unlinks) = partition j

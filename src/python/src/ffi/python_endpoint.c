@@ -42,7 +42,10 @@ static
 PyObject *pyleela_endpoint_attr_path(PyObject *, void *);
 
 static
-PyObject *pyleela_endpoint_attr_addrs(PyObject *, void *);
+PyObject *pyleela_endpoint_attr_host(PyObject *, void *);
+
+static
+PyObject *pyleela_endpoint_attr_port(PyObject *, void *);
 
 static
 PyObject *pyleela_endpoint_repr(PyObject *);
@@ -59,8 +62,13 @@ PyGetSetDef pyleela_endpoint_accessors[] = {
    NULL,
    NULL
   },
-  {"addrs",
-   pyleela_endpoint_attr_addrs, NULL,
+  {"host",
+   pyleela_endpoint_attr_host, NULL,
+   NULL,
+   NULL
+  },
+  {"port",
+   pyleela_endpoint_attr_port, NULL,
    NULL,
    NULL
   },
@@ -119,25 +127,18 @@ PyObject *pyleela_endpoint_attr_path(PyObject *self0, void *closure)
   return(Py_BuildValue("s", self->endpoint->path));
 }
 
-PyObject *pyleela_endpoint_attr_addrs(PyObject *self0, void *closure)
+PyObject *pyleela_endpoint_attr_host(PyObject *self0, void *closure)
 {
   (void) closure;
   pyleela_endpoint_t *self = (pyleela_endpoint_t *) self0;
-  PyObject *list           = PyList_New(self->endpoint->addrlen);
-  if (list == NULL)
-  { return(NULL); }
+  return(Py_BuildValue("s", self->endpoint->host));
+}
 
-  for (size_t k=0; k<self->endpoint->addrlen; k+=1)
-  {
-    leela_addr_t *addr = &self->endpoint->addrs[k];
-    if (PyList_SetItem(list, k, Py_BuildValue("(si)", addr->host, addr->port)) != 0)
-    {
-      Py_DECREF(list);
-      return(NULL);
-    }
-  }
-
-  return(list);
+PyObject *pyleela_endpoint_attr_port(PyObject *self0, void *closure)
+{
+  (void) closure;
+  pyleela_endpoint_t *self = (pyleela_endpoint_t *) self0;
+  return(Py_BuildValue("i", self->endpoint->port));
 }
 
 PyObject *pyleela_endpoint_repr(PyObject *obj)

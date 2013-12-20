@@ -91,11 +91,11 @@ startRouter :: Endpoint -> Context -> Control -> Worker -> IO ()
 startRouter endpoint ctx ctrl action = do
   lnotice HZMQ $
     printf "starting zmq.router: %s"
-           (toEndpoint1 endpoint)
+           (dumpEndpointStr endpoint)
   withSocket ctx Router $ \ifh ->
     withSocket ctx Pull $ \ofh -> do
       bind ofh oaddr
-      bind ifh (toEndpoint1 endpoint)
+      bind ifh (dumpEndpointStr endpoint)
       configure ifh
       configure ofh
       superviseWith (notClosedIO ctrl) (show endpoint) (routingLoop ifh ofh)

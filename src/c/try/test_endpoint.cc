@@ -23,27 +23,10 @@ TEST(test_leela_endpoint__load_on_error_must_return_null)
 
 TEST(test_leela_endpoint__load_with_single_hosts)
 {
-  leela_endpoint_t *endpoint = leela_endpoint_load("tcp://foobar:4080;");
+  leela_endpoint_t *endpoint = leela_endpoint_load("tcp://foobar:4080");
   CHECK(endpoint != NULL);
-  CHECK(endpoint->addrlen == 1);
-  CHECK(endpoint->addrs != NULL);
-  CHECK(endpoint->addrs[0].port == 4080);
-  CHECK_EQUAL("foobar", endpoint->addrs[0].host);
-  leela_endpoint_free(endpoint);
-}
-
-TEST(test_leela_endpoint__load_with_multiple_hosts)
-{
-  leela_endpoint_t *endpoint = leela_endpoint_load("tcp://foobar:4080,foobar:4081,foobar:4082;");
-  CHECK(endpoint != NULL);
-  CHECK(endpoint->addrlen == 3);
-  CHECK(endpoint->addrs != NULL);
-  CHECK(endpoint->addrs[0].port == 4080);
-  CHECK(endpoint->addrs[1].port == 4081);
-  CHECK(endpoint->addrs[2].port == 4082);
-  CHECK_EQUAL("foobar", endpoint->addrs[0].host);
-  CHECK_EQUAL("foobar", endpoint->addrs[1].host);
-  CHECK_EQUAL("foobar", endpoint->addrs[2].host);
+  CHECK_EQUAL(4080, endpoint->port);
+  CHECK_EQUAL("foobar", endpoint->host);
   leela_endpoint_free(endpoint);
 }
 
@@ -52,22 +35,16 @@ TEST(test_leela_endpoint__load_dump_identity)
   char *dump;
   leela_endpoint_t *endpoint;
 
-  endpoint = leela_endpoint_load("tcp://foobar:4080;");
+  endpoint = leela_endpoint_load("tcp://foobar:4080");
   dump     = leela_endpoint_dump(endpoint);
-  CHECK_EQUAL("tcp://foobar:4080;", dump);
-  std::free(dump);
-  leela_endpoint_free(endpoint);
-
-  endpoint = leela_endpoint_load("tcp://foobar:4080,foobar:4081,foobar:4082/foobar;");
-  dump     = leela_endpoint_dump(endpoint);
-  CHECK_EQUAL("tcp://foobar:4080,foobar:4081,foobar:4082/foobar;", dump);
+  CHECK_EQUAL("tcp://foobar:4080", dump);
   std::free(dump);
   leela_endpoint_free(endpoint);
 }
 
 TEST(test_leela_endpoint__dup)
 {
-  leela_endpoint_t *endpoint_a = leela_endpoint_load("tcp://foobar:4080;");
+  leela_endpoint_t *endpoint_a = leela_endpoint_load("tcp://foobar:4080");
   leela_endpoint_t *endpoint_b = leela_endpoint_dup(endpoint_a);
   char *dump_a                 = leela_endpoint_dump(endpoint_a);
   char *dump_b                 = leela_endpoint_dump(endpoint_b);

@@ -48,17 +48,25 @@ zkResolve zh path0 = go [] [[path0]]
 toEndpoints :: B.ByteString -> [Endpoint]
 toEndpoints s = catMaybes [ loadEndpoint e | e <- B.split 0xa s ]
 
-resolve :: Endpoint -> String -> IO [Endpoint]
-resolve endpoint path =
-  withZookeeper (toZookeeper "localhost:2181" endpoint) 5000 Nothing Nothing $ \zh -> do
-    linfo Naming "zkReadTree: zookeeper connection established"
-    fmap (concatMap (toEndpoints . snd)) (zkResolve zh path)
+resolve :: Zookeeper -> String -> IO [Endpoint]
+resolve zh path = fmap (concatMap (toEndpoints . snd)) (zkResolve zh path)
 
-resolver :: IORef [Endpoint] -> Endpoint -> String -> IO ()
-resolver ioref endpoint path = do
-  values <- resolve endpoint path
+resolver :: Endpoint -> IORef [(String, [Endpoint])] -> String -> IO ()
+resolver myself ioref endpoint = do
+  withZookeeper endpoint 5000 Nothing Nothing $ \zh -> do
+    warpdrive <- resolve zh "/naming/warpdrive"
+    cassandra <- resolve zh "/naming/cassandra"
+    blackbox  <- resolve zh "/naming/blackbox"
+    redis     <- resolve zh "/naming/redis"
+    atomicWriteIORef ioref [ ("warpdrive", addMyselfIfNull warpdrive)
+                           , ("blackbox", blackbox)
+                           , ("cassandra", cassandra)
+                           , ("redis", redis)
+                           ]
   sleep4 <- randomRIO (15, 60)
-  writeIORef ioref values
-  linfo Naming (printf "resolver: %s => %s [next-in (s): %d]" path (show values) sleep4)
+  linfo Naming (printf "next-in: %d" sleep4)
   threadDelay $ sleep4 * 1000 * 1000
-  resolver ioref endpoint path
+  resolver myself ioref endpoint
+    where
+      addMyselfIfNull [] = [myself]
+      addMyselfIfNull xs = xs

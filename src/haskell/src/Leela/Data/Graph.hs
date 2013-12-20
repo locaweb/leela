@@ -42,9 +42,11 @@ module Leela.Data.Graph
     , Cursor (..)
     , Link
     -- * Modifying
+    , unlinkAll
     , putLinks
     , putNode
     , putLink
+    , unlink
     -- * Creating
     , done
     , loadNode
@@ -110,6 +112,12 @@ select wantl wantb (Item path ((b, l):xs) cont) =
       onFail     = done $ select wantl wantb (Item path xs cont)
   in Need $ loadNode b (Just wantl) wantb onSucc onFail
 
+unlink :: Link -> Result ()
+unlink (a, b, l) = Done () [DelLink (labelRef a l) [b]]
+
+unlinkAll :: (GUID, Label) -> Result ()
+unlinkAll (a, l) = Done () [DelLink (labelRef a l) []]
+
 putLink :: Link -> Result ()
 putLink lnk = putLinks [lnk]
 
@@ -117,7 +125,7 @@ putLinks :: [Link] -> Result ()
 putLinks = Done () . concatMap (\(a, b, l) -> [PutLabel a [l], PutLink (labelRef a l) [b]])
 
 labelRef :: GUID -> Label -> GUID
-labelRef a l = rehash a $ unpack l
+labelRef a l = rehash a (unpack l)
 
 bindWith :: ([Journal] -> [Journal] -> [Journal]) -> Result r1 -> (r1 -> Result r) -> Result r
 bindWith _ (Fail c s) _                     = Fail c s

@@ -19,11 +19,12 @@
 
 module Leela.Network.Core
        ( CoreServer ()
-       , new
+       , newCore
        , process
        ) where
 
 import qualified Data.Map as M
+import           Data.IORef
 import           Data.Maybe
 import           Leela.Logger
 import           Leela.Helpers
@@ -37,13 +38,17 @@ import           Control.Concurrent
 import           Leela.Data.Journal
 import           Leela.Data.QDevice
 import           Leela.Data.Excepts
+import           Leela.Data.Endpoint
 import           Leela.Data.LQL.Comp
+import           Data.ByteString.Lazy (toStrict)
+import           Data.ByteString.UTF8 (fromString)
 import           Leela.Data.Namespace
 import           Leela.Storage.Backend
 import           Control.Concurrent.STM
 import           Leela.Network.Protocol
 
-data CoreServer = CoreServer { fdseq  :: TVar FH
+data CoreServer = CoreServer { stat   :: IORef [(String, [Endpoint])]
+                             , fdseq  :: TVar FH
                              , fdlist :: TVar (M.Map (B.ByteString, FH) (Int, Device Reply))
                              }
 
@@ -53,18 +58,27 @@ data Stream a = Chunk a
 ttl :: Int
 ttl = 30
 
+dumpStat :: CoreServer -> IO [(B.ByteString, B.ByteString)]
+dumpStat core = do
+  state <- readIORef (stat core)
+  return (concatMap dumpEntry state)
+    where
+      dumpEntry (k, [])     = [(fromString $ "endpoint/" ++ k, "")]
+      dumpEntry (k, [e])    = [(fromString $ "endpoint/" ++ k, toStrict $ dumpEndpoint e)]
+      dumpEntry (k, (e:es)) = (fromString $ "endpoint/" ++ k, toStrict $ dumpEndpoint e) : dumpEntry (k, es)
+
 whenChunk :: (Stream a -> IO ()) -> Stream a -> IO ()
 whenChunk _ EOF   = return ()
 whenChunk f chunk = f chunk
 
-new :: IO CoreServer
-new = do
+newCore :: IORef [(String, [Endpoint])] -> IO CoreServer
+newCore statdb = do
   state <- makeState
   _     <- forkIO (forever (sleep 1 >> rungc (fdlist state)))
   return state
     where
       makeState = atomically $
-        liftM2 CoreServer (newTVar 0) (newTVar M.empty)
+        liftM2 (CoreServer statdb) (newTVar 0) (newTVar M.empty)
 
 rungc :: (Ord k, Show k) => TVar (M.Map k (Int, Device a)) -> IO ()
 rungc tvar = atomically kill >>= mapM_ burry
@@ -121,6 +135,8 @@ store :: (GraphBackend m) => m -> Journal -> IO ()
 store storage (PutNode n k g)    = putName n k g storage
 store storage (PutLabel g lbls)  = putLabel g lbls storage
 store storage (PutLink g lnks)   = putLink g lnks storage
+store storage (DelLink g [])     = unlink g Nothing storage
+store storage (DelLink g xs)     = mapM_ (\b -> unlink g (Just b) storage) xs
 
 fetch :: (GraphBackend m, HasControl ctrl) => ctrl -> m -> Matcher r -> (Stream r -> IO ()) -> IO ()
 fetch ctrl storage selector callback0 =
@@ -176,26 +192,32 @@ eval _ storage (G.Done r j) callback    = do
   callback (Chunk r)
   callback EOF
 
-evalLQL :: (GraphBackend m) => m -> Device Reply -> [LQL] -> IO ()
-evalLQL _ dev []     = devwriteIO dev (Last Nothing)
-evalLQL storage dev (x:xs) =
+evalLQL :: (GraphBackend m) => m -> CoreServer -> Device Reply -> [LQL] -> IO ()
+evalLQL _ _ dev []              = devwriteIO dev (Last Nothing)
+evalLQL storage core dev (x:xs) =
   case x of
-    PathStmt _ cursor -> navigate cursor (evalLQL storage dev xs)
+    PathStmt _ cursor -> navigate cursor (evalLQL storage core dev xs)
     MakeStmt _ stmt   ->
       eval dev storage stmt $ \chunk ->
         case chunk of
-          EOF -> evalLQL storage dev xs
+          EOF -> evalLQL storage core dev xs
           _   -> return ()
+    KillStmt _ stmt   -> do
+      eval dev storage stmt $ \chunk ->
+        case chunk of
+          EOF -> evalLQL storage core dev xs
+          _   -> return ()
+    StatStmt _        -> do
+      state <- dumpStat core
+      devwriteIO dev (Item $ Stat state)
+      evalLQL storage core dev xs
     NameStmt u g      -> do
       (nsTree, name) <- getName g storage
       let (nTree, nsUser) = underive nsTree
           (nUser, _)      = underive nsUser
       if (nsUser `isDerivedOf` (root u))
-        then devwriteIO dev (Item $ Name g nUser nTree name) >> evalLQL storage dev xs
+        then devwriteIO dev (Item $ Name g nUser nTree name) >> evalLQL storage core dev xs
         else devwriteIO dev (Fail 403 Nothing)
-    KillStmt _ links  -> do
-      mapM_ (\(a, mb) -> unlink a mb storage) links
-      evalLQL storage dev xs
     where
       navigate G.Tail cont                   = cont
       navigate (G.Need r) cont               = eval dev storage r $ \chunk ->
@@ -227,7 +249,7 @@ process storage srv (Begin sig msg) =
     Right stmts -> do
       (fh, dev) <- makeFD srv (sigUser sig)
       lnotice Network (printf "BEGIN %s %d" (show msg) fh)
-      _         <- forkFinally (evalLQL storage dev stmts) (evalFinalizer fh dev)
+      _         <- forkFinally (evalLQL storage srv dev stmts) (evalFinalizer fh dev)
       return $ Done fh
 process _ srv (Fetch sig fh) = do
   let channel = (sigUser sig, fh)

@@ -20,7 +20,6 @@ module Leela.HZMQ.Dealer
        , destroy
        ) where
 
-import           Data.IORef
 import           Data.Maybe
 import           System.ZMQ3 hiding (Dealer, destroy, backlog)
 import           Leela.Logger
@@ -43,11 +42,11 @@ data Job = Job { jtime :: Time
                , slot  :: TMVar (Maybe [B.ByteString])
                }
 
-data DealerConf = DealerConf { timeout      :: Int
-                             , backlog      :: Int
-                             , endpoint     :: IORef [Endpoint]
-                             , capabilities :: Int
-                             }
+data DealerConf a = DealerConf { timeout      :: Int
+                               , backlog      :: Int
+                               , endpoint     :: (a, a -> IO [Endpoint])
+                               , capabilities :: Int
+                               }
 
 newtype Dealer = Dealer (Device Job, Pool Endpoint (TMVar ()))
 
@@ -73,9 +72,9 @@ logresult job me = do
       failOrSucc Nothing  = "DEALER.ok"
       failOrSucc (Just e) = printf "DEALER.fail[%s]" (show e)
 
-execWorker :: DealerConf -> Context -> IO (Maybe Job) -> Endpoint -> IO ()
+execWorker :: DealerConf a -> Context -> IO (Maybe Job) -> Endpoint -> IO ()
 execWorker cfg ctx dequeue addr = withSocket ctx Req $ \fh -> do
-  connect fh (toZmq (error "unknown endpoint") addr)
+  connect fh (dumpEndpointStr addr)
   configure fh
   workLoop fh
     where
@@ -97,13 +96,14 @@ execWorker cfg ctx dequeue addr = withSocket ctx Req $ \fh -> do
                 logresult job (maybe (Just $ SomeException TimeoutExcept) (const Nothing) mresult)
                 when (isJust mresult) (workLoop fh)
 
-create :: DealerConf -> Context -> Control -> IO Dealer
+create :: DealerConf a -> Context -> Control -> IO Dealer
 create cfg ctx ctrl = do
   lnotice HZMQ "creating zmq.dealer"
   queue <- openIO ctrl (backlog cfg)
   pool  <- createPool (createWorker queue) destroyWorker
   void $ forkSupervised (notClosedIO ctrl) "dealer/watcher" $ do
-    updatePool pool =<< readIORef (endpoint cfg)
+    let (db, readFunc) = endpoint cfg
+    updatePool pool =<< readFunc db
     threadDelay 1000000
   return (Dealer (queue, pool))
     where

@@ -154,6 +154,13 @@ hexAlphabet = [0x78] ++ [0x30 .. 0x39] ++ [0x41 .. 0x46] ++ [0x61 .. 0x66]
 parseStmtName :: Using -> Parser LQL
 parseStmtName n = "name " .*> liftM (NameStmt n . pack) (A.takeWhile (`elem` hexAlphabet))
 
+parseStmtStat :: Namespace -> Using -> Parser LQL
+parseStmtStat n u
+  | self u == system = "stat" .*> return (StatStmt u)
+  | otherwise        = fail "stat statement must use the `system' namespace"
+    where
+      system = derive n ("system" :: L.ByteString)
+
 parseStmtKill :: Using -> Parser LQL
 parseStmtKill n = "kill " .*> doParse
     where
@@ -163,19 +170,20 @@ parseStmtKill n = "kill " .*> doParse
         dl      <- parseLink (self n)
         hardspace
         (b, gb) <- parseKeyAsGUID (self n)
-        case dl of
-          R l -> return $ KillStmt n [ (rehash ga $ unpack l, if (b == zero) then Nothing else Just gb)]
-          L l -> return $ KillStmt n [ (rehash gb $ unpack l, if (a == zero) then Nothing else Just ga)]
-          B l -> return $ KillStmt n [ (rehash ga $ unpack l, Just gb)
-                                     , (rehash gb $ unpack l, Just ga)
-                                     ]
+        case (b == zero, a == zero, dl) of
+          (True, _, R l)  -> return $ KillStmt n (unlinkAll (ga, l))
+          (False, _, R l) -> return $ KillStmt n (unlink (ga, gb, l))
+          (_, True, L l)  -> return $ KillStmt n (unlinkAll (gb, l))
+          (_, False, L l) -> return $ KillStmt n (unlink (gb, ga, l))
+          (_, _, B l)     -> return $ KillStmt n (unlink (ga, gb, l) >> unlink (gb, ga, l))
 
-parseStmt :: Using -> Parser LQL
-parseStmt n =
-  parseStmtMake n
-  <|> parseStmtPath n
-  <|> parseStmtName n
-  <|> parseStmtKill n
+parseStmt :: Namespace -> Using -> Parser LQL
+parseStmt n u =
+  parseStmtMake u
+  <|> parseStmtPath u
+  <|> parseStmtName u
+  <|> parseStmtKill u
+  <|> parseStmtStat n u
 
 groupMakeStmts :: Using -> [LQL] -> [LQL]
 groupMakeStmts u = partition (Nothing, [])
@@ -186,8 +194,8 @@ groupMakeStmts u = partition (Nothing, [])
               MakeStmt _ r -> partition ((fmap (r >>) cStmt) `mplus` (Just r), oStmt) lql
               _            -> partition (cStmt, stmt : oStmt) lql
 
-parseStmts :: Using -> Parser [LQL]
-parseStmts u = fmap (groupMakeStmts u) (parseStmt u `sepBy1` newline)
+parseStmts :: Namespace -> Using -> Parser [LQL]
+parseStmts n u = fmap (groupMakeStmts u) (parseStmt n u `sepBy1` newline)
 
 parseUsing :: Namespace -> Parser Using
 parseUsing user = do
@@ -195,10 +203,10 @@ parseUsing user = do
   return (Using user (treeN, treeK))
 
 parseLQL :: Namespace -> Parser [LQL]
-parseLQL n = parseUsing n `endBy` separator >>= parseLQL1
+parseLQL n = parseUsing n `endBy` separator >>= parseLQL1 n
 
-parseLQL1 :: Using -> Parser [LQL]
-parseLQL1 u = parseStmts u `endBy` semicolon
+parseLQL1 :: Namespace -> Using -> Parser [LQL]
+parseLQL1 n u = parseStmts n u `endBy` semicolon
 
 loads :: (Source i) => Parser a -> i -> Either String a
 loads p = parseOnly p . bytestring

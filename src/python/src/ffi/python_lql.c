@@ -26,7 +26,6 @@
 
 #include <Python.h>
 #include "python_lql.h"
-#include "python_naming.h"
 #include "python_endpoint.h"
 
 PyTypeObject pylql_context_type = { PyObject_HEAD_INIT(NULL) };
@@ -184,8 +183,8 @@ PyObject *pylql_context_init(PyTypeObject *type, PyObject *args, PyObject *kwarg
 {
   (void) kwargs;
   PyObject *pytype;
-  const char *path;
-  pyleela_endpoint_t *endpoint;
+  PyObject *pyendpoints;
+  leela_endpoint_t **cendpoints;
 
   pytype = __pyendpoint_type();
   if (pytype == NULL)
@@ -195,19 +194,35 @@ PyObject *pylql_context_init(PyTypeObject *type, PyObject *args, PyObject *kwarg
   if (self != NULL)
   {
     self->context = NULL;
-    if (! PyArg_ParseTuple(args, "O!s", pytype, &endpoint, &path))
+    if (! PyArg_ParseTuple(args, "O!", &PyList_Type, &pyendpoints))
     {
       Py_DECREF(self);
       return(NULL);
     }
 
+    cendpoints = (leela_endpoint_t **) malloc(PyList_Size(pyendpoints) * sizeof(leela_endpoint_t *) + 1);
+    if (cendpoints == NULL)
+    { return(PyErr_NoMemory()); }
+
+    for (size_t k=0; k<PyList_Size(pyendpoints); k+=1)
+    {
+      PyObject *item = PyList_GetItem(pyendpoints, k);
+      if (Py_TYPE(item) != (PyTypeObject *) pytype)
+      {
+        PyErr_SetString(PyExc_TypeError, "type must be Endpoint");
+        return(NULL);
+      }
+      cendpoints[k] = ((pyleela_endpoint_t *) item)->endpoint;
+    }
+    cendpoints[PyList_Size(pyendpoints)] = NULL;
+
     Py_BEGIN_ALLOW_THREADS
-    self->context = leela_lql_context_init(endpoint->endpoint, path);
+    self->context = leela_lql_context_init((const leela_endpoint_t * const *) cendpoints);
     Py_END_ALLOW_THREADS
     if (self->context == NULL)
     {
       Py_DECREF(self);
-      PyErr_SetString(PyExc_RuntimeError, "parse error");
+      PyErr_SetString(PyExc_RuntimeError, "error initializing the context!");
       return(NULL);
     }
   }

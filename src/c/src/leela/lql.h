@@ -32,7 +32,8 @@ typedef struct lql_context_t lql_context_t;
 typedef enum
 {
   LQL_NAME_MSG,
-  LQL_PATH_MSG
+  LQL_PATH_MSG,
+  LQL_STAT_MSG
 } lql_row_type;
 
 //! A simple 2-tuple type;
@@ -58,20 +59,24 @@ typedef struct
   char *name;             //!^ The name of this name;
 } lql_name_t;
 
+//! Information about the cluster
+typedef struct
+{
+  int           size;     //!^ The number of key-value entries;
+  lql_tuple2_t *attrs;    //!^ The property (key-value);
+} lql_stat_t;
+
 /*! Initializes the leela context. You should call this only once and
  *  share it in the program. It is ok, though unecessary, to have
  *  multiple contexts.
  *
- *  \param zookeeper The endpoint of the zookeeper to connect. This is
- *  used to discover the instances of warpdrive to use.
+ *  \param warpdrive The endpoint of some machine on the leela cluster
+ *  to connect;
  *
- *  \param path The path to look for warpdrive instances (usually
- *  /naming/warpdrive);
- *  
  *  \return * NULL     : an error has ocurred;
  *          * otherwise: the context has been sucessfully initialized;
  */
-lql_context_t *leela_lql_context_init(const leela_endpoint_t *zookeeper, const char *path);
+lql_context_t *leela_lql_context_init(const leela_endpoint_t *const *warpdrive);
 
 /*! Creates a new cursor.  This selects one available warpdrive
  *  instance to connect to. The actual load balancing algorithm is
@@ -93,6 +98,9 @@ lql_context_t *leela_lql_context_init(const leela_endpoint_t *zookeeper, const c
  *          * otherwise: the cursor has been sucessfully initialized;
  */
 lql_cursor_t *leela_lql_cursor_init(lql_context_t *ctx, const char *username, const char *secret, int timeout_in_ms);
+
+// TODO!
+lql_cursor_t *leela_lql_cursor_init2(lql_context_t *ctx, const leela_endpoint_t *endpoint, const char *username, const char *secret, int timeout_in_ms);
 
 /*! Executes a query. To consume the results use leela_cursor_next
  *
@@ -131,8 +139,14 @@ lql_name_t *leela_lql_fetch_name(lql_cursor_t *cursor);
  */
 lql_path_t *leela_lql_fetch_path(lql_cursor_t *cursor);
 
+/*! Extracts the stat message from the cursor. Use this function only
+ *  if the message type is LQL_STAT (refer to leela_lql_fetch_type);
+ */
+lql_stat_t *leela_lql_fetch_stat(lql_cursor_t *cursor);
+
 void leela_lql_name_free(lql_name_t *);
 void leela_lql_path_free(lql_path_t *);
+void leela_lql_stat_free(lql_stat_t *);
 
 /*! Terminates a cursor. Remember to always call this function after
  *  you are done iterating.

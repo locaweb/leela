@@ -33,6 +33,5 @@ worker m srv = Worker f (return . encode . encodeE)
               Left err -> return $ encode err
               Right q  -> fmap encode (process m srv q)
 
-startServer :: (GraphBackend m) => Endpoint -> Context -> Control -> m -> IO ()
-startServer addr ctx ctrl storage =
-  fmap (worker storage) new >>= startRouter addr ctx ctrl
+startServer :: (GraphBackend m) => CoreServer -> Endpoint -> Context -> Control -> m -> IO ()
+startServer core addr ctx ctrl storage = startRouter addr ctx ctrl (worker storage core) 
