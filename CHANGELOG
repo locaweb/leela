@@ -1,5 +1,8 @@
 --*-- mode: text; --*--
 
+v5.0.0 | 2013-12-20
+  * stat statement: hiding zookeeper from the client | dgvncsz0f;
+
 v4.1.0 | 2013-12-17
   * kill statement | dgvncsz0f, aabaklini;
   * name statement reply no includes the requested guid | dgvncsz0f;

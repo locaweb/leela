@@ -16,9 +16,9 @@
 
 #include "leela/version.h"
 
-int LEELA_MAJOR = 4;
-int LEELA_MINOR = 1;
+int LEELA_MAJOR = 5;
+int LEELA_MINOR = 0;
 int LEELA_BUILD = 0;
 
-const char * LEELA_VERSION = "4.1.0";
+const char * LEELA_VERSION = "5.0.0";
 
