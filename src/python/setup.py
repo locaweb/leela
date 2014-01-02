@@ -18,7 +18,7 @@ ffi_lql = Extension("_leela_lql",
                     extra_compile_args  = ["-std=c99", "-Wall"])
 
 setup(name="leela",
-      version      = "5.0.0",
+      version      = "4.0.0",
       license      = "APACHE-2",
       description  = "Leela - scalable metrics monitoring engine",
       author       = "Diego Souza",

@@ -1,20 +1,15 @@
 --*-- mode: text; --*--
 
-v5.0.0 | 2013-12-20
-  * stat statement: hiding zookeeper from the client | dgvncsz0f;
-
-v4.1.0 | 2013-12-17
+v4.0.0 | 2013-12-17
+  * stat statement: auto-discover feature | dgvncsz0f;
   * kill statement | dgvncsz0f, aabaklini;
   * name statement reply no includes the requested guid | dgvncsz0f;
   * c client library | dgvncsz0f;
   * python client library | dgvncsz0f;
-
-v4.0.0 | 2013-08-01
   * creating warpdrive [graph engine] | dgvncsz0f;
   * leela query language: new universal input | dgvncsz0f;
   * stream response: new universal output protocol | dgvncsz0f;
   * 0mq library for transport | dgvncsz0f;
-  * zookeeper for naming and configuration | dgvncsz0f;
 
 v3.4.0 | 2013-06-01
   * http module now flushes its queue periodically | dgvncsz0f

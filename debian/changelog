@@ -1,15 +1,3 @@
-leela (5.0.0-0) stable; urgency=low
-
-  * debian package
-
- -- Diego Souza <dsouza@c0d3.xxx>  Fri, 20 Dec 2013 00:00:00 -0200
-
-leela (4.1.0-0) stable; urgency=low
-
-  * debian package
-
- -- Diego Souza <dsouza@c0d3.xxx>  Tue, 17 Dec 2013 00:00:00 -0200
-
 leela (4.0.0-0) stable; urgency=low
 
   * debian package
