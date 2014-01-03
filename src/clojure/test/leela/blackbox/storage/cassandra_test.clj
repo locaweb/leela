@@ -71,24 +71,14 @@
         (is (= ["0x03"] (storage/getlink cluster "0x00" "0x03")))
         (is (= [] (storage/getlink cluster "0x00" "0x04")))))
 
-    (testing "putattr time profile"
-      (println "Escrita:")
-      (flush)
-      (println 
-        (time (dotimes
-           [n 20000]
-           (storage/putattr cluster (clojure.string/join ["0x" (str n)]) 1 "0x00"))))
-      (is (= [] []))
+    (testing "putattr time series"
+      (storage/with-consistency :one
+        (is (= [] (storage/putattr cluster "0x00" 1 "0x01"))))
       )
 
-    (testing "getattr time profile"
-      (println "Leitura")
-      (flush)
-      (println 
-        (time (dotimes
-           [n 20000]
-           (storage/getattr cluster (clojure.string/join ["0x" (str n)]) 1))))
-      (is (= [] []))
+    (testing "getattr time series"
+      (storage/with-consistency :one
+        (is (= ["0x01"] (storage/getattr cluster "0x00"  1))))
       )
 
     (testing "getlink after dellink"
