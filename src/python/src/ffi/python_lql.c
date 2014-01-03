@@ -26,7 +26,6 @@
 
 #include <Python.h>
 #include "python_lql.h"
-#include "python_endpoint.h"
 
 PyTypeObject pylql_context_type = { PyObject_HEAD_INIT(NULL) };
 PyTypeObject pylql_cursor_type  = { PyObject_HEAD_INIT(NULL) };
@@ -110,18 +109,6 @@ PyObject *__make_path_msg(lql_path_t *path)
 }
 
 static
-PyObject *__pyendpoint_type()
-{
-  PyObject *pyendpoint = PyImport_ImportModule("_leela_endpoint");
-  if (pyendpoint == NULL)
-  { return(NULL); }
-
-  PyObject *pyendpoint_type = PyObject_GetAttrString(pyendpoint, "Endpoint");
-  Py_DECREF(pyendpoint);
-  return(pyendpoint_type);
-}
-
-static
 PyMethodDef pylql_context_methods[] = {
   {"close", pylql_context_close, METH_VARARGS,
    NULL
@@ -182,37 +169,38 @@ init_leela_lql(void)
 PyObject *pylql_context_init(PyTypeObject *type, PyObject *args, PyObject *kwargs)
 {
   (void) kwargs;
-  PyObject *pytype;
   PyObject *pyendpoints;
-  leela_endpoint_t **cendpoints;
-
-  pytype = __pyendpoint_type();
-  if (pytype == NULL)
-  { return(NULL); }
+  leela_endpoint_t **cendpoints = NULL;
 
   pylql_context_t *self = (pylql_context_t *) type->tp_alloc(type, 0);
   if (self != NULL)
   {
     self->context = NULL;
     if (! PyArg_ParseTuple(args, "O!", &PyList_Type, &pyendpoints))
-    {
-      Py_DECREF(self);
-      return(NULL);
-    }
+    { goto handle_error; }
 
     cendpoints = (leela_endpoint_t **) malloc(PyList_Size(pyendpoints) * sizeof(leela_endpoint_t *) + 1);
     if (cendpoints == NULL)
-    { return(PyErr_NoMemory()); }
+    {
+      PyErr_SetString(PyExc_MemoryError, "can't allocate endpoint array");
+      goto handle_error;
+    }
 
     for (size_t k=0; k<PyList_Size(pyendpoints); k+=1)
     {
+      cendpoints[k]  = NULL;
       PyObject *item = PyList_GetItem(pyendpoints, k);
-      if (Py_TYPE(item) != (PyTypeObject *) pytype)
+      if (PyString_Check(item) == 0)
       {
-        PyErr_SetString(PyExc_TypeError, "type must be Endpoint");
-        return(NULL);
+        PyErr_SetString(PyExc_TypeError, "list members must be str");
+        goto handle_error;
       }
-      cendpoints[k] = ((pyleela_endpoint_t *) item)->endpoint;
+      cendpoints[k] = leela_endpoint_load(PyString_AsString(item));
+      if (cendpoints[k] == NULL)
+      {
+        PyErr_SetString(PyExc_RuntimeError, "bad endpoint");
+        goto handle_error;
+      }
     }
     cendpoints[PyList_Size(pyendpoints)] = NULL;
 
@@ -221,13 +209,23 @@ PyObject *pylql_context_init(PyTypeObject *type, PyObject *args, PyObject *kwarg
     Py_END_ALLOW_THREADS
     if (self->context == NULL)
     {
-      Py_DECREF(self);
       PyErr_SetString(PyExc_RuntimeError, "error initializing the context!");
-      return(NULL);
+      goto handle_error;
     }
   }
 
+  for (size_t k=0; cendpoints != NULL && cendpoints[k] != NULL; k+=1)
+  { leela_endpoint_free(cendpoints[k]); }
+  free(cendpoints);
+
   return((PyObject *) self);
+
+handle_error:
+  for (size_t k=0; cendpoints != NULL && cendpoints[k] != NULL; k+=1)
+  { leela_endpoint_free(cendpoints[k]); }
+  free(cendpoints);
+  Py_DECREF(self);
+  return(NULL);
 }
 
 PyObject *pylql_cursor_init(PyTypeObject *type, PyObject *args, PyObject *kwargs)

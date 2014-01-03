@@ -137,7 +137,7 @@ leela_naming_cluster_t *__naming_discover(leela_naming_t *naming)
       { break; }
     }
   }
-  LEELA_DEBUG("naming_discover: cur_cluster: %d, new_cluster: %d",
+  LEELA_DEBUG("naming_discover: cur: %d, new: %d",
               (cur_cluster == NULL ? 0 : cur_cluster->size),
               (new_cluster == NULL ? 0 : new_cluster->size));
   leela_naming_cluster_free(cur_cluster);
