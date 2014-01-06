@@ -39,7 +39,7 @@
     (warn "creating table tsattr")
     (create-table
      cluster :tsattr
-     (column-definitions {:key :blob :slot :int :value :blob  :primary-key [:key :slot]})
+     (column-definitions {:key :blob :slot (map-type :int :blob)  :primary-key [:key]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
   (when-not (describe-table cluster keyspace :search)
     (warn "creating table search")
@@ -113,22 +113,29 @@
                                              (where :a (f/hexstr-to-bytes k) :b [:>= (f/hexstr-to-bytes (first page))])
                                              (where :a (f/hexstr-to-bytes k)))
                                            (limit +limit+))))
+
 (defn putattr [cluster k timest value]
-  (insert cluster :tsattr {:key (f/hexstr-to-bytes k) :slot timest :value (f/hexstr-to-bytes value)}))
+  (update cluster
+          :tsattr {:slot [+ {timest (f/hexstr-to-bytes value)}]}
+          (where :key (f/hexstr-to-bytes k))))
 
+(defn getattr [cluster k & timest]
+  (if (boolean timest)
+    (get (into {}
+               (first
+                 (map #(:slot %) (select cluster
+                                         :tsattr
+                                         (columns :slot)
+                                         (where :key (f/hexstr-to-bytes k))
+                                         )))) timest)
+    (into {} (first (map #(:slot %) (select cluster
+                                            :tsattr
+                                            (columns :slot)
+                                            (where :key (f/hexstr-to-bytes k))
+                                            ))))
+    ))
 
-;;(defn putattr [cluster k timest value]
-;;  (update cluster :tsattr {:test_map {timest (f/hexstr-to-bytes value)}}
-;;          (where :key (f/str-to-bytes k))))
-
-;;(defn getattr [cluster k timest]
-;;  (map #(f/bytes-to-hexstr (get % timest)) (select cluster
-;;                                               :tsattr
-;;                                               [0 :test_map])))
-;;                                               ;;[(f/str-to-bytes k) :test_map])))
-
-(defn getattr [cluster k timest]
-  (map #(f/bytes-to-hexstr (get % :value)) (select cluster
-                                      :tsattr
-                                      (columns :value)
-                                      (where :key (f/hexstr-to-bytes k) :slot timest))))
+(defn delattr [cluster k]
+  (delete cluster
+          :tsattr
+          (where :key (f/hexstr-to-bytes k))))

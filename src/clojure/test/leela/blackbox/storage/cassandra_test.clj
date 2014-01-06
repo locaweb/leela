@@ -73,13 +73,28 @@
 
     (testing "putattr time series"
       (storage/with-consistency :one
-        (is (= [] (storage/putattr cluster "0x00" 1 "0x01"))))
+        (is (= [] (storage/putattr cluster "0x00" 0 "0x00")))
+        (is (= [] (storage/putattr cluster "0x00" 1 "0x00")))
+        (is (= [] (storage/putattr cluster "0x01" 0 "0x01")))
+        (is (= [] (storage/putattr cluster "0x01" 1 "0x01"))))
       )
 
-    (testing "getattr time series"
+    (testing "getattr time series full slot"
       (storage/with-consistency :one
-        (is (= ["0x01"] (storage/getattr cluster "0x00"  1))))
-      )
+        (let [res (storage/getattr cluster "0x00")]
+          (is (= "0x00" (f/bytes-to-hexstr (get res 0))))
+          (is (= "0x00" (f/bytes-to-hexstr (get res 1))))
+          )))
+
+    (testing "getattr time series specific slot"
+      (storage/with-consistency :one
+          (is (= "0x00" (storage/getattr cluster "0x00" 0)))
+          ))
+
+    (testing "delattr time series entry"
+      (storage/with-consistency :one
+          (is (= [] (storage/delattr cluster "0x00")))
+          ))
 
     (testing "getlink after dellink"
       (storage/putlink cluster "0x00" "0x01")
