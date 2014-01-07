@@ -86,11 +86,6 @@
           (is (= "0x00" (f/bytes-to-hexstr (get res 1))))
           )))
 
-    (testing "getattr time series specific slot"
-      (storage/with-consistency :one
-          (is (= "0x00" (storage/getattr cluster "0x00" 0)))
-          ))
-
     (testing "delattr time series entry"
       (storage/with-consistency :one
           (is (= [] (storage/delattr cluster "0x00")))

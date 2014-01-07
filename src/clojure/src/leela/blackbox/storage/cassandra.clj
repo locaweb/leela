@@ -119,22 +119,12 @@
           :tsattr {:slot [+ {timest (f/hexstr-to-bytes value)}]}
           (where :key (f/hexstr-to-bytes k))))
 
-(defn getattr [cluster k & timest]
-  (if (boolean timest)
-    (get (into {}
-               (first
-                 (map #(:slot %) (select cluster
-                                         :tsattr
-                                         (columns :slot)
-                                         (where :key (f/hexstr-to-bytes k))
-                                         )))) timest)
+(defn getattr [cluster k]
     (into {} (first (map #(:slot %) (select cluster
                                             :tsattr
                                             (columns :slot)
                                             (where :key (f/hexstr-to-bytes k))
-                                            ))))
-    ))
-
+                                            )))))
 (defn delattr [cluster k]
   (delete cluster
           :tsattr
