@@ -46,6 +46,7 @@ module Leela.Data.Graph
     , putLinks
     , putNode
     , putLink
+    , delete
     , unlink
     -- * Creating
     , done
@@ -57,8 +58,6 @@ module Leela.Data.Graph
     -- * Binding
     , bindAndLog
     , bindNoLog
-    -- * Misc
-    , labelRef
     ) where
 
 import Leela.Data.Journal
@@ -92,7 +91,7 @@ loadNode1 :: GUID -> Maybe Label -> Maybe GUID -> ([(GUID, Label)] -> Result r) 
 loadNode1 a l b f = loadNode a l b f (Fail 404 "not found")
 
 putNode :: Namespace -> Key -> Result ()
-putNode n k = Done () [PutNode n k (guid $ derive n k)]
+putNode n k = Done () [PutNode n k]
 
 start :: GUID -> Cursor
 start = Head
@@ -113,19 +112,22 @@ select wantl wantb (Item path ((b, l):xs) cont) =
   in Need $ loadNode b (Just wantl) wantb onSucc onFail
 
 unlink :: Link -> Result ()
-unlink (a, b, l) = Done () [DelLink (labelRef a l) [b]]
+unlink (a, b, l) = Done () [DelLink a (Just b) l]
 
 unlinkAll :: (GUID, Label) -> Result ()
-unlinkAll (a, l) = Done () [DelLink (labelRef a l) []]
+unlinkAll (a, l) = Done () [DelLink a Nothing l]
+
+delete :: GUID -> Result ()
+delete a = Done () [DelNode a]
 
 putLink :: Link -> Result ()
 putLink lnk = putLinks [lnk]
 
 putLinks :: [Link] -> Result ()
-putLinks = Done () . concatMap (\(a, b, l) -> [PutLabel a [l], PutLink (labelRef a l) [b]])
-
-labelRef :: GUID -> Label -> GUID
-labelRef a l = rehash a (unpack l)
+putLinks = Done () . join
+    where
+      join []             = []
+      join ((a, b, l):xs) = PutLabel a l : PutLink a b l : join xs
 
 bindWith :: ([Journal] -> [Journal] -> [Journal]) -> Result r1 -> (r1 -> Result r) -> Result r
 bindWith _ (Fail c s) _                     = Fail c s
@@ -141,7 +143,7 @@ bindWith merge (Done r j) f                 = mergeLog (f r)
       mergeLog (Load (ByEdge a l b g) h) = Load (ByEdge a l b (mergeLog . g)) (mergeLog h)
 
 bindAndLog :: Result r1 -> (r1 -> Result r) -> Result r
-bindAndLog = bindWith (\j0 j1 -> rechunk (j0 ++ j1))
+bindAndLog = bindWith (++)
 
 bindNoLog :: Result r1 -> (r1 -> Result r) -> Result r
 bindNoLog = bindWith f

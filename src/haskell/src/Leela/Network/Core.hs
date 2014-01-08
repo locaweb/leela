@@ -25,7 +25,6 @@ module Leela.Network.Core
 
 import qualified Data.Map as M
 import           Data.IORef
-import           Data.Maybe
 import           Leela.Logger
 import           Leela.Helpers
 import           Control.Monad
@@ -132,48 +131,58 @@ closeFD srv nowait ((User u), fh) = do
       k = (u, fh)
 
 store :: (GraphBackend m) => m -> Journal -> IO ()
-store storage (PutNode n k g)    = putName n k g storage
-store storage (PutLabel g lbls)  = putLabel g lbls storage
-store storage (PutLink g lnks)   = putLink g lnks storage
-store storage (DelLink g [])     = unlink g Nothing storage
-store storage (DelLink g xs)     = mapM_ (\b -> unlink g (Just b) storage) xs
+store storage (PutNode n k)     = void $ putName n k storage
+store storage (PutLabel g lbls) = putLabel g lbls storage
+store storage (PutLink a b l)   = putLink a l b storage
+store storage (DelLink a b l)   = unlink a l b storage
+store storage (DelNode a)       = delete a storage
 
 fetch :: (GraphBackend m, HasControl ctrl) => ctrl -> m -> Matcher r -> (Stream r -> IO ()) -> IO ()
 fetch ctrl storage selector callback0 =
   case selector of
     ByLabel k l f  -> do dev <- openIO ctrl 2
                          getLabel dev k (glob l) storage
-                         load1 k Nothing f dev
+                         request k Nothing f dev
     ByNode k f     -> do dev <- openIO ctrl 2
                          getLabel dev k (All Nothing) storage
-                         load1 k Nothing f dev
+                         request k Nothing f dev
     ByEdge a l b f -> do dev <- openIO ctrl 2
                          getLabel dev a (glob l) storage
-                         load1 a (Just b) f dev
+                         request a (Just b) f dev
     where
-      load1 a mb f dev = do
-        mlabels <- fmap (maybe (Left $ SomeException SystemExcept) id) (devreadIO dev)
+      request a mb f dev = do
+        mlabels <- devreadIO dev
         case mlabels of
-          Left e            -> throwIO e
-          Right (0, [])     -> callback0 (Chunk $ f [])
-          Right (_, [])     -> callback0 EOF
-          Right (_, labels) -> do
-            let keys = M.fromList $ map (\l -> (G.labelRef a l, l)) labels
+          Nothing              -> throwIO SystemExcept
+          Just (Left e)        -> throwIO e
+          Just (Right (0, [])) -> callback0 (Chunk $ f [])
+          Just (Right (_, [])) -> callback0 EOF
+          Just (Right (_, xs)) -> do
             subdev <- openIO ctrl 4
-            case mb of
-              Nothing -> getLink subdev (M.keys keys) storage
-              Just b  -> getEdge subdev (map (, b) (M.keys keys)) storage
-            load2 subdev $ \guidNodes ->
-              let labelNodes = map (\(lk, g) -> (g, fromJust $ M.lookup lk keys)) guidNodes
-              in unless (null labelNodes) (callback0 $ Chunk (f labelNodes))
-            load1 a mb f dev
+            empty  <- fetchLabels True a mb subdev xs $ \links ->
+              callback0 (Chunk $ f links)
+            if empty
+              then callback0 (Chunk $ f [])
+              else callback0 EOF
 
-      load2 subdev callback = do
-        mnodes <- fmap (maybe (Left $ SomeException SystemExcept) id) (devreadIO subdev)
+      fetchLabels empty _ _ _ [] _               = return empty
+      fetchLabels empty a mb dev (l:ls) callback = do
+        case mb of
+          Nothing -> getLink dev a l storage
+          Just b  -> hasLink dev a l b storage
+        nempty <- fetchLinks empty dev $ \guids ->
+          unless (null guids) (callback $ map (, l) guids)
+        if (null ls)
+          then return nempty
+          else fetchLabels nempty a mb dev ls callback
+
+      fetchLinks empty dev callback = do
+        mnodes <- devreadIO dev
         case mnodes of
-          Left e           -> throwIO e
-          Right (_, [])    -> callback []
-          Right (_, nodes) -> callback nodes >> load2 subdev callback
+          Nothing                 -> throwIO SystemExcept
+          Just (Left e)           -> throwIO e
+          Just (Right (_, []))    -> callback [] >> return empty
+          Just (Right (_, nodes)) -> callback nodes >> fetchLinks False dev callback
 
 eval :: (GraphBackend m, HasControl ctrl) => ctrl -> m -> Result r -> (Stream r -> IO ()) -> IO ()
 eval _ _ (G.Fail 404 _) _         = throwIO NotFoundExcept
@@ -196,42 +205,44 @@ evalLQL :: (GraphBackend m) => m -> CoreServer -> Device Reply -> [LQL] -> IO ()
 evalLQL _ _ dev []              = devwriteIO dev (Last Nothing)
 evalLQL storage core dev (x:xs) =
   case x of
-    PathStmt _ cursor -> navigate cursor (evalLQL storage core dev xs)
-    MakeStmt _ stmt   ->
+    PathStmt cursor -> navigate cursor (evalLQL storage core dev xs)
+    AlterStmt stmt  ->
       eval dev storage stmt $ \chunk ->
         case chunk of
           EOF -> evalLQL storage core dev xs
           _   -> return ()
-    KillStmt _ stmt   -> do
-      eval dev storage stmt $ \chunk ->
-        case chunk of
-          EOF -> evalLQL storage core dev xs
-          _   -> return ()
-    StatStmt _        -> do
+    StatStmt        -> do
       state <- dumpStat core
       devwriteIO dev (Item $ Stat state)
       evalLQL storage core dev xs
-    NameStmt u g      -> do
+    NameStmt u g    -> do
       (nsTree, name) <- getName g storage
       let (nTree, nsUser) = underive nsTree
           (nUser, _)      = underive nsUser
-      if (nsUser `isDerivedOf` (root u))
+      if (nsUser `isDerivedOf` (uUser u))
         then devwriteIO dev (Item $ Name g nUser nTree name) >> evalLQL storage core dev xs
         else devwriteIO dev (Fail 403 Nothing)
+    GUIDStmt n k    -> do
+      let (nTree, nsUser) = underive (uTree n)
+          (nUser, _)      = underive nsUser
+      mg <- getGUID (uTree n) k storage
+      case mg of
+        Nothing -> devwriteIO dev (Fail 404 Nothing)
+        Just g  -> devwriteIO dev (Item $ Name g nUser nTree k) >> evalLQL storage core dev xs
     where
-      navigate G.Tail cont                   = cont
-      navigate (G.Need r) cont               = eval dev storage r $ \chunk ->
+      navigate G.Tail cont     = cont
+      navigate (G.Need r) cont = eval dev storage r $ \chunk ->
         case chunk of
           EOF          -> cont
           Chunk cursor -> navigate cursor (return ())
       navigate (G.Item path links next) cont = do
         devwriteIO dev (Item $ makeList $ map (Path . (:path)) links)
         navigate next cont
-      navigate (G.Head g) cont               =
+      navigate (G.Head g) cont =
         eval dev storage (G.loadNode1 g Nothing Nothing G.done) $ \chunk ->
           case chunk of
-            EOF          -> cont
-            Chunk links  -> devwriteIO dev (Item $ makeList $ map (Path . (:[])) links)
+            EOF         -> cont
+            Chunk links -> devwriteIO dev (Item $ makeList $ map (Path . (:[])) links)
 
 evalFinalizer :: FH -> Device Reply -> Either SomeException () -> IO ()
 evalFinalizer chan dev (Left e)  = do

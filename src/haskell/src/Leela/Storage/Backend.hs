@@ -46,19 +46,23 @@ class GraphBackend m where
 
   getName  :: GUID -> m -> IO (Namespace, Key)
 
-  putName  :: Namespace -> Key -> GUID -> m -> IO ()
+  getGUID  :: Namespace -> Key -> m -> IO (Maybe GUID)
 
-  getEdge  :: Device (Either SomeException (Page, [(GUID, GUID)])) -> [(GUID, GUID)] -> m -> IO ()
+  putName  :: Namespace -> Key -> m -> IO GUID
 
-  getLink  :: Device (Either SomeException (Page, [(GUID, GUID)])) -> [GUID] -> m -> IO ()
+  hasLink  :: Device (Either SomeException (Page, [GUID])) -> GUID -> Label -> GUID -> m -> IO ()
 
-  putLink  :: GUID -> [GUID] -> m -> IO ()
+  getLink  :: Device (Either SomeException (Page, [GUID])) -> GUID -> Label -> m -> IO ()
 
-  getLabel :: Device (Either SomeException (Page, [Label])) -> GUID -> (Mode Label) -> m -> IO ()
+  putLink  :: GUID -> Label -> GUID -> m -> IO ()
 
-  putLabel :: GUID -> [Label] -> m -> IO ()
+  getLabel :: Device (Either SomeException (Page, [Label])) -> GUID -> Mode Label -> m -> IO ()
 
-  unlink   :: GUID -> Maybe GUID -> m -> IO ()
+  putLabel :: GUID -> Label -> m -> IO ()
+
+  unlink   :: GUID -> Label -> Maybe GUID -> m -> IO ()
+
+  delete   :: GUID -> m -> IO ()
 
 glob :: Label -> Mode Label
 glob l
@@ -79,18 +83,22 @@ nextPage _ _            = Nothing
 
 instance GraphBackend AnyBackend where
 
-  getName g (AnyBackend b) = getName g b
+  getName g (AnyBackend db) = getName g db
 
-  putName n k g (AnyBackend b) = putName n k g b
+  getGUID n k (AnyBackend db) = getGUID n k db
 
-  getLabel dev g m (AnyBackend b) = getLabel dev g m b
+  putName n k (AnyBackend db) = putName n k db
 
-  putLabel g lbls (AnyBackend b) = putLabel g lbls b
+  getLabel dev g m (AnyBackend db) = getLabel dev g m db
 
-  getEdge dev gs (AnyBackend b) = getEdge dev gs b
+  putLabel g l (AnyBackend db) = putLabel g l db
 
-  getLink dev g (AnyBackend b) = getLink dev g b
+  hasLink dev a l b (AnyBackend db) = hasLink dev a l b db
 
-  putLink g lnks (AnyBackend b) = putLink g lnks b
+  getLink dev a l (AnyBackend db) = getLink dev a l db
 
-  unlink a mb (AnyBackend b) = unlink a mb b
+  putLink a l b (AnyBackend db) = putLink a l b db
+
+  unlink a l mb (AnyBackend db) = unlink a l mb db
+
+  delete a (AnyBackend db) = delete a db

@@ -27,21 +27,15 @@ module Leela.Data.Namespace
     , tld
     -- * Querying
     , isDerivedOf
-    -- * Hashing
-    , guid
-    , rehash
     ) where
 
 import           Data.Word
-import           Crypto.Hash
-import           Data.Byteable
 import qualified Data.ByteString as B
 import           Control.Exception
 import           Leela.Data.Excepts
 import qualified Data.ByteString.Lazy as L
-import           Data.ByteString.Base16
 
-newtype GUID = GUID (Digest SHA224)
+newtype GUID = GUID L.ByteString
     deriving (Eq, Ord, Show)
 
 newtype Namespace = Namespace L.ByteString
@@ -67,12 +61,6 @@ class Identifier a b where
 
 sep :: Word8
 sep = 0x2f
-
-guid :: Namespace -> GUID
-guid (Namespace l) = GUID (hashlazy l)
-
-rehash :: GUID -> B.ByteString -> GUID
-rehash (GUID g) b = GUID $ hashFinalize $ hashUpdates hashInit [toBytes g, b]
 
 tld :: Namespace
 tld = Namespace ""
@@ -102,13 +90,6 @@ instance Domain Key where
 
   underive n = let (s, n1) = underive n
                in (Key s, n1)
-
-instance Domain Label where
-
-  derive n (Label k) = derive n k
-
-  underive n = let (s, n1) = underive n
-               in (Label s, n1)
 
 instance Identifier Namespace L.ByteString where
 
@@ -148,14 +129,12 @@ instance Identifier Label B.ByteString where
 
 instance Identifier GUID B.ByteString where
 
-  pack s = case (digestFromByteString (fst $ decode (B.drop 2 s))) of
-             Nothing -> throw SystemExcept
-             Just x  -> GUID x
+  pack = pack . L.fromStrict
 
-  unpack (GUID s) = B.append "0x" (digestToHexByteString s)
+  unpack = L.toStrict . unpack
 
 instance Identifier GUID L.ByteString where
 
-  pack s = (pack $ L.toStrict s)
+  pack = GUID
 
-  unpack g = L.fromStrict (unpack g)
+  unpack (GUID g) = g

@@ -15,53 +15,18 @@
 module Leela.Data.LQL
     ( Using (..)
     , LQL (..)
-    , HasNamespace (..)
     ) where
 
 import Leela.Data.Graph
 import Leela.Data.Namespace
 
-data Using = Using { uUser  :: Namespace
-                   , uRoot  :: (Namespace, Key)
+data Using = Using { uUser :: Namespace
+                   , uTree :: Namespace
                    }
     deriving (Eq)
 
-data LQL = StatStmt Using
-         | MakeStmt Using (Result ())
-         | PathStmt Using Cursor
+data LQL = StatStmt
+         | PathStmt Cursor
          | NameStmt Using GUID
-         | KillStmt Using (Result ())
-
-class HasNamespace a where
-
-  root :: a -> Namespace
-  self :: a -> Namespace
-  top  :: a -> Key
-
-instance HasNamespace Using where
-
-  self (Using _ (n, _)) = n
-
-  root (Using n _) = n
-
-  top (Using _ (_, k)) = k
-
-instance HasNamespace LQL where
-
-  self (StatStmt r)   = self r
-  self (MakeStmt r _) = self r
-  self (PathStmt r _) = self r
-  self (NameStmt r _) = self r
-  self (KillStmt r _) = self r
-
-  root (StatStmt r)   = root r
-  root (MakeStmt r _) = root r
-  root (PathStmt r _) = root r
-  root (NameStmt r _) = root r
-  root (KillStmt r _) = root r
-
-  top (StatStmt r)   = top r
-  top (MakeStmt r _) = top r
-  top (PathStmt r _) = top r
-  top (NameStmt r _) = top r
-  top (KillStmt r _) = top r
+         | GUIDStmt Using Key
+         | AlterStmt (Result ())
