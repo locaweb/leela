@@ -102,11 +102,15 @@
     (testing "delattr with no data"
       (is (= (server/msg-done) (server/handle-message cluster ["del" "attr" "0x00"]))))
 
+    (testing "getattr after putattr"
+      (server/handle-message cluster ["put" "attr" "0x00" "0" "0x00"])
+      (server/handle-message cluster ["put" "attr" "0x00" "1" "0x01"])
+      (is (= (server/msg-attr [0 "0x00" 1 "0x01"]) (server/handle-message cluster ["get" "attr" "0x00"]))))
+
     (testing "delattr after putattr"
       (server/handle-message cluster ["put" "attr" "0x00" "0" "0x00"])
       (is (= (server/msg-done) (server/handle-message cluster ["del" "attr" "0x00"])))
       (is (= (server/msg-attr []) (server/handle-message cluster ["get" "attr" "0x00"]))))
-
     ))
 
 (deftest test-zmqserver-zmqworker-interface

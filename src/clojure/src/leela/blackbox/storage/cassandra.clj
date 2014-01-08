@@ -119,12 +119,17 @@
           :tsattr {:slot [+ {(Integer. timest) (f/hexstr-to-bytes value)}]}
           (where :key (f/hexstr-to-bytes k))))
 
+(defn extract [hs]
+  ;;Based on http://stackoverflow.com/questions/1676891/mapping-a-function-on-the-values-of-a-map-in-clojure
+  (into {} (for [[k v] hs] [k (f/bytes-to-hexstr v)]))
+  )
+
 (defn getattr [cluster k]
-    (into {} (first (map #(:slot %) (select cluster
+    (flatten (seq (into {} (first (map #(extract (:slot %)) (select cluster
                                             :tsattr
                                             (columns :slot)
                                             (where :key (f/hexstr-to-bytes k))
-                                            )))))
+                                            )))))))
 (defn delattr [cluster k]
   (delete cluster
           :tsattr

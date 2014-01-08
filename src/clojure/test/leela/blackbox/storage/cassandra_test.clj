@@ -79,12 +79,10 @@
         (is (= [] (storage/putattr cluster "0x01" 1 "0x01"))))
       )
 
-    (testing "getattr time series full slot"
+    (testing "getattr time series"
       (storage/with-consistency :one
-        (let [res (storage/getattr cluster "0x00")]
-          (is (= "0x00" (f/bytes-to-hexstr (get res 0))))
-          (is (= "0x00" (f/bytes-to-hexstr (get res 1))))
-          )))
+          (is (= [0 "0x00", 1 "0x00"] (storage/getattr cluster "0x00")))
+          ))
 
     (testing "delattr time series entry"
       (storage/with-consistency :one
