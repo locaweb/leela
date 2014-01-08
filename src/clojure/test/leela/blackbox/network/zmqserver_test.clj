@@ -97,7 +97,17 @@
         (is (= (server/msg-link ["0x01"]) (server/handle-message cluster ["get" "link" "0x00" "0x01"])))
         (is (= (server/msg-link ["0x02"]) (server/handle-message cluster ["get" "link" "0x00" "0x02"])))
         (is (= (server/msg-link ["0x03"]) (server/handle-message cluster ["get" "link" "0x00" "0x03"])))
-        (is (= (server/msg-link []) (server/handle-message cluster ["get" "link" "0x00" "0x04"])))))))
+        (is (= (server/msg-link []) (server/handle-message cluster ["get" "link" "0x00" "0x04"])))))
+
+    (testing "delattr with no data"
+      (is (= (server/msg-done) (server/handle-message cluster ["del" "attr" "0x00"]))))
+
+    (testing "delattr after putattr"
+      (server/handle-message cluster ["put" "attr" "0x00" "0" "0x00"])
+      (is (= (server/msg-done) (server/handle-message cluster ["del" "attr" "0x00"])))
+      (is (= (server/msg-attr []) (server/handle-message cluster ["get" "attr" "0x00"]))))
+
+    ))
 
 (deftest test-zmqserver-zmqworker-interface
   (testing "just checks the interface"

@@ -40,6 +40,11 @@
 (defn msg-label [labels]
   (cons "label" labels))
 
+(defn msg-attr [msg]
+  (if-not msg
+    (msg-fail 404)
+    (cons "attr" msg)))
+
 (defn exec-getname [cluster msg]
   (if (not= (count msg) 1)
     (msg-fail 400)
@@ -82,6 +87,30 @@
           (doseq [b links]
             (storage/dellink cluster a b))
           (storage/dellink cluster a)))
+      (msg-done))))
+
+(defn exec-getattr [cluster msg]
+  (if (< (count msg) 1)
+    (msg-fail 400)
+    (let [[k limit] msg]
+      (storage/with-consistency :one
+        (storage/with-limit limit
+          (msg-attr (storage/getattr cluster k)))))))
+
+(defn exec-putattr [cluster msg]
+  (if (< (count msg) 1)
+    (msg-fail 400)
+    (let [[k t v] msg]
+      (storage/with-consistency :quorum
+        (storage/putattr cluster k t v))
+      (msg-done))))
+
+(defn exec-delattr [cluster msg]
+  (if (< (count msg) 1)
+    (msg-fail 400)
+    (let [[k] msg]
+      (storage/with-consistency :quorum
+        (storage/delattr cluster k))
       (msg-done))))
 
 (defn exec-getlabel-exact [cluster msg]
@@ -138,6 +167,7 @@
     "name" (exec-getname cluster (subvec msg 1))
     "link" (exec-getlink cluster (subvec msg 1))
     "label" (exec-getlabel cluster (subvec msg 1))
+    "attr" (exec-getattr cluster (subvec msg 1))
     (msg-fail 400)))
 
 (defn handle-put [cluster msg]
@@ -145,11 +175,13 @@
     "name" (exec-putname cluster (subvec msg 1))
     "link" (exec-putlink cluster (subvec msg 1))
     "label" (exec-putlabel cluster (subvec msg 1))
+    "attr" (exec-putattr cluster (subvec msg 1))
     (msg-fail 400)))
 
 (defn handle-del [cluster msg]
   (case (first msg)
     "link" (exec-dellink cluster (subvec msg 1))
+    "attr" (exec-delattr cluster (subvec msg 1))
     (msg-fail 400)))
 
 (defn handle-message [cluster msg]

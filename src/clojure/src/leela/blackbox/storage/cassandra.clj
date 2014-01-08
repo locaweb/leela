@@ -116,7 +116,7 @@
 
 (defn putattr [cluster k timest value]
   (update cluster
-          :tsattr {:slot [+ {timest (f/hexstr-to-bytes value)}]}
+          :tsattr {:slot [+ {(Integer. timest) (f/hexstr-to-bytes value)}]}
           (where :key (f/hexstr-to-bytes k))))
 
 (defn getattr [cluster k]
