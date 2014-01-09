@@ -25,11 +25,15 @@
       (is (= (server/msg-label []) (server/handle-message cluster ["get" "label" "all" "0x00"]))))
 
     (testing "getlabel-all after putlabel"
-      (server/handle-message cluster ["put" "label" "0x00" "0" "1" "2"])
+      (server/handle-message cluster ["put" "label" "0x00" "0"])
+      (server/handle-message cluster ["put" "label" "0x00" "1"])
+      (server/handle-message cluster ["put" "label" "0x00" "2"])
       (is (= (server/msg-label ["0" "1" "2"]) (server/handle-message cluster ["get" "label" "all" "0x00"]))))
 
     (testing "getlabel-all pagination"
-      (server/handle-message cluster ["put" "label" "0x00" "0" "1" "2"])
+      (server/handle-message cluster ["put" "label" "0x00" "0"])
+      (server/handle-message cluster ["put" "label" "0x00" "1"])
+      (server/handle-message cluster ["put" "label" "0x00" "2"])
       (storage/with-limit 1
         (is (= (server/msg-label ["0"]) (server/handle-message cluster ["get" "label" "all" "0x00"])))
         (is (= (server/msg-label ["1"]) (server/handle-message cluster ["get" "label" "all" "0x00" "1"])))
@@ -39,11 +43,27 @@
       (is (= (server/msg-label []) (server/handle-message cluster ["get" "label" "pre" "0x01" "1" "2"]))))
 
     (testing "getlabel-prefix after putlabel"
-      (server/handle-message cluster ["put" "label" "0x01" "00" "01" "02" "10" "11" "12" "20" "21" "22"])
+      (server/handle-message cluster ["put" "label" "0x01" "00"])
+      (server/handle-message cluster ["put" "label" "0x01" "01"])
+      (server/handle-message cluster ["put" "label" "0x01" "02"])
+      (server/handle-message cluster ["put" "label" "0x01" "10"])
+      (server/handle-message cluster ["put" "label" "0x01" "11"])
+      (server/handle-message cluster ["put" "label" "0x01" "12"])
+      (server/handle-message cluster ["put" "label" "0x01" "20"])
+      (server/handle-message cluster ["put" "label" "0x01" "21"])
+      (server/handle-message cluster ["put" "label" "0x01" "22"])
       (is (= (server/msg-label ["10" "11" "12"]) (server/handle-message cluster ["get" "label" "pre" "0x01" "1" "2"]))))
 
     (testing "getlabel-prefix pagination"
-      (server/handle-message cluster ["put" "label" "0x01" "00" "01" "02" "10" "11" "12" "20" "21" "22"])
+      (server/handle-message cluster ["put" "label" "0x01" "00"])
+      (server/handle-message cluster ["put" "label" "0x01" "01"])
+      (server/handle-message cluster ["put" "label" "0x01" "02"])
+      (server/handle-message cluster ["put" "label" "0x01" "10"])
+      (server/handle-message cluster ["put" "label" "0x01" "11"])
+      (server/handle-message cluster ["put" "label" "0x01" "12"])
+      (server/handle-message cluster ["put" "label" "0x01" "20"])
+      (server/handle-message cluster ["put" "label" "0x01" "21"])
+      (server/handle-message cluster ["put" "label" "0x01" "22"])
       (storage/with-limit 1
         (is (= (server/msg-label ["10"]) (server/handle-message cluster ["get" "label" "pre" "0x01" "1" "2"])))
         (is (= (server/msg-label ["11"]) (server/handle-message cluster ["get" "label" "pre" "0x01" "11" "2"])))
@@ -53,11 +73,27 @@
       (is (= (server/msg-label []) (server/handle-message cluster ["get" "label" "suf" "0x02" "1" "2"]))))
 
     (testing "getlabel-suffix after putabel"
-      (server/handle-message cluster ["put" "label" "0x02" "00" "01" "02" "10" "11" "12" "20" "21" "22"])
+      (server/handle-message cluster ["put" "label" "0x02" "00"])
+      (server/handle-message cluster ["put" "label" "0x02" "01"])
+      (server/handle-message cluster ["put" "label" "0x02" "02"])
+      (server/handle-message cluster ["put" "label" "0x02" "10"])
+      (server/handle-message cluster ["put" "label" "0x02" "11"])
+      (server/handle-message cluster ["put" "label" "0x02" "12"])
+      (server/handle-message cluster ["put" "label" "0x02" "20"])
+      (server/handle-message cluster ["put" "label" "0x02" "21"])
+      (server/handle-message cluster ["put" "label" "0x02" "22"])
       (is (= (server/msg-label ["01" "11" "21"]) (server/handle-message cluster ["get" "label" "suf" "0x02" "1" "2"]))))
 
     (testing "getlabel-suffix pagination"
-      (server/handle-message cluster ["put" "label" "0x02" "00" "01" "02" "10" "11" "12" "20" "21" "22"])
+      (server/handle-message cluster ["put" "label" "0x02" "00"])
+      (server/handle-message cluster ["put" "label" "0x02" "01"])
+      (server/handle-message cluster ["put" "label" "0x02" "02"])
+      (server/handle-message cluster ["put" "label" "0x02" "10"])
+      (server/handle-message cluster ["put" "label" "0x02" "11"])
+      (server/handle-message cluster ["put" "label" "0x02" "12"])
+      (server/handle-message cluster ["put" "label" "0x02" "20"])
+      (server/handle-message cluster ["put" "label" "0x02" "21"])
+      (server/handle-message cluster ["put" "label" "0x02" "22"])
       (storage/with-limit 1
         (is (= (server/msg-label ["01"]) (server/handle-message cluster ["get" "label" "suf" "0x02" "1" "2"])))
         (is (= (server/msg-label ["11"]) (server/handle-message cluster ["get" "label" "suf" "0x02" "11" "2"])))
@@ -74,12 +110,16 @@
       (is (= (server/msg-done) (server/handle-message cluster ["del" "link" "0x00" "0x"]))))
 
     (testing "dellink after putlink"
-      (server/handle-message cluster ["put" "link" "0x00" "0x01" "0x02" "0x03"])
+      (server/handle-message cluster ["put" "link" "0x00" "0x01"])
+      (server/handle-message cluster ["put" "link" "0x00" "0x02"])
+      (server/handle-message cluster ["put" "link" "0x00" "0x03"])
       (is (= (server/msg-done) (server/handle-message cluster ["del" "link" "0x00" "0x01"])))
       (is (= (server/msg-link ["0x02" "0x03"]) (server/handle-message cluster ["get" "link" "0x00"]))))
 
     (testing "dellink after putlink (all)"
-      (server/handle-message cluster ["put" "link" "0x00" "0x01" "0x02" "0x03"])
+      (server/handle-message cluster ["put" "link" "0x00" "0x01"])
+      (server/handle-message cluster ["put" "link" "0x00" "0x02"])
+      (server/handle-message cluster ["put" "link" "0x00" "0x03"])
       (is (= (server/msg-done) (server/handle-message cluster ["del" "link" "0x00"])))
       (is (= (server/msg-link []) (server/handle-message cluster ["get" "link" "0x00"]))))
 
@@ -87,11 +127,15 @@
       (is (= (server/msg-link []) (server/handle-message cluster ["get" "link" "0x00" "0x"]))))
 
     (testing "getlink after putlink"
-      (server/handle-message cluster ["put" "link" "0x00" "0x01" "0x02" "0x03"])
+      (server/handle-message cluster ["put" "link" "0x00" "0x01"])
+      (server/handle-message cluster ["put" "link" "0x00" "0x02"])
+      (server/handle-message cluster ["put" "link" "0x00" "0x03"])
       (is (= (server/msg-link ["0x01" "0x02" "0x03"]) (server/handle-message cluster ["get" "link" "0x00" "0x"]))))
 
     (testing "getlink pagination"
-      (server/handle-message cluster ["put" "link" "0x00" "0x01" "0x02" "0x03"])
+      (server/handle-message cluster ["put" "link" "0x00" "0x01"])
+      (server/handle-message cluster ["put" "link" "0x00" "0x02"])
+      (server/handle-message cluster ["put" "link" "0x00" "0x03"])
       (storage/with-limit 1
         (is (= (server/msg-link ["0x01"]) (server/handle-message cluster ["get" "link" "0x00" "0x"])))
         (is (= (server/msg-link ["0x01"]) (server/handle-message cluster ["get" "link" "0x00" "0x01"])))

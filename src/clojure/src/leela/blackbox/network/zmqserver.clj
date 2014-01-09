@@ -72,20 +72,18 @@
 (defn exec-putlink [cluster msg]
   (if (< (count msg) 1)
     (msg-fail 400)
-    (let [[a & links] msg]
+    (let [[a b] msg]
       (storage/with-consistency :quorum
-        (doseq [b links]
-          (storage/putlink cluster a b))
+        (storage/putlink cluster a b)
         (msg-done)))))
 
 (defn exec-dellink [cluster msg]
   (if (< (count msg) 1)
     (msg-fail 400)
-    (let [[a & links] msg]
+    (let [[a b] msg]
       (storage/with-consistency :quorum
-        (if (seq links)
-          (doseq [b links]
-            (storage/dellink cluster a b))
+        (if (seq b)
+          (storage/dellink cluster a b)
           (storage/dellink cluster a)))
       (msg-done))))
 
@@ -155,11 +153,10 @@
 (defn exec-putlabel [cluster msg]
   (if (< (count msg) 1)
     (msg-fail 400)
-    (let [[k & labels] msg]
+    (let [[k l] msg]
       (storage/with-consistency :quorum
-        (doseq [l labels]
           (storage/putindex cluster k +index-pxlabel+ l)
-          (storage/putindex cluster k +index-sxlabel+ (s/reverse l)))
+          (storage/putindex cluster k +index-sxlabel+ (s/reverse l))
         (msg-done)))))
 
 (defn handle-get [cluster msg]
