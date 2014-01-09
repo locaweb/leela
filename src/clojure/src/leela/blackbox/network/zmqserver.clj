@@ -45,102 +45,66 @@
     (msg-fail 404)
     (cons "attr" msg)))
 
-(defn exec-getname [cluster msg]
-  (if (not= (count msg) 1)
-    (msg-fail 400)
-    (let [g (first msg)]
-      (storage/with-consistency :one
-        (storage/with-limit 1
-          (msg-name (first (map #(f/str-to-json %) (storage/getindex cluster g +index-name+)))))))))
+(defn exec-getname [cluster [g]]
+  (storage/with-consistency :one
+    (storage/with-limit 1
+      (msg-name (first (map #(f/str-to-json %) (storage/getindex cluster g +index-name+)))))))
 
-(defn exec-putname [cluster msg]
-  (if (not= (count msg) 3)
-    (msg-fail 400)
-    (let [[g n k] msg]
-      (storage/with-consistency :quorum
-        (storage/putindex cluster g +index-name+ (f/json-to-str [n k]))
-        (msg-done)))))
+(defn exec-putname [cluster [g n k]]
+  (storage/with-consistency :quorum
+    (storage/putindex cluster g +index-name+ (f/json-to-str [n k]))
+    (msg-done)))
 
-(defn exec-getlink [cluster msg]
-  (if (< (count msg) 1)
-    (msg-fail 400)
-    (let [[_ _ limit] msg]
-      (storage/with-consistency :one
-        (storage/with-limit limit
-          (msg-link (apply storage/getlink cluster msg)))))))
+(defn exec-getlink [cluster [a l page & limit]]
+  (storage/with-consistency :one
+    (storage/with-limit (first limit)
+      (msg-link (storage/getlink cluster a l page)))))
 
-(defn exec-putlink [cluster msg]
-  (if (< (count msg) 1)
-    (msg-fail 400)
-    (let [[a b] msg]
-      (storage/with-consistency :quorum
-        (storage/putlink cluster a b)
-        (msg-done)))))
+(defn exec-putlink [cluster [a l b]]
+  (storage/with-consistency :quorum
+    (storage/putlink cluster a l b)
+    (msg-done)))
 
-(defn exec-dellink [cluster msg]
-  (if (< (count msg) 1)
-    (msg-fail 400)
-    (let [[a b] msg]
-      (storage/with-consistency :quorum
-        (if (seq b)
-          (storage/dellink cluster a b)
-          (storage/dellink cluster a)))
-      (msg-done))))
+(defn exec-dellink [cluster [a l & b]]
+  (storage/with-consistency :quorum
+    (if (seq b)
+      (storage/dellink cluster a l (first b))
+      (storage/dellink cluster a l)))
+  (msg-done))
 
-(defn exec-getattr [cluster msg]
-  (if (< (count msg) 1)
-    (msg-fail 400)
-    (let [[k limit] msg]
-      (storage/with-consistency :one
-        (storage/with-limit limit
-          (msg-attr (storage/getattr cluster k)))))))
+(defn exec-getattr [cluster [k & limit]]
+  (storage/with-consistency :one
+    (storage/with-limit (first limit)
+      (msg-attr (storage/getattr cluster k)))))
 
-(defn exec-putattr [cluster msg]
-  (if (< (count msg) 1)
-    (msg-fail 400)
-    (let [[k t v] msg]
-      (storage/with-consistency :quorum
-        (storage/putattr cluster k t v))
-      (msg-done))))
+(defn exec-putattr [cluster [k s v]]
+  (storage/with-consistency :quorum
+    (storage/putattr cluster k s v))
+  (msg-done))
 
-(defn exec-delattr [cluster msg]
-  (if (< (count msg) 1)
-    (msg-fail 400)
-    (let [[k] msg]
-      (storage/with-consistency :quorum
-        (storage/delattr cluster k))
-      (msg-done))))
+(defn exec-delattr [cluster [k s]]
+  (storage/with-consistency :quorum
+    (storage/delattr cluster k s))
+  (msg-done))
 
-(defn exec-getlabel-exact [cluster msg]
-  (if (not= (count msg) 2)
-    (msg-fail 400)
-    (let [[k n] msg]
-      (storage/with-consistency :one
-        (storage/hasindex cluster k +index-pxlabel+ n)))))
+(defn exec-getlabel-exact [cluster [k n]]
+  (storage/with-consistency :one
+    (storage/hasindex cluster k +index-pxlabel+ n)))
 
-(defn exec-getlabel-all [cluster msg]
-  (if (< (count msg) 1)
-    (msg-fail 400)
-    (let [[k page limit] msg]
-      (storage/with-consistency :one
-        (storage/with-limit limit
-          (storage/getindex cluster k +index-pxlabel+ page))))))
+(defn exec-getlabel-all [cluster [k page & limit]]
+  (storage/with-consistency :one
+    (storage/with-limit (first limit)
+      (storage/getindex cluster k +index-pxlabel+ page))))
 
-(defn exec-getlabel-prefix [cluster msg]
-  (if (< (count msg) 3)
-    (msg-fail 400)
-    (let [[k start finish limit] msg]
-      (storage/with-consistency :one
-        (storage/with-limit limit
-          (storage/getindex cluster k +index-pxlabel+ start finish))))))
+(defn exec-getlabel-prefix [cluster [k start finish & limit]]
+  (storage/with-consistency :one
+    (storage/with-limit (first limit)
+      (storage/getindex cluster k +index-pxlabel+ start finish))))
 
-(defn exec-getlabel-suffix [cluster msg]
-  (if (not= (count msg) 3)
-    (msg-fail 400)
-    (let [[k start finish limit] msg]
-      (storage/with-consistency :one
-        (storage/with-limit limit
-          (map s/reverse (storage/getindex cluster k +index-sxlabel+ (s/reverse start) (s/reverse finish))))))))
+(defn exec-getlabel-suffix [cluster [k start finish & limit]]
+  (storage/with-consistency :one
+    (storage/with-limit (first limit)
+      (map s/reverse (storage/getindex cluster k +index-sxlabel+ (s/reverse start) (s/reverse finish))))))
 
 (defn exec-getlabel [cluster msg]
   (case (first msg)
@@ -150,14 +114,11 @@
     "ext" (msg-label (exec-getlabel-exact cluster (subvec msg 1)))
     (msg-fail 400)))
 
-(defn exec-putlabel [cluster msg]
-  (if (< (count msg) 1)
-    (msg-fail 400)
-    (let [[k l] msg]
-      (storage/with-consistency :quorum
-          (storage/putindex cluster k +index-pxlabel+ l)
-          (storage/putindex cluster k +index-sxlabel+ (s/reverse l))
-        (msg-done)))))
+(defn exec-putlabel [cluster [k l]]
+  (storage/with-consistency :quorum
+    (storage/putindex cluster k +index-pxlabel+ l)
+    (storage/putindex cluster k +index-sxlabel+ (s/reverse l))
+    (msg-done)))
 
 (defn handle-get [cluster msg]
   (case (first msg)

@@ -52,24 +52,24 @@
         (is (= ["a1"] (storage/getindex cluster "0x00" 2 "a1" "a2")))))
 
     (testing "getlink with no data"
-      (is (= [] (storage/getlink cluster "0x00" "0x"))))
+      (is (= [] (storage/getlink cluster "0x00" "l" "0x"))))
 
     (testing "getlink after putlink"
-      (storage/putlink cluster "0x00" "0x01")
-      (storage/putlink cluster "0x00" "0x02")
-      (storage/putlink cluster "0x00" "0x03")
-      (is (= ["0x01" "0x02" "0x03"] (storage/getlink cluster "0x00" "0x"))))
+      (storage/putlink cluster "0x00" "l" "0x01")
+      (storage/putlink cluster "0x00" "l" "0x02")
+      (storage/putlink cluster "0x00" "l" "0x03")
+      (is (= ["0x01" "0x02" "0x03"] (storage/getlink cluster "0x00" "l" "0x"))))
 
     (testing "getlink pagination"
-      (storage/putlink cluster "0x00" "0x01")
-      (storage/putlink cluster "0x00" "0x02")
-      (storage/putlink cluster "0x00" "0x03")
+      (storage/putlink cluster "0x00" "l" "0x01")
+      (storage/putlink cluster "0x00" "l" "0x02")
+      (storage/putlink cluster "0x00" "l" "0x03")
       (storage/with-limit 1
-        (is (= ["0x01"] (storage/getlink cluster "0x00")))
-        (is (= ["0x01"] (storage/getlink cluster "0x00" "0x01")))
-        (is (= ["0x02"] (storage/getlink cluster "0x00" "0x02")))
-        (is (= ["0x03"] (storage/getlink cluster "0x00" "0x03")))
-        (is (= [] (storage/getlink cluster "0x00" "0x04")))))
+        (is (= ["0x01"] (storage/getlink cluster "0x00" "l" "0x")))
+        (is (= ["0x01"] (storage/getlink cluster "0x00" "l" "0x01")))
+        (is (= ["0x02"] (storage/getlink cluster "0x00" "l" "0x02")))
+        (is (= ["0x03"] (storage/getlink cluster "0x00" "l" "0x03")))
+        (is (= [] (storage/getlink cluster "0x00" "l" "0x04")))))
 
     (testing "putattr time series"
       (storage/with-consistency :one
@@ -86,24 +86,24 @@
 
     (testing "delattr time series entry"
       (storage/with-consistency :one
-          (is (= [] (storage/delattr cluster "0x00")))
+          (is (= [] (storage/delattr cluster "0x00" 0)))
           ))
 
     (testing "getlink after dellink"
-      (storage/putlink cluster "0x00" "0x01")
-      (storage/putlink cluster "0x00" "0x02")
-      (storage/putlink cluster "0x00" "0x03")
+      (storage/putlink cluster "0x00" "l" "0x01")
+      (storage/putlink cluster "0x00" "l" "0x02")
+      (storage/putlink cluster "0x00" "l" "0x03")
 
-      (storage/dellink cluster "0x00" "0x01")
-      (storage/dellink cluster "0x00" "0x02")
-      (storage/dellink cluster "0x00" "0x03")
-      (is (= [] (storage/getlink cluster "0x00" "0x"))))
+      (storage/dellink cluster "0x00" "l" "0x01")
+      (storage/dellink cluster "0x00" "l" "0x02")
+      (storage/dellink cluster "0x00" "l" "0x03")
+      (is (= [] (storage/getlink cluster "0x00" "l" "0x"))))
 
     (testing "getlink after dellink with no optional argument"
-      (storage/putlink cluster "0x00" "0x01")
-      (storage/putlink cluster "0x00" "0x02")
-      (storage/putlink cluster "0x00" "0x03")
+      (storage/putlink cluster "0x00" "l" "0x01")
+      (storage/putlink cluster "0x00" "l" "0x02")
+      (storage/putlink cluster "0x00" "l" "0x03")
 
-      (storage/dellink cluster "0x00")
-      (is (= [] (storage/getlink cluster "0x00" "0x"))))
+      (storage/dellink cluster "0x00" "l")
+      (is (= [] (storage/getlink cluster "0x00" "l" "0x"))))
       ))

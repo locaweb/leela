@@ -107,44 +107,45 @@
       (is (= (server/msg-label ["foobar"]) (server/handle-message cluster ["get" "label" "ext" "0x03" "foobar"]))))
 
     (testing "dellink with no data"
-      (is (= (server/msg-done) (server/handle-message cluster ["del" "link" "0x00" "0x"]))))
+      (is (= (server/msg-done) (server/handle-message cluster ["del" "link" "0x00" "l"])))
+      (is (= (server/msg-done) (server/handle-message cluster ["del" "link" "0x00" "l" "0x01"]))))
 
     (testing "dellink after putlink"
-      (server/handle-message cluster ["put" "link" "0x00" "0x01"])
-      (server/handle-message cluster ["put" "link" "0x00" "0x02"])
-      (server/handle-message cluster ["put" "link" "0x00" "0x03"])
-      (is (= (server/msg-done) (server/handle-message cluster ["del" "link" "0x00" "0x01"])))
-      (is (= (server/msg-link ["0x02" "0x03"]) (server/handle-message cluster ["get" "link" "0x00"]))))
+      (server/handle-message cluster ["put" "link" "0x00" "l" "0x01"])
+      (server/handle-message cluster ["put" "link" "0x00" "l" "0x02"])
+      (server/handle-message cluster ["put" "link" "0x00" "l" "0x03"])
+      (is (= (server/msg-done) (server/handle-message cluster ["del" "link" "0x00" "l" "0x01"])))
+      (is (= (server/msg-link ["0x02" "0x03"]) (server/handle-message cluster ["get" "link" "0x00" "l" "0x"]))))
 
     (testing "dellink after putlink (all)"
-      (server/handle-message cluster ["put" "link" "0x00" "0x01"])
-      (server/handle-message cluster ["put" "link" "0x00" "0x02"])
-      (server/handle-message cluster ["put" "link" "0x00" "0x03"])
-      (is (= (server/msg-done) (server/handle-message cluster ["del" "link" "0x00"])))
-      (is (= (server/msg-link []) (server/handle-message cluster ["get" "link" "0x00"]))))
+      (server/handle-message cluster ["put" "link" "0x00" "l" "0x01"])
+      (server/handle-message cluster ["put" "link" "0x00" "l" "0x02"])
+      (server/handle-message cluster ["put" "link" "0x00" "l" "0x03"])
+      (is (= (server/msg-done) (server/handle-message cluster ["del" "link" "0x00" "l"])))
+      (is (= (server/msg-link []) (server/handle-message cluster ["get" "link" "0x00" "l" "0x"]))))
 
     (testing "getlink with no data"
-      (is (= (server/msg-link []) (server/handle-message cluster ["get" "link" "0x00" "0x"]))))
+      (is (= (server/msg-link []) (server/handle-message cluster ["get" "link" "0x00" "l" "0x"]))))
 
     (testing "getlink after putlink"
-      (server/handle-message cluster ["put" "link" "0x00" "0x01"])
-      (server/handle-message cluster ["put" "link" "0x00" "0x02"])
-      (server/handle-message cluster ["put" "link" "0x00" "0x03"])
-      (is (= (server/msg-link ["0x01" "0x02" "0x03"]) (server/handle-message cluster ["get" "link" "0x00" "0x"]))))
+      (server/handle-message cluster ["put" "link" "0x00" "l" "0x01"])
+      (server/handle-message cluster ["put" "link" "0x00" "l" "0x02"])
+      (server/handle-message cluster ["put" "link" "0x00" "l" "0x03"])
+      (is (= (server/msg-link ["0x01" "0x02" "0x03"]) (server/handle-message cluster ["get" "link" "0x00" "l" "0x"]))))
 
     (testing "getlink pagination"
-      (server/handle-message cluster ["put" "link" "0x00" "0x01"])
-      (server/handle-message cluster ["put" "link" "0x00" "0x02"])
-      (server/handle-message cluster ["put" "link" "0x00" "0x03"])
+      (server/handle-message cluster ["put" "link" "0x00" "l" "0x01"])
+      (server/handle-message cluster ["put" "link" "0x00" "l" "0x02"])
+      (server/handle-message cluster ["put" "link" "0x00" "l" "0x03"])
       (storage/with-limit 1
-        (is (= (server/msg-link ["0x01"]) (server/handle-message cluster ["get" "link" "0x00" "0x"])))
-        (is (= (server/msg-link ["0x01"]) (server/handle-message cluster ["get" "link" "0x00" "0x01"])))
-        (is (= (server/msg-link ["0x02"]) (server/handle-message cluster ["get" "link" "0x00" "0x02"])))
-        (is (= (server/msg-link ["0x03"]) (server/handle-message cluster ["get" "link" "0x00" "0x03"])))
-        (is (= (server/msg-link []) (server/handle-message cluster ["get" "link" "0x00" "0x04"])))))
+        (is (= (server/msg-link ["0x01"]) (server/handle-message cluster ["get" "link" "0x00" "l" "0x"])))
+        (is (= (server/msg-link ["0x01"]) (server/handle-message cluster ["get" "link" "0x00" "l" "0x01"])))
+        (is (= (server/msg-link ["0x02"]) (server/handle-message cluster ["get" "link" "0x00" "l" "0x02"])))
+        (is (= (server/msg-link ["0x03"]) (server/handle-message cluster ["get" "link" "0x00" "l" "0x03"])))
+        (is (= (server/msg-link []) (server/handle-message cluster ["get" "link" "0x00" "l" "0x04"])))))
 
     (testing "delattr with no data"
-      (is (= (server/msg-done) (server/handle-message cluster ["del" "attr" "0x00"]))))
+      (is (= (server/msg-done) (server/handle-message cluster ["del" "attr" "0x00" "0"]))))
 
     (testing "getattr after putattr"
       (server/handle-message cluster ["put" "attr" "0x00" "0" "0x00"])
@@ -153,7 +154,7 @@
 
     (testing "delattr after putattr"
       (server/handle-message cluster ["put" "attr" "0x00" "0" "0x00"])
-      (is (= (server/msg-done) (server/handle-message cluster ["del" "attr" "0x00"])))
+      (is (= (server/msg-done) (server/handle-message cluster ["del" "attr" "0x00" "0"])))
       (is (= (server/msg-attr []) (server/handle-message cluster ["get" "attr" "0x00"]))))
     ))
 

@@ -33,7 +33,7 @@
     (warn "creating table graph")
     (create-table
      cluster :graph
-     (column-definitions {:a :blob :b :blob :primary-key [:a :b]})
+     (column-definitions {:a :blob :l :varchar :b :blob :primary-key [[:a :l] :b]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
   (when-not (describe-table cluster keyspace :tsattr)
     (warn "creating table tsattr")
@@ -95,28 +95,28 @@
                           (where :key (f/hexstr-to-bytes k) :code code :name name)
                           (limit 1))))
 
-(defn putlink [cluster a b]
-  (insert cluster :graph {:a (f/hexstr-to-bytes a) :b (f/hexstr-to-bytes b)}))
+(defn putlink [cluster a l b]
+  (insert cluster :graph {:a (f/hexstr-to-bytes a) :l l :b (f/hexstr-to-bytes b)}))
 
-(defn dellink [cluster a & b]
+(defn dellink [cluster a l & b]
   (delete cluster
            :graph
            (if (seq b)
-             (where :a (f/hexstr-to-bytes a) :b (f/hexstr-to-bytes (first b)))
-             (where :a (f/hexstr-to-bytes a)))))
+             (where :a (f/hexstr-to-bytes a) :l l :b (f/hexstr-to-bytes (first b)))
+             (where :a (f/hexstr-to-bytes a) :l l))))
 
-(defn getlink [cluster k & page]
+(defn getlink [cluster k l & page]
   (map #(f/bytes-to-hexstr (:b %)) (select cluster
                                            :graph
                                            (columns :b)
                                            (if (seq page)
-                                             (where :a (f/hexstr-to-bytes k) :b [:>= (f/hexstr-to-bytes (first page))])
-                                             (where :a (f/hexstr-to-bytes k)))
+                                             (where :a (f/hexstr-to-bytes k) :l l :b [:>= (f/hexstr-to-bytes (first page))])
+                                             (where :a (f/hexstr-to-bytes k) :l l))
                                            (limit +limit+))))
 
-(defn putattr [cluster k timest value]
+(defn putattr [cluster k slot value]
   (update cluster
-          :tsattr {:slot [+ {(Integer. timest) (f/hexstr-to-bytes value)}]}
+          :tsattr {:slot [+ {(Integer. slot) (f/hexstr-to-bytes value)}]}
           (where :key (f/hexstr-to-bytes k))))
 
 (defn extract [hs]
@@ -130,7 +130,9 @@
                                             (columns :slot)
                                             (where :key (f/hexstr-to-bytes k))
                                             )))))))
-(defn delattr [cluster k]
+
+(defn delattr [cluster k slot]
   (delete cluster
           :tsattr
+          {:slot [slot]}
           (where :key (f/hexstr-to-bytes k))))
