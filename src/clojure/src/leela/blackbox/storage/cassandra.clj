@@ -35,12 +35,18 @@
      cluster :graph
      (column-definitions {:a :blob :b :blob :primary-key [:a :b]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
-  (when-not (describe-table cluster keyspace :tsattr)
-    (warn "creating table tsattr")
+  (when-not (describe-table cluster keyspace :tattr)
+    (warn "creating table tattr")
     (create-table
-     cluster :tsattr
+     cluster :tattr
      (column-definitions {:key :blob :slot (map-type :int :blob)  :primary-key [:key]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
+  (when-not (describe-table cluster keyspace :kattr)
+    (warn "creating table kattr")
+    (create-table
+      cluster :kattr
+      (column-definitions {:key :blob :slot :varchar :value :blob  :primary-key [:key :slot]})
+      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
   (when-not (describe-table cluster keyspace :search)
     (warn "creating table search")
     (create-table
@@ -71,7 +77,7 @@
      ~@body))
 
 (defn truncate-all [cluster]
-  (doseq [t [:graph :search :tsattr]]
+  (doseq [t [:graph :search :tattr :kattr]]
     (truncate cluster t)))
 
 (defn putindex [cluster k code name]
@@ -114,9 +120,9 @@
                                              (where :a (f/hexstr-to-bytes k)))
                                            (limit +limit+))))
 
-(defn putattr [cluster k timest value]
+(defn puttattr [cluster k timest value]
   (update cluster
-          :tsattr {:slot [+ {(Integer. timest) (f/hexstr-to-bytes value)}]}
+          :tattr {:slot [+ {(Integer. timest) (f/hexstr-to-bytes value)}]}
           (where :key (f/hexstr-to-bytes k))))
 
 (defn extract [hs]
@@ -124,13 +130,29 @@
   (into {} (for [[k v] hs] [k (f/bytes-to-hexstr v)]))
   )
 
-(defn getattr [cluster k]
+(defn gettattr [cluster k]
     (flatten (seq (into {} (first (map #(extract (:slot %)) (select cluster
-                                            :tsattr
+                                            :tattr
                                             (columns :slot)
                                             (where :key (f/hexstr-to-bytes k))
                                             )))))))
-(defn delattr [cluster k]
+(defn deltattr [cluster k]
   (delete cluster
-          :tsattr
+          :tattr
           (where :key (f/hexstr-to-bytes k))))
+
+(defn putkattr [cluster k slot value]
+  (insert cluster
+          :kattr {:key (f/hexstr-to-bytes k) :slot slot :value (f/hexstr-to-bytes value)}))
+
+(defn getkattr [cluster k slot]
+  (map #(f/bytes-to-hexstr (get % :value)) (select cluster
+                                                   :kattr
+                                                   (columns :value)
+                                                   (where :key (f/hexstr-to-bytes k) :slot slot))))
+
+(defn delkattr [cluster k]
+  (delete cluster
+          :kattr
+          (where :key (f/hexstr-to-bytes k))))
+
