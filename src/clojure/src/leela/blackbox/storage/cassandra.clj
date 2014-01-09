@@ -18,7 +18,6 @@
             [clojurewerkz.cassaforte.query]
             [clojurewerkz.cassaforte.multi.cql])
   (:require [clojure.string :as s]
-            [leela.blackbox.f :as f]
             [clojurewerkz.cassaforte.client :as client]))
 
 (def +limit+ 256)
@@ -81,7 +80,7 @@
     (truncate cluster t)))
 
 (defn putindex [cluster k code name]
-  (insert cluster :search {:key (f/hexstr-to-bytes k) :code code :name name}))
+  (insert cluster :search {:key k :code code :name name}))
 
 (defn getindex [cluster k code & optional]
   (let [[start finish] optional]
@@ -89,71 +88,73 @@
                             :search
                             (columns :name)
                             (case [(boolean start) (boolean finish)]
-                              [true true] (where :key (f/hexstr-to-bytes k) :code code :name [:>= start] :name [:< finish])
-                              [true false] (where :key (f/hexstr-to-bytes k) :code code :name [:>= start])
-                              (where :key (f/hexstr-to-bytes k) :code code))
+                              [true true] (where :key k :code code :name [:>= start] :name [:< finish])
+                              [true false] (where :key k :code code :name [:>= start])
+                              (where :key k :code code))
                             (limit +limit+)))))
 
 (defn hasindex [cluster k code name]
   (map #(:name %) (select cluster
                           :search
                           (columns :name)
-                          (where :key (f/hexstr-to-bytes k) :code code :name name)
+                          (where :key k :code code :name name)
                           (limit 1))))
 
 (defn putlink [cluster a l b]
-  (insert cluster :graph {:a (f/hexstr-to-bytes a) :l l :b (f/hexstr-to-bytes b)}))
+  (insert cluster :graph {:a a :l l :b b}))
 
 (defn dellink [cluster a l & b]
   (delete cluster
            :graph
            (if (seq b)
-             (where :a (f/hexstr-to-bytes a) :l l :b (f/hexstr-to-bytes (first b)))
-             (where :a (f/hexstr-to-bytes a) :l l))))
+             (where :a a :l l :b (first b))
+             (where :a a :l l))))
 
 (defn getlink [cluster k l & page]
-  (map #(f/bytes-to-hexstr (:b %)) (select cluster
-                                           :graph
-                                           (columns :b)
-                                           (if (seq page)
-                                             (where :a (f/hexstr-to-bytes k) :l l :b [:>= (f/hexstr-to-bytes (first page))])
-                                             (where :a (f/hexstr-to-bytes k) :l l))
-                                           (limit +limit+))))
+  (map #(:b %) (select cluster
+                       :graph
+                       (columns :b)
+                       (if (seq page)
+                         (where :a k :l l :b [:>= (first page)])
+                         (where :a k :l l))
+                       (limit +limit+))))
 
 (defn puttattr [cluster k slot value]
   (update cluster
-          :tattr {:slot [+ {slot (f/hexstr-to-bytes value)}]}
-          (where :key (f/hexstr-to-bytes k))))
-
-(defn extract [hs]
-  ;;Based on http://stackoverflow.com/questions/1676891/mapping-a-function-on-the-values-of-a-map-in-clojure
-  (into {} (for [[k v] hs] [k (f/bytes-to-hexstr v)]))
-  )
+          :tattr {:slot [+ {slot value}]}
+          (where :key k)))
 
 (defn gettattr [cluster k]
-    (flatten (seq (into {} (first (map #(extract (:slot %)) (select cluster
-                                            :tattr
-                                            (columns :slot)
-                                            (where :key (f/hexstr-to-bytes k))
-                                            )))))))
+  (let [data (map #(:slot %)
+                  (select cluster
+                          :tattr
+                          (columns :slot)
+                          (where :key k)
+                          (limit 1)))]
+    (if (seq data)
+      (first data)
+      {})))
+
 (defn deltattr [cluster k slot]
   (delete cluster
           :tattr
           {:slot [slot]}
-          (where :key (f/hexstr-to-bytes k))))
+          (where :key k)))
 
 (defn putkattr [cluster k slot value]
   (insert cluster
-          :kattr {:key (f/hexstr-to-bytes k) :slot slot :value (f/hexstr-to-bytes value)}))
+          :kattr {:key k :slot slot :value value}))
 
 (defn getkattr [cluster k slot]
-  (map #(f/bytes-to-hexstr (get % :value)) (select cluster
-                                                   :kattr
-                                                   (columns :value)
-                                                   (where :key (f/hexstr-to-bytes k) :slot slot))))
+  (first (map #(get % :value)
+              (select cluster
+                      :kattr
+                      (columns :value)
+                      (where :key k :slot slot)
+                      (limit 1)))))
 
 (defn delkattr [cluster k slot]
   (delete cluster
           :kattr
-          (where :key (f/hexstr-to-bytes k) :slot slot)))
+          (where :key k :slot slot)))
 
