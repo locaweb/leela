@@ -144,19 +144,32 @@
         (is (= (server/msg-link ["0x03"]) (server/handle-message cluster ["get" "link" "0x00" "l" "0x03"])))
         (is (= (server/msg-link []) (server/handle-message cluster ["get" "link" "0x00" "l" "0x04"])))))
 
-    (testing "delattr with no data"
-      (is (= (server/msg-done) (server/handle-message cluster ["del" "attr" "0x00" "0"]))))
+    (testing "deltattr with no data"
+      (is (= (server/msg-done) (server/handle-message cluster ["del" "tattr" "0x00" "0"]))))
 
-    (testing "getattr after putattr"
-      (server/handle-message cluster ["put" "attr" "0x00" "0" "0x00"])
-      (server/handle-message cluster ["put" "attr" "0x00" "1" "0x01"])
-      (is (= (server/msg-attr [0 "0x00" 1 "0x01"]) (server/handle-message cluster ["get" "attr" "0x00"]))))
+    (testing "gettattr after puttattr"
+      (server/handle-message cluster ["put" "tattr" "0x00" "0" "0x00"])
+      (server/handle-message cluster ["put" "tattr" "0x00" "1" "0x01"])
+      (is (= (server/msg-tattr [0 "0x00" 1 "0x01"]) (server/handle-message cluster ["get" "tattr" "0x00"]))))
 
-    (testing "delattr after putattr"
-      (server/handle-message cluster ["put" "attr" "0x00" "0" "0x00"])
-      (is (= (server/msg-done) (server/handle-message cluster ["del" "attr" "0x00" "0"])))
-      (is (= (server/msg-attr []) (server/handle-message cluster ["get" "attr" "0x00"]))))
-    ))
+    (testing "deltattr after puttattr"
+      (server/handle-message cluster ["put" "tattr" "0x00" "0" "0x00"])
+      (is (= (server/msg-done) (server/handle-message cluster ["del" "tattr" "0x00" "0"])))
+      (is (= (server/msg-tattr []) (server/handle-message cluster ["get" "tattr" "0x00"]))))
+
+    (testing "delkattr with no data"
+      (is (= (server/msg-done) (server/handle-message cluster ["del" "kattr" "0x00" "0"]))))
+
+    (testing "getkattr after putkattr"
+      (server/handle-message cluster ["put" "kattr" "0x00" "0" "0x00"])
+      (server/handle-message cluster ["put" "kattr" "0x00" "1" "0x01"])
+      (is (= (server/msg-kattr ["0x00"]) (server/handle-message cluster ["get" "kattr" "0x00" "0"])))
+      (is (= (server/msg-kattr ["0x01"]) (server/handle-message cluster ["get" "kattr" "0x00" "1"]))))
+
+    (testing "delkattr after putkattr"
+      (server/handle-message cluster ["put" "kattr" "0x00" "0" "0x00"])
+      (is (= (server/msg-done) (server/handle-message cluster ["del" "kattr" "0x00" "0"])))
+      (is (= (server/msg-kattr []) (server/handle-message cluster ["get" "kattr" "0x00" "0"]))))))
 
 (deftest test-zmqserver-zmqworker-interface
   (testing "just checks the interface"

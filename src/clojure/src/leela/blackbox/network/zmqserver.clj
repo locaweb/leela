@@ -40,10 +40,15 @@
 (defn msg-label [labels]
   (cons "label" labels))
 
-(defn msg-attr [msg]
+(defn msg-tattr [msg]
   (if-not msg
     (msg-fail 404)
-    (cons "attr" msg)))
+    (cons "tattr" msg)))
+
+(defn msg-kattr [msg]
+  (if-not msg
+    (msg-fail 404)
+    (cons "kattr" msg)))
 
 (defn exec-getname [cluster [g]]
   (storage/with-consistency :one
@@ -72,19 +77,34 @@
       (storage/dellink cluster a l)))
   (msg-done))
 
-(defn exec-getattr [cluster [k & limit]]
+(defn exec-gettattr [cluster [k]]
   (storage/with-consistency :one
-    (storage/with-limit (first limit)
-      (msg-attr (storage/getattr cluster k)))))
+    (storage/with-limit 1
+      (msg-tattr (storage/gettattr cluster k)))))
 
-(defn exec-putattr [cluster [k s v]]
-  (storage/with-consistency :quorum
-    (storage/putattr cluster k s v))
+(defn exec-puttattr [cluster [k s t]]
+  (storage/with-consistency :one
+    (storage/puttattr cluster k (Integer. s) t))
   (msg-done))
 
-(defn exec-delattr [cluster [k s]]
+(defn exec-deltattr [cluster [k s]]
   (storage/with-consistency :quorum
-    (storage/delattr cluster k s))
+    (storage/deltattr cluster k (Integer. s)))
+  (msg-done))
+
+(defn exec-getkattr [cluster [k s]]
+  (storage/with-consistency :one
+    (storage/with-limit 1
+      (msg-kattr (storage/getkattr cluster k s)))))
+
+(defn exec-putkattr [cluster [k s v]]
+  (storage/with-consistency :one
+    (storage/putkattr cluster k s v))
+  (msg-done))
+
+(defn exec-delkattr [cluster [k s]]
+  (storage/with-consistency :quorum
+    (storage/delkattr cluster k s))
   (msg-done))
 
 (defn exec-getlabel-exact [cluster [k n]]
@@ -125,7 +145,8 @@
     "name" (exec-getname cluster (subvec msg 1))
     "link" (exec-getlink cluster (subvec msg 1))
     "label" (exec-getlabel cluster (subvec msg 1))
-    "attr" (exec-getattr cluster (subvec msg 1))
+    "tattr" (exec-gettattr cluster (subvec msg 1))
+    "kattr" (exec-getkattr cluster (subvec msg 1))
     (msg-fail 400)))
 
 (defn handle-put [cluster msg]
@@ -133,13 +154,15 @@
     "name" (exec-putname cluster (subvec msg 1))
     "link" (exec-putlink cluster (subvec msg 1))
     "label" (exec-putlabel cluster (subvec msg 1))
-    "attr" (exec-putattr cluster (subvec msg 1))
+    "tattr" (exec-puttattr cluster (subvec msg 1))
+    "kattr" (exec-putkattr cluster (subvec msg 1))
     (msg-fail 400)))
 
 (defn handle-del [cluster msg]
   (case (first msg)
     "link" (exec-dellink cluster (subvec msg 1))
-    "attr" (exec-delattr cluster (subvec msg 1))
+    "tattr" (exec-deltattr cluster (subvec msg 1))
+    "kattr" (exec-delkattr cluster (subvec msg 1))
     (msg-fail 400)))
 
 (defn handle-message [cluster msg]

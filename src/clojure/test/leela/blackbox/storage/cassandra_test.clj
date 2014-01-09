@@ -32,7 +32,7 @@
       (storage/putindex cluster "0x00" 1 "b")
       (storage/putindex cluster "0x00" 1 "a")
       (storage/putindex cluster "0x00" 1 "r")
-      (is (= ["a" "b" "f" "o" "r"] (storage/getindex cluster "0x00" 1)) ))
+      (is (= ["a" "b" "f" "o" "r"] (storage/getindex cluster "0x00" 1))))
 
     (testing "getindex pagination with no finish"
       (storage/putindex cluster "0x00" 2 "a0")
@@ -71,23 +71,35 @@
         (is (= ["0x03"] (storage/getlink cluster "0x00" "l" "0x03")))
         (is (= [] (storage/getlink cluster "0x00" "l" "0x04")))))
 
-    (testing "putattr time series"
+    (testing "puttattr time series"
       (storage/with-consistency :one
-        (is (= [] (storage/putattr cluster "0x00" 0 "0x00")))
-        (is (= [] (storage/putattr cluster "0x00" 1 "0x00")))
-        (is (= [] (storage/putattr cluster "0x01" 0 "0x01")))
-        (is (= [] (storage/putattr cluster "0x01" 1 "0x01"))))
-      )
+        (is (= [] (storage/puttattr cluster "0x00" 0 "0x00")))
+        (is (= [] (storage/puttattr cluster "0x00" 1 "0x00")))
+        (is (= [] (storage/puttattr cluster "0x01" 0 "0x01")))
+        (is (= [] (storage/puttattr cluster "0x01" 1 "0x01")))))
 
-    (testing "getattr time series"
+    (testing "gettattr time series"
       (storage/with-consistency :one
-          (is (= [0 "0x00", 1 "0x00"] (storage/getattr cluster "0x00")))
-          ))
+          (is (= [0 "0x00", 1 "0x00"] (storage/gettattr cluster "0x00")))))
 
-    (testing "delattr time series entry"
+    (testing "deltattr time series entry"
       (storage/with-consistency :one
-          (is (= [] (storage/delattr cluster "0x00" 0)))
-          ))
+        (is (= [] (storage/deltattr cluster "0x00" 0)))))
+
+    (testing "putkattr key value"
+      (storage/with-consistency :one
+        (is (= [] (storage/putkattr cluster "0x00" "0" "0x00")))
+        (is (= [] (storage/putkattr cluster "0x00" "1" "0x00")))
+        (is (= [] (storage/putkattr cluster "0x01" "0" "0x01")))
+        (is (= [] (storage/putkattr cluster "0x01" "1" "0x01")))))
+
+    (testing "getkattr key value"
+      (storage/with-consistency :one
+          (is (= ["0x00"] (storage/getkattr cluster "0x00" "0")))))
+
+    (testing "deltattr key value entry"
+      (storage/with-consistency :one
+          (is (= [] (storage/deltattr cluster "0x00" 0)))))
 
     (testing "getlink after dellink"
       (storage/putlink cluster "0x00" "l" "0x01")
@@ -105,5 +117,4 @@
       (storage/putlink cluster "0x00" "l" "0x03")
 
       (storage/dellink cluster "0x00" "l")
-      (is (= [] (storage/getlink cluster "0x00" "l" "0x"))))
-      ))
+      (is (= [] (storage/getlink cluster "0x00" "l" "0x"))))))
