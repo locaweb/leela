@@ -145,16 +145,16 @@
   (storage/with-session [cluster ["127.0.0.1"] "leela"]
 
     (testing "get-tattr with no data"
-      (is (= (server/msg-tattr {}) (server/handle-message cluster ["get" "t-attr" "00"]))))
+      (is (= (server/msg-tattr []) (server/handle-message cluster ["get" "t-attr" "00" "attr"]))))
 
     (testing "get-tattr after put-tattr"
-      (server/handle-message cluster ["put" "t-attr" "00" "0" "00"])
-      (is (= (server/msg-tattr {0 (f/bin-0x00)}) (server/handle-message cluster ["get" "t-attr" "00"]))))
+      (server/handle-message cluster ["put" "t-attr" "00" "attr" "0" "00"])
+      (is (= (server/msg-tattr [[0 (f/bin-0x00)]]) (server/handle-message cluster ["get" "t-attr" "00" "attr"]))))
 
     (testing "get-tattr after del-tattr"
-      (server/handle-message cluster ["put" "t-attr" "00" "0" "00"])
-      (is (= (server/msg-done) (server/handle-message cluster ["del" "t-attr" "00" "0"])))
-      (is (= (server/msg-tattr {}) (server/handle-message cluster ["get" "t-attr" "00"]))))))
+      (server/handle-message cluster ["put" "t-attr" "00" "name" "0" "00"])
+      (is (= (server/msg-done) (server/handle-message cluster ["del" "t-attr" "00" "name" "0"])))
+      (is (= (server/msg-tattr []) (server/handle-message cluster ["get" "t-attr" "00" "name"]))))))
 
 (deftest test-zmqserver-handle-k-attr-message
   (storage/with-session [cluster ["127.0.0.1"] "leela"]

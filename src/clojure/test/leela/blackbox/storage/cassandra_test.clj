@@ -96,25 +96,23 @@
   (storage/with-session [cluster ["127.0.0.1"] "leela"]
 
     (testing "get-tattr with no data"
-      (is (= {} (storage/get-tattr cluster f/b-0x00))))
+      (is (= [] (storage/get-tattr cluster f/b-0x00 "attr"))))
 
     (testing "get-tattr after put-tattr"
-      (storage/put-tattr cluster f/b-0x00 0 f/b-0x01)
-      (let [results (storage/get-tattr cluster f/b-0x00)]
-        (is (= [0] (keys results)))
-        (is (= ["01"] (map f/binary-to-hexstr (vals results))))))
+      (storage/put-tattr cluster f/b-0x00 "attr" 0 f/b-0x01)
+      (let [results (storage/get-tattr cluster f/b-0x00 "attr")]
+        (is (= [[0 "01"]] (for [[k v] results] [k (f/binary-to-hexstr v)])))))
 
     (testing "get-tattr after put-tattr (overwrite)"
-      (storage/put-tattr cluster f/b-0x00 0 f/b-0x01)
-      (storage/put-tattr cluster f/b-0x00 0 f/b-0x02)
-      (let [results (storage/get-tattr cluster f/b-0x00)]
-        (is (= [0] (keys results)))
-        (is (= ["02"] (map f/binary-to-hexstr (vals results))))))
+      (storage/put-tattr cluster f/b-0x00 "attr" 0 f/b-0x01)
+      (storage/put-tattr cluster f/b-0x00 "attr" 0 f/b-0x02)
+      (let [results (storage/get-tattr cluster f/b-0x00 "attr")]
+        (is (= [[0 "02"]] (for [[k v] results] [k (f/binary-to-hexstr v)])))))
 
     (testing "get-tattr after delattr"
-      (storage/put-tattr cluster f/b-0x02 0 f/b-0x01)
-      (storage/del-tattr cluster f/b-0x02 0)
-      (is (= {} (storage/get-tattr cluster f/b-0x02))))))
+      (storage/put-tattr cluster f/b-0x02 "attr" 0 f/b-0x01)
+      (storage/del-tattr cluster f/b-0x02 "attr" 0)
+      (is (= [] (storage/get-tattr cluster f/b-0x02 "attr"))))))
 
 (deftest test-get-kattr
   (storage/with-session [cluster ["127.0.0.1"] "leela"]

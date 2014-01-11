@@ -81,22 +81,22 @@
         (storage/dellink cluster a l)))
     (msg-done)))
 
-(defn exec-get-tattr [cluster [k]]
+(defn exec-get-tattr [cluster [k n]]
   (let [k (f/bytes-to-binary k)]
     (storage/with-consistency :one
-      (msg-tattr (storage/get-tattr cluster k)))))
+      (msg-tattr (storage/get-tattr cluster k n)))))
 
-(defn exec-put-tattr [cluster [k s v]]
+(defn exec-put-tattr [cluster [k n s v]]
   (let [k (f/bytes-to-binary k)
         v (f/bytes-to-binary v)]
     (storage/with-consistency :one
-      (storage/put-tattr cluster k (Integer. s) v))
+      (storage/put-tattr cluster k n (Integer. s) v))
     (msg-done)))
 
-(defn exec-del-tattr [cluster [k s]]
+(defn exec-del-tattr [cluster [k n s]]
   (let [k (f/bytes-to-binary k)]
     (storage/with-consistency :quorum
-      (storage/del-tattr cluster k (Integer. s)))
+      (storage/del-tattr cluster k n (Integer. s)))
     (msg-done)))
 
 (defn exec-get-kattr [cluster [k s]]

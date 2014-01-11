@@ -39,13 +39,13 @@
     (warn "creating table tattr")
     (create-table
      cluster :tattr
-     (column-definitions {:key :blob :slot (map-type :int :blob)  :primary-key [:key]})
+     (column-definitions {:key :blob :name :varchar :slot :int :value :blob :primary-key [[:key :name] :slot]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
   (when-not (describe-table cluster keyspace :kattr)
     (warn "creating table kattr")
     (create-table
       cluster :kattr
-      (column-definitions {:key :blob :slot :varchar :value :blob  :primary-key [[:key :slot]]})
+      (column-definitions {:key :blob :name :varchar :value :blob  :primary-key [[:key :name]]})
       (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
   (when-not (describe-table cluster keyspace :search)
     (warn "creating table search")
@@ -120,42 +120,37 @@
                          (where :a k :l l))
                        (limit +limit+))))
 
-(defn put-tattr [cluster k slot value]
-  (update cluster
-          :tattr {:slot [+ {slot value}]}
-          (where :key k)))
+(defn put-tattr [cluster k name slot value]
+  (insert cluster
+          :tattr {:key k :name name :slot slot :value value}))
 
-(defn get-tattr [cluster k]
-  (or (first
-       (map #(:slot %)
-            (select cluster
-                    :tattr
-                    (columns :slot)
-                    (where :key k)
-                    (limit 1))))
-      {}))
+(defn get-tattr [cluster k name]
+  (map (fn [row] [(:slot row) (:value row)])
+       (select cluster
+               :tattr
+               (columns :slot :value)
+               (where :key k :name name)
+               (limit +limit+))))
 
-(defn del-tattr [cluster k slot]
+(defn del-tattr [cluster k name slot]
   (delete cluster
           :tattr
-          {:slot [slot]}
-          (where :key k)))
+          (where :key k :name name :slot slot)))
 
-(defn put-kattr [cluster k slot value]
+(defn put-kattr [cluster k name value]
   (insert cluster
-          :kattr {:key k :slot slot :value value}))
+          :kattr {:key k :name name :value value}))
 
-(defn get-kattr [cluster k slot]
+(defn get-kattr [cluster k name]
   (first
    (map #(:value %)
         (select cluster
                 :kattr
                 (columns :value)
-                (where :key k :slot slot)
+                (where :key k :name name)
                 (limit 1)))))
 
-(defn del-kattr [cluster k slot]
+(defn del-kattr [cluster k name]
   (delete cluster
           :kattr
-          (where :key k :slot slot)))
-
+          (where :key k :name name)))
