@@ -154,7 +154,15 @@
     (testing "get-tattr after del-tattr"
       (server/handle-message cluster ["put" "t-attr" "00" "name" "0" "00"])
       (is (= (server/msg-done) (server/handle-message cluster ["del" "t-attr" "00" "name" "0"])))
-      (is (= (server/msg-tattr []) (server/handle-message cluster ["get" "t-attr" "00" "name"]))))))
+      (is (= (server/msg-tattr []) (server/handle-message cluster ["get" "t-attr" "00" "name"]))))
+
+    (testing "get-tattr limit"
+      (server/handle-message cluster ["put" "t-attr" "00" "name" "0" "00"])
+      (server/handle-message cluster ["put" "t-attr" "00" "name" "1" "00"])
+      (server/handle-message cluster ["put" "t-attr" "00" "name" "2" "00"])
+      (is (= 3 (count (server/handle-message cluster ["get" "t-attr" "00" "name" "1"]))))
+      (is (= 5 (count (server/handle-message cluster ["get" "t-attr" "00" "name" "2"]))))
+      (is (= 7 (count (server/handle-message cluster ["get" "t-attr" "00" "name" "3"])))))))
 
 (deftest test-zmqserver-handle-k-attr-message
   (storage/with-session [cluster ["127.0.0.1"] "leela"]

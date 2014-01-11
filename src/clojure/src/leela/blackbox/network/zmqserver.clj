@@ -81,10 +81,11 @@
         (storage/dellink cluster a l)))
     (msg-done)))
 
-(defn exec-get-tattr [cluster [k n]]
+(defn exec-get-tattr [cluster [k n & limit]]
   (let [k (f/bytes-to-binary k)]
     (storage/with-consistency :one
-      (msg-tattr (storage/get-tattr cluster k n)))))
+      (storage/with-limit (first limit)
+        (msg-tattr (storage/get-tattr cluster k n))))))
 
 (defn exec-put-tattr [cluster [k n s v]]
   (let [k (f/bytes-to-binary k)
