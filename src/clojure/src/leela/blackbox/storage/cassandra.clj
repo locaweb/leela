@@ -18,6 +18,7 @@
             [clojurewerkz.cassaforte.query]
             [clojurewerkz.cassaforte.multi.cql])
   (:require [clojure.string :as s]
+            [leela.blackbox.f :as f]
             [clojurewerkz.cassaforte.client :as client]))
 
 (def +limit+ 256)
@@ -119,41 +120,41 @@
                          (where :a k :l l))
                        (limit +limit+))))
 
-(defn puttattr [cluster k slot value]
+(defn put-tattr [cluster k slot value]
   (update cluster
           :tattr {:slot [+ {slot value}]}
           (where :key k)))
 
-(defn gettattr [cluster k]
-  (let [data (map #(:slot %)
-                  (select cluster
-                          :tattr
-                          (columns :slot)
-                          (where :key k)
-                          (limit 1)))]
-    (if (seq data)
-      (first data)
-      {})))
+(defn get-tattr [cluster k]
+  (or (first
+       (map #(:slot %)
+            (select cluster
+                    :tattr
+                    (columns :slot)
+                    (where :key k)
+                    (limit 1))))
+      {}))
 
-(defn deltattr [cluster k slot]
+(defn del-tattr [cluster k slot]
   (delete cluster
           :tattr
           {:slot [slot]}
           (where :key k)))
 
-(defn putkattr [cluster k slot value]
+(defn put-kattr [cluster k slot value]
   (insert cluster
           :kattr {:key k :slot slot :value value}))
 
-(defn getkattr [cluster k slot]
-  (first (map #(get % :value)
-              (select cluster
-                      :kattr
-                      (columns :value)
-                      (where :key k :slot slot)
-                      (limit 1)))))
+(defn get-kattr [cluster k slot]
+  (first
+   (map #(:value %)
+        (select cluster
+                :kattr
+                (columns :value)
+                (where :key k :slot slot)
+                (limit 1)))))
 
-(defn delkattr [cluster k slot]
+(defn del-kattr [cluster k slot]
   (delete cluster
           :kattr
           (where :key k :slot slot)))

@@ -27,53 +27,53 @@ count = either (const 0) length . loads (parseLQL tld)
 
 suite = testGroup "Parser"
   [ testGroup "kill"
-    [ testCase "kill 0x00 -[l]> 0x01" $
-        (count "using (leela) kill 0x00 -[l]> 0x01;") @?= 1
+    [ testCase "kill 00 -[l]> 01" $
+        (count "using (leela) kill 00 -[l]> 01;") @?= 1
     , testCase "kill a -[l]> ()" $
-        (count "using (leela) kill 0x00 -[l]> ();") @?= 1
+        (count "using (leela) kill 00 -[l]> ();") @?= 1
     , testCase "kill (a) <[l]- (b)" $
-        (count "using (leela) kill 0x00 <[l]- 0x01;") @?= 1
+        (count "using (leela) kill 00 <[l]- 01;") @?= 1
     , testCase "kill () <[l]- (b)" $
-        (count "using (leela) kill () <[l]- 0x01;") @?= 1
-    , testCase "kill 0x00 -[l]- 0x01" $
-        (count "using (leela) kill 0x00 -[l]- 0x01;") @?= 1
-    , testCase "kill 0x00" $
-        (count "using (leela) kill 0x00;") @?= 1
+        (count "using (leela) kill () <[l]- 01;") @?= 1
+    , testCase "kill 00 -[l]- 01" $
+        (count "using (leela) kill 00 -[l]- 01;") @?= 1
+    , testCase "kill 00" $
+        (count "using (leela) kill 00;") @?= 1
     ]
   , testGroup "stat"
     [ testCase "stat command" $
         (count "using (leela) stat;") @?= 1
     ]
   , testGroup "make"
-    [ testCase "make 0x00" $
-        (count "using (leela) make 0x00, make 0x01;") @?= 2
-    , testCase "make 0x00 -[l]> 0x01" $
-        (count "using (leela) make 0x00 -[l]> 0x01;") @?= 1
-    , testCase "make 0x00 <[l]- 0x01" $
-        (count "using (leela) make 0x00 <[l]- 0x01;") @?= 1
-    , testCase "make 0x00 -[l]- 0x01" $
-        (count "using (leela) make 0x00 -[l]- 0x01;") @?= 1
+    [ testCase "make (a)" $
+        (count "using (leela) make (a);") @?= 1
+    , testCase "make 00 -[l]> 01" $
+        (count "using (leela) make 00 -[l]> 01;") @?= 1
+    , testCase "make 00 <[l]- 01" $
+        (count "using (leela) make 00 <[l]- 01;") @?= 1
+    , testCase "make 00 -[l]- 01" $
+        (count "using (leela) make 00 -[l]- 01;") @?= 1
     ]
   , testGroup "name"
-    [ testCase "name 0x..." $
-        (count "using (leela) name 0x00;") @?= 1
+    [ testCase "name ..." $
+        (count "using (leela) name 00;") @?= 1
     ]
   , testGroup "path"
-    [ testCase "path 0x00" $
-        (count "using (leela) path 0x00;") @?= 1
-    , testCase "path 0x00 -[l]> 0x00" $
-        (count "using (leela) path 0x00 -[l]> 0x00;") @?= 1
-    , testCase "path 0x00 -[l]> ()" $
-        (count "using (leela) path 0x00 -[l]> ();") @?= 1
-    , testCase "path 0x00 -[l*]> ()" $
-        (count "using (leela) path 0x00 -[l*]> ();") @?= 1
-    , testCase "path 0x00 -[*l]> ()" $
-        (count "using (leela) path 0x00 -[l*]> ();") @?= 1
+    [ testCase "path 00" $
+        (count "using (leela) path 00;") @?= 1
+    , testCase "path 00 -[l]> 00" $
+        (count "using (leela) path 00 -[l]> 00;") @?= 1
+    , testCase "path 00 -[l]> ()" $
+        (count "using (leela) path 00 -[l]> ();") @?= 1
+    , testCase "path 00 -[l*]> ()" $
+        (count "using (leela) path 00 -[l*]> ();") @?= 1
+    , testCase "path 00 -[*l]> ()" $
+        (count "using (leela) path 00 -[l*]> ();") @?= 1
     ]
   , testGroup "many"
     [ testCase "using ," $
-      (count "using (leela) path 0x00, make (a), make (b);" @?= 3)
+      (count "using (leela) path 00, make (a), make (b);" @?= 3)
     , testCase "using \\n" $
-      (count "using (leela) path 0x01\nmake (a)\nmake (b);" @?= 3)
+      (count "using (leela) path 01\nmake (a)\nmake (b);" @?= 3)
     ]
   ]
