@@ -15,6 +15,8 @@
 (ns leela.blackbox.f
   (:use     [clojure.tools.logging :only [error]]
             [clojure.inspector])
+  (:import  java.util.UUID
+            com.datastax.driver.core.utils.UUIDs)
   (:require [clojure.data.json :as json]))
 
 (defmacro forever [& body]
@@ -48,45 +50,40 @@
         (error e# "supervised function has died, restarting")
         (Thread/sleep 500)))))
 
-;; (defn random-string [bits]
-;;   (.toString (java.math.BigInteger. bits (java.security.SecureRandom.)) 32))
-
 (def +charset-ascii+ (.get (java.nio.charset.Charset/availableCharsets) "US-ASCII"))
+
+(def json-to-str json/write-str)
+
+(defmacro str-to-json [s]
+  `(json/read-str ~s :key-fn keyword))
+
+(defmacro uuid-1 []
+  `(UUIDs/timeBased))
+
+(defmacro uuid-from-time [time]
+  `(UUIDs/startOf ~time))
+
+(defmacro str-to-bytes [s]
+  `(.getBytes ~s +charset-ascii+))
 
 (defn bytes-to-str [bytes]
   (if (instance? String bytes)
     bytes
     (apply str (map char bytes))))
 
-(defmacro str-to-json [s]
-  `(json/read-str ~s :key-fn keyword))
-
-(def json-to-str json/write-str)
-
-(defn str-to-bytes [s]
-  (.getBytes s +charset-ascii+))
-
-(defn hexstr-to-binary [s]
-  (org.apache.commons.codec.binary.Hex/decodeHex (.toCharArray s)))
-
-(defn bytes-to-binary [b]
-  (org.apache.commons.codec.binary.Hex/decodeHex (char-array (map char b))))
-
-(defn binary-to-hexstr [b]
+(defn binary-to-bytes [b]
   (let [buffer (byte-array (.remaining b))]
     (.get b buffer)
-    (org.apache.commons.codec.binary.Hex/encodeHexString buffer)))
+    buffer))
 
-(def b-0x00 (bytes-to-binary "00"))
-(def b-0x01 (bytes-to-binary "01"))
-(def b-0x02 (bytes-to-binary "02"))
-(def b-0x03 (bytes-to-binary "03"))
-(def b-0x04 (bytes-to-binary "04"))
-(def b-0x (bytes-to-binary ""))
+(defmacro str-to-uuid [s]
+  `(UUID/fromString ~s))
 
-(defn bin-0x00 [] (java.nio.ByteBuffer/wrap (byte-array [(byte 0)])))
-(defn bin-0x01 [] (java.nio.ByteBuffer/wrap (byte-array [(byte 1)])))
-(defn bin-0x02 [] (java.nio.ByteBuffer/wrap (byte-array [(byte 2)])))
-(defn bin-0x03 [] (java.nio.ByteBuffer/wrap (byte-array [(byte 3)])))
-(defn bin-0x04 [] (java.nio.ByteBuffer/wrap (byte-array [(byte 4)])))
-(defn bin-0x [] (java.nio.ByteBuffer/wrap (byte-array [])))
+(defmacro bytes-to-uuid [b]
+  `(str-to-uuid (bytes-to-str ~b)))
+
+(defmacro bytes-to-base64 [b]
+  `(org.apache.commons.codec.binary.Base64/encodeBase64 ~b))
+
+(defmacro base64-to-bytes [b]
+  `(org.apache.commons.codec.binary.Base64/decodeBase64 ~b))

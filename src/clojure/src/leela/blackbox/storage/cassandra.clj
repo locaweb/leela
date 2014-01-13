@@ -33,26 +33,32 @@
     (warn "creating table graph")
     (create-table
      cluster :graph
-     (column-definitions {:a :blob :l :varchar :b :blob :primary-key [[:a :l] :b]})
+     (column-definitions {:a :uuid :l :varchar :b :uuid :primary-key [[:a :l] :b]})
+     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
+  (when-not (describe-table cluster keyspace :naming)
+    (warn "creating table naming")
+    (create-table
+     cluster :naming
+     (column-definitions {:user :varchar :tree :varchar :node :varchar :guid :timeuuid :primary-key [[:user :tree] :node]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
   (when-not (describe-table cluster keyspace :tattr)
     (warn "creating table tattr")
     (create-table
      cluster :tattr
-     (column-definitions {:key :blob :name :varchar :slot :int :value :blob :primary-key [[:key :name] :slot]})
+     (column-definitions {:key :uuid :name :varchar :slot :int :value :blob :primary-key [[:key :name] :slot]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
   (when-not (describe-table cluster keyspace :kattr)
     (warn "creating table kattr")
     (create-table
       cluster :kattr
-      (column-definitions {:key :blob :name :varchar :value :blob  :primary-key [[:key :name]]})
+      (column-definitions {:key :uuid :name :varchar :value :blob  :primary-key [[:key :name]]})
       (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
   (when-not (describe-table cluster keyspace :search)
     (warn "creating table search")
     (create-table
      cluster
      :search
-     (column-definitions {:key :blob :code :int :name :varchar :primary-key [[:key :code] :name]})
+     (column-definitions {:key :uuid :code :int :name :varchar :primary-key [[:key :code] :name]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}}))))
 
 (defmacro with-connection [[conn endpoint options] & body]
@@ -77,11 +83,24 @@
      ~@body))
 
 (defn truncate-all [cluster]
-  (doseq [t [:graph :search :tattr :kattr]]
+  (doseq [t [:graph :search :tattr :kattr :naming]]
     (truncate cluster t)))
 
 (defn putindex [cluster k code name]
   (insert cluster :search {:key k :code code :name name}))
+
+(defn getguid [cluster user tree node]
+  (first (map #(:guid %)
+              (select cluster
+                      :naming
+                      (columns :guid)
+                      (where :user user :tree tree :node node)
+                      (limit 1)))))
+
+(defn putguid [cluster user tree node]
+  (with-consistency :serial
+    (insert cluster :naming {:user user :tree tree :node node :guid (f/uuid-1)} (if-not-exists))
+    (getguid cluster user tree node)))
 
 (defn getindex [cluster k code & optional]
   (let [[start finish] optional]
@@ -125,7 +144,7 @@
           :tattr {:key k :name name :slot slot :value value}))
 
 (defn get-tattr [cluster k name]
-  (map (fn [row] [(:slot row) (:value row)])
+  (map (fn [row] [(:slot row) (f/binary-to-bytes (:value row))])
        (select cluster
                :tattr
                (columns :slot :value)
@@ -143,7 +162,7 @@
 
 (defn get-kattr [cluster k name]
   (first
-   (map #(:value %)
+   (map #(f/binary-to-bytes (:value %))
         (select cluster
                 :kattr
                 (columns :value)

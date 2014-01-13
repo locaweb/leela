@@ -17,119 +17,143 @@
 (use-fixtures :each storage-cleanup)
 
 (deftest test-getindex
-  (storage/with-session [cluster ["127.0.0.1"] "leela"]
+  (let [node (f/uuid-1)]
+    (storage/with-session [cluster ["127.0.0.1"] "leela"]
 
-    (testing "getindex with no data"
-      (is (= [] (storage/getindex cluster f/b-0x00 0))))
+      (testing "getindex with no data"
+        (is (= [] (storage/getindex cluster node 0))))
 
-    (testing "getindex after putindex"
-      (storage/putindex cluster f/b-0x00 0 "foobar")
-      (is (= ["foobar"] (storage/getindex cluster f/b-0x00 0))))
+      (testing "getindex after putindex"
+        (storage/putindex cluster node 0 "foobar")
+        (is (= ["foobar"] (storage/getindex cluster node 0))))
 
-    (testing "getindex after multiple putindex"
-      (storage/putindex cluster f/b-0x00 1 "f")
-      (storage/putindex cluster f/b-0x00 1 "o")
-      (storage/putindex cluster f/b-0x00 1 "b")
-      (storage/putindex cluster f/b-0x00 1 "a")
-      (storage/putindex cluster f/b-0x00 1 "r")
-      (is (= ["a" "b" "f" "o" "r"] (storage/getindex cluster f/b-0x00 1))))
+      (testing "getindex after multiple putindex"
+        (storage/putindex cluster node 1 "f")
+        (storage/putindex cluster node 1 "o")
+        (storage/putindex cluster node 1 "b")
+        (storage/putindex cluster node 1 "a")
+        (storage/putindex cluster node 1 "r")
+        (is (= ["a" "b" "f" "o" "r"] (storage/getindex cluster node 1))))
 
-    (testing "getindex pagination with no finish"
-      (storage/putindex cluster f/b-0x00 2 "a0")
-      (storage/putindex cluster f/b-0x00 2 "a1")
-      (storage/putindex cluster f/b-0x00 2 "a2")
-      (storage/with-limit 1
-        (is (= ["a0"] (storage/getindex cluster f/b-0x00 2 "")))
-        (is (= ["a1"] (storage/getindex cluster f/b-0x00 2 "a1")))
-        (is (= ["a2"] (storage/getindex cluster f/b-0x00 2 "a2")))))
+      (testing "getindex pagination with no finish"
+        (storage/putindex cluster node 2 "a0")
+        (storage/putindex cluster node 2 "a1")
+        (storage/putindex cluster node 2 "a2")
+        (storage/with-limit 1
+          (is (= ["a0"] (storage/getindex cluster node 2 "")))
+          (is (= ["a1"] (storage/getindex cluster node 2 "a1")))
+          (is (= ["a2"] (storage/getindex cluster node 2 "a2")))))
 
-    (testing "getindex pagination with finish"
-      (storage/putindex cluster f/b-0x00 2 "a0")
-      (storage/putindex cluster f/b-0x00 2 "a1")
-      (storage/putindex cluster f/b-0x00 2 "a2")
-      (storage/with-limit 1
-        (is (= ["a0"] (storage/getindex cluster f/b-0x00 2 "" "a1")))
-        (is (= ["a1"] (storage/getindex cluster f/b-0x00 2 "a1" "a2")))))))
+      (testing "getindex pagination with finish"
+        (storage/putindex cluster node 2 "a0")
+        (storage/putindex cluster node 2 "a1")
+        (storage/putindex cluster node 2 "a2")
+        (storage/with-limit 1
+          (is (= ["a0"] (storage/getindex cluster node 2 "" "a1")))
+          (is (= ["a1"] (storage/getindex cluster node 2 "a1" "a2"))))))))
 
 (deftest test-getlink
-  (storage/with-session [cluster ["127.0.0.1"] "leela"]
+  (let [node-a (f/uuid-from-time 1)
+        node-b (f/uuid-from-time 2)
+        node-c (f/uuid-from-time 3)
+        node-d (f/uuid-from-time 4)]
+    (storage/with-session [cluster ["127.0.0.1"] "leela"]
 
-    (testing "getlink with no data"
-      (is (= [] (storage/getlink cluster f/b-0x00 "l" f/b-0x))))
+      (testing "getlink with no data"
+        (is (= [] (storage/getlink cluster node-a "l" (f/uuid-from-time 0)))))
 
-    (testing "getlink after putlink"
-      (storage/putlink cluster f/b-0x00 "l" f/b-0x01)
-      (storage/putlink cluster f/b-0x00 "l" f/b-0x02)
-      (storage/putlink cluster f/b-0x00 "l" f/b-0x03)
-      (is (= ["01" "02" "03"] (map f/binary-to-hexstr (storage/getlink cluster f/b-0x00 "l" f/b-0x)))))
+      (testing "getlink after putlink"
+        (storage/putlink cluster node-a "l" node-b)
+        (storage/putlink cluster node-a "l" node-c)
+        (storage/putlink cluster node-a "l" node-d)
+        (is (= [node-b node-c node-d] (storage/getlink cluster node-a "l" (f/uuid-from-time 0)))))
 
-    (testing "getlink pagination"
-      (storage/putlink cluster f/b-0x00 "l" f/b-0x01)
-      (storage/putlink cluster f/b-0x00 "l" f/b-0x02)
-      (storage/putlink cluster f/b-0x00 "l" f/b-0x03)
-      (storage/with-limit 1
-        (is (= ["01"] (map f/binary-to-hexstr (storage/getlink cluster f/b-0x00 "l" f/b-0x))))
-        (is (= ["01"] (map f/binary-to-hexstr (storage/getlink cluster f/b-0x00 "l" f/b-0x01))))
-        (is (= ["02"] (map f/binary-to-hexstr (storage/getlink cluster f/b-0x00 "l" f/b-0x02))))
-        (is (= ["03"] (map f/binary-to-hexstr (storage/getlink cluster f/b-0x00 "l" f/b-0x03))))
-        (is (= [] (storage/getlink cluster f/b-0x00 "l" f/b-0x04)))))
+      (testing "getlink pagination"
+        (storage/putlink cluster node-a "l" node-b)
+        (storage/putlink cluster node-a "l" node-c)
+        (storage/putlink cluster node-a "l" node-d)
+        (storage/with-limit 2
+          (is (= [node-b node-c] (storage/getlink cluster node-a "l" (f/uuid-from-time 0))))
+          (is (= [node-b node-c] (storage/getlink cluster node-a "l" node-b)))
+          (is (= [node-c node-d] (storage/getlink cluster node-a "l" node-c)))
+          (is (= [node-d] (storage/getlink cluster node-a "l" node-d)))))
 
     (testing "getlink after dellink"
-      (storage/putlink cluster f/b-0x00 "l" f/b-0x01)
-      (storage/putlink cluster f/b-0x00 "l" f/b-0x02)
-      (storage/putlink cluster f/b-0x00 "l" f/b-0x03)
-
-      (storage/dellink cluster f/b-0x00 "l" f/b-0x01)
-      (storage/dellink cluster f/b-0x00 "l" f/b-0x02)
-      (storage/dellink cluster f/b-0x00 "l" f/b-0x03)
-      (is (= [] (storage/getlink cluster f/b-0x00 "l" f/b-0x))))
+      (storage/putlink cluster node-a "l" node-b)
+      (storage/putlink cluster node-a "l" node-c)
+      (storage/putlink cluster node-a "l" node-d)
+      (storage/dellink cluster node-a "l" node-b)
+      (storage/dellink cluster node-a "l" node-c)
+      (storage/dellink cluster node-a "l" node-d)
+      (is (= [] (storage/getlink cluster node-a "l" (f/uuid-from-time 0)))))
 
     (testing "getlink after dellink with no optional argument"
-      (storage/putlink cluster f/b-0x00 "l" f/b-0x01)
-      (storage/putlink cluster f/b-0x00 "l" f/b-0x02)
-      (storage/putlink cluster f/b-0x00 "l" f/b-0x03)
-
-      (storage/dellink cluster f/b-0x00 "l")
-      (is (= [] (storage/getlink cluster f/b-0x00 "l" f/b-0x))))))
+      (storage/putlink cluster node-a "l" node-b)
+      (storage/putlink cluster node-a "l" node-c)
+      (storage/putlink cluster node-a "l" node-d)
+      (storage/dellink cluster node-a "l")
+      (is (= [] (storage/getlink cluster node-a "l" (f/uuid-from-time 0))))))))
 
 (deftest test-get-tattr
-  (storage/with-session [cluster ["127.0.0.1"] "leela"]
+  (let [node-a (f/uuid-from-time 1)
+        node-b (f/uuid-from-time 2)
+        node-c (f/uuid-from-time 3)
+        node-d (f/uuid-from-time 4)]
+    (storage/with-session [cluster ["127.0.0.1"] "leela"]
 
-    (testing "get-tattr with no data"
-      (is (= [] (storage/get-tattr cluster f/b-0x00 "attr"))))
+      (testing "get-tattr with no data"
+        (is (= [] (storage/get-tattr cluster node-a "attr"))))
 
-    (testing "get-tattr after put-tattr"
-      (storage/put-tattr cluster f/b-0x00 "attr" 0 f/b-0x01)
-      (let [results (storage/get-tattr cluster f/b-0x00 "attr")]
-        (is (= [[0 "01"]] (for [[k v] results] [k (f/binary-to-hexstr v)])))))
+      (testing "get-tattr after put-tattr"
+        (storage/put-tattr cluster node-a "attr" 0 (f/str-to-bytes "foobar"))
+        (let [results (storage/get-tattr cluster node-a "attr")]
+          (is (= [[0 "foobar"]] (for [[k v] results] [k (f/bytes-to-str v)])))))
 
-    (testing "get-tattr after put-tattr (overwrite)"
-      (storage/put-tattr cluster f/b-0x00 "attr" 0 f/b-0x01)
-      (storage/put-tattr cluster f/b-0x00 "attr" 0 f/b-0x02)
-      (let [results (storage/get-tattr cluster f/b-0x00 "attr")]
-        (is (= [[0 "02"]] (for [[k v] results] [k (f/binary-to-hexstr v)])))))
+      (testing "get-tattr after put-tattr (overwrite)"
+        (storage/put-tattr cluster node-a "attr" 0 (f/str-to-bytes "foobar"))
+        (storage/put-tattr cluster node-a "attr" 0 (f/str-to-bytes "foobaz"))
+        (let [results (storage/get-tattr cluster node-a "attr")]
+          (is (= [[0 "foobaz"]] (for [[k v] results] [k (f/bytes-to-str v)])))))
 
-    (testing "get-tattr after delattr"
-      (storage/put-tattr cluster f/b-0x02 "attr" 0 f/b-0x01)
-      (storage/del-tattr cluster f/b-0x02 "attr" 0)
-      (is (= [] (storage/get-tattr cluster f/b-0x02 "attr"))))))
+      (testing "get-tattr after delattr"
+        (storage/put-tattr cluster node-c "attr" 0 (f/str-to-bytes "foobar"))
+        (storage/del-tattr cluster node-c "attr" 0)
+        (is (= [] (storage/get-tattr cluster node-c "attr")))))))
 
 (deftest test-get-kattr
+  (let [node-a (f/uuid-from-time 1)
+        node-b (f/uuid-from-time 2)
+        node-c (f/uuid-from-time 3)
+        node-d (f/uuid-from-time 4)]
+    (storage/with-session [cluster ["127.0.0.1"] "leela"]
+
+      (testing "get-kattr with no data"
+        (is (= nil (storage/get-kattr cluster node-a "attr"))))
+
+      (testing "get-kattr after put-kattr"
+        (storage/put-kattr cluster node-a "attr#0" (f/str-to-bytes "foobar"))
+        (is (not (= nil (storage/get-kattr cluster node-a "attr#0")))))
+
+      (testing "get-kattr after put-kattr (overwrite)"
+        (storage/put-kattr cluster node-a "attr#0" (f/str-to-bytes "foobar"))
+        (storage/put-kattr cluster node-a "attr#0" (f/str-to-bytes "foobaz"))
+        (is (= "foobaz" (f/bytes-to-str (storage/get-kattr cluster node-a "attr#0")))))
+
+      (testing "getakattr after del-kattr"
+        (storage/put-kattr cluster node-a "attr#0" (f/str-to-bytes "foobar"))
+        (storage/del-kattr cluster node-a "attr#0")
+        (is (= nil (storage/get-kattr cluster node-a "attr#0")))))))
+
+(deftest test-naming
   (storage/with-session [cluster ["127.0.0.1"] "leela"]
+    (testing "putguid register a new uuid"
+      (is (not (= nil (storage/putguid cluster "leela" "leela" "foobar")))))
 
-    (testing "get-kattr with no data"
-      (is (= nil (storage/get-kattr cluster f/b-0x00 "attr"))))
+    (testing "getguid is idempotent"
+      (is (= (storage/putguid cluster "leela" "leela" "foobaz") (storage/putguid cluster "leela" "leela" "foobaz"))))
 
-    (testing "get-kattr after put-kattr"
-      (storage/put-kattr cluster f/b-0x00 "attr#0" f/b-0x00)
-      (is (not (= nil (storage/get-kattr cluster f/b-0x00 "attr#0")))))
+    (testing "getguid with no data"
+      (is (= nil (storage/getguid cluster "leela" "leela" "foo"))))
 
-    (testing "get-kattr after put-kattr (overwrite)"
-      (storage/put-kattr cluster f/b-0x00 "attr#0" f/b-0x00)
-      (storage/put-kattr cluster f/b-0x00 "attr#0" f/b-0x01)
-      (is (= "01" (f/binary-to-hexstr (storage/get-kattr cluster f/b-0x00 "attr#0")))))
-
-    (testing "getakattr after del-kattr"
-      (storage/put-kattr cluster f/b-0x00 "attr#0" f/b-0x00)
-      (storage/del-kattr cluster f/b-0x00 "attr#0")
-      (is (= nil (storage/get-kattr cluster f/b-0x00 "attr#0"))))))
+    (testing "getguid aftter getguid"
+      (is (= (storage/putguid cluster "leela" "leela" "bar") (storage/getguid cluster "leela" "leela" "bar"))))))

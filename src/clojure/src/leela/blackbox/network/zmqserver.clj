@@ -29,114 +29,120 @@
 (defn msg-done []
   ["done"])
 
-(defn msg-name [msg]
-  (if-not msg
+(defn msg-name [[u t n g]]
+  (if-not g
     (msg-fail 404)
-    (cons "name" msg)))
+    ["name" u t n (str g)]))
 
 (defn msg-link [links]
-  (cons "link" (map f/binary-to-hexstr links)))
+  (cons "link" (map str links)))
 
 (defn msg-label [labels]
   (cons "label" labels))
 
 (defn msg-tattr [msg]
-  (cons "t-attr" (flatten (map (fn [[k v]] [(str k) (f/binary-to-hexstr v)]) msg))))
+  (cons "t-attr" (flatten (map (fn [[k v]] [(str k) (f/bytes-to-str (f/bytes-to-base64 v))]) msg))))
 
 (defn msg-kattr [data]
-  (cons "k-attr" (if data (f/binary-to-hexstr data) "")))
+  (cons "k-attr" (if data (f/bytes-to-str (f/bytes-to-base64 data)) "")))
 
 (defn exec-getname [cluster [g]]
-  (let [g (f/hexstr-to-binary g)]
+  (let [g (f/bytes-to-uuid g)]
     (storage/with-consistency :one
       (storage/with-limit 1
-        (msg-name (first (map #(f/str-to-json %) (storage/getindex cluster g +index-name+))))))))
+        (if-let [data (first (storage/getindex cluster g +index-name+))]
+          (msg-name (conj (f/str-to-json data) g))
+          (msg-name []))))))
 
-(defn exec-putname [cluster [g n k]]
-  (let [g (f/hexstr-to-binary g)]
+(defn exec-getguid [cluster [u t k]]
+  (storage/with-consistency :one
+    (msg-name [u t k (storage/getguid cluster u t k)])))
+
+(defn exec-putname [cluster [u t k]]
+  (let [g (storage/putguid cluster u t k)]
     (storage/with-consistency :quorum
-      (storage/putindex cluster g +index-name+ (f/json-to-str [n k]))
-      (msg-done))))
+      (storage/putindex cluster g +index-name+ (f/json-to-str [u t k]))
+      (msg-name [u t k g]))))
 
 (defn exec-getlink [cluster [a l page & limit]]
-  (let [a (f/bytes-to-binary a)
-        page (f/bytes-to-binary page)]
+  (let [a (f/bytes-to-uuid a)
+        page (if (empty? page) (f/uuid-from-time 0) (f/bytes-to-uuid page))]
     (storage/with-consistency :one
       (storage/with-limit (first limit)
         (msg-link (storage/getlink cluster a l page))))))
 
 (defn exec-putlink [cluster [a l b]]
-  (let [a (f/bytes-to-binary a)
-        b (f/bytes-to-binary b)]
+  (let [a (f/bytes-to-uuid a)
+        b (f/bytes-to-uuid b)]
     (storage/with-consistency :quorum
       (storage/putlink cluster a l b)
       (msg-done))))
 
 (defn exec-dellink [cluster [a l & b]]
-  (let [a (f/bytes-to-binary a)]
+  (let [a (f/bytes-to-uuid a)]
     (storage/with-consistency :quorum
       (if (seq b)
-        (let [b (f/bytes-to-binary (first b))]
+        (let [b (f/bytes-to-uuid (first b))]
           (storage/dellink cluster a l b))
         (storage/dellink cluster a l)))
     (msg-done)))
 
 (defn exec-get-tattr [cluster [k n & limit]]
-  (let [k (f/bytes-to-binary k)]
+  (let [k (f/bytes-to-uuid k)]
     (storage/with-consistency :one
       (storage/with-limit (first limit)
         (msg-tattr (storage/get-tattr cluster k n))))))
 
 (defn exec-put-tattr [cluster [k n s v]]
-  (let [k (f/bytes-to-binary k)
-        v (f/bytes-to-binary v)]
+  (let [k (f/bytes-to-uuid k)
+        v (f/base64-to-bytes v)]
     (storage/with-consistency :one
       (storage/put-tattr cluster k n (Integer. s) v))
     (msg-done)))
 
 (defn exec-del-tattr [cluster [k n s]]
-  (let [k (f/bytes-to-binary k)]
+  (let [k (f/bytes-to-uuid k)]
     (storage/with-consistency :quorum
       (storage/del-tattr cluster k n (Integer. s)))
     (msg-done)))
 
 (defn exec-get-kattr [cluster [k s]]
-  (let [k (f/bytes-to-binary k)]
+  (let [k (f/bytes-to-uuid k)]
     (storage/with-consistency :one
       (msg-kattr (storage/get-kattr cluster k s)))))
 
 (defn exec-put-kattr [cluster [k s v]]
-  (let [k (f/bytes-to-binary k)
-        v (f/bytes-to-binary v)]
+  (let [k (f/bytes-to-uuid k)
+        v (f/base64-to-bytes v)]
     (storage/with-consistency :one
       (storage/put-kattr cluster k s v))
     (msg-done)))
 
 (defn exec-del-kattr [cluster [k s]]
-  (let [k (f/bytes-to-binary k)]
+  (let [k (f/bytes-to-uuid k)]
     (storage/with-consistency :quorum
       (storage/del-kattr cluster k s))
     (msg-done)))
 
 (defn exec-getlabel-exact [cluster [k n]]
-  (let [k (f/bytes-to-binary k)]
+  (let [k (f/bytes-to-uuid k)]
     (storage/with-consistency :one
       (storage/hasindex cluster k +index-pxlabel+ n))))
 
 (defn exec-getlabel-all [cluster [k page & limit]]
-  (let [k (f/bytes-to-binary k)]
+  (let [k (f/bytes-to-uuid k)]
     (storage/with-consistency :one
       (storage/with-limit (first limit)
         (storage/getindex cluster k +index-pxlabel+ page)))))
 
 (defn exec-getlabel-prefix [cluster [k start finish & limit]]
-  (let [k (f/bytes-to-binary k)]
+  (let [k (f/bytes-to-uuid k)]
     (storage/with-consistency :one
       (storage/with-limit (first limit)
         (storage/getindex cluster k +index-pxlabel+ start finish)))))
 
 (defn exec-getlabel-suffix [cluster [k start finish & limit]]
-  (let [k (f/bytes-to-binary k)]
+  (let [k (f/bytes-to-uuid k)]
     (storage/with-consistency :one
       (storage/with-limit (first limit)
         (map s/reverse (storage/getindex cluster k +index-sxlabel+ (s/reverse start) (s/reverse finish)))))))
@@ -150,7 +156,7 @@
     (msg-fail 400)))
 
 (defn exec-putlabel [cluster [k l]]
-  (let [k (f/hexstr-to-binary k)]
+  (let [k (f/bytes-to-uuid k)]
     (storage/with-consistency :quorum
       (storage/putindex cluster k +index-pxlabel+ l)
       (storage/putindex cluster k +index-sxlabel+ (s/reverse l))
@@ -159,6 +165,7 @@
 (defn handle-get [cluster msg]
   (case (f/bytes-to-str (first msg))
     "name" (exec-getname cluster (subvec msg 1))
+    "guid" (exec-getguid cluster (subvec msg 1))
     "link" (exec-getlink cluster (subvec msg 1))
     "label" (exec-getlabel cluster (subvec msg 1))
     "t-attr" (exec-get-tattr cluster (subvec msg 1))
