@@ -16,7 +16,7 @@ module Leela.Data.Journal
     ( Journal (..)
     ) where
 
-import Leela.Data.Namespace
+import Leela.Data.Naming
 
 -- | The log of write operations on the graph.  The idea is to provide
 -- serialization through logging, which gives us the nice feature of
@@ -24,7 +24,7 @@ import Leela.Data.Namespace
 -- read-after-write.
 data Journal = PutLink GUID GUID Label
              | PutLabel GUID Label
-             | PutNode Namespace Key
+             | PutNode User Tree Node
              | DelLink GUID (Maybe GUID) Label
              | DelNode GUID
              deriving (Eq)

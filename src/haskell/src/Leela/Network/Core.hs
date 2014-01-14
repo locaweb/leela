@@ -33,6 +33,7 @@ import qualified Data.ByteString as B
 import           Leela.Data.Graph (Matcher (..) , Result)
 import qualified Leela.Data.Graph as G
 import           Control.Exception
+import           Leela.Data.Naming
 import           Control.Concurrent
 import           Leela.Data.Journal
 import           Leela.Data.QDevice
@@ -41,7 +42,6 @@ import           Leela.Data.Endpoint
 import           Leela.Data.LQL.Comp
 import           Data.ByteString.Lazy (toStrict)
 import           Data.ByteString.UTF8 (fromString)
-import           Leela.Data.Namespace
 import           Leela.Storage.Backend
 import           Control.Concurrent.STM
 import           Leela.Network.Protocol
@@ -131,7 +131,7 @@ closeFD srv nowait ((User u), fh) = do
       k = (u, fh)
 
 store :: (GraphBackend m) => m -> Journal -> IO ()
-store storage (PutNode n k)     = void $ putName n k storage
+store storage (PutNode u t n)   = void $ putName u t n storage
 store storage (PutLabel g lbls) = putLabel g lbls storage
 store storage (PutLink a b l)   = putLink a l b storage
 store storage (DelLink a b l)   = unlink a l b storage
@@ -196,8 +196,7 @@ eval ctrl storage (G.Load f g) callback =
         (\e -> case e of
                  NotFoundExcept -> eval ctrl storage g callback
                  _              -> throwIO e)
-eval _ storage (G.Done r j) callback    = do
-  mapM_ (store storage) j
+eval _ _ (G.Done r) callback      = do
   callback (Chunk r)
   callback EOF
 
@@ -206,29 +205,29 @@ evalLQL _ _ dev []              = devwriteIO dev (Last Nothing)
 evalLQL storage core dev (x:xs) =
   case x of
     PathStmt cursor -> navigate cursor (evalLQL storage core dev xs)
-    AlterStmt stmt  ->
-      eval dev storage stmt $ \chunk ->
-        case chunk of
-          EOF -> evalLQL storage core dev xs
-          _   -> return ()
+    AlterStmt []    -> evalLQL storage core dev xs
+    AlterStmt (PutNode u t n:stmts)
+                    -> do
+      g <- putName u t n storage
+      devwriteIO dev (Item $ Name u t n g)
+      evalLQL storage core dev (AlterStmt stmts : xs)
+    AlterStmt (stmt:stmts)
+                    -> do
+      store storage stmt
+      evalLQL storage core dev (AlterStmt stmts : xs)
     StatStmt        -> do
       state <- dumpStat core
       devwriteIO dev (Item $ Stat state)
       evalLQL storage core dev xs
-    NameStmt u g    -> do
-      (nsTree, name) <- getName g storage
-      let (nTree, nsUser) = underive nsTree
-          (nUser, _)      = underive nsUser
-      if (nsUser `isDerivedOf` (uUser u))
-        then devwriteIO dev (Item $ Name g nUser nTree name) >> evalLQL storage core dev xs
-        else devwriteIO dev (Fail 403 Nothing)
-    GUIDStmt n k    -> do
-      let (nTree, nsUser) = underive (uTree n)
-          (nUser, _)      = underive nsUser
-      mg <- getGUID (uTree n) k storage
+    NameStmt _ g    -> do
+      (gUser, gTree, gName) <- getName g storage
+      devwriteIO dev (Item $ Name gUser gTree gName g)
+      evalLQL storage core dev xs
+    GUIDStmt u n    -> do
+      mg <- getGUID (uUser u) (uTree u) n storage
       case mg of
         Nothing -> devwriteIO dev (Fail 404 Nothing)
-        Just g  -> devwriteIO dev (Item $ Name g nUser nTree k) >> evalLQL storage core dev xs
+        Just g  -> devwriteIO dev (Item $ Name (uUser u) (uTree u) n g) >> evalLQL storage core dev xs
     where
       navigate G.Tail cont     = cont
       navigate (G.Need r) cont = eval dev storage r $ \chunk ->
@@ -255,7 +254,7 @@ evalFinalizer chan dev (Right _)   = do
 
 process :: (GraphBackend m) => m -> CoreServer -> Query -> IO Reply
 process storage srv (Begin sig msg) =
-  case (chkloads (parseLQL (namespaceFrom sig)) msg) of
+  case (chkloads (parseLQL $ sigUser sig) msg) of
     Left _      -> return $ Fail 400 (Just "syntax error")
     Right stmts -> do
       (fh, dev) <- makeFD srv (sigUser sig)

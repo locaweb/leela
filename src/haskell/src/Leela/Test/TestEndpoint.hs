@@ -17,10 +17,10 @@ module Leela.Test.TestEndpoint
        ) where
 
 import Test.Tasty
-import Leela.Data.LQL
 import Test.Tasty.HUnit
 import Leela.Data.Endpoint
 
+suite :: TestTree
 suite = testGroup "Endpoint"
   [ testGroup "TCP"
     [ testCase "host + port" $

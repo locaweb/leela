@@ -18,15 +18,16 @@ module Leela.Data.LQL
     ) where
 
 import Leela.Data.Graph
-import Leela.Data.Namespace
+import Leela.Data.Naming
+import Leela.Data.Journal
 
-data Using = Using { uUser :: Namespace
-                   , uTree :: Namespace
+data Using = Using { uUser :: User
+                   , uTree :: Tree
                    }
     deriving (Eq)
 
 data LQL = StatStmt
          | PathStmt Cursor
          | NameStmt Using GUID
-         | GUIDStmt Using Key
-         | AlterStmt (Result ())
+         | GUIDStmt Using Node
+         | AlterStmt [Journal]

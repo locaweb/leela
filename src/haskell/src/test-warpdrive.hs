@@ -17,8 +17,6 @@
 module Main where
 
 import Test.Tasty
-import System.Exit
-import Test.Tasty.HUnit
 import Leela.Test.TestParser as TestParser
 import Leela.Test.TestEndpoint as TestEndpoint
 

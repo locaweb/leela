@@ -27,14 +27,15 @@ module Leela.Data.LQL.Comp
 import           Data.Word
 import           Control.Monad
 import           Leela.Data.LQL
-import           Data.Attoparsec as A
+import           Data.Attoparsec.ByteString as A
 import qualified Data.ByteString as B
 import           Leela.Data.Graph as G
+import           Leela.Data.Naming
+import           Leela.Data.Journal
 import           Control.Applicative
 import qualified Data.ByteString.UTF8 as U
 import qualified Data.ByteString.Lazy as L
-import           Leela.Data.Namespace as N
-import           Data.Attoparsec.Char8 as A8
+import           Data.Attoparsec.Char8 ((.*>))
 
 data Direction a = L a
                  | R a
@@ -47,32 +48,26 @@ class Source a where
 hardspace :: Parser ()
 hardspace = void $ word8 0x20
 
-parseKey :: Parser Key
-parseKey = do
-  s <- qstring 128 0x28 0x29
-  return (pack s)
+parseNode :: Parser Node
+parseNode = liftM Node (qstring 128 0x28 0x29)
 
-parseNS :: Namespace -> Parser Namespace
-parseNS n = do
-  s <- qstring 128 0x28 0x29
-  return $ derive n s
+parseTree :: Parser Tree
+parseTree = liftM Tree (qstring 128 0x28 0x29)
 
 parseLabel :: Parser Label
-parseLabel = do
-  s <- qstring 128 0x5b 0x5d
-  return (pack s)
+parseLabel = liftM Label (qstring 128 0x5b 0x5d)
 
 parseGUID :: Parser GUID
-parseGUID = liftM pack $ A.takeWhile (`elem` hexAlphabet)
+parseGUID = liftM GUID (A.take 36)
 
 parseMaybeGUID :: Parser (Maybe GUID)
 parseMaybeGUID = ("()" .*> return Nothing) <|> (liftM Just parseGUID)
 
-qstring :: Int -> Word8 -> Word8 -> Parser L.ByteString
+qstring :: Int -> Word8 -> Word8 -> Parser B.ByteString
 qstring limit l r = word8 l >> anyWord8 >>= loop limit []
     where
       loop lim acc x
-        | x == r    = return (L.pack (reverse acc))
+        | x == r    = return (B.pack (reverse acc))
         | lim < 0   = fail "qstring:too long"
         | x == 0x5c = do
             c <- anyWord8
@@ -80,22 +75,22 @@ qstring limit l r = word8 l >> anyWord8 >>= loop limit []
         | otherwise = anyWord8 >>= loop (lim - 1) (x : acc)
 
 newline :: Parser ()
-newline = void $ (string ", " <|> string "\n")
+newline = void $ ((word8 0x2c >> word8 0x20) <|> word8 0x0a)
 
 separator :: Parser ()
-separator = void (char '\n' <|> char ' ')
+separator = void (word8 0x0a <|> word8 0x20)
 
 semicolon :: Parser ()
-semicolon = void $ char ';'
+semicolon = void $ word8 0x3b
 
 parseLink :: Parser (Direction Label)
 parseLink = do
-  mdir <- char '-' <|> char '<'
-  l    <- option (pack L.empty) parseLabel
+  mdir <- word8 0x2d <|> word8 0x3c
+  l    <- option (Label B.empty) parseLabel
   f    <- case mdir of
-           '-' -> (liftM (const B) (char '-')) <|> (liftM (const R) (char '>'))
-           '<' -> liftM (const L) (char '-')
-           _   -> fail "parseLink"
+           0x2d -> (liftM (const B) (word8 0x2d)) <|> (liftM (const R) (word8 0x3e))
+           0x3c -> liftM (const L) (word8 0x2d)
+           _    -> fail "parseLink"
   return (f l)
 
 parseRLink :: Parser Label
@@ -105,15 +100,15 @@ parseRLink = do
     R l -> return l
     _   -> fail "parseRLink: wrong direction"
 
-parseMakeCreate :: Parser (G.Result ())
+parseMakeCreate :: Parser [Journal]
 parseMakeCreate = do
   k <- parseGUID
-  peekChar >>= go k []
+  peekWord8 >>= go k []
     where
-      go a g (Just ' ') = do
+      go a g (Just 0x20) = do
         l <- hardspace >> parseLink
         b <- hardspace >> parseGUID
-        peekChar >>= go b (asLink g a b l)
+        peekWord8 >>= go b (asLink g a b l)
       go _ g _          = return (putLinks g)
 
       asLink acc a b (L l) = (b, a, l) : acc
@@ -146,20 +141,17 @@ parseStmtMake u = do
   at <- peekWord8
   case at of
     Just 0x30 -> liftM AlterStmt parseMakeCreate
-    Just 0x28 -> liftM (AlterStmt . putNode (uTree u)) parseKey
+    Just 0x28 -> liftM (AlterStmt . putNode (uUser u) (uTree u)) parseNode
     _         -> fail "bad make statement"
 
 parseStmtPath :: Parser LQL
 parseStmtPath = "path " .*> liftM PathStmt parseQuery
 
-hexAlphabet :: [Word8]
-hexAlphabet = [0x78] ++ [0x30 .. 0x39] ++ [0x41 .. 0x46] ++ [0x61 .. 0x66]
-
 parseStmtName :: Using -> Parser LQL
 parseStmtName u = "name " .*> liftM (NameStmt u) parseGUID
 
 parseStmtGUID :: Using -> Parser LQL
-parseStmtGUID u = "guid " .*> liftM (GUIDStmt u) parseKey
+parseStmtGUID u = "guid " .*> liftM (GUIDStmt u) parseNode
 
 parseStmtStat :: Parser LQL
 parseStmtStat = "stat" .*> return StatStmt
@@ -193,11 +185,13 @@ parseStmt u =
 parseStmts :: Using -> Parser [LQL]
 parseStmts u = parseStmt u `sepBy1` newline
 
-parseUsing :: Namespace -> Parser Using
-parseUsing user = liftM (Using user) ("using " .*> parseNS user)
+parseUsing :: User -> Parser Using
+parseUsing user = do
+  tree <- "using " .*> parseTree
+  return (Using user tree)
 
-parseLQL :: Namespace -> Parser [LQL]
-parseLQL n = parseUsing n `endBy` separator >>= parseLQL1
+parseLQL :: User -> Parser [LQL]
+parseLQL u = parseUsing u `endBy` separator >>= parseLQL1
 
 parseLQL1 :: Using -> Parser [LQL]
 parseLQL1 u = parseStmts u `endBy` semicolon

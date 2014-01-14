@@ -16,29 +16,30 @@ module Leela.Test.TestParser
        ( suite
        ) where
 
-import Test.Tasty
-import Leela.Data.LQL
-import Test.Tasty.HUnit
-import Leela.Data.LQL.Comp
-import Leela.Data.Namespace
+import           Test.Tasty
+import           Test.Tasty.HUnit
+import           Leela.Data.Naming
+import           Leela.Data.LQL.Comp
+import qualified Data.ByteString as B
 
 count :: String -> Int
-count = either (const 0) length . loads (parseLQL tld)
+count = either (const 0) length . loads (parseLQL $ User B.empty)
 
+suite :: TestTree
 suite = testGroup "Parser"
   [ testGroup "kill"
-    [ testCase "kill 00 -[l]> 01" $
-        (count "using (leela) kill 00 -[l]> 01;") @?= 1
+    [ testCase "kill a -[l]> b" $
+        (count "using (leela) kill 00000000-0000-0000-0000-000000000000 -[l]> 00000000-0000-0000-0000-000000000001;") @?= 1
     , testCase "kill a -[l]> ()" $
-        (count "using (leela) kill 00 -[l]> ();") @?= 1
-    , testCase "kill (a) <[l]- (b)" $
-        (count "using (leela) kill 00 <[l]- 01;") @?= 1
-    , testCase "kill () <[l]- (b)" $
-        (count "using (leela) kill () <[l]- 01;") @?= 1
-    , testCase "kill 00 -[l]- 01" $
-        (count "using (leela) kill 00 -[l]- 01;") @?= 1
-    , testCase "kill 00" $
-        (count "using (leela) kill 00;") @?= 1
+        (count "using (leela) kill 00000000-0000-0000-0000-000000000000 -[l]> ();") @?= 1
+    , testCase "kill a <[l]- b" $
+        (count "using (leela) kill 00000000-0000-0000-0000-000000000000 <[l]- 00000000-0000-0000-0000-000000000001;") @?= 1
+    , testCase "kill () <[l]- b" $
+        (count "using (leela) kill () <[l]- 00000000-0000-0000-0000-000000000001;") @?= 1
+    , testCase "kill a -[l]- b" $
+        (count "using (leela) kill 00000000-0000-0000-0000-000000000000 -[l]- 00000000-0000-0000-0000-000000000001;") @?= 1
+    , testCase "kill a" $
+        (count "using (leela) kill 00000000-0000-0000-0000-000000000000;") @?= 1
     ]
   , testGroup "stat"
     [ testCase "stat command" $
@@ -47,33 +48,33 @@ suite = testGroup "Parser"
   , testGroup "make"
     [ testCase "make (a)" $
         (count "using (leela) make (a);") @?= 1
-    , testCase "make 00 -[l]> 01" $
-        (count "using (leela) make 00 -[l]> 01;") @?= 1
-    , testCase "make 00 <[l]- 01" $
-        (count "using (leela) make 00 <[l]- 01;") @?= 1
-    , testCase "make 00 -[l]- 01" $
-        (count "using (leela) make 00 -[l]- 01;") @?= 1
+    , testCase "make a -[l]> b" $
+        (count "using (leela) make 00000000-0000-0000-0000-000000000000 -[l]> 00000000-0000-0000-0000-000000000001;") @?= 1
+    , testCase "make a <[l]- b" $
+        (count "using (leela) make 00000000-0000-0000-0000-000000000000 <[l]- 00000000-0000-0000-0000-000000000001;") @?= 1
+    , testCase "make a -[l]- b" $
+        (count "using (leela) make 00000000-0000-0000-0000-000000000000 -[l]- 00000000-0000-0000-0000-000000000001;") @?= 1
     ]
   , testGroup "name"
-    [ testCase "name ..." $
-        (count "using (leela) name 00;") @?= 1
+    [ testCase "name g" $
+        (count "using (leela) name 00000000-0000-0000-0000-000000000000;") @?= 1
     ]
   , testGroup "path"
-    [ testCase "path 00" $
-        (count "using (leela) path 00;") @?= 1
-    , testCase "path 00 -[l]> 00" $
-        (count "using (leela) path 00 -[l]> 00;") @?= 1
-    , testCase "path 00 -[l]> ()" $
-        (count "using (leela) path 00 -[l]> ();") @?= 1
-    , testCase "path 00 -[l*]> ()" $
-        (count "using (leela) path 00 -[l*]> ();") @?= 1
-    , testCase "path 00 -[*l]> ()" $
-        (count "using (leela) path 00 -[l*]> ();") @?= 1
+    [ testCase "path a" $
+        (count "using (leela) path 00000000-0000-0000-0000-000000000000;") @?= 1
+    , testCase "path a -[l]> b" $
+        (count "using (leela) path 00000000-0000-0000-0000-000000000000 -[l]> 00000000-0000-0000-0000-000000000001;") @?= 1
+    , testCase "path a -[l]> ()" $
+        (count "using (leela) path 00000000-0000-0000-0000-000000000000 -[l]> ();") @?= 1
+    , testCase "path a -[l*]> ()" $
+        (count "using (leela) path 00000000-0000-0000-0000-000000000000 -[l*]> ();") @?= 1
+    , testCase "path a -[*l]> ()" $
+        (count "using (leela) path 00000000-0000-0000-0000-000000000000 -[l*]> ();") @?= 1
     ]
   , testGroup "many"
     [ testCase "using ," $
-      (count "using (leela) path 00, make (a), make (b);" @?= 3)
+      (count "using (leela) path 00000000-0000-0000-0000-000000000000, make (a), make (b);" @?= 3)
     , testCase "using \\n" $
-      (count "using (leela) path 01\nmake (a)\nmake (b);" @?= 3)
+      (count "using (leela) path 00000000-0000-0000-0000-000000000001\nmake (a)\nmake (b);" @?= 3)
     ]
   ]

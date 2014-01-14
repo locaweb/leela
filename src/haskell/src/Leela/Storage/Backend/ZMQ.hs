@@ -36,7 +36,7 @@ zmqbackend :: Dealer -> ZMQBackend
 zmqbackend = ZMQBackend
 
 recv :: Maybe [ByteString] -> Reply
-recv Nothing    = Fail 500
+recv Nothing    = FailMsg 500
 recv (Just msg) = decode msg
 
 send :: Dealer -> Query -> IO Reply
@@ -47,30 +47,30 @@ instance GraphBackend ZMQBackend where
   getName g m = do
     reply <- send (dealer m) (GetName g)
     case reply of
-      Name n k -> return (n, k)
-      Fail 404 -> throwIO NotFoundExcept
-      _        -> throwIO SystemExcept
+      NameMsg u t n _ -> return (u, t, n)
+      FailMsg 404     -> throwIO NotFoundExcept
+      _               -> throwIO SystemExcept
 
-  getGUID n k m = do
-   reply <- send (dealer m) (GetGUID n k)
+  getGUID u t n m = do
+   reply <- send (dealer m) (GetGUID u t n)
    case reply of
-     GUID g   -> return (Just g)
-     Fail 404 -> return Nothing
-     _        -> throwIO SystemExcept
+     NameMsg _ _ _ g -> return (Just g)
+     FailMsg 404     -> return Nothing
+     _               -> throwIO SystemExcept
 
-  putName n k m = do
-    reply <- send (dealer m) (PutName n k)
+  putName u t n m = do
+    reply <- send (dealer m) (PutName u t n)
     case reply of
-      GUID g -> return g
-      _      -> throwIO SystemExcept
+      NameMsg _ _ _ g -> return g
+      _               -> throwIO SystemExcept
 
   getLabel dev g mode m = void $ forkFinally (fetch 0 Nothing) (devwriteIO dev)
       where
         fetch !at page = do
           reply <- send (dealer m) (GetLabel g $ maybe mode id page)
           case reply of
-            Label []                 -> return (at, [])
-            Label xs
+            LabelMsg []              -> return (at, [])
+            LabelMsg xs
               | length xs < pageSize -> devwriteIO dev (Right (at, xs)) >> return (at+1, [])
               | otherwise            -> do devwriteIO dev (Right (at, init xs))
                                            case (nextPage mode (last xs)) of
@@ -81,25 +81,25 @@ instance GraphBackend ZMQBackend where
   putLabel g l m = do
     reply <- send (dealer m) (PutLabel g l)
     case reply of
-      Done -> return ()
-      _    -> throwIO SystemExcept
+      DoneMsg -> return ()
+      _       -> throwIO SystemExcept
 
   hasLink dev a l b m = void $ forkFinally fetch (devwriteIO dev)
       where
         fetch = do
           reply <- send (dealer m) (HasLink a l b)
           case reply of
-            Link [] -> return (0, [])
-            Link xs -> devwriteIO dev (Right (0, xs)) >> return (0, [])
-            _       -> throwIO SystemExcept
+            LinkMsg [] -> return (0, [])
+            LinkMsg xs -> devwriteIO dev (Right (0, xs)) >> return (0, [])
+            _          -> throwIO SystemExcept
 
   getLink dev a l m = void $ forkFinally (fetch 0 Nothing) (devwriteIO dev)
       where
         fetch !at page = do
           reply <- send (dealer m) (GetLink a l page)
           case reply of
-            Link []                  -> return (at, [])
-            Link xs
+            LinkMsg []               -> return (at, [])
+            LinkMsg xs
               | length xs < pageSize -> devwriteIO dev (Right (at, xs)) >> return (at, [])
               | otherwise            -> do devwriteIO dev (Right (at, init xs))
                                            fetch (at + 1) (Just $ last xs)
@@ -108,17 +108,17 @@ instance GraphBackend ZMQBackend where
   putLink a l b m = do
     reply <- send (dealer m) (PutLink a l b)
     case reply of
-      Done -> return ()
-      _    -> throwIO SystemExcept
+      DoneMsg -> return ()
+      _       -> throwIO SystemExcept
 
   unlink a l mb m = do
     reply <- send (dealer m) (Unlink a l mb)
     case reply of
-      Done -> return ()
-      _    -> throwIO SystemExcept
+      DoneMsg -> return ()
+      _       -> throwIO SystemExcept
 
   delete a m = do
     reply <- send (dealer m) (Delete a)
     case reply of
-      Done -> return ()
-      _    -> throwIO SystemExcept
+      DoneMsg -> return ()
+      _       -> throwIO SystemExcept

@@ -22,13 +22,13 @@ module Leela.Storage.Backend.ZMQ.Protocol
     ) where
 
 import qualified Data.ByteString as B
-import           Leela.Data.Namespace
+import           Leela.Data.Naming as N
 import qualified Data.ByteString.Char8 as B8
 import           Leela.Storage.Backend (Mode (..), pageSize)
 
 data Query = GetName GUID
-           | GetGUID Namespace Key
-           | PutName Namespace Key
+           | GetGUID User Tree Node
+           | PutName User Tree Node
            | PutLink GUID Label GUID
            | PutLabel GUID Label
            | GetLink GUID Label (Maybe GUID)
@@ -37,12 +37,11 @@ data Query = GetName GUID
            | Unlink GUID Label (Maybe GUID)
            | Delete GUID
 
-data Reply = Done
-           | Name Namespace Key
-           | GUID GUID
-           | Link [GUID]
-           | Label [Label]
-           | Fail Int
+data Reply = DoneMsg
+           | NameMsg User Tree Node GUID
+           | LinkMsg [GUID]
+           | LabelMsg [Label]
+           | FailMsg Int
 
 decodeInt :: B.ByteString -> Maybe Int
 decodeInt s = case (B8.readInt s) of
@@ -53,31 +52,30 @@ encodeShow :: (Show s) => s -> B.ByteString
 encodeShow = B8.pack . show
 
 encodeMode :: GUID -> Mode Label -> [B.ByteString]
-encodeMode g (All Nothing)  = ["all", unpack g, "", encodeShow pageSize]
-encodeMode g (All (Just l)) = ["all", unpack g, unpack l, encodeShow pageSize]
-encodeMode g (Prefix a b)   = ["pre", unpack g, unpack a, unpack b, encodeShow pageSize]
-encodeMode g (Suffix a b)   = ["suf", unpack g, unpack a, unpack b, encodeShow pageSize]
-encodeMode g (Precise l)    = ["ext", unpack g, unpack l]
+encodeMode g (All Nothing)  = ["all", toByteString g, "", encodeShow pageSize]
+encodeMode g (All (Just l)) = ["all", toByteString g, toByteString l, encodeShow pageSize]
+encodeMode g (Prefix a b)   = ["pre", toByteString g, toByteString a, toByteString b, encodeShow pageSize]
+encodeMode g (Suffix a b)   = ["suf", toByteString g, toByteString a, toByteString b, encodeShow pageSize]
+encodeMode g (Precise l)    = ["ext", toByteString g, toByteString l]
 
 encode :: Query -> [B.ByteString]
-encode (GetName g)            = ["get", "name", unpack g]
-encode (GetGUID n k)          = ["get", "guid", unpack n, unpack k]
-encode (HasLink a l b)        = ["get", "link", unpack a, unpack l , unpack b, "1"]
-encode (GetLink g l Nothing)  = ["get", "link", unpack g, unpack l, "0x", encodeShow pageSize]
-encode (GetLink g l (Just p)) = ["get", "link", unpack g, unpack l, unpack p, encodeShow pageSize]
+encode (GetName g)            = ["get", "name", toByteString g]
+encode (GetGUID u t n)        = ["get", "guid", toByteString u, toByteString t, toByteString n]
+encode (HasLink a l b)        = ["get", "link", toByteString a, toByteString l , toByteString b, "1"]
+encode (GetLink g l Nothing)  = ["get", "link", toByteString g, toByteString l, "0x", encodeShow pageSize]
+encode (GetLink g l (Just p)) = ["get", "link", toByteString g, toByteString l, toByteString p, encodeShow pageSize]
 encode (GetLabel g m)         = "get" : "label" : encodeMode g m
-encode (PutName n k)          = ["put", "name", unpack n, unpack k]
-encode (PutLink a l b)        = ["put", "link", unpack a, unpack l, unpack b]
-encode (PutLabel a l)         = ["put", "label", unpack a, unpack l]
-encode (Unlink a l Nothing)   = ["del", "link", unpack a, unpack l]
-encode (Unlink a l (Just b))  = ["del", "link", unpack a, unpack l, unpack b]
-encode (Delete a)             = ["del", "node", unpack a]
+encode (PutName u t n)        = ["put", "name", toByteString u, toByteString t, toByteString n]
+encode (PutLink a l b)        = ["put", "link", toByteString a, toByteString l, toByteString b]
+encode (PutLabel a l)         = ["put", "label", toByteString a, toByteString l]
+encode (Unlink a l Nothing)   = ["del", "link", toByteString a, toByteString l]
+encode (Unlink a l (Just b))  = ["del", "link", toByteString a, toByteString l, toByteString b]
+encode (Delete a)             = ["del", "node", toByteString a]
 
 decode :: [B.ByteString] -> Reply
-decode ["done"]         = Done
-decode ["name", n, k]   = Name (pack n) (pack k)
-decode ["guid", g]      = GUID (pack g)
-decode ("link":guids)   = Link (map pack guids)
-decode ("label":labels) = Label (map pack labels)
-decode ["fail", code]   = maybe (Fail 599) id (fmap Fail (decodeInt code))
-decode _                = Fail 599
+decode ["done"]             = DoneMsg
+decode ["name", u, t, n, g] = NameMsg (User u) (Tree t) (Node n) (GUID g)
+decode ("link":guids)       = LinkMsg (map GUID guids)
+decode ("label":labels)     = LabelMsg (map Label labels)
+decode ["fail", code]       = maybe (FailMsg 599) id (fmap FailMsg (decodeInt code))
+decode _                    = FailMsg 599

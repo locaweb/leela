@@ -30,7 +30,6 @@ module Leela.Network.Protocol
     , encode
     , encodeE
     , makeList
-    , namespaceFrom
     ) where
 
 import           Data.Word
@@ -38,10 +37,10 @@ import           Control.Monad
 import qualified Data.ByteString as B
 import           Leela.Data.Time
 import           Control.Exception
+import           Leela.Data.Naming
 import           Leela.Data.Excepts
 import           Control.Applicative
 import           Data.ByteString.UTF8 (fromString)
-import           Leela.Data.Namespace
 import qualified Data.ByteString.Char8 as B8
 
 type FH = Word64
@@ -49,8 +48,6 @@ type FH = Word64
 type Writer a = a -> IO ()
 
 newtype MAC = MAC B.ByteString
-
-newtype User = User B.ByteString
 
 newtype Nonce = Nonce B.ByteString
 
@@ -72,7 +69,7 @@ data Reply = Done FH
 data RValue = Path [(GUID, Label)]
             | Stat [(B.ByteString, B.ByteString)]
             | List [RValue]
-            | Name GUID B.ByteString B.ByteString Key
+            | Name User Tree Node GUID
 
 isEOF :: Reply -> Bool
 isEOF m = isLast m || isFail m
@@ -118,8 +115,8 @@ decode [sig,"fetch",fh]          = liftM2 Fetch (readSignature sig) (readDecimal
 decode _                         = Left $ Fail 400 (Just "syntax error: bad frame")
 
 encodeRValue :: RValue -> [B.ByteString]
-encodeRValue (Name g u n k) = ["name", unpack g, u, n, unpack k]
-encodeRValue (Path p)       = let f (g, l) acc = unpack l : unpack g : acc
+encodeRValue (Name u t n g) = ["name", toByteString u, toByteString t, toByteString n, toByteString g]
+encodeRValue (Path p)       = let f (g, l) acc = toByteString l : toByteString g : acc
                               in "path" : encodeShow (2 * length p) : foldr f [] p
 encodeRValue (List v)       = "list" : encodeShow (length v) : concatMap encodeRValue v
 encodeRValue (Stat prop)    = "stat" : encodeShow (2 * length prop) : concatMap (\(a, b) -> [a, b]) prop
@@ -156,6 +153,3 @@ reduce (Last a) (Last b) = Last (liftA2 reduceRValue a b <|> a <|> b)
 reduce (Last a) (Item b) = Last ((reduceRValue b <$> a) <|> (Just b))
 reduce (Item a) (Last b) = Last ((reduceRValue a <$> b) <|> (Just a))
 reduce (Item a) (Item b) = Item (reduceRValue a b)
-
-namespaceFrom :: Signature -> Namespace
-namespaceFrom = (\(User u) -> derive tld u) . sigUser

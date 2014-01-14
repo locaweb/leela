@@ -25,10 +25,10 @@ module Leela.Storage.Backend
     , pageSize
     ) where
 
+import qualified Data.ByteString as B
 import           Control.Exception
+import           Leela.Data.Naming
 import           Leela.Data.QDevice
-import qualified Data.ByteString.Lazy as L
-import           Leela.Data.Namespace
 
 data AnyBackend = forall b. (GraphBackend b) => AnyBackend { anyBackend :: b }
 
@@ -44,11 +44,11 @@ pageSize = 512
 
 class GraphBackend m where
 
-  getName  :: GUID -> m -> IO (Namespace, Key)
+  getName  :: GUID -> m -> IO (User, Tree, Node)
 
-  getGUID  :: Namespace -> Key -> m -> IO (Maybe GUID)
+  getGUID  :: User -> Tree -> Node -> m -> IO (Maybe GUID)
 
-  putName  :: Namespace -> Key -> m -> IO GUID
+  putName  :: User -> Tree -> Node -> m -> IO GUID
 
   hasLink  :: Device (Either SomeException (Page, [GUID])) -> GUID -> Label -> GUID -> m -> IO ()
 
@@ -65,15 +65,13 @@ class GraphBackend m where
   delete   :: GUID -> m -> IO ()
 
 glob :: Label -> Mode Label
-glob l
+glob l@(Label s)
   | "*" == s           = All Nothing
-  | L.isPrefixOf "*" s = uncurry Suffix (range $ L.tail s)
-  | L.isSuffixOf "*" s = uncurry Prefix (range $ L.init s)
+  | B.isPrefixOf "*" s = uncurry Suffix (range $ B.tail s)
+  | B.isSuffixOf "*" s = uncurry Prefix (range $ B.init s)
   | otherwise          = Precise l
-    where s :: L.ByteString
-          s = unpack l
-
-          range str = (pack str, pack $ L.init str `L.snoc` (L.last str + 1))
+    where
+      range str = (Label str, Label $ B.init str `B.snoc` (B.last str + 1))
 
 nextPage :: Mode Label -> Label -> Maybe (Mode Label)
 nextPage (All _) l      = Just $ All (Just l)
@@ -85,9 +83,9 @@ instance GraphBackend AnyBackend where
 
   getName g (AnyBackend db) = getName g db
 
-  getGUID n k (AnyBackend db) = getGUID n k db
+  getGUID u t n (AnyBackend db) = getGUID u t n db
 
-  putName n k (AnyBackend db) = putName n k db
+  putName u t n (AnyBackend db) = putName u t n db
 
   getLabel dev g m (AnyBackend db) = getLabel dev g m db
 
