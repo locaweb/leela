@@ -49,10 +49,9 @@
         (server/handle-message cluster ["put" "label" node "0"])
         (server/handle-message cluster ["put" "label" node "1"])
         (server/handle-message cluster ["put" "label" node "2"])
-        (storage/with-limit 1
-          (is (= (server/msg-label ["0"]) (server/handle-message cluster ["get" "label" "all" node])))
-          (is (= (server/msg-label ["1"]) (server/handle-message cluster ["get" "label" "all" node "1"])))
-          (is (= (server/msg-label ["2"]) (server/handle-message cluster ["get" "label" "all" node "2"]))))))))
+        (is (= (server/msg-label ["0"]) (server/handle-message cluster ["get" "label" "all" node "" "1"])))
+        (is (= (server/msg-label ["1"]) (server/handle-message cluster ["get" "label" "all" node "1" "1"])))
+        (is (= (server/msg-label ["2"]) (server/handle-message cluster ["get" "label" "all" node "2" "1"])))))))
 
 (deftest test-zmqserver-handle-label-prefix-message
   (let [node (str (f/uuid-1))]
@@ -169,8 +168,8 @@
         (is (= (server/msg-tattr []) (server/handle-message cluster ["get" "t-attr" node "attr"]))))
 
       (testing "get-tattr after put-tattr"
-        (server/handle-message cluster ["put" "t-attr" node "attr" "0" (f/bytes-to-base64 value)])
-        (is (= (server/msg-tattr [[0 value]]) (server/handle-message cluster ["get" "t-attr" node "attr"]))))
+        (server/handle-message cluster ["put" "t-attr" node "attr" "0" value])
+        (is (= (server/msg-tattr [[0 "foobar"]]) (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "t-attr" node "attr"])))))
 
       (testing "get-tattr after del-tattr"
         (server/handle-message cluster ["put" "t-attr" node "name" "0" value])
@@ -191,16 +190,16 @@
     (storage/with-session [cluster ["127.0.0.1"] "leela"]
 
       (testing "get-kattr with no data"
-        (is (= (server/msg-kattr nil) (server/handle-message cluster ["get" "k-attr" node "0"]))))
+        (is (= (server/msg-kattr "") (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "k-attr" node "attr"])))))
 
       (testing "get-kattr after put-kattr"
-        (is (= (server/msg-done) (server/handle-message cluster ["put" "k-attr" node "attr" (f/bytes-to-base64 value)])))
-        (is (= (server/msg-kattr value) (server/handle-message cluster ["get" "k-attr" node "attr"]))))
+        (is (= (server/msg-done) (server/handle-message cluster ["put" "k-attr" node "attr" value])))
+        (is (= (server/msg-kattr "foobar") (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "k-attr" node "attr"])))))
 
       (testing "del-kattr after put-kattr"
-        (server/handle-message cluster ["put" "k-attr" node "0" "00"])
-        (is (= (server/msg-done) (server/handle-message cluster ["del" "k-attr" node "0"])))
-        (is (= (server/msg-kattr nil) (server/handle-message cluster ["get" "k-attr" node "0"])))))))
+        (server/handle-message cluster ["put" "k-attr" node "attr" value])
+        (is (= (server/msg-done) (server/handle-message cluster ["del" "k-attr" node "attr"])))
+        (is (= (server/msg-kattr "") (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "k-attr" node "attr"]))))))))
 
 (deftest test-zmqserver-zmqworker-interface
   (testing "just checks the interface"

@@ -140,8 +140,8 @@ parseStmtMake u = do
   void $ string "make "
   at <- peekWord8
   case at of
-    Just 0x30 -> liftM AlterStmt parseMakeCreate
     Just 0x28 -> liftM (AlterStmt . putNode (uUser u) (uTree u)) parseNode
+    Just _    -> liftM AlterStmt parseMakeCreate
     _         -> fail "bad make statement"
 
 parseStmtPath :: Parser LQL
@@ -174,13 +174,16 @@ parseStmtKill = "kill " .*> doParse
           _                       -> fail "invalid kill command"
 
 parseStmt :: Using -> Parser LQL
-parseStmt u =
-  parseStmtMake u
-  <|> parseStmtGUID u
-  <|> parseStmtPath
-  <|> parseStmtName u
-  <|> parseStmtKill
-  <|> parseStmtStat
+parseStmt u = do
+  w <- peekWord8
+  case w of
+    Just 0x6d -> parseStmtMake u
+    Just 0x67 -> parseStmtGUID u
+    Just 0x70 -> parseStmtPath
+    Just 0x6e -> parseStmtName u
+    Just 0x6b -> parseStmtKill
+    Just 0x73 -> parseStmtStat
+    _         -> fail "bad statement"
 
 parseStmts :: Using -> Parser [LQL]
 parseStmts u = parseStmt u `sepBy1` newline

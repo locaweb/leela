@@ -42,7 +42,7 @@
       (cons peer (cons "" reply)))
     (catch Exception e
       (let [reply (:onerr worker)]
-        (debug (format "REQUEST/FAIL: %s ~> %s" (pr-str (map f/bytes-to-str msg)) (pr-str reply)))
+        (error e (format "REQUEST/FAIL: %s ~> %s" (pr-str (map f/bytes-to-str msg)) (pr-str reply)))
         (cons peer (cons "" reply))))))
 
 (defn run-worker [ctx endpoint queue worker]

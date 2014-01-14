@@ -62,7 +62,7 @@ encode :: Query -> [B.ByteString]
 encode (GetName g)            = ["get", "name", toByteString g]
 encode (GetGUID u t n)        = ["get", "guid", toByteString u, toByteString t, toByteString n]
 encode (HasLink a l b)        = ["get", "link", toByteString a, toByteString l , toByteString b, "1"]
-encode (GetLink g l Nothing)  = ["get", "link", toByteString g, toByteString l, "0x", encodeShow pageSize]
+encode (GetLink g l Nothing)  = ["get", "link", toByteString g, toByteString l, "", encodeShow pageSize]
 encode (GetLink g l (Just p)) = ["get", "link", toByteString g, toByteString l, toByteString p, encodeShow pageSize]
 encode (GetLabel g m)         = "get" : "label" : encodeMode g m
 encode (PutName u t n)        = ["put", "name", toByteString u, toByteString t, toByteString n]

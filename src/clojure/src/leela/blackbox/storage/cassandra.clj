@@ -39,7 +39,7 @@
     (warn "creating table naming")
     (create-table
      cluster :naming
-     (column-definitions {:user :varchar :tree :varchar :node :varchar :guid :timeuuid :primary-key [[:user :tree] :node]})
+     (column-definitions {:user :varchar :tree :varchar :node :varchar :guid :uuid :primary-key [[:user :tree] :node]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
   (when-not (describe-table cluster keyspace :tattr)
     (warn "creating table tattr")

@@ -54,22 +54,26 @@
 
 (def json-to-str json/write-str)
 
+(def uuid-zero (UUIDs/startOf 0))
+
 (defmacro str-to-json [s]
   `(json/read-str ~s :key-fn keyword))
 
 (defmacro uuid-1 []
   `(UUIDs/timeBased))
 
-(defmacro uuid-from-time [time]
-  `(UUIDs/startOf ~time))
-
 (defmacro str-to-bytes [s]
-  `(.getBytes ~s +charset-ascii+))
+  `(if (instance? String ~s)
+     (.getBytes ~s +charset-ascii+)
+     ~s))
 
 (defn bytes-to-str [bytes]
   (if (instance? String bytes)
     bytes
     (apply str (map char bytes))))
+
+(defn maybe-bytes-to-str [bytes]
+  (when bytes (bytes-to-str bytes)))
 
 (defn binary-to-bytes [b]
   (let [buffer (byte-array (.remaining b))]
@@ -81,9 +85,3 @@
 
 (defmacro bytes-to-uuid [b]
   `(str-to-uuid (bytes-to-str ~b)))
-
-(defmacro bytes-to-base64 [b]
-  `(org.apache.commons.codec.binary.Base64/encodeBase64 ~b))
-
-(defmacro base64-to-bytes [b]
-  `(org.apache.commons.codec.binary.Base64/decodeBase64 ~b))
