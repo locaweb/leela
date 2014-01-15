@@ -170,7 +170,7 @@ parseStmtKill = "kill " .*> doParse
           (Just ga, Just gb, R l) -> return $ AlterStmt (unlink (ga, gb, l))
           (Nothing, Just gb, L l) -> return $ AlterStmt (unlinkAll (gb, l))
           (Just ga, Just gb, L l) -> return $ AlterStmt (unlink (gb, ga, l))
-          (Just ga, Just gb, B l) -> return $ AlterStmt (unlink (ga, gb, l) >> unlink (gb, ga, l))
+          (Just ga, Just gb, B l) -> return $ AlterStmt (unlink (ga, gb, l) ++ unlink (gb, ga, l))
           _                       -> fail "invalid kill command"
 
 parseStmt :: Using -> Parser LQL
