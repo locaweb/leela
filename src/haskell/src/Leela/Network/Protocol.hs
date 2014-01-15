@@ -32,6 +32,7 @@ module Leela.Network.Protocol
     , makeList
     ) where
 
+import           Data.List (foldl')
 import           Data.Word
 import           Control.Monad
 import qualified Data.ByteString as B
@@ -116,8 +117,8 @@ decode _                         = Left $ Fail 400 (Just "syntax error: bad fram
 
 encodeRValue :: RValue -> [B.ByteString]
 encodeRValue (Name u t n g) = ["name", toByteString u, toByteString t, toByteString n, toByteString g]
-encodeRValue (Path p)       = let f (g, l) acc = toByteString l : toByteString g : acc
-                              in "path" : encodeShow (2 * length p) : foldr f [] p
+encodeRValue (Path p)       = let f acc (g, l) = toByteString l : toByteString g : acc
+                              in "path" : encodeShow (2 * length p) : foldl' f [] p
 encodeRValue (List v)       = "list" : encodeShow (length v) : concatMap encodeRValue v
 encodeRValue (Stat prop)    = "stat" : encodeShow (2 * length prop) : concatMap (\(a, b) -> [a, b]) prop
 
