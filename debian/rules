@@ -5,7 +5,6 @@ version      = $(shell src/scripts/read-version.sh)
 
 bin_lein    ?= lein
 bin_cabal   ?= cabal
-bin_python  ?= python
 
 %:
 	dh $@ --with python2
@@ -49,9 +48,6 @@ clib-build:
 clib-clean:
 	$(MAKE) -C src/c clean
 
-pylib-build:
-	cd src/python; $(bin_python) setup.py build
-
 pylib-clean:
 	rm -rf src/python/build
 
@@ -60,7 +56,13 @@ clib-install:
 	cp -p src/c/libleela.so* debian/leela-c/usr/lib
 
 pylib-install:
-	cd src/python; $(bin_python) setup.py install --install-layout=deb --root=../../debian/leela-python
+	cd src/python && { \
+          for bin_python in $$(pyversions -rs); \
+          do \
+            $$bin_python setup.py clean -a; \
+            $$bin_python setup.py install --install-layout=deb --root=../../debian/leela-python; \
+          done; \
+        }
 
 override_dh_auto_clean: warpdrive-clean blackbox-clean clib-clean
 	rm -f debian/*substvars
@@ -73,4 +75,4 @@ override_dh_install: clib-install pylib-install warpdrive-install
 override_dh_installinit:
 	dh_installinit --no-start
 
-override_dh_auto_build: warpdrive-build blackbox-build clib-build pylib-build
+override_dh_auto_build: warpdrive-build blackbox-build clib-build
