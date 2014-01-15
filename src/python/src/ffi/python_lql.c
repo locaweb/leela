@@ -75,13 +75,13 @@ PyObject *__make_name_msg(lql_name_t *name)
 }
 
 static
-PyObject *__make_path_msg(lql_path_t *path)
+PyObject *__make_list_of_tuples(int size, lql_tuple2_t *entries)
 {
-  PyObject *tuple = PyTuple_New(path->size);
+  PyObject *tuple = PyTuple_New(size);
   if (tuple == NULL)
   { return(NULL); }
 
-  for (int k=0; k<path->size; k+=1)
+  for (int k=0; k<size; k+=1)
   {
     PyObject *entry = PyTuple_New(2);
     if (entry == NULL)
@@ -90,8 +90,8 @@ PyObject *__make_path_msg(lql_path_t *path)
       return(NULL);
     }
 
-    if (PyTuple_SetItem(entry, 0, PyString_FromString(path->entries[k].fst)) != 0
-        || PyTuple_SetItem(entry, 1, PyString_FromString(path->entries[k].snd)) != 0)
+    if (PyTuple_SetItem(entry, 0, PyString_FromString(entries[k].fst)) != 0
+        || PyTuple_SetItem(entry, 1, PyString_FromString(entries[k].snd)) != 0)
     {
       Py_DECREF(tuple);
       Py_DECREF(entry);
@@ -107,6 +107,14 @@ PyObject *__make_path_msg(lql_path_t *path)
 
   return(tuple);
 }
+
+static
+PyObject *__make_path_msg(lql_path_t *path)
+{ return(__make_list_of_tuples(path->size, path->entries)); }
+
+static
+PyObject *__make_stat_msg(lql_stat_t *stat)
+{ return(__make_list_of_tuples(stat->size, stat->attrs)); }
 
 static
 PyMethodDef pylql_context_methods[] = {
@@ -375,6 +383,19 @@ PyObject *pylql_cursor_fetch(PyObject *self, PyObject *args)
       value = __make_path_msg(path);
       type  = PyString_FromString("path");
       leela_lql_path_free(path);
+    }
+  }
+  else if (row == LQL_STAT_MSG)
+  {
+    lql_stat_t *stat;
+    Py_BEGIN_ALLOW_THREADS
+    stat = leela_lql_fetch_stat(cursor->cursor);
+    Py_END_ALLOW_THREADS
+    if (stat != NULL)
+    {
+      value = __make_stat_msg(stat);
+      type  = PyString_FromString("stat");
+      leela_lql_stat_free(stat);
     }
   }
 

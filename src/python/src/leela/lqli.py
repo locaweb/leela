@@ -26,6 +26,10 @@ def dump_name(cache, row):
     cache[row[1][-1]] = row[1][-2]
     print("name: %s | %s | %s | %s |" % row[1])
 
+def dump_stat(row):
+    for (key, val) in row[1]:
+        print("stat: %s = %s" % (key, val))
+
 def dump_path(cache, ctx, opts, row):
     msg = []
     for (label, node) in row[1]:
@@ -37,6 +41,8 @@ def dump_row(cache, ctx, opts, row):
         dump_name(cache, row)
     elif (row[0] == "path"):
         dump_path(cache, ctx, opts, row)
+    elif (row[0] == "stat"):
+        dump_stat(row)
     else:
         raise(RuntimeError())
 
