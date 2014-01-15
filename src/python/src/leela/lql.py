@@ -13,3 +13,20 @@
 #  limitations under the License.
 
 from _leela_lql import *    
+import contextlib
+
+@contextlib.contextmanager
+def with_context(*args, **kwargs):
+    ctx = Context(*args, **kwargs)
+    try:
+        yield(ctx)
+    finally:
+        ctx.close()
+
+@contextlib.contextmanager
+def with_cursor(ctx, *args, **kwargs):
+    cursor = ctx.cursor(*args, **kwargs)
+    try:
+        yield(cursor)
+    finally:
+        cursor.close()
