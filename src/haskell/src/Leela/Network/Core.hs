@@ -30,14 +30,11 @@ import           Leela.Helpers
 import           Control.Monad
 import           Leela.Data.LQL
 import qualified Data.ByteString as B
-import           Leela.Data.Graph (Matcher (..) , Result)
-import qualified Leela.Data.Graph as G
+import           Leela.Data.Graph
 import           Control.Exception
 import           Leela.Data.Naming
 import           Control.Concurrent
-import           Leela.Data.Journal
 import           Leela.Data.QDevice
-import           Leela.Data.Excepts
 import           Leela.Data.Endpoint
 import           Leela.Data.LQL.Comp
 import           Data.ByteString.Lazy (toStrict)
@@ -51,9 +48,6 @@ data CoreServer = CoreServer { stat   :: IORef [(String, [Endpoint])]
                              , fdlist :: TVar (M.Map (B.ByteString, FH) (Int, Device Reply))
                              }
 
-data Stream a = Chunk a
-              | EOF
-
 ttl :: Int
 ttl = 300
 
@@ -65,10 +59,6 @@ dumpStat core = do
       dumpEntry (k, [])     = [(fromString $ "endpoint/" ++ k, "")]
       dumpEntry (k, [e])    = [(fromString $ "endpoint/" ++ k, toStrict $ dumpEndpoint e)]
       dumpEntry (k, (e:es)) = (fromString $ "endpoint/" ++ k, toStrict $ dumpEndpoint e) : dumpEntry (k, es)
-
-whenChunk :: (Stream a -> IO ()) -> Stream a -> IO ()
-whenChunk _ EOF   = return ()
-whenChunk f chunk = f chunk
 
 newCore :: IORef [(String, [Endpoint])] -> IO CoreServer
 newCore statdb = do
@@ -106,7 +96,7 @@ makeFD :: CoreServer -> User -> IO (FH, Device Reply)
 makeFD srv (User u) = atomically $ do
   ctrl <- control
   fd   <- nextfd srv
-  dev  <- open ctrl pageSize
+  dev  <- open ctrl 512
   modifyTVar (fdlist srv) (M.insert (u, fd) (ttl, dev))
   return (fd, dev)
 
@@ -130,125 +120,76 @@ closeFD srv nowait ((User u), fh) = do
     where
       k = (u, fh)
 
-store :: (GraphBackend m) => m -> Journal -> IO ()
-store storage (PutNode u t n)   = void $ putName u t n storage
-store storage (PutLabel g lbls) = putLabel g lbls storage
-store storage (PutLink a b l)   = putLink a l b storage
-store storage (DelLink a b l)   = unlink a l b storage
-store storage (DelNode a)       = delete a storage
+data Stream a = Chunk a
+              | Error SomeException
+              | EOF
 
-fetch :: (GraphBackend m, HasControl ctrl) => ctrl -> m -> Matcher r -> (Stream r -> IO ()) -> IO ()
-fetch ctrl storage selector callback0 =
-  case selector of
-    ByLabel k l f  -> do
-      dev <- openIO ctrl 2
-      getLabel dev k (glob l) storage
-      request k Nothing f dev
-    ByNode k f     -> do
-      dev <- openIO ctrl 2
-      getLabel dev k (All Nothing) storage
-      request k Nothing f dev
-    ByEdge a l b f -> do
-      dev <- openIO ctrl 2
-      getLabel dev a (glob l) storage
-      request a (Just b) f dev
+thr :: (a, b, c) -> c
+thr (_, _, c) = c
+
+navigate :: (GraphBackend m) => m -> Device Reply -> (Matcher, [(GUID -> Matcher)]) -> IO ()
+navigate db queue (source, pipeline) = do
+  srcpipe <- openIO queue 16
+  forkSource srcpipe
+  dstpipe <- forkFilters srcpipe pipeline
+  copy dstpipe asReply queue
     where
-      request a mb f dev = do
-        mlabels <- devreadIO dev
-        case mlabels of
-          Nothing              -> throwIO SystemExcept
-          Just (Left e)        -> throwIO e
-          Just (Right (0, [])) -> callback0 (Chunk $ f [])
-          Just (Right (_, [])) -> callback0 EOF
-          Just (Right (_, xs)) -> do
-            subdev <- openIO ctrl 4
-            empty  <- fetchLabels True a mb subdev xs $ \links ->
-              callback0 (Chunk $ f links)
-            if empty
-              then callback0 (Chunk $ f [])
-              else callback0 EOF
+      two (_, b, c) = (c, b)
 
-      fetchLabels empty _ _ _ [] _               = return empty
-      fetchLabels empty a mb dev (l:ls) callback = do
-        case mb of
-          Nothing -> getLink dev a l storage
-          Just b  -> catch
-            (hasLink a l b storage >>= \ok ->
-               if ok
-                 then devwriteIO dev (Right (0, [b]))
-                 else devwriteIO dev (Right (0, [])))
-            (devwriteIO dev . Left)
-        nempty <- fetchLinks empty dev $ \guids ->
-          unless (null guids) (callback $ map (, l) guids)
-        if (null ls)
-          then return nempty
-          else fetchLabels nempty a mb dev ls callback
+      asReply (Chunk (feed, path)) = Just (Item (List $ map (Path . (: path) . two) feed))
+      asReply EOF                  = Nothing
+      asReply (Error e)            = throw e
 
-      fetchLinks empty dev callback = do
-        mnodes <- devreadIO dev
-        case mnodes of
-          Nothing                 -> throwIO SystemExcept
-          Just (Left e)           -> throwIO e
-          Just (Right (_, []))    -> callback [] >> return empty
-          Just (Right (_, nodes)) -> callback nodes >> fetchLinks False dev callback
+      runFilter srcpipe f dstpipe = do
+        mg <- devreadIO srcpipe
+        case mg of
+          Nothing                   -> return ()
+          Just (Chunk (feed, path)) -> do
+            forM_ feed (\link -> 
+              query db (devwriteIO dstpipe . Chunk . (, (two link) : path)) (f $ thr link))
+            runFilter srcpipe f dstpipe
+          Just chunk                -> devwriteIO dstpipe chunk
 
-eval :: (GraphBackend m, HasControl ctrl) => ctrl -> m -> Result r -> (Stream r -> IO ()) -> IO ()
-eval _ _ (G.Fail 404 _) _         = throwIO NotFoundExcept
-eval _ _ (G.Fail code msg) _      = do
-  lwarn Network (printf "eval has failed: %d/%s" code msg)
-  throwIO SystemExcept
-eval ctrl storage (G.Load f g) callback =
-  catch (fetch ctrl storage f $ \chunk ->
-           case chunk of
-             EOF     -> callback EOF
-             Chunk r -> eval ctrl storage r (whenChunk callback))
-        (\e -> case e of
-                 NotFoundExcept -> eval ctrl storage g callback
-                 _              -> throwIO e)
-eval _ _ (G.Done r) callback      = do
-  callback (Chunk r)
-  callback EOF
+      forkSource dstpipe = void $ forkFinally
+        (query db (devwriteIO dstpipe . Chunk . (, [])) source)
+        (either (devwriteIO dstpipe . Error) (const $ devwriteIO dstpipe EOF))
+
+      forkFilter srcpipe f = do
+        dstpipe <- openIO srcpipe 16
+        void $ forkFinally
+          (runFilter srcpipe f dstpipe)
+          (either (devwriteIO dstpipe . Error) (const $ devwriteIO dstpipe EOF))
+        return dstpipe
+
+      forkFilters srcpipipe []               = return srcpipipe
+      forkFilters srcpipipe (f:fs) = do
+        dstpipe <- forkFilter srcpipipe f
+        forkFilters dstpipe fs
 
 evalLQL :: (GraphBackend m) => m -> CoreServer -> Device Reply -> [LQL] -> IO ()
-evalLQL _ _ dev []              = devwriteIO dev (Last Nothing)
-evalLQL storage core dev (x:xs) =
+evalLQL _ _ queue []         = devwriteIO queue (Last Nothing)
+evalLQL db core queue (x:xs) =
   case x of
-    PathStmt cursor -> navigate cursor (evalLQL storage core dev xs)
-    AlterStmt []    -> evalLQL storage core dev xs
-    AlterStmt (PutNode u t n:stmts) -> do
-      g <- putName u t n storage
-      devwriteIO dev (Item $ Name u t n g)
-      evalLQL storage core dev (AlterStmt stmts : xs)
-    AlterStmt (stmt:stmts)            -> do
-      store storage stmt
-      evalLQL storage core dev (AlterStmt stmts : xs)
-    StatStmt -> do
+    PathStmt q        -> navigate db queue q >> evalLQL db core queue xs
+    NameStmt _ g      -> do
+      (gUser, gTree, gName) <- getName g db
+      devwriteIO queue (Item $ Name gUser gTree gName g)
+      evalLQL db core queue xs
+    StatStmt          -> do
       state <- dumpStat core
-      devwriteIO dev (Item $ Stat state)
-      evalLQL storage core dev xs
-    NameStmt _ g -> do
-      (gUser, gTree, gName) <- getName g storage
-      devwriteIO dev (Item $ Name gUser gTree gName g)
-      evalLQL storage core dev xs
-    GUIDStmt u n           -> do
-      mg <- getGUID (uUser u) (uTree u) n storage
+      devwriteIO queue (Item $ Stat state)
+      evalLQL db core queue xs
+    AlterStmt journal -> do
+      names <- update db journal
+      mapM_ (\(u, t, n, g) -> devwriteIO queue (Item $ Name u t n g)) names
+      evalLQL db core queue xs
+    GUIDStmt u n      -> do
+      mg <- getGUID (uUser u) (uTree u) n db
       case mg of
-        Nothing -> devwriteIO dev (Fail 404 Nothing)
-        Just g  -> devwriteIO dev (Item $ Name (uUser u) (uTree u) n g) >> evalLQL storage core dev xs
-    where
-      navigate G.Tail cont     = cont
-      navigate (G.Need r) cont = eval dev storage r $ \chunk ->
-        case chunk of
-          EOF          -> cont
-          Chunk cursor -> navigate cursor (return ())
-      navigate (G.Item path links next) cont = do
-        devwriteIO dev (Item $ makeList $ map (Path . (:path)) links)
-        navigate next cont
-      navigate (G.Head g) cont =
-        eval dev storage (G.loadNode1 g Nothing Nothing G.done) $ \chunk ->
-          case chunk of
-            EOF         -> cont
-            Chunk links -> devwriteIO dev (Item $ makeList $ map (Path . (:[])) links)
+        Nothing -> devwriteIO queue (Fail 404 Nothing)
+        Just g  -> do
+          devwriteIO queue (Item $ Name (uUser u) (uTree u) n g)
+          evalLQL db core queue xs
 
 evalFinalizer :: FH -> Device Reply -> Either SomeException () -> IO ()
 evalFinalizer chan dev (Left e)  = do

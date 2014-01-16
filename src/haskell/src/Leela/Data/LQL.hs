@@ -19,7 +19,6 @@ module Leela.Data.LQL
 
 import Leela.Data.Graph
 import Leela.Data.Naming
-import Leela.Data.Journal
 
 data Using = Using { uUser :: User
                    , uTree :: Tree
@@ -27,7 +26,7 @@ data Using = Using { uUser :: User
     deriving (Eq)
 
 data LQL = StatStmt
-         | PathStmt Cursor
+         | PathStmt (Matcher, [(GUID -> Matcher)])
          | NameStmt Using GUID
          | GUIDStmt Using Node
          | AlterStmt [Journal]

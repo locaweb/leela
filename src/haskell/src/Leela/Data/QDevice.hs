@@ -21,6 +21,7 @@ module Leela.Data.QDevice
        , Control ()
        , HasControl (..)
        , open
+       , copy
        , close
        , linger
        , openIO
@@ -73,6 +74,13 @@ withControl io = mask $ \restore -> do
 closed :: HasControl ctrl => ctrl -> STM Bool
 closed box = let Control ctrl = ctrlof box
              in readTVar ctrl
+
+copy :: Device a -> (a -> Maybe b) -> Device b -> IO ()
+copy src f dst = do
+  mv <- devreadIO src
+  case (join $ fmap f mv) of
+    Nothing -> return ()
+    Just v  -> devwriteIO dst v >> copy src f dst
 
 notClosed :: HasControl ctrl => ctrl -> STM Bool
 notClosed = fmap not . closed

@@ -18,17 +18,16 @@
 
 module Leela.Storage.Backend
     ( Mode (..)
+    , Page
+    , Limit
     , AnyBackend (..)
     , GraphBackend (..)
     , glob
     , nextPage
-    , pageSize
     ) where
 
 import qualified Data.ByteString as B
-import           Control.Exception
 import           Leela.Data.Naming
-import           Leela.Data.QDevice
 
 data AnyBackend = forall b. (GraphBackend b) => AnyBackend { anyBackend :: b }
 
@@ -37,32 +36,31 @@ data Mode a = All (Maybe a)
             | Suffix a a
             | Precise a
 
-type Page = Int
+type Page = Maybe
 
-pageSize :: Int
-pageSize = 128
+type Limit = Int
 
 class GraphBackend m where
 
-  getName  :: GUID -> m -> IO (User, Tree, Node)
+  getName   :: GUID -> m -> IO (User, Tree, Node)
 
-  getGUID  :: User -> Tree -> Node -> m -> IO (Maybe GUID)
+  getGUID   :: User -> Tree -> Node -> m -> IO (Maybe GUID)
 
-  putName  :: User -> Tree -> Node -> m -> IO GUID
+  putName   :: User -> Tree -> Node -> m -> IO GUID
 
-  hasLink  :: GUID -> Label -> GUID -> m -> IO Bool
+  hasLink   :: GUID -> Label -> GUID -> m -> IO Bool
 
-  getLink  :: Device (Either SomeException (Page, [GUID])) -> GUID -> Label -> m -> IO ()
+  getLink   :: GUID -> Label -> Page GUID -> Limit -> m -> IO [GUID]
 
-  putLink  :: GUID -> Label -> GUID -> m -> IO ()
+  putLink   :: GUID -> Label -> GUID -> m -> IO ()
 
-  getLabel :: Device (Either SomeException (Page, [Label])) -> GUID -> Mode Label -> m -> IO ()
+  getLabel  :: GUID -> Mode Label -> Limit -> m -> IO [Label]
 
-  putLabel :: GUID -> Label -> m -> IO ()
+  putLabel  :: GUID -> Label -> m -> IO ()
 
-  unlink   :: GUID -> Label -> Maybe GUID -> m -> IO ()
+  unlink    :: GUID -> Label -> Maybe GUID -> m -> IO ()
 
-  delete   :: GUID -> m -> IO ()
+  remove    :: GUID -> m -> IO ()
 
 glob :: Label -> Mode Label
 glob l@(Label s)
@@ -73,11 +71,11 @@ glob l@(Label s)
     where
       range str = (Label str, Label $ B.init str `B.snoc` (B.last str + 1))
 
-nextPage :: Mode Label -> Label -> Maybe (Mode Label)
-nextPage (All _) l      = Just $ All (Just l)
-nextPage (Prefix _ b) l = Just $ Prefix l b
-nextPage (Suffix _ b) l = Just $ Suffix l b
-nextPage _ _            = Nothing
+nextPage :: Mode Label -> Label -> Mode Label
+nextPage (All _) l      = All (Just l)
+nextPage (Prefix _ b) l = Prefix l b
+nextPage (Suffix _ b) l = Suffix l b
+nextPage _ _            = error "precise has no pagination"
 
 instance GraphBackend AnyBackend where
 
@@ -87,16 +85,16 @@ instance GraphBackend AnyBackend where
 
   putName u t n (AnyBackend db) = putName u t n db
 
-  getLabel dev g m (AnyBackend db) = getLabel dev g m db
+  getLabel g mode limit (AnyBackend db) = getLabel g mode limit db
 
   putLabel g l (AnyBackend db) = putLabel g l db
 
   hasLink a l b (AnyBackend db) = hasLink a l b db
 
-  getLink dev a l (AnyBackend db) = getLink dev a l db
+  getLink a l page limit (AnyBackend db) = getLink a l page limit db
 
   putLink a l b (AnyBackend db) = putLink a l b db
 
   unlink a l mb (AnyBackend db) = unlink a l mb db
 
-  delete a (AnyBackend db) = delete a db
+  remove a (AnyBackend db) = remove a db

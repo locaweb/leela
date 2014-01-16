@@ -64,19 +64,11 @@ instance GraphBackend ZMQBackend where
       NameMsg _ _ _ g -> return g
       _               -> throwIO SystemExcept
 
-  getLabel dev g mode m = void $ forkFinally (fetch 0 Nothing) (devwriteIO dev)
-      where
-        fetch !at page = do
-          reply <- send (dealer m) (GetLabel g $ maybe mode id page)
-          case reply of
-            LabelMsg []              -> return (at, [])
-            LabelMsg xs
-              | length xs < pageSize -> devwriteIO dev (Right (at, xs)) >> return (at+1, [])
-              | otherwise            -> do devwriteIO dev (Right (at, init xs))
-                                           case (nextPage mode (last xs)) of
-                                             Nothing -> return (at + 1, [])
-                                             p       -> fetch (at + 1) p
-            _                        -> throwIO SystemExcept
+  getLabel g page limit m = do
+    reply <- send (dealer m) (GetLabel g page limit)
+    case reply of
+      LabelMsg xs -> return xs
+      _           -> throwIO SystemExcept
 
   putLabel g l m = do
     reply <- send (dealer m) (PutLabel g l)
@@ -91,17 +83,11 @@ instance GraphBackend ZMQBackend where
       LinkMsg _  -> return True
       _          -> throwIO SystemExcept
 
-  getLink dev a l m = void $ forkFinally (fetch 0 Nothing) (devwriteIO dev)
-      where
-        fetch !at page = do
-          reply <- send (dealer m) (GetLink a l page)
-          case reply of
-            LinkMsg []               -> return (at, [])
-            LinkMsg xs
-              | length xs < pageSize -> devwriteIO dev (Right (at, xs)) >> return (at, [])
-              | otherwise            -> do devwriteIO dev (Right (at, init xs))
-                                           fetch (at + 1) (Just $ last xs)
-            _                        -> throwIO SystemExcept
+  getLink a l page limit m = do
+    reply <- send (dealer m) (GetLink a l page limit)
+    case reply of
+      LinkMsg xs -> return xs
+      _          -> throwIO SystemExcept
 
   putLink a l b m = do
     reply <- send (dealer m) (PutLink a l b)
@@ -115,7 +101,7 @@ instance GraphBackend ZMQBackend where
       DoneMsg -> return ()
       _       -> throwIO SystemExcept
 
-  delete a m = do
+  remove a m = do
     reply <- send (dealer m) (Delete a)
     case reply of
       DoneMsg -> return ()

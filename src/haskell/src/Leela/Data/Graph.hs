@@ -15,124 +15,63 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
--- | This module contains operations we can perform on our distributed
--- graph. This implementation uses a logging technique to modify the
--- graph and continuations to load stored data. The log entries are
--- designed so that a adjacency list representation is easy to
--- implement.
 module Leela.Data.Graph
-    ( Result (..)
+    ( Journal (..)
     , Matcher (..)
-    , Cursor (..)
-    , GUID (..)
-    , Link
-    -- * Modifying
-    , unlinkAll
-    , putLinks
-    , putNode
-    , putLink
-    , delete
-    , unlink
-    -- * Creating
-    , done
-    , loadNode
-    , loadNode1
-    -- * Querying
-    , start
-    , select
-    -- * Binding
-    , bind
+    , query
+    , update
     ) where
 
-import Leela.Data.Journal
+import Control.Monad
 import Leela.Data.Naming
+import Leela.Storage.Backend
 
-type Link = (GUID, GUID, Label)
+data Matcher = ByLabel GUID Label
+             | ByNode GUID
+             | ByEdge GUID Label GUID
+             deriving (Eq)
 
-data Matcher r = ByLabel GUID Label ([(GUID, Label)] -> r)
-               | ByNode GUID ([(GUID, Label)] -> r)
-               | ByEdge GUID Label GUID ([(GUID, Label)] -> r)
+data Journal = PutLink GUID Label GUID
+             | PutLabel GUID Label
+             | PutNode User Tree Node
+             | DelLink GUID Label (Maybe GUID)
+             | DelNode GUID
+             deriving (Eq)
 
-data Result r = Load (Matcher (Result r)) (Result r)
-              | Done r
-              | Fail Int String
+limit :: Int
+limit = 128
 
-data Cursor = Head GUID
-            | Item [(GUID, Label)] [(GUID, Label)] Cursor
-            | Need (Result Cursor)
-            | Tail
+query :: (GraphBackend db) => db -> ([(GUID, Label, GUID)] -> IO ()) -> Matcher -> IO ()
+query db write (ByEdge a l b) = do
+  ok <- hasLink a l b db
+  when ok (write [(a, l, b)])
+query db write (ByNode a)     = query db write (ByLabel a (Label "*"))
+query db write (ByLabel a l0) = loadLabels (glob l0)
+    where
+      loadLabels page = do
+        labels <- getLabel a page limit db
+        if (length labels < limit)
+          then mapM_ (flip loadLinks Nothing) labels
+          else do
+            mapM_ (flip loadLinks Nothing) (init labels)
+            loadLabels (nextPage page (last labels))
 
-done :: a -> Result a
-done a = Done a
+      loadLinks l page = do
+        guids <- getLink a l page limit db
+        if (length guids < limit)
+          then write (map (\b -> (a, l, b)) guids)
+          else do
+            write (map (\b -> (a, l, b)) (init guids))
+            loadLinks l (Just $ last guids)
 
-loadNode :: GUID -> Maybe Label -> Maybe GUID -> ([(GUID, Label)] -> Result r) -> Result r -> Result r
-loadNode a Nothing Nothing f   = Load (ByNode a f)
-loadNode a (Just l) Nothing f  = Load (ByLabel a l f)
-loadNode a Nothing (Just b) f  = Load (ByNode a (f . filter ((== b) . fst)))
-loadNode a (Just l) (Just b) f = Load (ByEdge a l b f)
-
-loadNode1 :: GUID -> Maybe Label -> Maybe GUID -> ([(GUID, Label)] -> Result r) -> Result r
-loadNode1 a l b f = loadNode a l b f (Fail 404 "not found")
-
-putNode :: User -> Tree -> Node -> [Journal]
-putNode u t k = [PutNode u t k]
-
-start :: GUID -> Cursor
-start = Head
-
-select :: Label -> Maybe GUID -> Cursor -> Cursor
-select _ _ Tail                                 = Tail
-select wantl wantb (Head a)                     =
-  let item nodes = Item [] nodes Tail
-      onSucc     = done . item
-      onFail     = done Tail
-  in Need $ loadNode a (Just wantl) wantb onSucc onFail
-select wantl wantb (Need r)                     = Need (r >>= done . select wantl wantb)
-select wantl wantb (Item _ [] cont)             = select wantl wantb cont
-select wantl wantb (Item path ((b, l):xs) cont) =
-  let item nodes = Item ((b, l):path) nodes (select wantl wantb (Item path xs cont))
-      onSucc     = done . item
-      onFail     = done $ select wantl wantb (Item path xs cont)
-  in Need $ loadNode b (Just wantl) wantb onSucc onFail
-
-unlink :: Link -> [Journal]
-unlink (a, b, l) = [DelLink a (Just b) l]
-
-unlinkAll :: (GUID, Label) -> [Journal]
-unlinkAll (a, l) = [DelLink a Nothing l]
-
-delete :: GUID -> [Journal]
-delete a = [DelNode a]
-
-putLink :: Link -> [Journal]
-putLink lnk = putLinks [lnk]
-
-putLinks :: [Link] -> [Journal]
-putLinks []             = []
-putLinks ((a, b, l):xs) = PutLabel a l : PutLink a b l : putLinks xs
-
-bind :: Result r1 -> (r1 -> Result r) -> Result r
-bind (Fail c s) _                     = Fail c s
-bind (Load (ByLabel k l f) g) h   = Load (ByLabel k l (\v -> bind (f v) h)) (bind g h)
-bind (Load (ByNode k f) g) h      = Load (ByNode k (\v -> bind (f v) h)) (bind g h)
-bind (Load (ByEdge a l b f) g) h  = Load (ByEdge a l b (\v -> bind (f v) h)) (bind g h)
-bind (Done r) f                   = f r
-
-fmapR :: (r1 -> r) -> Result r1 -> Result r
-fmapR _ (Fail c s)                = Fail c s
-fmapR f (Load (ByLabel k l g) h)  = Load (ByLabel k l (fmapR f . g)) (fmapR f h)
-fmapR f (Load (ByNode k g) h)     = Load (ByNode k (fmapR f . g)) (fmapR f h)
-fmapR f (Load (ByEdge a l b g) h) = Load (ByEdge a l b (fmapR f . g)) (fmapR f h)
-fmapR f (Done r)                  = Done (f r)
-
-instance Monad Result where
-
-  return = done
-
-  fail = Fail 500
-
-  f >>= g  = f `bind` g
-
-instance Functor Result where
-
-  fmap = fmapR
+update :: (GraphBackend db) => db -> [Journal] -> IO [(User, Tree, Node, GUID)]
+update db = go []
+    where
+      go acc []     = return acc
+      go acc (j:js) =
+        case j of
+          PutLink a l b  -> putLink a l b db >> go acc js
+          PutLabel a l   -> putLabel a l db >> go acc js
+          PutNode u t n  -> putName u t n db >>= \g -> go ((u, t, n, g) : acc) js
+          DelLink a l mb -> unlink a l mb db >> go acc js
+          DelNode a      -> remove a db >> go acc js

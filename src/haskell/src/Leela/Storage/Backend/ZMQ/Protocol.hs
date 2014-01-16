@@ -24,16 +24,16 @@ module Leela.Storage.Backend.ZMQ.Protocol
 import qualified Data.ByteString as B
 import           Leela.Data.Naming as N
 import qualified Data.ByteString.Char8 as B8
-import           Leela.Storage.Backend (Mode (..), pageSize)
+import           Leela.Storage.Backend (Mode (..), Limit)
 
 data Query = GetName GUID
            | GetGUID User Tree Node
            | PutName User Tree Node
            | PutLink GUID Label GUID
            | PutLabel GUID Label
-           | GetLink GUID Label (Maybe GUID)
+           | GetLink GUID Label (Maybe GUID) Limit
            | HasLink GUID Label GUID
-           | GetLabel GUID (Mode Label)
+           | GetLabel GUID (Mode Label) Limit
            | Unlink GUID Label (Maybe GUID)
            | Delete GUID
 
@@ -51,26 +51,26 @@ decodeInt s = case (B8.readInt s) of
 encodeShow :: (Show s) => s -> B.ByteString
 encodeShow = B8.pack . show
 
-encodeMode :: GUID -> Mode Label -> [B.ByteString]
-encodeMode g (All Nothing)  = ["all", toByteString g, "", encodeShow pageSize]
-encodeMode g (All (Just l)) = ["all", toByteString g, toByteString l, encodeShow pageSize]
-encodeMode g (Prefix a b)   = ["pre", toByteString g, toByteString a, toByteString b, encodeShow pageSize]
-encodeMode g (Suffix a b)   = ["suf", toByteString g, toByteString a, toByteString b, encodeShow pageSize]
-encodeMode g (Precise l)    = ["ext", toByteString g, toByteString l]
+encodeMode :: Limit -> GUID -> Mode Label -> [B.ByteString]
+encodeMode lim g (All Nothing)  = ["all", toByteString g, "", encodeShow lim]
+encodeMode lim g (All (Just l)) = ["all", toByteString g, toByteString l, encodeShow lim]
+encodeMode lim g (Prefix a b)   = ["pre", toByteString g, toByteString a, toByteString b, encodeShow lim]
+encodeMode lim g (Suffix a b)   = ["suf", toByteString g, toByteString a, toByteString b, encodeShow lim]
+encodeMode _ g (Precise l)    = ["ext", toByteString g, toByteString l]
 
 encode :: Query -> [B.ByteString]
-encode (GetName g)            = ["get", "name", toByteString g]
-encode (GetGUID u t n)        = ["get", "guid", toByteString u, toByteString t, toByteString n]
-encode (HasLink a l b)        = ["get", "link", toByteString a, toByteString l , toByteString b, "1"]
-encode (GetLink g l Nothing)  = ["get", "link", toByteString g, toByteString l, "", encodeShow pageSize]
-encode (GetLink g l (Just p)) = ["get", "link", toByteString g, toByteString l, toByteString p, encodeShow pageSize]
-encode (GetLabel g m)         = "get" : "label" : encodeMode g m
-encode (PutName u t n)        = ["put", "name", toByteString u, toByteString t, toByteString n]
-encode (PutLink a l b)        = ["put", "link", toByteString a, toByteString l, toByteString b]
-encode (PutLabel a l)         = ["put", "label", toByteString a, toByteString l]
-encode (Unlink a l Nothing)   = ["del", "link", toByteString a, toByteString l]
-encode (Unlink a l (Just b))  = ["del", "link", toByteString a, toByteString l, toByteString b]
-encode (Delete a)             = ["del", "node", toByteString a]
+encode (GetName g)                = ["get", "name", toByteString g]
+encode (GetGUID u t n)            = ["get", "guid", toByteString u, toByteString t, toByteString n]
+encode (HasLink a l b)            = ["get", "link", toByteString a, toByteString l , toByteString b, "1"]
+encode (GetLink g l Nothing lim)  = ["get", "link", toByteString g, toByteString l, "", encodeShow lim]
+encode (GetLink g l (Just p) lim) = ["get", "link", toByteString g, toByteString l, toByteString p, encodeShow lim]
+encode (GetLabel g m lim)         = "get" : "label" : encodeMode lim g m
+encode (PutName u t n)            = ["put", "name", toByteString u, toByteString t, toByteString n]
+encode (PutLink a l b)            = ["put", "link", toByteString a, toByteString l, toByteString b]
+encode (PutLabel a l)             = ["put", "label", toByteString a, toByteString l]
+encode (Unlink a l Nothing)       = ["del", "link", toByteString a, toByteString l]
+encode (Unlink a l (Just b))      = ["del", "link", toByteString a, toByteString l, toByteString b]
+encode (Delete a)                 = ["del", "node", toByteString a]
 
 decode :: [B.ByteString] -> Reply
 decode ["done"]             = DoneMsg

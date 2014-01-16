@@ -31,7 +31,6 @@ import           Data.Attoparsec.ByteString as A
 import qualified Data.ByteString as B
 import           Leela.Data.Graph as G
 import           Leela.Data.Naming
-import           Leela.Data.Journal
 import           Control.Applicative
 import qualified Data.ByteString.UTF8 as U
 import qualified Data.ByteString.Lazy as L
@@ -44,6 +43,9 @@ data Direction a = L a
 class Source a where
 
     bytestring :: a -> B.ByteString
+
+isSpace :: Parser Bool
+isSpace = liftM (== Just 0x20) peekWord8
 
 hardspace :: Parser ()
 hardspace = void $ word8 0x20
@@ -109,38 +111,51 @@ parseMakeCreate = do
         l <- hardspace >> parseLink
         b <- hardspace >> parseGUID
         peekWord8 >>= go b (asLink g a b l)
-      go _ g _          = return (putLinks g)
+      go _ g _           = return (map (\(a, l, b) -> PutLink a l b) g)
 
-      asLink acc a b (L l) = (b, a, l) : acc
-      asLink acc a b (R l) = (a, b, l) : acc
-      asLink acc a b (B l) = (a, b, l) : (b, a, l) : acc
+      asLink acc a b (L l) = (b, l, a) : acc
+      asLink acc a b (R l) = (a, l, b) : acc
+      asLink acc a b (B l) = (a, l, b) : (b, l, a) : acc
 
 endBy :: Parser a -> Parser b -> Parser a
 endBy = liftM2 const
 
-parseQuery :: Parser Cursor
-parseQuery = do
-  q0 <- liftM start parseGUID
-  parseQuery1 q0
+safeHead :: [a] -> Parser a
+safeHead [] = fail "parsing error"
+safeHead xs = return $ head xs
 
-parseQuery1 :: Cursor -> Parser Cursor
-parseQuery1 q = option q doParse
-    where
-      doParse = do
-        hardspace
-        l <- parseRLink
-        hardspace
-        mgb <- parseMaybeGUID
-        case mgb of
-          Nothing -> parseQuery1 (select l Nothing q)
-          Just gb -> parseQuery1 (select l (Just gb) q)
+parseQuery :: Parser (Matcher, [(GUID -> Matcher)])
+parseQuery = do
+  a  <- parseGUID
+  ok <- isSpace
+  if ok
+    then do
+      q <- parseQuery1 []
+      f <- safeHead q
+      return (f a, tail q)
+    else return (ByNode a, [])
+
+parseQuery1 :: [(GUID -> Matcher)] -> Parser [(GUID -> Matcher)]
+parseQuery1 acc = do
+  ok <- isSpace
+  if ok
+    then do
+      hardspace
+      l  <- parseRLink
+      hardspace
+      mb <- parseMaybeGUID
+      case mb of
+        Nothing -> parseQuery1 ((flip ByLabel l) : acc)
+        Just b  -> parseQuery1 ((\a -> ByEdge a l b) : acc)
+    else
+      return (reverse acc)
 
 parseStmtMake :: Using -> Parser LQL
 parseStmtMake u = do
   void $ string "make "
   at <- peekWord8
   case at of
-    Just 0x28 -> liftM (AlterStmt . putNode (uUser u) (uTree u)) parseNode
+    Just 0x28 -> liftM (AlterStmt . return . PutNode (uUser u) (uTree u)) parseNode
     Just _    -> liftM AlterStmt parseMakeCreate
     _         -> fail "bad make statement"
 
@@ -160,18 +175,18 @@ parseStmtKill :: Parser LQL
 parseStmtKill = "kill " .*> doParse
     where
       doParse = do
-        mga <- parseMaybeGUID
+        ma <- parseMaybeGUID
         hardspace
         dl  <- parseLink
         hardspace
-        mgb <- parseMaybeGUID
-        case (mga, mgb, dl) of
-          (Just ga, Nothing, R l) -> return $ AlterStmt (unlinkAll (ga, l))
-          (Just ga, Just gb, R l) -> return $ AlterStmt (unlink (ga, gb, l))
-          (Nothing, Just gb, L l) -> return $ AlterStmt (unlinkAll (gb, l))
-          (Just ga, Just gb, L l) -> return $ AlterStmt (unlink (gb, ga, l))
-          (Just ga, Just gb, B l) -> return $ AlterStmt (unlink (ga, gb, l) ++ unlink (gb, ga, l))
-          _                       -> fail "invalid kill command"
+        mb <- parseMaybeGUID
+        case (ma, mb, dl) of
+          (Just a, Nothing, R l) -> return $ AlterStmt [DelLink a l Nothing]
+          (Just a, Just b, R l)  -> return $ AlterStmt [DelLink a l (Just b)]
+          (Nothing, Just b, L l) -> return $ AlterStmt [DelLink b l Nothing]
+          (Just a, Just b, L l)  -> return $ AlterStmt [DelLink b l (Just a)]
+          (Just a, Just b, B l)  -> return $ AlterStmt [DelLink a l (Just b), DelLink b l (Just a)]
+          _                      -> fail "invalid kill command"
 
 parseStmt :: Using -> Parser LQL
 parseStmt u = do
