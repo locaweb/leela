@@ -40,7 +40,7 @@ data Mode a = All (Maybe a)
 type Page = Int
 
 pageSize :: Int
-pageSize = 512
+pageSize = 128
 
 class GraphBackend m where
 
@@ -50,7 +50,7 @@ class GraphBackend m where
 
   putName  :: User -> Tree -> Node -> m -> IO GUID
 
-  hasLink  :: Device (Either SomeException (Page, [GUID])) -> GUID -> Label -> GUID -> m -> IO ()
+  hasLink  :: GUID -> Label -> GUID -> m -> IO Bool
 
   getLink  :: Device (Either SomeException (Page, [GUID])) -> GUID -> Label -> m -> IO ()
 
@@ -91,7 +91,7 @@ instance GraphBackend AnyBackend where
 
   putLabel g l (AnyBackend db) = putLabel g l db
 
-  hasLink dev a l b (AnyBackend db) = hasLink dev a l b db
+  hasLink a l b (AnyBackend db) = hasLink a l b db
 
   getLink dev a l (AnyBackend db) = getLink dev a l db
 

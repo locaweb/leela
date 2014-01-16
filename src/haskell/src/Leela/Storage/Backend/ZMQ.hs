@@ -84,14 +84,12 @@ instance GraphBackend ZMQBackend where
       DoneMsg -> return ()
       _       -> throwIO SystemExcept
 
-  hasLink dev a l b m = void $ forkFinally fetch (devwriteIO dev)
-      where
-        fetch = do
-          reply <- send (dealer m) (HasLink a l b)
-          case reply of
-            LinkMsg [] -> return (0, [])
-            LinkMsg xs -> devwriteIO dev (Right (0, xs)) >> return (0, [])
-            _          -> throwIO SystemExcept
+  hasLink a l b m = do
+    reply <- send (dealer m) (HasLink a l b)
+    case reply of
+      LinkMsg [] -> return False
+      LinkMsg _  -> return True
+      _          -> throwIO SystemExcept
 
   getLink dev a l m = void $ forkFinally (fetch 0 Nothing) (devwriteIO dev)
       where

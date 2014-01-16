@@ -4,13 +4,13 @@
 {-# LANGUAGE Rank2Types        #-}
 
 -- Copyright 2013 (c) Diego Souza <dsouza@c0d3.xxx>
---    
+--
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
 -- You may obtain a copy of the License at
---    
+--
 --     http://www.apache.org/licenses/LICENSE-2.0
---    
+--
 -- Unless required by applicable law or agreed to in writing, software
 -- distributed under the License is distributed on an "AS IS" BASIS,
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -55,7 +55,7 @@ data Stream a = Chunk a
               | EOF
 
 ttl :: Int
-ttl = 30
+ttl = 300
 
 dumpStat :: CoreServer -> IO [(B.ByteString, B.ByteString)]
 dumpStat core = do
@@ -140,15 +140,18 @@ store storage (DelNode a)       = delete a storage
 fetch :: (GraphBackend m, HasControl ctrl) => ctrl -> m -> Matcher r -> (Stream r -> IO ()) -> IO ()
 fetch ctrl storage selector callback0 =
   case selector of
-    ByLabel k l f  -> do dev <- openIO ctrl 2
-                         getLabel dev k (glob l) storage
-                         request k Nothing f dev
-    ByNode k f     -> do dev <- openIO ctrl 2
-                         getLabel dev k (All Nothing) storage
-                         request k Nothing f dev
-    ByEdge a l b f -> do dev <- openIO ctrl 2
-                         getLabel dev a (glob l) storage
-                         request a (Just b) f dev
+    ByLabel k l f  -> do
+      dev <- openIO ctrl 2
+      getLabel dev k (glob l) storage
+      request k Nothing f dev
+    ByNode k f     -> do
+      dev <- openIO ctrl 2
+      getLabel dev k (All Nothing) storage
+      request k Nothing f dev
+    ByEdge a l b f -> do
+      dev <- openIO ctrl 2
+      getLabel dev a (glob l) storage
+      request a (Just b) f dev
     where
       request a mb f dev = do
         mlabels <- devreadIO dev
@@ -169,7 +172,12 @@ fetch ctrl storage selector callback0 =
       fetchLabels empty a mb dev (l:ls) callback = do
         case mb of
           Nothing -> getLink dev a l storage
-          Just b  -> hasLink dev a l b storage
+          Just b  -> catch
+            (hasLink a l b storage >>= \ok ->
+               if ok
+                 then devwriteIO dev (Right (0, [b]))
+                 else devwriteIO dev (Right (0, [])))
+            (devwriteIO dev . Left)
         nempty <- fetchLinks empty dev $ \guids ->
           unless (null guids) (callback $ map (, l) guids)
         if (null ls)
@@ -186,8 +194,9 @@ fetch ctrl storage selector callback0 =
 
 eval :: (GraphBackend m, HasControl ctrl) => ctrl -> m -> Result r -> (Stream r -> IO ()) -> IO ()
 eval _ _ (G.Fail 404 _) _         = throwIO NotFoundExcept
-eval _ _ (G.Fail code msg) _      = do lwarn Network (printf "eval has failed: %d/%s" code msg)
-                                       throwIO SystemExcept
+eval _ _ (G.Fail code msg) _      = do
+  lwarn Network (printf "eval has failed: %d/%s" code msg)
+  throwIO SystemExcept
 eval ctrl storage (G.Load f g) callback =
   catch (fetch ctrl storage f $ \chunk ->
            case chunk of
@@ -206,24 +215,22 @@ evalLQL storage core dev (x:xs) =
   case x of
     PathStmt cursor -> navigate cursor (evalLQL storage core dev xs)
     AlterStmt []    -> evalLQL storage core dev xs
-    AlterStmt (PutNode u t n:stmts)
-                    -> do
+    AlterStmt (PutNode u t n:stmts) -> do
       g <- putName u t n storage
       devwriteIO dev (Item $ Name u t n g)
       evalLQL storage core dev (AlterStmt stmts : xs)
-    AlterStmt (stmt:stmts)
-                    -> do
+    AlterStmt (stmt:stmts)            -> do
       store storage stmt
       evalLQL storage core dev (AlterStmt stmts : xs)
-    StatStmt        -> do
+    StatStmt -> do
       state <- dumpStat core
       devwriteIO dev (Item $ Stat state)
       evalLQL storage core dev xs
-    NameStmt _ g    -> do
+    NameStmt _ g -> do
       (gUser, gTree, gName) <- getName g storage
       devwriteIO dev (Item $ Name gUser gTree gName g)
       evalLQL storage core dev xs
-    GUIDStmt u n    -> do
+    GUIDStmt u n           -> do
       mg <- getGUID (uUser u) (uTree u) n storage
       case mg of
         Nothing -> devwriteIO dev (Fail 404 Nothing)

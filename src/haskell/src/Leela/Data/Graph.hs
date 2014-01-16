@@ -20,22 +20,6 @@
 -- graph and continuations to load stored data. The log entries are
 -- designed so that a adjacency list representation is easy to
 -- implement.
---
--- Special care must be taken when implementing the storage
--- engine. Implementations must adhere to the following memory model:
---
---   * read-after-write between two different Result types must never fail;
---   * read-after-write within a Result type may fail;
---   * writes within a Result can happen out-of-order;
---   * writes between two different Results must never happen out-of-order;
---
--- To make this clear, the following likely wont work:
---
--- > (Done () [PutNode n k]) >>= (Load k f g)
---
--- To accomplish this you must first write the node (letting the
--- storage engine finish its business) and create another Result type
--- with the Load request.
 module Leela.Data.Graph
     ( Result (..)
     , Matcher (..)
