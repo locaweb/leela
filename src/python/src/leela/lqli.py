@@ -1,6 +1,9 @@
 #!/usr/bin/python
 
+import os
 import re
+import time
+import atexit
 import argparse
 import readline
 import traceback
@@ -19,6 +22,12 @@ def resolve(cache, ctx, opts, guid):
 def gresolve(ctx, opts, guid):
     with lql.with_cursor(ctx, opts.username, opts.secret, opts.timeout) as cursor:
         cursor.execute("using (%s) guid (%s);" % (opts.tree, guid))
+        if (cursor.next()):
+            return(cursor.fetch()[1][-1])
+
+def gmake(ctx, opts, guid):
+    with lql.with_cursor(ctx, opts.username, opts.secret, opts.timeout) as cursor:
+        cursor.execute("using (%s) make (%s);" % (opts.tree, guid))
         if (cursor.next()):
             return(cursor.fetch()[1][-1])
 
@@ -46,33 +55,47 @@ def dump_row(cache, ctx, opts, row):
     else:
         raise(RuntimeError())
 
-def rewrite_path(cache, ctx, opts, q0):
+def rewrite_guid(cache, ctx, opts, q0, f):
     q = q0
     while (True):
         m = re.search(" (\([^\)]+?\))[ ;,]", q)
         if (m is None):
             break
         node = m.group()[2:-2]
-        guid = gresolve(ctx, opts, node)
+        guid = f(ctx, opts, node)
         q    = q.replace("(%s)" % node, guid, 1)
     return(q)
 
 def execute(cache, ctx, opts, q):
     if (q.startswith("path")):
-        q = rewrite_path(cache, ctx, opts, q)
+        q = rewrite_guid(cache, ctx, opts, q, gresolve)
+    elif (q.startswith("kill")):
+        q = rewrite_guid(cache, ctx, opts, q, gresolve)
+    elif (q.startswith("make") and (") -[" in q or ") <[" in q)):
+        q = rewrite_guid(cache, ctx, opts, q, gmake)
     with lql.with_cursor(ctx, opts.username, opts.secret, opts.timeout) as cursor:
-        rows = 0
+        stat = {"rows": 0, "time": time.time()}
         cursor.execute("using (%s) %s" % (opts.tree, q))
         while (cursor.next()):
-            rows += 1
+            stat["rows"] = stat["rows"] + 1
             dump_row(cache, ctx, opts, cursor.fetch())
-        print("%d rows" % (rows,))
+        stat["time"] = time.time() - stat["time"]
+        print("rows: %(rows)d; elapsed: %(time).2fs" % stat)
+
+def ignore_except(f, *args, **kwargs):
+    try:
+        f(*args, **kwargs)
+    except:
+        pass
 
 def read_eval_loop(ctx, opts):
     buff    = []
     cache   = {}
     prompt0 = "ilql # "
     prompt  = prompt0
+    history = os.path.join(os.path.expanduser("~"), ".lqli")
+    ignore_except(readline.read_history_file, history)
+    atexit.register(readline.write_history_file, history)
     while (True):
         msg0 = raw_input(prompt)
         if (msg0 == ""):
