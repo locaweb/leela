@@ -111,7 +111,7 @@ parseMakeCreate = do
         l <- hardspace >> parseLink
         b <- hardspace >> parseGUID
         peekWord8 >>= go b (asLink g a b l)
-      go _ g _           = return (map (\(a, l, b) -> PutLink a l b) g)
+      go _ g _           = return (concatMap (\(a, l, b) -> [PutLabel a l, PutLink a l b]) g)
 
       asLink acc a b (L l) = (b, l, a) : acc
       asLink acc a b (R l) = (a, l, b) : acc
