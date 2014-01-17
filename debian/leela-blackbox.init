@@ -42,6 +42,7 @@ leela_watchdog_start () {
 
 leela_daemon_start () {
   leela_grantaccess
+  ulimit -n 100000
   env \
     LEELA_BLACKBOX_USERNAME="$LEELA_BLACKBOX_USERNAME" \
     LEELA_BLACKBOX_PASSWORD="$LEELA_BLACKBOX_PASSWORD" \

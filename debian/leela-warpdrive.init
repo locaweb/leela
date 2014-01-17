@@ -42,6 +42,7 @@ leela_watchdog_start () {
 
 leela_daemon_start () {
   leela_grantaccess
+  ulimit -n 100000
   daemon --delay 10 -r -o $LOGDIR/daemon.log \
     -u $USER:$GROUP -P $RUNDIR -n daemon -- \
     warpdrive \
