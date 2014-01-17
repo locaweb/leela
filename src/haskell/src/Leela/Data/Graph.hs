@@ -22,9 +22,11 @@ module Leela.Data.Graph
     , update
     ) where
 
+import Data.Maybe
 import Control.Monad
 import Leela.Data.Naming
 import Leela.Storage.Backend
+import Control.Concurrent.Async
 
 data Matcher = ByLabel GUID Label
              | ByNode GUID
@@ -64,14 +66,24 @@ query db write (ByLabel a l0) = loadLabels (glob l0)
             write (map (\b -> (a, l, b)) (init guids))
             loadLinks l (Just $ last guids)
 
-update :: (GraphBackend db) => db -> [Journal] -> IO [(User, Tree, Node, GUID)]
-update db = go []
+group :: Int -> [a] -> [[a]]
+group size = go (0, [])
     where
-      go acc []     = return acc
-      go acc (j:js) =
-        case j of
-          PutLink a l b  -> putLink a l b db >> go acc js
-          PutLabel a l   -> putLabel a l db >> go acc js
-          PutNode u t n  -> putName u t n db >>= \g -> go ((u, t, n, g) : acc) js
-          DelLink a l mb -> unlink a l mb db >> go acc js
-          DelNode a      -> remove a db >> go acc js
+      go (_, []) []     = []
+      go (_, xs) []     = reverse xs
+      go (k, []) (y:ys) = go (k+1, [[y]]) ys
+      go (k, (xs:xss)) (y:ys)
+        | k == size     = go (0, [] : reverse xs : xss) (y : ys)
+        | otherwise     = go (k + 1, (y : xs) : xss) ys
+
+collect :: [[Maybe a]] -> [a]
+collect = concatMap catMaybes
+
+update :: (GraphBackend db) => db -> [Journal] -> IO [(User, Tree, Node, GUID)]
+update db = fmap collect . mapM (mapConcurrently exec) . group 8
+    where
+      exec (PutLink a l b)  = putLink a l b db >> return Nothing
+      exec (PutLabel a l)   = putLabel a l db >> return Nothing
+      exec (PutNode u t n)  = putName u t n db >>= \g -> return $ Just (u, t, n, g)
+      exec (DelLink a l mb) = unlink a l mb db >> return Nothing
+      exec (DelNode a)      = remove a db >> return Nothing

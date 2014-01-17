@@ -20,13 +20,10 @@ module Leela.Storage.Backend.ZMQ
     , zmqbackend
     ) where
 
-import Control.Monad
 import Data.ByteString (ByteString)
 import Control.Exception
 import Leela.HZMQ.Dealer
-import Control.Concurrent
 import Leela.Data.Excepts
-import Leela.Data.QDevice
 import Leela.Storage.Backend
 import Leela.Storage.Backend.ZMQ.Protocol
 

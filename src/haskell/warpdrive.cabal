@@ -25,6 +25,7 @@ executable warpdrive
                   , base              (>= 4    && < 5)
                   , time              (>= 1.4  && < 2)
                   , unix              (>= 2.6  && < 3)
+                  , async             (>= 2.0  && < 3)
                   , clock             (>= 0.3  && < 1)
                   , hflags            (>= 0.2  && < 1)
                   , random            (>= 1.0  && < 2)
