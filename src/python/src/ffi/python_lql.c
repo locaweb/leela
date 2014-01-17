@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Diego Souza                                                 */
+/* Copyright (c) 2013, Diego Souza                                                 */
 /* All rights reserved.                                                            */
                                                                                    
 /* Redistribution and use in source and binary forms, with or without              */
