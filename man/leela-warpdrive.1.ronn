@@ -31,7 +31,6 @@ In *LQL*, there are currently five statements available:
 * `attr`: to modify and query properties;
 * `make`: used to create nodes, labels and edges;
 * `kill`: remove edges or vertexes;
-* `scan`: monitors data in real-time;
 
 This section gives only a brief introduction about the first two and
 all clauses are properly defined in future sections.
@@ -43,7 +42,7 @@ Let's start with an example. The following is a valid *LQL* statement
     2| make (leela)
     3| make (warpdrive)
     4| make (blackbox)
-    5| make (leela) -[zmq/lql]> (warpdrive) -[zmq/storage]> (blackbox);
+    5| make bd8f0e77-d2df-473c-b654-924cf3dadbb7 -[zmq/lql]> 189f7aa5-7c14-4380-9083-535a797b009a -[zmq/storage]> 08443ee0-d27f-497b-a006-7c0d07ae0b2c;
 
 Every *lql* statement must define which namespace to use with a
 `using` message:
@@ -61,26 +60,29 @@ Then the next three lines:
 
 These create three vertexes: *leela*, *warpdrive* and *blackbox*
 respectively. This is a required step before creating *edges* as it
-registers the name of the node.
+registers the name of the node. The server answers these requests with
+a `name` message, which is an unique identifier [= *guid*] that you must
+use when referring to them.
 
 Finally, the last line creates two *edges*. An edge is something that
 links two vertexes, establishing a path between them. We can always
 break down the multiple create statement into a series binary
 operations and still produce the same result:
 
-    make (leela) -[zmq/lql]> (warpdrive)
+    make bd8f0e77-d2df-473c-b654-924cf3dadbb7 -[zmq/lql]> 189f7aa5-7c14-4380-9083-535a797b009a
 
-The above creates a path connecting *leela* to the vertex *warpdrive*
-with the label *zmq/lql*. The brackets delimit the string and the
-arrow (the string between the two vertexes) defines direction. So to
-create a path in the opposite direction we could either do:
+The above creates a path (notice the *guid* may vary) connecting
+*leela* to the vertex *warpdrive* with the label *zmq/lql*. The
+brackets delimit the string and the arrow (the string between the two
+vertexes) defines direction. So to create a path in the opposite
+direction we could either do:
 
-    make (warpdrive) -[zmq/lql]> (leela)
-    make (leela) <[zmq/lql]- (warpdrive)
+    make 189f7aa5-7c14-4380-9083-535a797b009a -[zmq/lql]> bd8f0e77-d2df-473c-b654-924cf3dadbb7
+    make bd8f0e77-d2df-473c-b654-924cf3dadbb7 <[zmq/lql]- 189f7aa5-7c14-4380-9083-535a797b009a
 
 The above lines are equivalent. Continuing:
 
-    make (warpdrive) -[zmq/storage]> (blackbox);
+    make 189f7aa5-7c14-4380-9083-535a797b009a -[zmq/storage]> 08443ee0-d27f-497b-a006-7c0d07ae0b2c;
 
 This does exactly the same as the first component, except by the
 trailing semi-colon. This is used indicate the end of the statement
@@ -89,7 +91,7 @@ and everything after it gets ignored.
 The other statement at our disposal is `path`. It shares the same
 syntax as the `make` statement:
 
-    path (leela)
+    path bd8f0e77-d2df-473c-b654-924cf3dadbb7
 
 This will retrieve all *outgoing edges* the *leela* vertex may
 have. Supposing that the previous `make` statement has executed
@@ -98,7 +100,7 @@ successfully then this would return the tuple (*warpdrive*,
 
 We can also provide a path:
 
-    path (leela) -[zmq/lql]> ()
+    path bd8f0e77-d2df-473c-b654-924cf3dadbb7 -[zmq/lql]> ()
 
 Notice the empty parenthesis at the end of the path. This is used to
 express that we want to retrieve all vertexes that `leela` have an
@@ -107,13 +109,13 @@ outgoing edge to.
 You may also perform a prefix or suffix match in the label using the
 `*` character:
 
-    path (leela) -[zmq/*]> ()
-    path (leela) -[*/lql]> ()
-    path (leela) -[*]> ()
+    path bd8f0e77-d2df-473c-b654-924cf3dadbb7 -[zmq/*]> ()
+    path bd8f0e77-d2df-473c-b654-924cf3dadbb7 -[*/lql]> ()
+    path bd8f0e77-d2df-473c-b654-924cf3dadbb7 -[*]> ()
 
 Path queries can have arbitrary sizes too:
 
-    path (leela) -[zmq/lql]> (warpdrive) -> -[*/native]> ()
+    path bd8f0e77-d2df-473c-b654-924cf3dadbb7 -[zmq/lql]> 189f7aa5-7c14-4380-9083-535a797b009a -> -[*/native]> ()
 
 This should cover the basics of the *LQL*, following we provide
 details of the actual syntax and internals.
@@ -148,8 +150,8 @@ server could encode a `name` and a `path` in a single `item` message:
 
     > <SIGNATURE> | fetch | 1
     < item | list | 2
-        | name | de76c3e567fca9d246f5f8d3b2e704a38c3c5e258988ab525f941db8 | dgvncsz0f | leela | foobar
-        | path | 2 | de76c3e567fca9d246f5f8d3b2e704a38c3c5e258988ab525f941db8 | foobar
+        | name | dgvncsz0f | leela | foobar | 189f7aa5-7c14-4380-9083-535a797b009a
+        | path | 2 | foobar | 189f7aa5-7c14-4380-9083-535a797b009a
     * line breaks just for legibility purposes
 
 If there is any error, the server will send a `fail` message. Also,
@@ -163,9 +165,10 @@ the server is done.
     stmt  = attr
           / name
           / path
-          / watch 
+          / kill
+          / guid
           / make ; please refer to MAKE, PATH,
-                   ; NAME, ATTR and WATCH sections
+                 ; NAME, ATTR and KILL sections
 
 ## MAKE ##
 
@@ -176,7 +179,7 @@ not interested in errors:
     > <SIGNATURE> | begin | using (leela) make (warpdrive);
     < done | 1
     > <SIGNATURE> | fetch | 1
-    < done
+    < item | name | leela | leela | warprive | 189f7aa5-7c14-4380-9083-535a797b009a
     > <SIGNATURE> | close | 1
     < done
 
@@ -186,7 +189,7 @@ success. If you want to make sure everything went fine:
     > <SIGNATURE> | begin | using (leela) make (warpdrive);
     < done | 1
     > <SIGNATURE> | fetch | 1
-    < done
+    < item | name | leela | warpdrive | 189f7aa5-7c14-4380-9083-535a797b009a
     > <SIGNAGURE> | close | 1 | nowait
     < done
 
@@ -204,36 +207,36 @@ Find edges matching a given path. The server respond with zero or more
 `path` messages, one for each edge that has been found:
 
     0      1         2..2+<LINKS>
-    +------+---------+--------+---------+
-    | path | <LINKS> | <GUID> | <LABEL> |
-    +------+---------+--------+---------+
+    +------+---------+---------+---------+
+    | path | <LINKS> | <LABEL> | <GUID> |
+    +------+---------+---------+---------+
 
 The first vertex is mandatory, you must provide a starting point. When
 specifying the labels, you may use wildcards, like the following
 examples:
 
-    path (a) -[foo*]> (); labels starting with foo
-    path (a) -[*foo]> (); labels ending with foo;
-    path (a) -[foobar]> (); exact match;
-    path (a) -[*]> (); any labels;
+    path a -[foo*]> (); labels starting with foo
+    path a -[*foo]> (); labels ending with foo;
+    path a -[foobar]> (); exact match;
+    path a -[*]> (); any labels;
 
 The path may put a constrain on intermediary nodes as well:
 
-    path (a) -[*]> (b); labels between (a) and (b)?
+    path a -[*]> b; labels between (a) and (b)?
 
 An special case is a `path` on a single node. This is equivalent of
 asking all labels of the vertex, so these two produce the same
 results:
 
-    path (a);
-    path (a) -[*]> ();
+    path a;
+    path a -[*]> ();
 
 ### EXAMPLES ###
 
-    > <SIGNATURE> | begin | using (leela) path (warpdrive);
+    > <SIGNATURE> | begin | using (leela) path 189f7aa5-7c14-4380-9083-535a797b009a;
     < done | 1
     > <SIGNATURE> | fetch | 1
-    > done | path | 2 | 0xde76c3e567fca9d246f5f8d3b2e704a38c3c5e258988ab525f941db8 | foobar
+    > done | path | 2 | foobar | 08443ee0-d27f-497b-a006-7c0d07ae0b2c
     > <SIGNATURE> | close | 1
     < done
 
@@ -249,172 +252,22 @@ Extracts name and namespace from vertex references. The response is a
 `name` message:
 
     0      1        2        3             4
-    +------+--------+--------+-------------+--------+
-    | name | <GUID> | <USER> | <NAMESPACE> | <NAME> |
-    +------+--------+--------+-------------+--------+
+    +------+--------+--------+--------+--------+
+    | name | <USER> | <TREE> | <NAME> | <GUID> |
+    +------+--------+--------+--------+--------+
 
 ### EXAMPLES ###
 
-    > <SIGNATURE> | begin | using (leela) name 0xde76c3e567fca9d246f5f8d3b2e704a38c3c5e258988ab525f941db8;
+    > <SIGNATURE> | begin | using (leela) name 189f7aa5-7c14-4380-9083-535a797b009a;
     < done | 1
     > <SIGNATURE> | fetch | 1
-    < done | name | 0xde76c3e567fca9d246f5f8d3b2e704a38c3c5e258988ab525f941db8 | dgvncsz0f | leela | foobar
+    < done | name | dgvncsz0f | leela | foobar | 189f7aa5-7c14-4380-9083-535a797b009a
     > <SIGNATURE> | close | 1
     < done
 
 ### ABNF ###
 
-    name   = "name" SP "0x" +HEXDIG
-
-## SCAN ##
-
-Monitors changes on vertexes. Using without parameters monitors the
-entire namespace. Users may reduce the search space by filtering by
-either property name, vertex name or any metadata.
-
-Scan may send the following events:
-
-      0      1          2          3
-      +------+----------+----------+---------+
-      | edge | <A-GUID> | <B-GUID> | <LABEL> |
-      +------+----------+----------+---------+
-
-      0      1        2        3            4         5..n
-      +------+--------+--------+------------+---------+--------+
-      | attr | <GUID> | <NAME> | <TIMESPEC> | <VALUE> | <META> |
-      +------+--------+--------+------------+---------+--------+
-
-When filtering you must provide a key-value pair using one of the
-following comparators:
-
-* ==: test for equality;
-* /=: test for inequality;
-* =*: prefix name;
-* *=: suffix name;
-
-The next attributes are always available, plus any metadata users send
-when creating an attribute:
-
-* node: the name of the vertex;
-* attr: the name of the attribute;
-
-You may combine multiple filters using either `&&` or `||` which
-performs a logical *and* and logical *or* respectively.
-
-### EXAMPLES ###
-
-1. Monitors the entire namespace:
-
-       > <SIGNATURE> | begin | using (leela) scan;
-       < done | 1
-       > <SIGNATURE> | fetch | 1
-       < item | attr | 90a81bdaa85b5d9dfc4c0cd89d9edaf93255d5f4160cd67bead46a91
-              | version | 20130101T000000 | warpdrive | 4.0.0
-
-2. Monitors a given vertex:
-
-       > <SIGNATURE> | begin | using (leela) scan node == "foobar";
-       ...
-
-3. Monitors a given attribute:
-
-       > <SIGNATURE> | begin | using (leela) scan attr == "version";
-       ...
-
-4. Monitors attribute and metadata:
-
-       > <SIGNATURE> | begin | using (leela) scan attr == "cpu/idle" && source == "collectd";
-       ...
-
-### ABNF ###
-
-    scan      = "scan" [SP where]
-    where      = pair *(SP log-op SP p-pair)
-    p-pair     = "(" pair ")"
-               / pair
-    log-op     = "&&" / "||"
-    pair       = +VCHAR SP cmp-op SP val
-    val        = DQUOTE +VCHAR DQUOTE
-    cmp-op     = "=="
-               / "/="
-               / "=*"
-               / "*="
-
-## ATTR ##
-
-Writing or reading vertex's attributes.
-
-### EXAMPLES ###
-
-    > <SIGNATURE> | begin | using (leela) attr warpdrive/writes@(leela) put NOW 8000;
-    < done | 1
-    > fetch | 1
-    < done
-    > close | 1
-    < done
-
-    > <SIGNATURE> | begin | using (leela) attr warpdrive/writes@(leela) put NOW 8000 with host = localhost;
-    < done | 1
-    > fetch | 1
-    < done
-    > close | 1
-    < done
-
-    > <SIGNATURE> | begin | using (leela) attr warpdrive/writes@(leela) get 20130101T000000 NOW;
-    < done | 1
-    > fetch | 1
-    < done | warpdrive/writes | 20130101T000000 | 8000
-    > close | 1
-    < done
-
-    > <SIGNATURE> | begin | using (leela) attr warpdrive/writes@(warpdrive) get 20130101T000000 NOW with values = id, max = maximum, min = minimum, avg = mean;
-    < done | 1
-    > fetch | 1
-    < done | ...
-    > close | 1
-    < done
-
-### ABNF ###
-
-    attr         = "attr" SP +VCHAR "@" vertex SP action
-    vertex       = "(" +VCHAR ")"
-    action       = get / put / open
-    get          = "get" [SP timestamp SP (timestamp / "NOW")] [SP get-with]
-    put          = "put" [SP (timestamp / "NOW") SP value] [SP put-with]
-    open         = "open"
-    timestamp    = 4DIGIT 2DIGIT 2DIGIT "T" 2DIGIT 2DIGIT 2DIGIT
-    value        = ["-"] +DIGIT ["." +DIGIT]
-    get-with     = "with" SP key-func *("," SP key-func)
-    key-func     = +key SP "=" SP +func
-    key          = ALPHA / DIGIT / "." / "-" / "_"
-    func         = "id"
-                 / "abs"
-                 / "sma" SP value
-                 / "sum"
-                 / "ceil"
-                 / "ewma" SP value
-                 / "floor"
-                 / "mean"
-                 / "prod"
-                 / "round"
-                 / "maximum"
-                 / "minimum"
-                 / "truncate"
-                 / "(+" value")"
-                 / "(-" value")"
-                 / "(*" value")"
-                 / "(/" value")"
-                 / "(//" value")"
-                 / "[>" value"]"
-                 / "[<" value"]"
-                 / "[>=" value"]"
-                 / "[<=" value"]"
-                 / "[==" value"]"
-                 / "[/=" value"]"
-                 / func SP "." SP func
-                 
-    put-with     = "with" SP key-name *("," SP key-name)
-    key-name     = +key SP "=" SP +VCHAR
+    name   = "name" SP GUID
 
 ## AUTHORS ##
 
