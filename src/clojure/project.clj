@@ -9,7 +9,6 @@
                  [clj-time "0.6.0"]
                  [org.zeromq/jzmq "2.2.2"]
                  [org.clojure/clojure "1.5.1"]
-                 [org.clojure/data.json "0.2.3"]
                  [org.clojure/tools.cli "0.2.4"]
                  [clojurewerkz/cassaforte "1.3.0-beta8"]
                  [org.clojure/tools.logging "0.2.6"]

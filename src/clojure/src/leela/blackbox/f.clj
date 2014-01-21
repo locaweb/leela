@@ -16,8 +16,7 @@
   (:use     [clojure.tools.logging :only [error]]
             [clojure.inspector])
   (:import  java.util.UUID
-            com.datastax.driver.core.utils.UUIDs)
-  (:require [clojure.data.json :as json]))
+            com.datastax.driver.core.utils.UUIDs))
 
 (defmacro forever [& body]
   `(while true ~@body))
@@ -52,15 +51,13 @@
 
 (def +charset-ascii+ (.get (java.nio.charset.Charset/availableCharsets) "US-ASCII"))
 
-(def json-to-str json/write-str)
-
 (def uuid-zero (UUIDs/startOf 0))
-
-(defmacro str-to-json [s]
-  `(json/read-str ~s :key-fn keyword))
 
 (defmacro uuid-1 []
   `(UUIDs/timeBased))
+
+(defmacro uuid-from-time [time]
+  `(UUIDs/startOf ~time))
 
 (defmacro str-to-bytes [s]
   `(if (instance? String ~s)

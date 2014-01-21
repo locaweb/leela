@@ -21,36 +21,40 @@
     (storage/with-session [cluster ["127.0.0.1"] "leela"]
 
       (testing "getindex with no data"
-        (is (= [] (storage/getindex cluster node 0))))
+        (is (= [] (storage/getindex cluster node false))))
 
       (testing "getindex after putindex"
-        (storage/putindex cluster node 0 "foobar")
-        (is (= ["foobar"] (storage/getindex cluster node 0))))
+        (storage/truncate-all cluster)
+        (storage/putindex cluster node false "foobar")
+        (is (= ["foobar"] (storage/getindex cluster node false))))
 
       (testing "getindex after multiple putindex"
-        (storage/putindex cluster node 1 "f")
-        (storage/putindex cluster node 1 "o")
-        (storage/putindex cluster node 1 "b")
-        (storage/putindex cluster node 1 "a")
-        (storage/putindex cluster node 1 "r")
-        (is (= ["a" "b" "f" "o" "r"] (storage/getindex cluster node 1))))
+        (storage/truncate-all cluster)
+        (storage/putindex cluster node false "f")
+        (storage/putindex cluster node false "o")
+        (storage/putindex cluster node false "b")
+        (storage/putindex cluster node false "a")
+        (storage/putindex cluster node false "r")
+        (is (= ["a" "b" "f" "o" "r"] (storage/getindex cluster node false))))
 
       (testing "getindex pagination with no finish"
-        (storage/putindex cluster node 2 "a0")
-        (storage/putindex cluster node 2 "a1")
-        (storage/putindex cluster node 2 "a2")
+        (storage/truncate-all cluster)
+        (storage/putindex cluster node false "a0")
+        (storage/putindex cluster node false "a1")
+        (storage/putindex cluster node false "a2")
         (storage/with-limit 1
-          (is (= ["a0"] (storage/getindex cluster node 2 "")))
-          (is (= ["a1"] (storage/getindex cluster node 2 "a1")))
-          (is (= ["a2"] (storage/getindex cluster node 2 "a2")))))
+          (is (= ["a0"] (storage/getindex cluster node false "")))
+          (is (= ["a1"] (storage/getindex cluster node false "a1")))
+          (is (= ["a2"] (storage/getindex cluster node false "a2")))))
 
       (testing "getindex pagination with finish"
-        (storage/putindex cluster node 2 "a0")
-        (storage/putindex cluster node 2 "a1")
-        (storage/putindex cluster node 2 "a2")
+        (storage/truncate-all cluster)
+        (storage/putindex cluster node false "a0")
+        (storage/putindex cluster node false "a1")
+        (storage/putindex cluster node false "a2")
         (storage/with-limit 1
-          (is (= ["a0"] (storage/getindex cluster node 2 "" "a1")))
-          (is (= ["a1"] (storage/getindex cluster node 2 "a1" "a2"))))))))
+          (is (= ["a0"] (storage/getindex cluster node false "" "a1")))
+          (is (= ["a1"] (storage/getindex cluster node false "a1" "a2"))))))))
 
 (deftest test-getlink
   (let [node-a (f/uuid-from-time 1)

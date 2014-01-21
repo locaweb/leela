@@ -26,39 +26,54 @@
 (defn check-schema [cluster keyspace]
   (when-not (describe-keyspace cluster keyspace)
     (warn (format "creating keyspace %s [simplestrategy, rf=1]" keyspace))
-    (create-keyspace cluster keyspace (with {:replication {:class "SimpleStrategy" :replication_factor 1}})))
+    (create-keyspace
+     cluster
+     keyspace
+     (if-not-exists)
+     (with {:replication {:class "SimpleStrategy" :replication_factor 1}})))
   (info (format "connecting to keyspace %s" keyspace))
   (use-keyspace cluster keyspace)
   (when-not (describe-table cluster keyspace :graph)
     (warn "creating table graph")
     (create-table
      cluster :graph
+     (if-not-exists)
      (column-definitions {:a :uuid :l :varchar :b :uuid :primary-key [[:a :l] :b]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
-  (when-not (describe-table cluster keyspace :naming)
-    (warn "creating table naming")
+  (when-not (describe-table cluster keyspace :n_naming)
+    (warn "creating table n_naming")
     (create-table
-     cluster :naming
+     cluster :n_naming
+     (if-not-exists)
      (column-definitions {:user :varchar :tree :varchar :node :varchar :guid :uuid :primary-key [[:user :tree] :node]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
-  (when-not (describe-table cluster keyspace :tattr)
-    (warn "creating table tattr")
+  (when-not (describe-table cluster keyspace :g_naming)
+    (warn "creating table g_naming")
     (create-table
-     cluster :tattr
+     cluster :g_naming
+     (if-not-exists)
+     (column-definitions {:guid :uuid :user :varchar :tree :varchar :node :varchar :primary-key [:guid]})
+     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
+  (when-not (describe-table cluster keyspace :t_attr)
+    (warn "creating table t_attr")
+    (create-table
+     cluster :t_attr
+     (if-not-exists)
      (column-definitions {:key :uuid :name :varchar :slot :int :value :blob :primary-key [[:key :name] :slot]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
-  (when-not (describe-table cluster keyspace :kattr)
-    (warn "creating table kattr")
+  (when-not (describe-table cluster keyspace :k_attr)
+    (warn "creating table k_attr")
     (create-table
-      cluster :kattr
-      (column-definitions {:key :uuid :name :varchar :value :blob  :primary-key [[:key :name]]})
-      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
+     cluster :k_attr
+     (if-not-exists)
+     (column-definitions {:key :uuid :name :varchar :value :blob  :primary-key [[:key :name]]})
+     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
   (when-not (describe-table cluster keyspace :search)
     (warn "creating table search")
     (create-table
-     cluster
-     :search
-     (column-definitions {:key :uuid :code :int :name :varchar :primary-key [[:key :code] :name]})
+     cluster :search
+     (if-not-exists)
+     (column-definitions {:key :uuid :rev :boolean :name :varchar :primary-key [[:key :rev] :name]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}}))))
 
 (defmacro with-connection [[conn endpoint options] & body]
@@ -83,41 +98,55 @@
      ~@body))
 
 (defn truncate-all [cluster]
-  (doseq [t [:graph :search :tattr :kattr :naming]]
+  (doseq [t [:graph :search :t_attr :k_attr :n_naming :g_naming]]
     (truncate cluster t)))
 
-(defn putindex [cluster k code name]
-  (insert cluster :search {:key k :code code :name name}))
+(defn putindex [cluster k rev name]
+  (let [value (if rev (s/reverse name) name)]
+    (insert cluster :search {:key k :rev rev :name value})))
 
 (defn getguid [cluster user tree node]
   (first (map #(:guid %)
               (select cluster
-                      :naming
+                      :n_naming
                       (columns :guid)
                       (where :user user :tree tree :node node)
                       (limit 1)))))
 
+(defn getname [cluster guid]
+  (first (map (fn [row] [(:user row) (:tree row) (:node row)])
+              (select cluster
+                      :g_naming
+                      (columns :user :tree :node)
+                      (where :guid guid)
+                      (limit 1)))))
+
 (defn putguid [cluster user tree node]
   (with-consistency :serial
-    (insert cluster :naming {:user user :tree tree :node node :guid (f/uuid-1)} (if-not-exists))
-    (getguid cluster user tree node)))
+    (let [guid (f/uuid-1)]
+      (insert cluster :n_naming {:user user :tree tree :node node :guid guid} (if-not-exists))
+      (let [guid1 (getguid cluster user tree node)]
+        (when (= guid guid1) (insert cluster :g_naming {:user user :tree tree :node node :guid guid1}))
+        guid1))))
 
-(defn getindex [cluster k code & optional]
-  (let [[start finish] optional]
-    (map #(:name %) (select cluster
-                            :search
-                            (columns :name)
-                            (case [(boolean start) (boolean finish)]
-                              [true true] (where :key k :code code :name [:>= start] :name [:< finish])
-                              [true false] (where :key k :code code :name [:>= start])
-                              (where :key k :code code))
-                            (limit +limit+)))))
+(defn getindex [cluster k rev & optional]
+  (let [[start finish] optional
+        reseq (fn [arg] (if rev (s/reverse arg) arg))]
+    (map #(reseq (:name %))
+         (select cluster
+                 :search
+                 (columns :name)
+                 (case [(boolean start) (boolean finish)]
+                   [true true] (where :key k :rev rev :name [:>= (reseq start)] :name [:< (reseq finish)])
+                   [true false] (where :key k :rev rev :name [:>= (reseq start)])
+                   (where :key k :rev rev))
+                 (limit +limit+)))))
 
-(defn hasindex [cluster k code name]
+(defn hasindex [cluster k rev name]
   (map #(:name %) (select cluster
                           :search
                           (columns :name)
-                          (where :key k :code code :name name)
+                          (where :key k :rev rev :name name)
                           (limit 1))))
 
 (defn putlink [cluster a l b]
@@ -141,35 +170,35 @@
 
 (defn put-tattr [cluster k name slot value]
   (insert cluster
-          :tattr {:key k :name name :slot slot :value value}))
+          :t_attr {:key k :name name :slot slot :value value}))
 
 (defn get-tattr [cluster k name]
   (map (fn [row] [(:slot row) (f/binary-to-bytes (:value row))])
        (select cluster
-               :tattr
+               :t_attr
                (columns :slot :value)
                (where :key k :name name)
                (limit +limit+))))
 
 (defn del-tattr [cluster k name slot]
   (delete cluster
-          :tattr
+          :t_attr
           (where :key k :name name :slot slot)))
 
 (defn put-kattr [cluster k name value]
   (insert cluster
-          :kattr {:key k :name name :value value}))
+          :k_attr {:key k :name name :value value}))
 
 (defn get-kattr [cluster k name]
   (first
    (map #(f/binary-to-bytes (:value %))
         (select cluster
-                :kattr
+                :k_attr
                 (columns :value)
                 (where :key k :name name)
                 (limit 1)))))
 
 (defn del-kattr [cluster k name]
   (delete cluster
-          :kattr
+          :k_attr
           (where :key k :name name)))

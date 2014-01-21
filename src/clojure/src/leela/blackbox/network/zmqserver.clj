@@ -19,10 +19,6 @@
             [leela.blackbox.czmq.router :as router]
             [leela.blackbox.storage.cassandra :as storage]))
 
-(def +index-name+ 0x00)
-(def +index-pxlabel+ 0x01)
-(def +index-sxlabel+ 0x02)
-
 (defn msg-fail [status]
   ["fail" (str status)])
 
@@ -50,8 +46,8 @@
   (let [g (f/bytes-to-uuid g)]
     (storage/with-consistency :one
       (storage/with-limit 1
-        (if-let [data (first (storage/getindex cluster g +index-name+))]
-          (msg-name (conj (f/str-to-json data) g))
+        (if-let [[u t n] (storage/getname cluster g)]
+          (msg-name [u t n g])
           (msg-name []))))))
 
 (defn exec-getguid [cluster [u t k]]
@@ -66,9 +62,7 @@
         t (f/bytes-to-str t)
         k (f/bytes-to-str k)
         g (storage/putguid cluster u t k)]
-    (storage/with-consistency :quorum
-      (storage/putindex cluster g +index-name+ (f/json-to-str [u t k]))
-      (msg-name [u t k g]))))
+    (msg-name [u t k g])))
 
 (defn exec-getlink [cluster [a l page & limit]]
   (let [a (f/bytes-to-uuid a)
@@ -143,14 +137,14 @@
   (let [k (f/bytes-to-uuid k)
         n (f/bytes-to-str n)]
     (storage/with-consistency :one
-      (storage/hasindex cluster k +index-pxlabel+ n))))
+      (storage/hasindex cluster k false n))))
 
 (defn exec-getlabel-all [cluster [k page & limit]]
   (let [k (f/bytes-to-uuid k)
         page (f/bytes-to-str page)]
     (storage/with-consistency :one
       (storage/with-limit (f/maybe-bytes-to-str (first limit))
-        (storage/getindex cluster k +index-pxlabel+ page)))))
+        (storage/getindex cluster k false page)))))
 
 (defn exec-getlabel-prefix [cluster [k start finish & limit]]
   (let [k (f/bytes-to-uuid k)
@@ -158,7 +152,7 @@
         finish (f/bytes-to-str finish)]
     (storage/with-consistency :one
       (storage/with-limit (f/maybe-bytes-to-str (first limit))
-        (storage/getindex cluster k +index-pxlabel+ start finish)))))
+        (storage/getindex cluster k false start finish)))))
 
 (defn exec-getlabel-suffix [cluster [k start finish & limit]]
   (let [k (f/bytes-to-uuid k)
@@ -166,7 +160,7 @@
         finish (f/bytes-to-str finish)]
     (storage/with-consistency :one
       (storage/with-limit (f/maybe-bytes-to-str (first limit))
-        (map s/reverse (storage/getindex cluster k +index-sxlabel+ (s/reverse start) (s/reverse finish)))))))
+        (storage/getindex cluster k true start finish)))))
 
 (defn exec-getlabel [cluster msg]
   (case (f/bytes-to-str (first msg))
@@ -179,9 +173,9 @@
 (defn exec-putlabel [cluster [k l]]
   (let [k (f/bytes-to-uuid k)
         l (f/bytes-to-str l)]
-    (storage/with-consistency :quorum
-      (storage/putindex cluster k +index-pxlabel+ l)
-      (storage/putindex cluster k +index-sxlabel+ (s/reverse l))
+    (storage/with-consistency :one
+      (storage/putindex cluster k false l)
+      (storage/putindex cluster k true l)
       (msg-done))))
 
 (defn handle-get [cluster msg]
