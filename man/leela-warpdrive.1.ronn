@@ -27,7 +27,8 @@ that allows the user to modify and query the graph.
 In *LQL*, there are currently five statements available:
 
 * `path`: to navigate through the graph;
-* `name`: to resolve the name and namespace of a guid;
+* `name`: to resolve the name and tree of a guid;
+* `guid`: same as `name` but takes a guid;
 * `attr`: to modify and query properties;
 * `make`: used to create nodes, labels and edges;
 * `kill`: remove edges or vertexes;
@@ -243,12 +244,12 @@ results:
 ### ABNF ###
 
     path   = "path" SP vertex
-    vertex = "(" *VCHAR ")" *(SP link)
+    vertex = GUID *(SP link)
     link   = "-[" +VCHAR "]>" SP vertex
 
 ## NAME ##
 
-Extracts name and namespace from vertex references. The response is a
+Extracts name and tree from vertex references. The response is a
 `name` message:
 
     0      1        2        3             4
@@ -267,7 +268,16 @@ Extracts name and namespace from vertex references. The response is a
 
 ### ABNF ###
 
-    name   = "name" SP GUID
+    name = "name" SP NAME
+
+## GUID ##
+
+Extracts name and tree from a vertex guid. The response is a `name`
+message. Refer to `name` section for more information.
+
+### ABNF ###
+
+    guid = "guid" SP GUID
 
 ## AUTHORS ##
 
