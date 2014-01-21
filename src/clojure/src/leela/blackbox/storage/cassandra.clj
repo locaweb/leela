@@ -101,9 +101,26 @@
   (doseq [t [:graph :search :t_attr :k_attr :n_naming :g_naming]]
     (truncate cluster t)))
 
-(defn putindex [cluster k rev name]
-  (let [value (if rev (s/reverse name) name)]
-    (insert cluster :search {:key k :rev rev :name value})))
+(defn fmt-put-index [data]
+  (let [value (:name data)]
+    [(insert-query :search (into {:rev true :name (s/reverse value)} data))
+     (insert-query :search (into {:rev false} data))]))
+
+(defn fmt-put-link [data]
+  (insert-query :graph data))
+
+(defn fmt-del-link [[a l b]]
+  (if b
+    (delete-query :graph (where :a a :l l :b b))
+    (delete-query :graph (where :a a :l l))))
+
+(defn putindex [cluster indexes]
+  (let [query (->> indexes
+                   (mapcat fmt-put-index)
+                   (apply queries)
+                   (batch-query (logged false))
+                   client/render-query)]
+    (client/execute cluster query)))
 
 (defn getguid [cluster user tree node]
   (first (map #(:guid %)
@@ -122,12 +139,11 @@
                       (limit 1)))))
 
 (defn putguid [cluster user tree node]
-  (with-consistency :serial
-    (let [guid (f/uuid-1)]
-      (insert cluster :n_naming {:user user :tree tree :node node :guid guid} (if-not-exists))
-      (let [guid1 (getguid cluster user tree node)]
-        (when (= guid guid1) (insert cluster :g_naming {:user user :tree tree :node node :guid guid1}))
-        guid1))))
+  (let [guid (f/uuid-1)]
+    (insert cluster :n_naming {:user user :tree tree :node node :guid guid} (if-not-exists))
+    (let [guid1 (getguid cluster user tree node)]
+      (when (= guid guid1) (insert cluster :g_naming {:user user :tree tree :node node :guid guid1}))
+      guid1)))
 
 (defn getindex [cluster k rev & optional]
   (let [[start finish] optional
@@ -149,15 +165,21 @@
                           (where :key k :rev rev :name name)
                           (limit 1))))
 
-(defn putlink [cluster a l b]
-  (insert cluster :graph {:a a :l l :b b}))
+(defn putlink [cluster links]
+  (let [query (->> links
+                   (map fmt-put-link)
+                   (apply queries)
+                   (batch-query (logged false))
+                   client/render-query)]
+    (client/execute cluster query)))
 
-(defn dellink [cluster a l & b]
-  (delete cluster
-           :graph
-           (if (seq b)
-             (where :a a :l l :b (first b))
-             (where :a a :l l))))
+(defn dellink [cluster links]
+  (let [query (->> links
+                   (map fmt-del-link)
+                   (apply queries)
+                   (batch-query (logged false))
+                   client/render-query)]
+    (client/execute cluster query)))
 
 (defn getlink [cluster k l & page]
   (map #(:b %) (select cluster

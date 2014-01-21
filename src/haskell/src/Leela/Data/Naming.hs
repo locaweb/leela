@@ -24,19 +24,22 @@ module Leela.Data.Naming
 import Data.ByteString as B
 
 newtype GUID = GUID B.ByteString
-        deriving (Eq, Show)
+        deriving (Eq, Ord, Show)
 
 newtype Label = Label B.ByteString
-        deriving (Eq, Show)
+        deriving (Eq, Ord, Show)
 
 newtype Node = Node B.ByteString
-        deriving (Eq, Show)
+        deriving (Eq, Ord, Show)
 
 newtype User = User B.ByteString
-        deriving (Eq, Show)
+        deriving (Eq, Ord, Show)
 
 newtype Tree = Tree B.ByteString
-        deriving (Eq, Show)
+        deriving (Eq, Ord, Show)
+
+newtype Attr = Attr B.ByteString
+        deriving (Eq, Ord, Show)
 
 class AsByteString a where
 

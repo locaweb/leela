@@ -14,16 +14,16 @@
 
 module Leela.Data.Time
        ( Time
-       , seconds
-       , nseconds
-       , toDouble
-       , zero
-       , mktime
-       , diff
        , add
        , mul
        , now
+       , diff
+       , zero
+       , mktime
        , sysnow
+       , seconds
+       , nseconds
+       , toDouble
        ) where
 
 import System.Clock

@@ -173,7 +173,7 @@ evalLQL db core queue (x:xs) =
   case x of
     PathStmt q        -> navigate db queue q >> evalLQL db core queue xs
     NameStmt _ g      -> do
-      (gUser, gTree, gName) <- getName g db
+      (gUser, gTree, gName) <- getName db g
       devwriteIO queue (Item $ Name gUser gTree gName g)
       evalLQL db core queue xs
     StatStmt          -> do
@@ -185,7 +185,7 @@ evalLQL db core queue (x:xs) =
       mapM_ (\(u, t, n, g) -> devwriteIO queue (Item $ Name u t n g)) names
       evalLQL db core queue xs
     GUIDStmt u n      -> do
-      mg <- getGUID (uUser u) (uTree u) n db
+      mg <- getGUID db (uUser u) (uTree u) n
       case mg of
         Nothing -> devwriteIO queue (Fail 404 Nothing)
         Just g  -> do

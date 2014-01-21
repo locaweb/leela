@@ -144,15 +144,21 @@
       (is (= (server/msg-link []) (server/handle-message cluster ["get" "link" node-a "l" ""]))))
 
     (testing "getlink after putlink"
-      (server/handle-message cluster ["put" "link" node-a "l" node-b])
-      (server/handle-message cluster ["put" "link" node-a "l" node-c])
-      (server/handle-message cluster ["put" "link" node-a "l" node-d])
+      (server/handle-message cluster ["put" "link" node-a "l" node-b node-a "l" node-c node-a "l" node-d])
       (is (= (map seq (server/msg-link [node-b node-c node-d])) (map seq (server/handle-message cluster ["get" "link" node-a "l" ""])))))
 
-    (testing "getlink pagination"
+    (testing "getlink after dellink"
       (server/handle-message cluster ["put" "link" node-a "l" node-b])
-      (server/handle-message cluster ["put" "link" node-a "l" node-c])
-      (server/handle-message cluster ["put" "link" node-a "l" node-d])
+      (server/handle-message cluster ["del" "link" node-a "l" node-b node-a "l" node-c node-a "l" node-d])
+      (is (= (server/msg-link []) (server/handle-message cluster ["get" "link" node-a "l" ""]))))
+
+    (testing "getlink after dellink"
+      (server/handle-message cluster ["put" "link" node-a "l" node-b])
+      (server/handle-message cluster ["del" "link" node-a "l" ""])
+      (is (= (server/msg-link []) (server/handle-message cluster ["get" "link" node-a "l" ""]))))
+
+    (testing "getlink pagination"
+      (server/handle-message cluster ["put" "link" node-a "l" node-b node-a "l" node-c node-a "l" node-d])
       (is (= (server/msg-link [node-b node-c]) (server/handle-message cluster ["get" "link" node-a "l" "" "2"])))
       (is (= (server/msg-link [node-b node-c]) (server/handle-message cluster ["get" "link" node-a "l" node-b "2"])))
       (is (= (server/msg-link [node-c node-d]) (server/handle-message cluster ["get" "link" node-a "l" node-c "2"])))

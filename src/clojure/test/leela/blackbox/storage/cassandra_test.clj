@@ -25,23 +25,23 @@
 
       (testing "getindex after putindex"
         (storage/truncate-all cluster)
-        (storage/putindex cluster node false "foobar")
+        (storage/putindex cluster [{:key node :name "foobar"}])
         (is (= ["foobar"] (storage/getindex cluster node false))))
 
       (testing "getindex after multiple putindex"
         (storage/truncate-all cluster)
-        (storage/putindex cluster node false "f")
-        (storage/putindex cluster node false "o")
-        (storage/putindex cluster node false "b")
-        (storage/putindex cluster node false "a")
-        (storage/putindex cluster node false "r")
+        (storage/putindex cluster [{:key node :name "f"}
+                                   {:key node :name "o"}
+                                   {:key node :name "b"}
+                                   {:key node :name "a"}
+                                   {:key node :name "r"}])
         (is (= ["a" "b" "f" "o" "r"] (storage/getindex cluster node false))))
 
       (testing "getindex pagination with no finish"
         (storage/truncate-all cluster)
-        (storage/putindex cluster node false "a0")
-        (storage/putindex cluster node false "a1")
-        (storage/putindex cluster node false "a2")
+        (storage/putindex cluster [{:key node :name "a0"}
+                                   {:key node :name "a1"}
+                                   {:key node :name "a2"}])
         (storage/with-limit 1
           (is (= ["a0"] (storage/getindex cluster node false "")))
           (is (= ["a1"] (storage/getindex cluster node false "a1")))
@@ -49,9 +49,9 @@
 
       (testing "getindex pagination with finish"
         (storage/truncate-all cluster)
-        (storage/putindex cluster node false "a0")
-        (storage/putindex cluster node false "a1")
-        (storage/putindex cluster node false "a2")
+        (storage/putindex cluster [{:key node :name "a0"}
+                                   {:key node :name "a1"}
+                                   {:key node :name "a2"}])
         (storage/with-limit 1
           (is (= ["a0"] (storage/getindex cluster node false "" "a1")))
           (is (= ["a1"] (storage/getindex cluster node false "a1" "a2"))))))))
@@ -67,15 +67,15 @@
         (is (= [] (storage/getlink cluster node-a "l" (f/uuid-from-time 0)))))
 
       (testing "getlink after putlink"
-        (storage/putlink cluster node-a "l" node-b)
-        (storage/putlink cluster node-a "l" node-c)
-        (storage/putlink cluster node-a "l" node-d)
+        (storage/putlink cluster [{:a node-a :l "l" :b node-b}
+                                  {:a node-a :l "l" :b node-c}
+                                  {:a node-a :l "l" :b node-d}])
         (is (= [node-b node-c node-d] (storage/getlink cluster node-a "l" (f/uuid-from-time 0)))))
 
       (testing "getlink pagination"
-        (storage/putlink cluster node-a "l" node-b)
-        (storage/putlink cluster node-a "l" node-c)
-        (storage/putlink cluster node-a "l" node-d)
+        (storage/putlink cluster [{:a node-a :l "l" :b node-b}
+                                  {:a node-a :l "l" :b node-c}
+                                  {:a node-a :l "l" :b node-d}])
         (storage/with-limit 2
           (is (= [node-b node-c] (storage/getlink cluster node-a "l" (f/uuid-from-time 0))))
           (is (= [node-b node-c] (storage/getlink cluster node-a "l" node-b)))
@@ -83,19 +83,19 @@
           (is (= [node-d] (storage/getlink cluster node-a "l" node-d)))))
 
     (testing "getlink after dellink"
-      (storage/putlink cluster node-a "l" node-b)
-      (storage/putlink cluster node-a "l" node-c)
-      (storage/putlink cluster node-a "l" node-d)
-      (storage/dellink cluster node-a "l" node-b)
-      (storage/dellink cluster node-a "l" node-c)
-      (storage/dellink cluster node-a "l" node-d)
+      (storage/putlink cluster [{:a node-a :l "l" :b node-b}
+                                {:a node-a :l "l" :b node-c}
+                                {:a node-a :l "l" :b node-d}])
+      (storage/dellink cluster [[node-a "l" node-b]
+                                [node-a "l" node-c]
+                                [node-a "l" node-d]])
       (is (= [] (storage/getlink cluster node-a "l" (f/uuid-from-time 0)))))
 
     (testing "getlink after dellink with no optional argument"
-      (storage/putlink cluster node-a "l" node-b)
-      (storage/putlink cluster node-a "l" node-c)
-      (storage/putlink cluster node-a "l" node-d)
-      (storage/dellink cluster node-a "l")
+      (storage/putlink cluster [{:a node-a :l "l" :b node-b}
+                                {:a node-a :l "l" :b node-c}
+                                {:a node-a :l "l" :b node-d}])
+      (storage/dellink cluster [[node-a "l" nil]])
       (is (= [] (storage/getlink cluster node-a "l" (f/uuid-from-time 0))))))))
 
 (deftest test-get-tattr

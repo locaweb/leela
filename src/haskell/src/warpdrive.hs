@@ -43,7 +43,7 @@ defineEQFlag "endpoint" [|defaultEndpoint :: Endpoint|] "ENDPOINT" "The endpoint
 
 defineFlag "blackbox_backlog" (32 :: Int) "Maximum number of pending connections"
 defineFlag "blackbox_capabilities" (4 :: Int) "Numer of worker threads (per endpoint)"
-defineFlag "blackbox_timeout_in_ms" (5000 :: Int) "Maximum allowed time to wait for a response"
+defineFlag "blackbox_timeout_in_ms" (60000 :: Int) "Maximum allowed time to wait for a response"
 
 signal :: MVar () -> IO ()
 signal x = tryPutMVar x () >> return ()

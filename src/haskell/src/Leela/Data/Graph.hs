@@ -22,7 +22,6 @@ module Leela.Data.Graph
     , update
     ) where
 
-import Data.Maybe
 import Control.Monad
 import Leela.Data.Naming
 import Leela.Storage.Backend
@@ -40,18 +39,25 @@ data Journal = PutLink GUID Label GUID
              | DelNode GUID
              deriving (Eq)
 
+data Runtime = Runtime { execPutLink  :: [(GUID, Label, GUID)]
+                       , execPutLabel :: [(GUID, Label)]
+                       , execPutNode  :: [(User, Tree, Node)]
+                       , execDelLink  :: [(GUID, Label, Maybe GUID)]
+                       , execDelNode  :: [GUID]
+                       }
+
 limit :: Int
 limit = 128
 
 query :: (GraphBackend db) => db -> ([(GUID, Label, GUID)] -> IO ()) -> Matcher -> IO ()
 query db write (ByEdge a l b) = do
-  ok <- hasLink a l b db
+  ok <- hasLink db a l b
   when ok (write [(a, l, b)])
 query db write (ByNode a)     = query db write (ByLabel a (Label "*"))
 query db write (ByLabel a l0) = loadLabels (glob l0)
     where
       loadLabels page = do
-        labels <- getLabel a page limit db
+        labels <- getLabel db a page limit
         if (length labels < limit)
           then mapM_ (flip loadLinks Nothing) labels
           else do
@@ -59,31 +65,32 @@ query db write (ByLabel a l0) = loadLabels (glob l0)
             loadLabels (nextPage page (last labels))
 
       loadLinks l page = do
-        guids <- getLink a l page limit db
+        guids <- getLink db a l page limit
         if (length guids < limit)
           then write (map (\b -> (a, l, b)) guids)
           else do
             write (map (\b -> (a, l, b)) (init guids))
             loadLinks l (Just $ last guids)
 
-group :: Int -> [a] -> [[a]]
-group size = go (0, [])
-    where
-      go (_, []) []     = []
-      go (_, xs) []     = reverse xs
-      go (k, []) (y:ys) = go (k+1, [[y]]) ys
-      go (k, (xs:xss)) (y:ys)
-        | k == size     = go (0, [] : reverse xs : xss) (y : ys)
-        | otherwise     = go (k + 1, (y : xs) : xss) ys
-
-collect :: [[Maybe a]] -> [a]
-collect = concatMap catMaybes
+makeRuntime :: Runtime -> [Journal] -> Runtime
+makeRuntime rt []                    = rt
+makeRuntime rt (PutLink a l b : xs)  = makeRuntime (rt { execPutLink = (a, l, b) : execPutLink rt }) xs
+makeRuntime rt (PutLabel a l : xs)   = makeRuntime (rt { execPutLabel = (a, l) : execPutLabel rt }) xs
+makeRuntime rt (PutNode u t n : xs)  = makeRuntime (rt { execPutNode = (u, t, n) : execPutNode rt }) xs
+makeRuntime rt (DelLink a l mb : xs) = makeRuntime (rt { execDelLink = (a, l, mb) : execDelLink rt }) xs
+makeRuntime rt (DelNode a : xs)      = makeRuntime (rt { execDelNode = a : execDelNode rt }) xs
 
 update :: (GraphBackend db) => db -> [Journal] -> IO [(User, Tree, Node, GUID)]
-update db = fmap collect . mapM (mapConcurrently exec) . group 8
-    where
-      exec (PutLink a l b)  = putLink a l b db >> return Nothing
-      exec (PutLabel a l)   = putLabel a l db >> return Nothing
-      exec (PutNode u t n)  = putName u t n db >>= \g -> return $ Just (u, t, n, g)
-      exec (DelLink a l mb) = unlink a l mb db >> return Nothing
-      exec (DelNode a)      = remove a db >> return Nothing
+update db = execute . makeRuntime (Runtime [] [] [] [] [])
+  where
+    execute rt = do
+      a1 <- async (putLink db (execPutLink rt))
+      a2 <- async (putLabel db (execPutLabel rt))
+      a3 <- async (mapConcurrently myPutName (execPutNode rt))
+      a4 <- async (unlink db (execDelLink rt))
+      mapM_ wait [a1, a2, a4]
+      wait a3
+
+    myPutName (u, t, n) = do
+      g <- putName db u t n
+      return (u, t, n, g)

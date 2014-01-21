@@ -29,12 +29,12 @@ import           Leela.Storage.Backend (Mode (..), Limit)
 data Query = GetName GUID
            | GetGUID User Tree Node
            | PutName User Tree Node
-           | PutLink GUID Label GUID
-           | PutLabel GUID Label
+           | PutLink [(GUID, Label, GUID)]
+           | PutLabel [(GUID, Label)]
            | GetLink GUID Label (Maybe GUID) Limit
            | HasLink GUID Label GUID
            | GetLabel GUID (Mode Label) Limit
-           | Unlink GUID Label (Maybe GUID)
+           | Unlink [(GUID, Label, Maybe GUID)]
            | Delete GUID
 
 data Reply = DoneMsg
@@ -66,10 +66,9 @@ encode (GetLink g l Nothing lim)  = ["get", "link", toByteString g, toByteString
 encode (GetLink g l (Just p) lim) = ["get", "link", toByteString g, toByteString l, toByteString p, encodeShow lim]
 encode (GetLabel g m lim)         = "get" : "label" : encodeMode lim g m
 encode (PutName u t n)            = ["put", "name", toByteString u, toByteString t, toByteString n]
-encode (PutLink a l b)            = ["put", "link", toByteString a, toByteString l, toByteString b]
-encode (PutLabel a l)             = ["put", "label", toByteString a, toByteString l]
-encode (Unlink a l Nothing)       = ["del", "link", toByteString a, toByteString l]
-encode (Unlink a l (Just b))      = ["del", "link", toByteString a, toByteString l, toByteString b]
+encode (PutLink links)            = "put" : "link" : concatMap (\(a, l, b) -> [toByteString a, toByteString l, toByteString b]) links
+encode (PutLabel labels)          = "put" : "label" : concatMap (\(a, l) -> [toByteString a, toByteString l]) labels
+encode (Unlink links)             = "del" : "link" : concatMap (\(a, l, mb) -> [toByteString a, toByteString l, maybe B.empty toByteString mb]) links
 encode (Delete a)                 = ["del", "node", toByteString a]
 
 decode :: [B.ByteString] -> Reply

@@ -58,11 +58,12 @@
       (msg-name [u t k (storage/getguid cluster u t k)]))))
 
 (defn exec-putname [cluster [u t k]]
-  (let [u (f/bytes-to-str u)
-        t (f/bytes-to-str t)
-        k (f/bytes-to-str k)
-        g (storage/putguid cluster u t k)]
-    (msg-name [u t k g])))
+  (storage/with-consistency :serial
+    (let [u (f/bytes-to-str u)
+          t (f/bytes-to-str t)
+          k (f/bytes-to-str k)
+          g (storage/putguid cluster u t k)]
+      (msg-name [u t k g]))))
 
 (defn exec-getlink [cluster [a l page & limit]]
   (let [a (f/bytes-to-uuid a)
@@ -72,23 +73,26 @@
       (storage/with-limit (f/maybe-bytes-to-str (first limit))
         (msg-link (storage/getlink cluster a l page))))))
 
-(defn exec-putlink [cluster [a l b]]
-  (let [a (f/bytes-to-uuid a)
-        l (f/bytes-to-str l)
-        b (f/bytes-to-uuid b)]
-    (storage/with-consistency :quorum
-      (storage/putlink cluster a l b)
-      (msg-done))))
+(defn exec-putlink [cluster links]
+  (storage/with-consistency :one
+    (storage/putlink
+     cluster
+     (map
+      (fn [[a l b]] {:a (f/bytes-to-uuid a) :l (f/bytes-to-str l) :b (f/bytes-to-uuid b)})
+      (partition 3 links))))
+  (msg-done))
 
-(defn exec-dellink [cluster [a l & b]]
-  (let [a (f/bytes-to-uuid a)
-        l (f/bytes-to-str l)]
-    (storage/with-consistency :quorum
-      (if (seq b)
-        (let [b (f/bytes-to-uuid (first b))]
-          (storage/dellink cluster a l b))
-        (storage/dellink cluster a l)))
-    (msg-done)))
+(defn exec-dellink [cluster links]
+  (storage/with-consistency :one
+    (storage/dellink
+     cluster
+     (map
+      (fn [[a l b]]
+        (if (empty? b)
+          [(f/bytes-to-uuid a) (f/bytes-to-str l) nil]
+          [(f/bytes-to-uuid a) (f/bytes-to-str l) (f/bytes-to-uuid b)]))
+      (partition 3 links))))
+  (msg-done))
 
 (defn exec-get-tattr [cluster [k n & limit]]
   (let [k (f/bytes-to-uuid k)
@@ -109,7 +113,7 @@
   (let [k (f/bytes-to-uuid k)
         n (f/bytes-to-str n)
         s (Integer. s)]
-    (storage/with-consistency :quorum
+    (storage/with-consistency :one
       (storage/del-tattr cluster k n s))
     (msg-done)))
 
@@ -129,7 +133,7 @@
 (defn exec-del-kattr [cluster [k s]]
   (let [k (f/bytes-to-uuid k)
         s (f/bytes-to-str s)]
-    (storage/with-consistency :quorum
+    (storage/with-consistency :one
       (storage/del-kattr cluster k s))
     (msg-done)))
 
@@ -170,13 +174,13 @@
     "ext" (msg-label (exec-getlabel-exact cluster (drop 1 msg)))
     (msg-fail 400)))
 
-(defn exec-putlabel [cluster [k l]]
-  (let [k (f/bytes-to-uuid k)
-        l (f/bytes-to-str l)]
-    (storage/with-consistency :one
-      (storage/putindex cluster k false l)
-      (storage/putindex cluster k true l)
-      (msg-done))))
+(defn exec-putlabel [cluster labels]
+  (storage/with-consistency :one
+    (storage/putindex
+     cluster
+     (map (fn [[k n]] {:key (f/bytes-to-uuid k) :name (f/bytes-to-str n)})
+          (partition 2 labels))))
+  (msg-done))
 
 (defn handle-get [cluster msg]
   (case (f/bytes-to-str (first msg))

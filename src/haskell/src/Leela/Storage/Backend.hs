@@ -42,25 +42,25 @@ type Limit = Int
 
 class GraphBackend m where
 
-  getName   :: GUID -> m -> IO (User, Tree, Node)
+  getName   :: m -> GUID -> IO (User, Tree, Node)
 
-  getGUID   :: User -> Tree -> Node -> m -> IO (Maybe GUID)
+  getGUID   :: m -> User -> Tree -> Node -> IO (Maybe GUID)
 
-  putName   :: User -> Tree -> Node -> m -> IO GUID
+  putName   :: m -> User -> Tree -> Node -> IO GUID
 
-  hasLink   :: GUID -> Label -> GUID -> m -> IO Bool
+  hasLink   :: m -> GUID -> Label -> GUID -> IO Bool
 
-  getLink   :: GUID -> Label -> Page GUID -> Limit -> m -> IO [GUID]
+  getLink   :: m -> GUID -> Label -> Page GUID -> Limit -> IO [GUID]
 
-  putLink   :: GUID -> Label -> GUID -> m -> IO ()
+  putLink   :: m -> [(GUID, Label, GUID)] -> IO ()
 
-  getLabel  :: GUID -> Mode Label -> Limit -> m -> IO [Label]
+  getLabel  :: m -> GUID -> Mode Label -> Limit -> IO [Label]
 
-  putLabel  :: GUID -> Label -> m -> IO ()
+  putLabel  :: m -> [(GUID, Label)] -> IO ()
 
-  unlink    :: GUID -> Label -> Maybe GUID -> m -> IO ()
+  unlink    :: m -> [(GUID, Label, Maybe GUID)] -> IO ()
 
-  remove    :: GUID -> m -> IO ()
+  remove    :: m -> GUID -> IO ()
 
 glob :: Label -> Mode Label
 glob l@(Label s)
@@ -79,22 +79,22 @@ nextPage _ _            = error "precise has no pagination"
 
 instance GraphBackend AnyBackend where
 
-  getName g (AnyBackend db) = getName g db
+  getName (AnyBackend db) g = getName db g
 
-  getGUID u t n (AnyBackend db) = getGUID u t n db
+  getGUID (AnyBackend db) u t n = getGUID db u t n
 
-  putName u t n (AnyBackend db) = putName u t n db
+  putName (AnyBackend db) u t n = putName db u t n
 
-  getLabel g mode limit (AnyBackend db) = getLabel g mode limit db
+  getLabel (AnyBackend db) g mode limit = getLabel db g mode limit
 
-  putLabel g l (AnyBackend db) = putLabel g l db
+  putLabel (AnyBackend db) labels = putLabel db labels
 
-  hasLink a l b (AnyBackend db) = hasLink a l b db
+  hasLink (AnyBackend db) a l b = hasLink db a l b
 
-  getLink a l page limit (AnyBackend db) = getLink a l page limit db
+  getLink (AnyBackend db) a l page limit = getLink db a l page limit
 
-  putLink a l b (AnyBackend db) = putLink a l b db
+  putLink (AnyBackend db) links = putLink db links
 
-  unlink a l mb (AnyBackend db) = unlink a l mb db
+  unlink (AnyBackend db) links = unlink db links
 
-  remove a (AnyBackend db) = remove a db
+  remove (AnyBackend db) a = remove db a

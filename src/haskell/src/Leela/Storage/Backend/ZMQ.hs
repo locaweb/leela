@@ -41,64 +41,67 @@ send pool req = fmap recv (request pool (encode req))
 
 instance GraphBackend ZMQBackend where
 
-  getName g m = do
+  getName m g = do
     reply <- send (dealer m) (GetName g)
     case reply of
       NameMsg u t n _ -> return (u, t, n)
       FailMsg 404     -> throwIO NotFoundExcept
       _               -> throwIO SystemExcept
 
-  getGUID u t n m = do
+  getGUID m u t n = do
    reply <- send (dealer m) (GetGUID u t n)
    case reply of
      NameMsg _ _ _ g -> return (Just g)
      FailMsg 404     -> return Nothing
      _               -> throwIO SystemExcept
 
-  putName u t n m = do
+  putName m u t n = do
     reply <- send (dealer m) (PutName u t n)
     case reply of
       NameMsg _ _ _ g -> return g
       _               -> throwIO SystemExcept
 
-  getLabel g page limit m = do
+  getLabel m g page limit = do
     reply <- send (dealer m) (GetLabel g page limit)
     case reply of
       LabelMsg xs -> return xs
       _           -> throwIO SystemExcept
 
-  putLabel g l m = do
-    reply <- send (dealer m) (PutLabel g l)
+  putLabel _ []     = return ()
+  putLabel m labels = do
+    reply <- send (dealer m) (PutLabel labels)
     case reply of
       DoneMsg -> return ()
       _       -> throwIO SystemExcept
 
-  hasLink a l b m = do
+  hasLink m a l b = do
     reply <- send (dealer m) (HasLink a l b)
     case reply of
       LinkMsg [] -> return False
       LinkMsg _  -> return True
       _          -> throwIO SystemExcept
 
-  getLink a l page limit m = do
+  getLink m a l page limit = do
     reply <- send (dealer m) (GetLink a l page limit)
     case reply of
       LinkMsg xs -> return xs
       _          -> throwIO SystemExcept
 
-  putLink a l b m = do
-    reply <- send (dealer m) (PutLink a l b)
+  putLink _ []    = return ()
+  putLink m links = do
+    reply <- send (dealer m) (PutLink links)
     case reply of
       DoneMsg -> return ()
       _       -> throwIO SystemExcept
 
-  unlink a l mb m = do
-    reply <- send (dealer m) (Unlink a l mb)
+  unlink _ []    = return ()
+  unlink m links = do
+    reply <- send (dealer m) (Unlink links)
     case reply of
       DoneMsg -> return ()
       _       -> throwIO SystemExcept
 
-  remove a m = do
+  remove m a = do
     reply <- send (dealer m) (Delete a)
     case reply of
       DoneMsg -> return ()
