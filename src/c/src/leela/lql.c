@@ -314,7 +314,7 @@ handle_error:
   return(rc);
 }
 
-leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
+leela_status leela_lql_cursor_next(lql_cursor_t *cursor, uint32_t *status)
 {
   if (cursor == NULL || cursor->channel == NULL)
   { return(LEELA_BADARGS); }
@@ -341,7 +341,7 @@ leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
   {
     if (! __zmq_recvmsg_uint32(cursor, cursor->elems))
     { return(LEELA_ERROR); }
-    return(leela_lql_cursor_next(cursor));
+    return(leela_lql_cursor_next(cursor, status));
   }
 
   if (strncmp(buffer, "name", 4) == 0)
@@ -364,21 +364,27 @@ leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
   else if (strncmp(buffer, "item", 4) == 0)
   {
     cursor->elems[0] = 1;
-    return(leela_lql_cursor_next(cursor));
+    return(leela_lql_cursor_next(cursor, status));
   }
   else if (strncmp(buffer, "done", 4) == 0)
   {
     if (zmq_msg_more(&cursor->buffer))
     {
       cursor->elems[0] = 1;
-      return(leela_lql_cursor_next(cursor));
+      return(leela_lql_cursor_next(cursor, status));
     }
     else
     { return(LEELA_EOF); }
   }
+  else if (strncmp(buffer, "fail", 4) == 0)
+  {
+    cursor->row = LQL_ERRO_MSG;
+    cursor->elems[1] = 1;
+    return(LEELA_ERROR);
+  }
   else
   { return(LEELA_ERROR); }
-  
+
   return(LEELA_OK);
 }
 
@@ -472,6 +478,31 @@ lql_path_t *leela_lql_fetch_path(lql_cursor_t *cursor)
   return(NULL);
 }
 
+lql_error_t *leela_lql_fetch_error(lql_cursor_t *cursor)
+{
+  if (cursor->row != LQL_ERRO_MSG)
+  { return(NULL); }
+
+  lql_error_t *error = (lql_error_t *) malloc(sizeof(lql_error_t));
+  if (error != NULL)
+  {
+    error->ercode = NULL;
+    error->ermsag = NULL;
+
+    error->ercode = __zmq_recvmsg_copystr(cursor);
+    if (zmq_msg_more(&cursor->buffer))
+    {
+      cursor->elems[1] = 1;
+      error->ermsag = __zmq_recvmsg_copystr(cursor);
+    }
+    if (error->ercode != NULL)
+    { return(error); }
+  }
+
+  leela_lql_error_free(error);
+  return(NULL);
+}
+
 void leela_lql_name_free(lql_name_t *name)
 {
   if (name != NULL)
@@ -510,6 +541,18 @@ void leela_lql_path_free(lql_path_t *path)
   }
   free(path->entries);
   free(path);
+}
+
+void leela_lql_error_free(lql_error_t *error)
+{
+  if (error != NULL)
+  {
+    free(error->ercode);
+    if (error->ermsag != NULL){
+        free(error->ermsag);
+    }
+    free(error);
+  }
 }
 
 leela_status leela_lql_cursor_close(lql_cursor_t *cursor)

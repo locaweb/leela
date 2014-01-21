@@ -73,11 +73,13 @@ leela_naming_cluster_t *__naming_discover2(leela_naming_t *naming, const leela_e
   lql_cursor_t *cursor           = leela_lql_cursor_init2(naming->context, endpoint, "nobody", "", 1000);
   lql_stat_t *stat               = NULL;
   leela_naming_cluster_t *result = NULL;
+  uint32_t ms = 0;
+
   if (cursor == NULL)
   { return(NULL); }
   if (leela_lql_cursor_execute(cursor, "using (system) stat;") != LEELA_OK)
   { goto handle_error; }
-  if (leela_lql_cursor_next(cursor) != LEELA_OK || leela_lql_fetch_type(cursor) != LQL_STAT_MSG)
+  if (leela_lql_cursor_next(cursor, &ms) != LEELA_OK || leela_lql_fetch_type(cursor) != LQL_STAT_MSG)
   { goto handle_error; }
 
   stat = leela_lql_fetch_stat(cursor);

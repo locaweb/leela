@@ -26,6 +26,7 @@
 
 #include <Python.h>
 #include <leela/lql.h>
+#include <leela/string.h>
 
 #ifndef __python_lql__
 #define __python_lql__

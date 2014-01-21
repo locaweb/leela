@@ -33,7 +33,8 @@ typedef enum
 {
   LQL_NAME_MSG,
   LQL_PATH_MSG,
-  LQL_STAT_MSG
+  LQL_STAT_MSG,
+  LQL_ERRO_MSG
 } lql_row_type;
 
 //! A simple 2-tuple type;
@@ -58,6 +59,13 @@ typedef struct
   char *tree;             //!^ The namespace of this node;
   char *name;             //!^ The name of this name;
 } lql_name_t;
+
+//! An error entry as defined in warpdrive(1);
+typedef struct lql_error_t
+{
+  char *ercode;           //!^ The error code reported;
+  char *ermsag;           //!^ The error message;
+} lql_error_t;
 
 //! Information about the cluster
 typedef struct
@@ -121,11 +129,12 @@ leela_status leela_lql_cursor_execute(lql_cursor_t *cursor, const char *query);
  *  \return LEELA_EOF there are no more entries;
  *  \return LEELA_TIMEOUT the operation has timed out;
  */
-leela_status leela_lql_cursor_next(lql_cursor_t *cursor);
+leela_status leela_lql_cursor_next(lql_cursor_t *cursor, uint32_t *status);
 
 /*! Retrieves the current row type. Notice you *must* invoke
  * `leela_lql_cursor_next' and it *must* return `LEELA_OK' prior
- * calling this function.
+ * calling this function. Return `LEELA_ERROR' with `status' setted
+ * if a `fail' message was received.
  */
 lql_row_type leela_lql_fetch_type(lql_cursor_t *cursor);
 
@@ -144,9 +153,15 @@ lql_path_t *leela_lql_fetch_path(lql_cursor_t *cursor);
  */
 lql_stat_t *leela_lql_fetch_stat(lql_cursor_t *cursor);
 
+/*! Extracts the error message from the cursor. Use this function only
+ *  if the message type is LQL_ERRO_MSG (refer to leela_lql_fetch_type);
+ */
+lql_error_t *leela_lql_fetch_error(lql_cursor_t *cursor);
+
 void leela_lql_name_free(lql_name_t *);
 void leela_lql_path_free(lql_path_t *);
 void leela_lql_stat_free(lql_stat_t *);
+void leela_lql_error_free(lql_error_t *);
 
 /*! Terminates a cursor. Remember to always call this function after
  *  you are done iterating.
