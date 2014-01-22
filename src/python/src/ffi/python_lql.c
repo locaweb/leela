@@ -1,9 +1,9 @@
 /* Copyright (c) 2013, Diego Souza                                                 */
 /* All rights reserved.                                                            */
-                                                                                   
+
 /* Redistribution and use in source and binary forms, with or without              */
 /* modification, are permitted provided that the following conditions are met:     */
-                                                                                   
+
 /*   * Redistributions of source code must retain the above copyright notice,      */
 /*     this list of conditions and the following disclaimer.                       */
 /*   * Redistributions in binary form must reproduce the above copyright notice,   */
@@ -29,9 +29,6 @@
 
 PyTypeObject pylql_context_type = { PyObject_HEAD_INIT(NULL) };
 PyTypeObject pylql_cursor_type  = { PyObject_HEAD_INIT(NULL) };
-
-static PyObject *pylql_error_srv;
-static PyObject *pylql_error_usr;
 
 static
 PyObject *pylql_context_init(PyTypeObject *, PyObject *, PyObject *);
@@ -120,50 +117,47 @@ PyObject *__make_stat_msg(lql_stat_t *stat)
 { return(__make_list_of_tuples(stat->size, stat->attrs)); }
 
 static
-void __make_error_msg(pylql_cursor_t *cursor)
+void __make_error_msg(lql_error_t *error)
 {
-    lql_error_t *error;
-    char *str = NULL;
-    PyObject *pylql_error;
+  PyObject *pModule = PyImport_ImportModule("leela.exception");
+  PyObject *pClass;
+  PyObject *pTuple;
 
-    error = leela_lql_fetch_error(cursor->cursor);
-    if (error != NULL)
+  if (error != NULL)
+  {
+    if (error->ercode == 400)
     {
-        if (error->ermsag != NULL)
-        {
-            str = leela_join(error->ercode, " - ", error->ermsag);
-            pylql_error = (strcmp(error->ercode, "500") == 0) ? pylql_error_srv : pylql_error_usr;
-        }
-        else
-        {
-            if (strcmp(error->ercode, "400") == 0)
-            {
-                str = leela_join(error->ercode, " - ", "Bad Request!");
-                pylql_error = pylql_error_usr;
-            }
-            else if (strcmp(error->ercode, "403") == 0)
-            {
-                str = leela_join(error->ercode, " - ", "Forbidden!");
-                pylql_error = pylql_error_usr;
-            }
-            else if (strcmp(error->ercode, "404") == 0)
-            {
-                str = leela_join(error->ercode, " - ", "Not Found!");
-                pylql_error = pylql_error_usr;
-            }
-        }
-        
-        if (str != NULL)
-        {
-            PyErr_SetString(pylql_error, str);
-            leela_lql_error_free(error);
-            free(str);
-        }
-        else
-        { PyErr_SetString(pylql_error_srv, "Could not define the error message!"); }
+      pClass = PyObject_GetAttrString(pModule, "BadRequest");
+      pTuple = Py_BuildValue("si", (error->ermsag ? error->ermsag : "Bad Request!"), error->ercode);
+      PyErr_SetObject(pClass, pTuple);
+    }
+    else if (error->ercode == 403)
+    {
+      pClass = PyObject_GetAttrString(pModule, "Forbidden");
+      pTuple = Py_BuildValue("si", (error->ermsag ? error->ermsag : "Forbidden!"), error->ercode);
+      PyErr_SetObject(pClass, pTuple);
+    }
+    else if (error->ercode == 404)
+    {
+      pClass = PyObject_GetAttrString(pModule, "NotFound");
+      pTuple = Py_BuildValue("si", (error->ermsag ? error->ermsag : "Not Found!"), error->ercode);
+      PyErr_SetObject(pClass, pTuple);
     }
     else
-    { PyErr_SetString(pylql_error_srv, "Reading Error!"); }
+    {
+      pClass = PyObject_GetAttrString(pModule, "InternalServerError");
+      pTuple = Py_BuildValue("si", (error->ermsag ? error->ermsag : "Internal Server Error!"), error->ercode);
+      PyErr_SetObject(pClass, pTuple);
+    }
+
+    leela_lql_error_free(error);
+  }
+  else
+  { PyErr_SetString(PyExc_RuntimeError, "Reading Error!"); }
+
+  Py_XDECREF(pModule);
+  Py_XDECREF(pClass);
+  Py_XDECREF(pTuple);
 }
 
 static
@@ -211,12 +205,6 @@ init_leela_lql(void)
   pylql_cursor_type.tp_dealloc   = pylql_cursor_free;
   pylql_cursor_type.tp_new       = pylql_cursor_init;
 
-  pylql_error_srv = PyErr_NewException("error.ServerError", NULL, NULL);
-  Py_INCREF(pylql_error_srv);
-
-  pylql_error_usr = PyErr_NewException("error.UserError", NULL, NULL);
-  Py_INCREF(pylql_error_usr);
-
   if (PyType_Ready(&pylql_context_type) != 0)
   { return; }
   Py_INCREF(&pylql_context_type);
@@ -228,8 +216,6 @@ init_leela_lql(void)
   PyObject *m = Py_InitModule("_leela_lql", NULL);
   PyModule_AddObject(m, "Context", (PyObject *) &pylql_context_type);
   PyModule_AddObject(m, "Cursor", (PyObject *) &pylql_cursor_type);
-  PyModule_AddObject(m, "ServerError", pylql_error_srv);
-  PyModule_AddObject(m, "UserError", pylql_error_usr);
 }
 
 PyObject *pylql_context_init(PyTypeObject *type, PyObject *args, PyObject *kwargs)
@@ -393,10 +379,9 @@ PyObject *pylql_cursor_next(PyObject *self, PyObject *args)
   pylql_cursor_t *cursor = (pylql_cursor_t *) self;
 
   leela_status rc;
-  uint32_t ms = 0;
 
   Py_BEGIN_ALLOW_THREADS
-  rc = leela_lql_cursor_next(cursor->cursor, &ms);
+  rc = leela_lql_cursor_next(cursor->cursor);
   Py_END_ALLOW_THREADS
   if (rc == LEELA_OK)
   { Py_RETURN_TRUE; }
@@ -404,7 +389,7 @@ PyObject *pylql_cursor_next(PyObject *self, PyObject *args)
   { Py_RETURN_FALSE; }
   else
   {
-    __make_error_msg(cursor);
+    PyErr_SetString(PyExc_RuntimeError, "error reading");
     return(NULL);
   }
 }
@@ -458,6 +443,15 @@ PyObject *pylql_cursor_fetch(PyObject *self, PyObject *args)
       leela_lql_stat_free(stat);
     }
   }
+  else if (row == LQL_ERRO_MSG)
+  {
+    lql_error_t *error;
+    Py_BEGIN_ALLOW_THREADS
+    error = leela_lql_fetch_error(cursor->cursor);
+    Py_END_ALLOW_THREADS
+    if (error != NULL)
+    { __make_error_msg(error); }
+  }
 
   if (type == NULL || value == NULL)
   {
@@ -465,7 +459,9 @@ PyObject *pylql_cursor_fetch(PyObject *self, PyObject *args)
     Py_XDECREF(value);
     Py_DECREF(pyrow);
     if (PyErr_Occurred() == NULL)
-    { __make_error_msg(cursor); }
+    {
+      PyErr_SetString(PyExc_RuntimeError, "error reading");
+    }
     return(NULL);
   }
 

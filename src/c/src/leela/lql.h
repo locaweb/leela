@@ -63,7 +63,7 @@ typedef struct
 //! An error entry as defined in warpdrive(1);
 typedef struct lql_error_t
 {
-  char *ercode;           //!^ The error code reported;
+  int ercode;             //!^ The error code reported;
   char *ermsag;           //!^ The error message;
 } lql_error_t;
 
@@ -129,11 +129,11 @@ leela_status leela_lql_cursor_execute(lql_cursor_t *cursor, const char *query);
  *  \return LEELA_EOF there are no more entries;
  *  \return LEELA_TIMEOUT the operation has timed out;
  */
-leela_status leela_lql_cursor_next(lql_cursor_t *cursor, uint32_t *status);
+leela_status leela_lql_cursor_next(lql_cursor_t *cursor);
 
 /*! Retrieves the current row type. Notice you *must* invoke
  * `leela_lql_cursor_next' and it *must* return `LEELA_OK' prior
- * calling this function. Return `LEELA_ERROR' with `status' setted
+ * calling this function. Return `LEELA_ERROR'
  * if a `fail' message was received.
  */
 lql_row_type leela_lql_fetch_type(lql_cursor_t *cursor);
