@@ -104,8 +104,8 @@
 
 (defn fmt-put-index [data]
   (let [value (:name data)]
-    [(insert-query :search (into {:rev true :name (s/reverse value)} data))
-     (insert-query :search (into {:rev false} data))]))
+    [(insert-query :search (into data {:rev true :name (s/reverse value)}))
+     (insert-query :search (into data {:rev false}))]))
 
 (defn fmt-put-link [data]
   (insert-query :graph data))
