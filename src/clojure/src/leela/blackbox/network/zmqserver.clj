@@ -58,7 +58,7 @@
       (msg-name [u t k (storage/getguid cluster u t k)]))))
 
 (defn exec-putname [cluster [u t k]]
-  (storage/with-consistency :serial
+  (storage/with-consistency :quorum
     (let [u (f/bytes-to-str u)
           t (f/bytes-to-str t)
           k (f/bytes-to-str k)

@@ -79,6 +79,7 @@
 (defmacro with-connection [[conn endpoint options] & body]
   `(let [~conn (client/connect (client/build-cluster {:contact-points ~endpoint
                                                       :credentials (:credentials ~options)
+                                                      :load-balancing-policy (client/token-aware-policy (client/round-robin-policy))
                                                       :max-connections-per-host (:connections ~options)}))]
      (try
        ~@body
@@ -139,11 +140,15 @@
                       (limit 1)))))
 
 (defn putguid [cluster user tree node]
-  (let [guid (f/uuid-1)]
-    (insert cluster :n_naming {:user user :tree tree :node node :guid guid} (if-not-exists))
-    (let [guid1 (getguid cluster user tree node)]
-      (when (= guid guid1) (insert cluster :g_naming {:user user :tree tree :node node :guid guid1}))
-      guid1)))
+  (if-let [guid (getguid cluster user tree node)]
+    guid
+    (let [guid (f/uuid-1)]
+      (client/execute cluster
+                      (client/render-query
+                       (batch-query
+                        (queries (insert-query :n_naming {:user user :tree tree :node node :guid guid})
+                                 (insert-query :g_naming {:user user :tree tree :node node :guid guid})))))
+      guid)))
 
 (defn getindex [cluster k rev & optional]
   (let [[start finish] optional
