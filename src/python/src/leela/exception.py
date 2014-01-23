@@ -25,17 +25,17 @@ class ServerException(LeelaException):
   def __init__(self, msg, ercode):
     super(ServerException, self).__init__(msg, ercode)
 
-class BadRequest(UserException):
+class BadRequestError(UserException):
   def __init__(self, msg, ercode):
-    super(BadRequest, self).__init__(msg, ercode)
+    super(BadRequestError, self).__init__(msg, ercode)
 
-class Forbidden(UserException):
+class ForbiddenError(UserException):
   def __init__(self, msg, ercode):
-    super(Forbidden, self).__init__(msg, ercode)
+    super(ForbiddenError, self).__init__(msg, ercode)
 
-class NotFound(UserException):
+class NotFoundError(UserException):
   def __init__(self, msg, ercode):
-    super(NotFound, self).__init__(msg, ercode)
+    super(NotFoundError, self).__init__(msg, ercode)
 
 class InternalServerError(ServerException):
   def __init__(self, msg, ercode):

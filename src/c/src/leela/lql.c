@@ -378,7 +378,7 @@ leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
   }
   else if (strncmp(buffer, "fail", 4) == 0)
   {
-    cursor->row = LQL_ERRO_MSG;
+    cursor->row = LQL_FAIL_MSG;
     cursor->elems[1] = 1;
     return(LEELA_OK);
   }
@@ -478,29 +478,25 @@ lql_path_t *leela_lql_fetch_path(lql_cursor_t *cursor)
   return(NULL);
 }
 
-lql_error_t *leela_lql_fetch_error(lql_cursor_t *cursor)
+lql_fail_t *leela_lql_fetch_fail(lql_cursor_t *cursor)
 {
-  if (cursor->row != LQL_ERRO_MSG)
+  if (cursor->row != LQL_FAIL_MSG)
   { return(NULL); }
 
-  lql_error_t *error = (lql_error_t *) malloc(sizeof(lql_error_t));
-  if (error != NULL)
+  lql_fail_t *fail = (lql_fail_t *) malloc(sizeof(lql_fail_t));
+  if (fail != NULL)
   {
-    error->ercode = 0;
-    error->ermsag = NULL;
+    fail->code = 0;
+    fail->message = NULL;
 
-    error->ercode = atol(__zmq_recvmsg_copystr(cursor));
+    __zmq_recvmsg_uint32(cursor, &(fail->code));
     if (zmq_msg_more(&cursor->buffer))
     {
       cursor->elems[1] = 1;
-      error->ermsag = __zmq_recvmsg_copystr(cursor);
+      fail->message = __zmq_recvmsg_copystr(cursor);
     }
-    if (error->ercode != 0)
-    { return(error); }
   }
-
-  leela_lql_error_free(error);
-  return(NULL);
+  return(fail);
 }
 
 void leela_lql_name_free(lql_name_t *name)
@@ -543,10 +539,13 @@ void leela_lql_path_free(lql_path_t *path)
   free(path);
 }
 
-void leela_lql_error_free(lql_error_t *error)
+void leela_lql_fail_free(lql_fail_t *fail)
 {
-  free(error->ermsag);
-  free(error);
+  if(fail != NULL)
+  {
+    free(fail->message);
+    free(fail);
+  }
 }
 
 leela_status leela_lql_cursor_close(lql_cursor_t *cursor)

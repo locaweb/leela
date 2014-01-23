@@ -117,40 +117,58 @@ PyObject *__make_stat_msg(lql_stat_t *stat)
 { return(__make_list_of_tuples(stat->size, stat->attrs)); }
 
 static
-void __make_error_msg(lql_error_t *error)
+void __make_fail_msg(lql_fail_t *fail)
 {
   PyObject *pModule = PyImport_ImportModule("leela.exception");
-  PyObject *pClass;
-  PyObject *pTuple;
+  PyObject *pClass = NULL;
+  PyObject *pTuple = NULL;
 
-  if (error != NULL)
+  if (fail != NULL)
   {
-    if (error->ercode == 400)
+    if (fail->code == 400)
     {
-      pClass = PyObject_GetAttrString(pModule, "BadRequest");
-      pTuple = Py_BuildValue("si", (error->ermsag ? error->ermsag : "Bad Request!"), error->ercode);
+      pClass = PyObject_GetAttrString(pModule, "BadRequestError");
+      pTuple = Py_BuildValue("si", (fail->message ? fail->message : "Bad Request!"), fail->code);
       PyErr_SetObject(pClass, pTuple);
     }
-    else if (error->ercode == 403)
+    else if (fail->code == 403)
     {
-      pClass = PyObject_GetAttrString(pModule, "Forbidden");
-      pTuple = Py_BuildValue("si", (error->ermsag ? error->ermsag : "Forbidden!"), error->ercode);
+      pClass = PyObject_GetAttrString(pModule, "ForbiddenError");
+      pTuple = Py_BuildValue("si", (fail->message ? fail->message : "Forbidden!"), fail->code);
       PyErr_SetObject(pClass, pTuple);
     }
-    else if (error->ercode == 404)
+    else if (fail->code == 404)
     {
-      pClass = PyObject_GetAttrString(pModule, "NotFound");
-      pTuple = Py_BuildValue("si", (error->ermsag ? error->ermsag : "Not Found!"), error->ercode);
+      pClass = PyObject_GetAttrString(pModule, "NotFoundError");
+      pTuple = Py_BuildValue("si", (fail->message ? fail->message : "Not Found!"), fail->code);
+      PyErr_SetObject(pClass, pTuple);
+    }
+    else if (fail->code == 500)
+    {
+      pClass = PyObject_GetAttrString(pModule, "InternalServerError");
+      pTuple = Py_BuildValue("si", (fail->message ? fail->message : "Internal Server Error!"), fail->code);
+      PyErr_SetObject(pClass, pTuple);
+    }
+    else if (fail->code > 400 && fail->code < 500)
+    {
+      pClass = PyObject_GetAttrString(pModule, "UserException");
+      pTuple = Py_BuildValue("si", (fail->message ? fail->message : "User Exception!"), fail->code);
+      PyErr_SetObject(pClass, pTuple);
+    }
+    else if (fail->code > 500 && fail->code <= 600)
+    {
+      pClass = PyObject_GetAttrString(pModule, "ServerException");
+      pTuple = Py_BuildValue("si", (fail->message ? fail->message : "Server Exception!"), fail->code);
       PyErr_SetObject(pClass, pTuple);
     }
     else
     {
-      pClass = PyObject_GetAttrString(pModule, "InternalServerError");
-      pTuple = Py_BuildValue("si", (error->ermsag ? error->ermsag : "Internal Server Error!"), error->ercode);
+      pClass = PyObject_GetAttrString(pModule, "LeelaException");
+      pTuple = Py_BuildValue("si", (fail->message ? fail->message : "Leela Exception!"), fail->code);
       PyErr_SetObject(pClass, pTuple);
     }
 
-    leela_lql_error_free(error);
+    leela_lql_fail_free(fail);
   }
   else
   { PyErr_SetString(PyExc_RuntimeError, "Reading Error!"); }
@@ -443,14 +461,14 @@ PyObject *pylql_cursor_fetch(PyObject *self, PyObject *args)
       leela_lql_stat_free(stat);
     }
   }
-  else if (row == LQL_ERRO_MSG)
+  else if (row == LQL_FAIL_MSG)
   {
-    lql_error_t *error;
+    lql_fail_t *fail;
     Py_BEGIN_ALLOW_THREADS
-    error = leela_lql_fetch_error(cursor->cursor);
+    fail = leela_lql_fetch_fail(cursor->cursor);
     Py_END_ALLOW_THREADS
-    if (error != NULL)
-    { __make_error_msg(error); }
+    if (fail != NULL)
+    { __make_fail_msg(fail); }
   }
 
   if (type == NULL || value == NULL)
