@@ -3,6 +3,7 @@
 import os
 import re
 import time
+import yaml
 import atexit
 import argparse
 import readline
@@ -12,11 +13,14 @@ from leela import lql
 def resolve(cache, ctx, opts, guid):
     name = cache.get(guid)
     if (name is None):
-        with lql.with_cursor(ctx, opts.username, opts.secret, opts.timeout) as cursor:
-            cursor.execute("using (%s) name %s;" % (opts.tree, guid))
-            if (cursor.next()):
-                name        = cursor.fetch()[1][-2]
-                cache[guid] = name
+        try:
+            with lql.with_cursor(ctx, opts.username, opts.secret, opts.timeout) as cursor:
+                cursor.execute("using (%s) name %s;" % (opts.tree, guid))
+                if (cursor.next()):
+                    name        = cursor.fetch()[1][-2]
+                    cache[guid] = name
+        except:
+            name = guid
     return(name)
 
 def gresolve(ctx, opts, guid):
@@ -45,7 +49,23 @@ def dump_path(cache, ctx, opts, row):
         msg.append("-[%s]> (%s)" % (label, resolve(cache, ctx, opts, node)))
     print("path: %s" % (" ".join(msg),))
 
-def dump_row(cache, ctx, opts, row):
+def dump_tree(cache, ctx, opts, row, tree0):
+    row = [(label, resolve(cache, ctx, opts, node)) for (label, node) in row[1]]
+    if (len(row) == 0 or row[0][1] not in tree0.get(row[0][0], {})):
+        if (len(tree0) > 0):
+            print(yaml.dump({"->>": tree0}, default_flow_style=False))
+        tree0 = {}
+    tree = tree0
+    for (label, node) in row:
+        if (label not in tree):
+            tree[label] = {}
+        tree = tree[label]
+        if (node not in tree):
+            tree[node] = {}
+        tree = tree[node]
+    return(tree0)
+
+def dump_list(cache, ctx, opts, row):
     if (row[0] == "name"):
         dump_name(cache, row)
     elif (row[0] == "path"):
@@ -67,18 +87,28 @@ def rewrite_guid(cache, ctx, opts, q0, f):
     return(q)
 
 def execute(cache, ctx, opts, q):
+    tree = None
     if (q.startswith("path")):
         q = rewrite_guid(cache, ctx, opts, q, gresolve)
-    elif (q.startswith("kill")):
+    elif (q.startswith("kill ")):
         q = rewrite_guid(cache, ctx, opts, q, gresolve)
-    elif (q.startswith("make") and (") -[" in q or ") <[" in q)):
+    elif (q.startswith("make ") and (") -[" in q or ") <[" in q)):
         q = rewrite_guid(cache, ctx, opts, q, gmake)
+    elif (q.startswith(".tree")):
+        q    = rewrite_guid(cache, ctx, opts, q, gresolve)
+        q    = "path%s" % (q[5:],)
+        tree = {}
     with lql.with_cursor(ctx, opts.username, opts.secret, opts.timeout) as cursor:
         stat = {"rows": 0, "time": time.time()}
         cursor.execute("using (%s) %s" % (opts.tree, q))
         while (cursor.next()):
             stat["rows"] = stat["rows"] + 1
-            dump_row(cache, ctx, opts, cursor.fetch())
+            if (tree is None):
+                dump_list(cache, ctx, opts, cursor.fetch())
+            else:
+                tree = dump_tree(cache, ctx, opts, cursor.fetch(), tree)
+        if (tree is not None):
+            dump_tree(cache, ctx, opts, (None, []), tree)
         stat["time"] = time.time() - stat["time"]
         print("rows: %(rows)d; elapsed: %(time).2fs" % stat)
 
