@@ -187,7 +187,7 @@ PyObject *pylql_context_init(PyTypeObject *type, PyObject *args, PyObject *kwarg
     if (! PyArg_ParseTuple(args, "O!", &PyList_Type, &pyendpoints))
     { goto handle_error; }
 
-    cendpoints = (leela_endpoint_t **) malloc(PyList_Size(pyendpoints) * sizeof(leela_endpoint_t *) + 1);
+    cendpoints = (leela_endpoint_t **) malloc((PyList_Size(pyendpoints) + 1) * sizeof(leela_endpoint_t *));
     if (cendpoints == NULL)
     {
       PyErr_SetString(PyExc_MemoryError, "can't allocate endpoint array");

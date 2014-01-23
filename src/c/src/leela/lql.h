@@ -71,7 +71,7 @@ typedef struct
  *  multiple contexts.
  *
  *  \param warpdrive The endpoint of some machine on the leela cluster
- *  to connect;
+ *  to connect (refer to naming.h#leela_naming_init for more info);
  *
  *  \return * NULL     : an error has ocurred;
  *          * otherwise: the context has been sucessfully initialized;
