@@ -541,7 +541,7 @@ void leela_lql_path_free(lql_path_t *path)
 
 void leela_lql_fail_free(lql_fail_t *fail)
 {
-  if(fail != NULL)
+  if (fail != NULL)
   {
     free(fail->message);
     free(fail);

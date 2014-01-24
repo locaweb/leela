@@ -13,30 +13,30 @@
 #  limitations under the License.
 
 class LeelaException(Exception):
-  def __init__(self, msg, ercode):
+  def __init__(self, msg, code):
     super(LeelaException, self).__init__(msg)
-    self.ercode = ercode
+    self.code = code
 
 class UserException(LeelaException):
-  def __init__(self, msg, ercode):
-    super(UserException, self).__init__(msg, ercode)
+  def __init__(self, msg, code):
+    super(UserException, self).__init__(msg, code)
 
 class ServerException(LeelaException):
-  def __init__(self, msg, ercode):
-    super(ServerException, self).__init__(msg, ercode)
+  def __init__(self, msg, code):
+    super(ServerException, self).__init__(msg, code)
 
 class BadRequestError(UserException):
-  def __init__(self, msg, ercode):
-    super(BadRequestError, self).__init__(msg, ercode)
+  def __init__(self, msg, code):
+    super(BadRequestError, self).__init__(msg, code)
 
 class ForbiddenError(UserException):
-  def __init__(self, msg, ercode):
-    super(ForbiddenError, self).__init__(msg, ercode)
+  def __init__(self, msg, code):
+    super(ForbiddenError, self).__init__(msg, code)
 
 class NotFoundError(UserException):
-  def __init__(self, msg, ercode):
-    super(NotFoundError, self).__init__(msg, ercode)
+  def __init__(self, msg, code):
+    super(NotFoundError, self).__init__(msg, code)
 
 class InternalServerError(ServerException):
-  def __init__(self, msg, ercode):
-    super(InternalServerError, self).__init__(msg, ercode)
+  def __init__(self, msg, code):
+    super(InternalServerError, self).__init__(msg, code)

@@ -149,13 +149,13 @@ void __make_fail_msg(lql_fail_t *fail)
       pTuple = Py_BuildValue("si", (fail->message ? fail->message : "Internal Server Error!"), fail->code);
       PyErr_SetObject(pClass, pTuple);
     }
-    else if (fail->code > 400 && fail->code < 500)
+    else if (fail->code >= 400 && fail->code < 500)
     {
       pClass = PyObject_GetAttrString(pModule, "UserException");
       pTuple = Py_BuildValue("si", (fail->message ? fail->message : "User Exception!"), fail->code);
       PyErr_SetObject(pClass, pTuple);
     }
-    else if (fail->code > 500 && fail->code <= 600)
+    else if (fail->code >= 500 && fail->code < 600)
     {
       pClass = PyObject_GetAttrString(pModule, "ServerException");
       pTuple = Py_BuildValue("si", (fail->message ? fail->message : "Server Exception!"), fail->code);
@@ -477,9 +477,7 @@ PyObject *pylql_cursor_fetch(PyObject *self, PyObject *args)
     Py_XDECREF(value);
     Py_DECREF(pyrow);
     if (PyErr_Occurred() == NULL)
-    {
-      PyErr_SetString(PyExc_RuntimeError, "error reading");
-    }
+    { PyErr_SetString(PyExc_RuntimeError, "error reading"); }
     return(NULL);
   }
 
