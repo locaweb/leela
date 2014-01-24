@@ -151,20 +151,20 @@ void __make_fail_msg(lql_fail_t *fail)
     }
     else if (fail->code >= 400 && fail->code < 500)
     {
-      pClass = PyObject_GetAttrString(pModule, "UserException");
-      pTuple = Py_BuildValue("si", (fail->message ? fail->message : "User Exception!"), fail->code);
+      pClass = PyObject_GetAttrString(pModule, "UserError");
+      pTuple = Py_BuildValue("si", (fail->message ? fail->message : "User Error!"), fail->code);
       PyErr_SetObject(pClass, pTuple);
     }
     else if (fail->code >= 500 && fail->code < 600)
     {
-      pClass = PyObject_GetAttrString(pModule, "ServerException");
-      pTuple = Py_BuildValue("si", (fail->message ? fail->message : "Server Exception!"), fail->code);
+      pClass = PyObject_GetAttrString(pModule, "ServerError");
+      pTuple = Py_BuildValue("si", (fail->message ? fail->message : "Server Error!"), fail->code);
       PyErr_SetObject(pClass, pTuple);
     }
     else
     {
-      pClass = PyObject_GetAttrString(pModule, "LeelaException");
-      pTuple = Py_BuildValue("si", (fail->message ? fail->message : "Leela Exception!"), fail->code);
+      pClass = PyObject_GetAttrString(pModule, "LeelaError");
+      pTuple = Py_BuildValue("si", (fail->message ? fail->message : "Leela Error!"), fail->code);
       PyErr_SetObject(pClass, pTuple);
     }
 

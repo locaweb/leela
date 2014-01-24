@@ -12,31 +12,31 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-class LeelaException(Exception):
+class LeelaError(Exception):
   def __init__(self, msg, code):
-    super(LeelaException, self).__init__(msg)
+    super(LeelaError, self).__init__(msg)
     self.code = code
 
-class UserException(LeelaException):
+class UserError(LeelaError):
   def __init__(self, msg, code):
-    super(UserException, self).__init__(msg, code)
+    super(UserError, self).__init__(msg, code)
 
-class ServerException(LeelaException):
+class ServerError(LeelaError):
   def __init__(self, msg, code):
-    super(ServerException, self).__init__(msg, code)
+    super(ServerError, self).__init__(msg, code)
 
-class BadRequestError(UserException):
+class BadRequestError(UserError):
   def __init__(self, msg, code):
     super(BadRequestError, self).__init__(msg, code)
 
-class ForbiddenError(UserException):
+class ForbiddenError(UserError):
   def __init__(self, msg, code):
     super(ForbiddenError, self).__init__(msg, code)
 
-class NotFoundError(UserException):
+class NotFoundError(UserError):
   def __init__(self, msg, code):
     super(NotFoundError, self).__init__(msg, code)
 
-class InternalServerError(ServerException):
+class InternalServerError(ServerError):
   def __init__(self, msg, code):
     super(InternalServerError, self).__init__(msg, code)
