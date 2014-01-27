@@ -1,11 +1,11 @@
 // Copyright 2013 (c) Diego Souza <dsouza@c0d3.xxx>
-//  
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-//  
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
-//  
+//
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -63,8 +63,8 @@ typedef struct
 //! An fail entry as defined in warpdrive(1);
 typedef struct lql_fail_t
 {
-  uint32_t code;        //!^ The fail code reported;
-  char *message;           //!^ The fail message;
+  uint32_t code;          //!^ The fail code reported;
+  char *message;          //!^ The fail message;
 } lql_fail_t;
 
 //! Information about the cluster
@@ -101,7 +101,7 @@ lql_context_t *leela_lql_context_init(const leela_endpoint_t *const *warpdrive);
  *         to wait for an answer from the server. Use (-1) to wait
  *         forever and (0) to use the default (implementation defined)
  *         timeout;
- *  
+ *
  *  \return * NULL     : an error has ocurred;
  *          * otherwise: the cursor has been sucessfully initialized;
  */
@@ -124,7 +124,7 @@ leela_status leela_lql_cursor_execute(lql_cursor_t *cursor, const char *query);
 /*! Retrieves the next row out of a cursor;
  *
  *  \param cursor A valid cursor to use;
- *  
+ *
  *  \return LEELA_OK success;
  *  \return LEELA_EOF there are no more entries;
  *  \return LEELA_TIMEOUT the operation has timed out;
