@@ -1,7 +1,7 @@
 {-# LANGUAGE TupleSections     #-}
 {-# LANGUAGE OverloadedStrings #-}
 
--- Copyright 2013 (c) Diego Souza <dsouza@c0d3.xxx>
+-- Copyright 2014 (c) Diego Souza <dsouza@c0d3.xxx>
 --    
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
