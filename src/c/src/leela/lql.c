@@ -336,8 +336,11 @@ handle_error:
 
 leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
 {
-  if (cursor == NULL || (cursor->channel == NULL && cursor->elems[0] <= 0))
+  if (cursor == NULL)
   { return(LEELA_BADARGS); }
+
+  if (cursor->channel == NULL && cursor->elems[0] == 0)
+  { return(LEELA_EOF); }
 
   char buffer[5];
   if (cursor->elems[0] == 0 || cursor->elems[1] > 0)
