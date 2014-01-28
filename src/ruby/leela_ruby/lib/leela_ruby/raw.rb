@@ -14,7 +14,8 @@ module Leela
     enum :lql_row_type, [
       :lql_name_msg,
       :lql_path_msg,
-      :lql_stat_msg
+      :lql_stat_msg,
+      :lql_fail_msg
     ]
 
     attach_function :leela_endpoint_load, [:string], :pointer
@@ -30,6 +31,7 @@ module Leela
     attach_function :leela_lql_fetch_name, [:pointer], :pointer
     attach_function :leela_lql_fetch_stat, [:pointer], :pointer
     attach_function :leela_lql_fetch_path, [:pointer], :pointer
+    attach_function :leela_lql_fetch_fail, [:pointer], :pointer
 
     attach_function :leela_lql_cursor_next, [:pointer], :status
     attach_function :leela_lql_cursor_close, [:pointer], :status
@@ -42,8 +44,8 @@ module Leela
     end
 
     class LqlPath < FFI::Struct
-      layout :size,  :int,
-             :attrs, :pointer
+      layout :size,    :int,
+             :entries, :pointer
     end
 
     class LqlStat < FFI::Struct
@@ -54,6 +56,11 @@ module Leela
     class LqlAttrs < FFI::Struct
       layout :first,  :string,
              :second, :string
+    end
+
+    class LqlFail < FFI::Struct
+      layout :code,    :uint32,
+             :message, :string
     end
   end
 end
