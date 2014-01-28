@@ -195,12 +195,16 @@
       (truncate-n-test cluster "get-kattr with no data"
         (is (= (server/msg-kattr "") (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "k-attr" node "attr"])))))
 
+      (truncate-n-test cluster "get-kattr after put-kattr with ttl"
+        (is (= (server/msg-done) (server/handle-message cluster ["put" "k-attr" node "attr" value "ttl:3600"])))
+        (is (= (server/msg-kattr "foobar") (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "k-attr" node "attr"])))))
+
       (truncate-n-test cluster "get-kattr after put-kattr"
-        (is (= (server/msg-done) (server/handle-message cluster ["put" "k-attr" node "attr" value])))
+        (is (= (server/msg-done) (server/handle-message cluster ["put" "k-attr" node "attr" value ""])))
         (is (= (server/msg-kattr "foobar") (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "k-attr" node "attr"])))))
 
       (truncate-n-test cluster "del-kattr after put-kattr"
-        (server/handle-message cluster ["put" "k-attr" node "attr" value])
+        (server/handle-message cluster ["put" "k-attr" node "attr" value ""])
         (is (= (server/msg-done) (server/handle-message cluster ["del" "k-attr" node "attr"])))
         (is (= (server/msg-kattr "") (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "k-attr" node "attr"]))))))))
 

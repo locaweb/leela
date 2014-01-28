@@ -36,6 +36,9 @@
 (defn msg-label [labels]
   (cons "label" labels))
 
+(defn msg-nattr [attrs]
+  (cons "n-attr" attrs))
+
 (defn msg-tattr [msg]
   (cons "t-attr" (flatten (map (fn [[k v]] [(str k) v]) msg))))
 
@@ -123,12 +126,26 @@
     (storage/with-consistency :one
       (msg-kattr (storage/get-kattr cluster k s)))))
 
-(defn exec-put-kattr [cluster [k s v]]
-  (let [k (f/bytes-to-uuid k)
-        s (f/bytes-to-str s)]
-    (storage/with-consistency :one
-      (storage/put-kattr cluster k s v))
-    (msg-done)))
+(defn parse-opts [opt]
+  (if (empty? opt)
+    []
+    (let [parse-funcs {"ttl" (fn [v] (Integer. v))}
+          parse-keyval (fn [raw]
+                         (let [[k v] (s/split raw #":" 2)]
+                           [(keyword k) ((get parse-funcs k identity) v)]))]
+      (mapcat parse-keyval (s/split opt #", ")))))
+
+(defn exec-put-kattr [cluster attrs]
+  (storage/with-consistency :one
+    (storage/put-kattr
+     cluster
+     (map
+      (fn [[k n v o]] [{:key (f/bytes-to-uuid k)
+                        :name (f/bytes-to-str n)
+                        :value (f/str-to-bytes v)}
+                       (parse-opts o)])
+        (partition 4 attrs))))
+  (msg-done))
 
 (defn exec-del-kattr [cluster [k s]]
   (let [k (f/bytes-to-uuid k)
@@ -137,47 +154,55 @@
       (storage/del-kattr cluster k s))
     (msg-done)))
 
-(defn exec-getlabel-exact [cluster [k n]]
+(defn exec-getindex-exact [cluster table [k n]]
   (let [k (f/bytes-to-uuid k)
         n (f/bytes-to-str n)]
     (storage/with-consistency :one
-      (storage/hasindex cluster k false n))))
+      (storage/has-index cluster table k false n))))
 
-(defn exec-getlabel-all [cluster [k page & limit]]
+(defn exec-getindex-all [cluster table [k page & limit]]
   (let [k (f/bytes-to-uuid k)
         page (f/bytes-to-str page)]
     (storage/with-consistency :one
       (storage/with-limit (f/maybe-bytes-to-str (first limit))
-        (storage/getindex cluster k false page)))))
+        (storage/get-index cluster table k false page)))))
 
-(defn exec-getlabel-prefix [cluster [k start finish & limit]]
+(defn exec-getindex-prefix [cluster table [k start finish & limit]]
   (let [k (f/bytes-to-uuid k)
         start (f/bytes-to-str start)
         finish (f/bytes-to-str finish)]
     (storage/with-consistency :one
       (storage/with-limit (f/maybe-bytes-to-str (first limit))
-        (storage/getindex cluster k false start finish)))))
+        (storage/get-index cluster table k false start finish)))))
 
-(defn exec-getlabel-suffix [cluster [k start finish & limit]]
+(defn exec-getindex-suffix [cluster table [k start finish & limit]]
   (let [k (f/bytes-to-uuid k)
         start (f/bytes-to-str start)
         finish (f/bytes-to-str finish)]
     (storage/with-consistency :one
       (storage/with-limit (f/maybe-bytes-to-str (first limit))
-        (storage/getindex cluster k true start finish)))))
+        (storage/get-index cluster table k true start finish)))))
 
 (defn exec-getlabel [cluster msg]
   (case (f/bytes-to-str (first msg))
-    "all" (msg-label (exec-getlabel-all cluster (drop 1 msg)))
-    "pre" (msg-label (exec-getlabel-prefix cluster (drop 1 msg)))
-    "suf" (msg-label (exec-getlabel-suffix cluster (drop 1 msg)))
-    "ext" (msg-label (exec-getlabel-exact cluster (drop 1 msg)))
+    "all" (msg-label (exec-getindex-all cluster :g_index (drop 1 msg)))
+    "pre" (msg-label (exec-getindex-prefix cluster :g_index (drop 1 msg)))
+    "suf" (msg-label (exec-getindex-suffix cluster :g_index (drop 1 msg)))
+    "ext" (msg-label (exec-getindex-exact cluster :g_index (drop 1 msg)))
     (msg-fail 400)))
+
+(defn exec-listattr [cluster msg]
+  (case (f/bytes-to-str (first msg))
+    "all" (msg-nattr (exec-getindex-all cluster :p_index (drop 1 msg)))
+    "pre" (msg-nattr (exec-getindex-prefix cluster :p_index (drop 1 msg)))
+    "suf" (msg-nattr (exec-getindex-suffix cluster :p_index (drop 1 msg)))
+    "ext" (msg-nattr (exec-getindex-exact cluster :p_index (drop 1 msg)))))
 
 (defn exec-putlabel [cluster labels]
   (storage/with-consistency :one
-    (storage/putindex
+    (storage/put-index
      cluster
+     :g_index
      (map (fn [[k n]] {:key (f/bytes-to-uuid k) :name (f/bytes-to-str n)})
           (partition 2 labels))))
   (msg-done))

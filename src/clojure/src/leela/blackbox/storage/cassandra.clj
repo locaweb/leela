@@ -21,7 +21,7 @@
             [leela.blackbox.f :as f]
             [clojurewerkz.cassaforte.client :as client]))
 
-(def +limit+ 256)
+(def +limit+ 32)
 
 (defn check-schema [cluster keyspace]
   (when-not (describe-keyspace cluster keyspace)
@@ -68,10 +68,17 @@
      (if-not-exists)
      (column-definitions {:key :uuid :name :varchar :value :blob  :primary-key [[:key :name]]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
-  (when-not (describe-table cluster keyspace :search)
-    (warn "creating table search")
+  (when-not (describe-table cluster keyspace :g_index)
+    (warn "creating table g_index")
     (create-table
-     cluster :search
+     cluster :g_index
+     (if-not-exists)
+     (column-definitions {:key :uuid :rev :boolean :name :varchar :primary-key [[:key :rev] :name]})
+     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
+  (when-not (describe-table cluster keyspace :p_index)
+    (warn "creating table p_index")
+    (create-table
+     cluster :p_index
      (if-not-exists)
      (column-definitions {:key :uuid :rev :boolean :name :varchar :primary-key [[:key :rev] :name]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}}))))
@@ -99,13 +106,13 @@
      ~@body))
 
 (defn truncate-all [cluster]
-  (doseq [t [:graph :search :t_attr :k_attr :n_naming :g_naming]]
+  (doseq [t [:graph :g_index :p_index :t_attr :k_attr :n_naming :g_naming]]
     (truncate cluster t)))
 
-(defn fmt-put-index [data]
+(defn fmt-put-index [table data]
   (let [value (:name data)]
-    [(insert-query :search (into data {:rev true :name (s/reverse value)}))
-     (insert-query :search (into data {:rev false}))]))
+    [(insert-query table (into data {:rev true :name (s/reverse value)}))
+     (insert-query table (into data {:rev false}))]))
 
 (defn fmt-put-link [data]
   (insert-query :graph data))
@@ -115,9 +122,16 @@
     (delete-query :graph (where :a a :l l :b b))
     (delete-query :graph (where :a a :l l))))
 
-(defn putindex [cluster indexes]
+(defn fmt-put-kattr [[data opts]]
+  (let [idx (fmt-put-index :p_index {:key (:key data)
+                                     :name (:name data)})]
+    (if (empty? opts)
+      (conj (insert-query :k_attr data) idx)
+      (conj (insert-query :k_attr data (apply using opts)) idx))))
+
+(defn put-index [cluster table indexes]
   (let [query (->> indexes
-                   (mapcat fmt-put-index)
+                   (mapcat (partial fmt-put-index table))
                    (apply queries)
                    (batch-query (logged false))
                    client/render-query)]
@@ -150,12 +164,12 @@
                                  (insert-query :g_naming {:user user :tree tree :node node :guid guid})))))
       guid)))
 
-(defn getindex [cluster k rev & optional]
+(defn get-index [cluster table k rev & optional]
   (let [[start finish] optional
         reseq (fn [arg] (if rev (s/reverse arg) arg))]
     (map #(reseq (:name %))
          (select cluster
-                 :search
+                 table
                  (columns :name)
                  (case [(boolean start) (boolean finish)]
                    [true true] (where :key k :rev rev :name [:>= (reseq start)] :name [:< (reseq finish)])
@@ -163,9 +177,9 @@
                    (where :key k :rev rev))
                  (limit +limit+)))))
 
-(defn hasindex [cluster k rev name]
+(defn has-index [cluster table k rev name]
   (map #(:name %) (select cluster
-                          :search
+                          table
                           (columns :name)
                           (where :key k :rev rev :name name)
                           (limit 1))))
@@ -212,9 +226,13 @@
           :t_attr
           (where :key k :name name :slot slot)))
 
-(defn put-kattr [cluster k name value]
-  (insert cluster
-          :k_attr {:key k :name name :value value}))
+(defn put-kattr [cluster attrs]
+  (let [query (->> attrs
+                   (map fmt-put-kattr)
+                   (apply queries)
+                   (batch-query (logged false))
+                   client/render-query)]
+    (client/execute cluster query)))
 
 (defn get-kattr [cluster k name]
   (first

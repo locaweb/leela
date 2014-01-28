@@ -14,63 +14,64 @@
      (storage/truncate-all ~cluster)
      ~@body))
 
-(deftest test-getindex
-  (let [node (f/uuid-1)]
+(deftest test-get-gindex
+  (let [node (f/uuid-1)
+        table (rand-nth [:g_index :p_index])]
     (storage/with-session [cluster ["127.0.0.1"] "leela"]
 
-      (truncate-n-test cluster "getindex with no data"
-        (is (= [] (storage/getindex cluster node false))))
+      (truncate-n-test cluster "get-gindex with no data"
+        (is (= [] (storage/get-index cluster table node false))))
 
-      (truncate-n-test cluster "getindex after putindex"
-        (storage/putindex cluster [{:key node :name "foobar"}])
-        (is (= ["foobar"] (storage/getindex cluster node false))))
+      (truncate-n-test cluster "get-gindex after put-gindex"
+        (storage/put-index cluster table [{:key node :name "foobar"}])
+        (is (= ["foobar"] (storage/get-index cluster table node false))))
 
-      (truncate-n-test cluster "getindex after multiple putindex"
-        (storage/putindex cluster [{:key node :name "f"}
-                                   {:key node :name "o"}
-                                   {:key node :name "b"}
-                                   {:key node :name "a"}
-                                   {:key node :name "r"}])
-        (is (= ["a" "b" "f" "o" "r"] (storage/getindex cluster node false))))
+      (truncate-n-test cluster "get-gindex after multiple put-gindex"
+        (storage/put-index cluster table [{:key node :name "f"}
+                                          {:key node :name "o"}
+                                          {:key node :name "b"}
+                                          {:key node :name "a"}
+                                          {:key node :name "r"}])
+        (is (= ["a" "b" "f" "o" "r"] (storage/get-index cluster table node false))))
 
-      (truncate-n-test cluster "getindex pagination with only start"
-        (storage/putindex cluster [{:key node :name "a0"}
-                                   {:key node :name "a1"}
-                                   {:key node :name "a2"}])
+      (truncate-n-test cluster "get-gindex pagination with only start"
+        (storage/put-index cluster table [{:key node :name "a0"}
+                                          {:key node :name "a1"}
+                                          {:key node :name "a2"}])
         (storage/with-limit 1
-          (is (= ["a0"] (storage/getindex cluster node false)))
-          (is (= ["a1"] (storage/getindex cluster node false "a1")))
-          (is (= ["a2"] (storage/getindex cluster node false "a2")))))
+          (is (= ["a0"] (storage/get-index cluster table node false)))
+          (is (= ["a1"] (storage/get-index cluster table node false "a1")))
+          (is (= ["a2"] (storage/get-index cluster table node false "a2")))))
 
-      (truncate-n-test cluster "getindex pagination with start & finish"
-        (storage/putindex cluster [{:key node :name "fooba0r"}
-                                   {:key node :name "fooba1r"}
-                                   {:key node :name "fooba2r"}])
-        (is (= ["fooba0r"] (storage/getindex cluster node false "fooba0" "fooba1")))
-        (is (= ["fooba1r"] (storage/getindex cluster node false "fooba1" "fooba2")))
-        (is (= ["fooba2r"] (storage/getindex cluster node false "fooba2" "fooba3"))))
+      (truncate-n-test cluster "get-gindex pagination with start & finish"
+        (storage/put-index cluster table [{:key node :name "fooba0r"}
+                                          {:key node :name "fooba1r"}
+                                          {:key node :name "fooba2r"}])
+        (is (= ["fooba0r"] (storage/get-index cluster table node false "fooba0" "fooba1")))
+        (is (= ["fooba1r"] (storage/get-index cluster table node false "fooba1" "fooba2")))
+        (is (= ["fooba2r"] (storage/get-index cluster table node false "fooba2" "fooba3"))))
 
-      (truncate-n-test cluster "getindex (reverse)"
-        (storage/putindex cluster [{:key node :name "a0"}
-                                   {:key node :name "a1"}])
-        (is (= ["a0" "a1"] (storage/getindex cluster node true))))
+      (truncate-n-test cluster "get-gindex (reverse)"
+        (storage/put-index cluster table [{:key node :name "a0"}
+                                          {:key node :name "a1"}])
+        (is (= ["a0" "a1"] (storage/get-index cluster table node true))))
 
-      (truncate-n-test cluster "getindex (reverse) pagination with only start"
-        (storage/putindex cluster [{:key node :name "a0"}
-                                   {:key node :name "a1"}
-                                   {:key node :name "a2"}])
+      (truncate-n-test cluster "get-gindex (reverse) pagination with only start"
+        (storage/put-index cluster table [{:key node :name "a0"}
+                                          {:key node :name "a1"}
+                                          {:key node :name "a2"}])
         (storage/with-limit 1
-          (is (= ["a0"] (storage/getindex cluster node true)))
-          (is (= ["a1"] (storage/getindex cluster node true "a1")))
-          (is (= ["a2"] (storage/getindex cluster node true "a2")))))
+          (is (= ["a0"] (storage/get-index cluster table node true)))
+          (is (= ["a1"] (storage/get-index cluster table node true "a1")))
+          (is (= ["a2"] (storage/get-index cluster table node true "a2")))))
 
-      (truncate-n-test cluster "getindex (reverse) pagination with start & finish"
-        (storage/putindex cluster [{:key node :name "fooba0r"}
-                                   {:key node :name "fooba1r"}
-                                   {:key node :name "fooba2r"}])
-        (is (= ["fooba0r"] (storage/getindex cluster node true "0r" "1r")))
-        (is (= ["fooba1r"] (storage/getindex cluster node true "1r" "2r")))
-        (is (= ["fooba2r"] (storage/getindex cluster node true "2r" "3r")))))))
+      (truncate-n-test cluster "get-gindex (reverse) pagination with start & finish"
+        (storage/put-index cluster table [{:key node :name "fooba0r"}
+                                          {:key node :name "fooba1r"}
+                                          {:key node :name "fooba2r"}])
+        (is (= ["fooba0r"] (storage/get-index cluster table node true "0r" "1r")))
+        (is (= ["fooba1r"] (storage/get-index cluster table node true "1r" "2r")))
+        (is (= ["fooba2r"] (storage/get-index cluster table node true "2r" "3r")))))))
 
 (deftest test-getlink
   (let [node-a (f/uuid-from-time 1)
@@ -151,16 +152,16 @@
         (is (= nil (storage/get-kattr cluster node-a "attr"))))
 
       (truncate-n-test cluster "get-kattr after put-kattr"
-        (storage/put-kattr cluster node-a "attr#0" (f/str-to-bytes "foobar"))
+        (storage/put-kattr cluster [[{:key node-a :name "attr#0" :value (f/str-to-bytes "foobar")} []]])
         (is (not (= nil (storage/get-kattr cluster node-a "attr#0")))))
 
       (truncate-n-test cluster "get-kattr after put-kattr (overwrite)"
-        (storage/put-kattr cluster node-a "attr#0" (f/str-to-bytes "foobar"))
-        (storage/put-kattr cluster node-a "attr#0" (f/str-to-bytes "foobaz"))
+        (storage/put-kattr cluster [[{:key node-a :name "attr#0" :value (f/str-to-bytes "foobar")} []]
+                                    [{:key node-a :name "attr#0" :value (f/str-to-bytes "foobaz")} []]])
         (is (= "foobaz" (f/bytes-to-str (storage/get-kattr cluster node-a "attr#0")))))
 
       (truncate-n-test cluster "getakattr after del-kattr"
-        (storage/put-kattr cluster node-a "attr#0" (f/str-to-bytes "foobar"))
+        (storage/put-kattr cluster [[{:key node-a :name "attr#0" :value (f/str-to-bytes "foobar")} []]])
         (storage/del-kattr cluster node-a "attr#0")
         (is (= nil (storage/get-kattr cluster node-a "attr#0")))))))
 
