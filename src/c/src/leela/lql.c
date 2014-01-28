@@ -426,10 +426,10 @@ lql_name_t *leela_lql_fetch_name(lql_cursor_t *cursor)
     name->tree = NULL;
     name->name = NULL;
 
-    name->guid = __zmq_recvmsg_copystr(cursor);
     name->user = __zmq_recvmsg_copystr(cursor);
     name->tree = __zmq_recvmsg_copystr(cursor);
     name->name = __zmq_recvmsg_copystr(cursor);
+    name->guid = __zmq_recvmsg_copystr(cursor);
     if (name->user != NULL
         && name->tree != NULL
         && name->name != NULL)
