@@ -167,8 +167,6 @@ void __make_fail_msg(lql_fail_t *fail)
       pTuple = Py_BuildValue("si", (fail->message ? fail->message : "Leela Error!"), fail->code);
       PyErr_SetObject(pClass, pTuple);
     }
-
-    leela_lql_fail_free(fail);
   }
   else
   { PyErr_SetString(PyExc_RuntimeError, "Reading Error!"); }
@@ -176,6 +174,20 @@ void __make_fail_msg(lql_fail_t *fail)
   Py_XDECREF(pModule);
   Py_XDECREF(pClass);
   Py_XDECREF(pTuple);
+}
+
+static
+void __throw_exception(pylql_cursor_t *cursor)
+{
+  lql_fail_t *fail;
+  Py_BEGIN_ALLOW_THREADS
+  fail = leela_lql_fetch_fail(cursor->cursor);
+  Py_END_ALLOW_THREADS
+  if (fail != NULL)
+  {
+    __make_fail_msg(fail);
+    leela_lql_fail_free(fail);
+  }
 }
 
 static
@@ -462,14 +474,7 @@ PyObject *pylql_cursor_fetch(PyObject *self, PyObject *args)
     }
   }
   else if (row == LQL_FAIL_MSG)
-  {
-    lql_fail_t *fail;
-    Py_BEGIN_ALLOW_THREADS
-    fail = leela_lql_fetch_fail(cursor->cursor);
-    Py_END_ALLOW_THREADS
-    if (fail != NULL)
-    { __make_fail_msg(fail); }
-  }
+  { __throw_exception(cursor); }
 
   if (type == NULL || value == NULL)
   {

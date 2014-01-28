@@ -41,6 +41,7 @@ struct lql_cursor_t {
   char        *username;
   char        *secret;
   char        *channel;
+  int          feedback;
   int          timeout;
   uint32_t     elems[2];
   lql_row_type row;
@@ -124,6 +125,13 @@ handle_error:
 static
 int __zmq_recvmsg(lql_cursor_t *cursor)
 {
+  if (cursor->feedback >= 0)
+  {
+    int feedback = cursor->feedback;
+    cursor->feedback = -1;
+    return (feedback);
+  }
+
   zmq_pollitem_t items[1];
   items[0].socket = cursor->socket;
   items[0].events = ZMQ_POLLIN;
@@ -242,6 +250,7 @@ lql_cursor_t *leela_lql_cursor_init2(lql_context_t *ctx, const leela_endpoint_t 
   cursor->secret   = leela_strdup(secret);
   cursor->elems[0] = 0;
   cursor->elems[1] = 0;
+  cursor->feedback = -1;
   cursor->timeout  = (timeout_in_ms == 0 ? LQL_DEFAULT_TIMEOUT : timeout_in_ms);
 
   if (cursor->username == NULL || cursor->secret == NULL)
@@ -286,6 +295,7 @@ lql_cursor_t *leela_lql_cursor_init(lql_context_t *ctx, const char *username, co
 
 leela_status leela_lql_cursor_execute(lql_cursor_t *cursor, const char *query)
 {
+  char buffer[5];
   if (cursor == NULL || cursor->channel != NULL)
   { return(LEELA_BADARGS); }
 
@@ -293,7 +303,17 @@ leela_status leela_lql_cursor_execute(lql_cursor_t *cursor, const char *query)
   if (__zmq_sendmsg_str(cursor, "begin", query, NULL) == -1)
   { goto handle_error; }
 
-  if (! __zmq_recvmsg_done(cursor))
+  if (__zmq_recvmsg_str(cursor, buffer, 4) == -1)
+  { goto handle_error; }
+
+  if (strncmp(buffer, "fail", 4) == 0)
+  {
+    cursor->feedback = 4;
+    cursor->elems[0] = 1;
+    cursor->elems[1] = 0;
+    return(LEELA_OK);
+  }
+  else if (!(strncmp(buffer, "done", 4) == 0))
   {
     LEELA_DEBUG("error executing statement: %s", query);
     goto handle_error;
@@ -316,7 +336,7 @@ handle_error:
 
 leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
 {
-  if (cursor == NULL || cursor->channel == NULL)
+  if (cursor == NULL || (cursor->channel == NULL && cursor->elems[0] <= 0))
   { return(LEELA_BADARGS); }
 
   char buffer[5];
@@ -380,7 +400,6 @@ leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
   {
     cursor->row = LQL_FAIL_MSG;
     cursor->elems[1] = 1;
-    return(LEELA_OK);
   }
   else
   { return(LEELA_ERROR); }
