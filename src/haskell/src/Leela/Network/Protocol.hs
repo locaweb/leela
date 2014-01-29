@@ -149,8 +149,8 @@ defaultMessage 404  = "not found"
 defaultMessage 403  = "forbidden"
 defaultMessage 400  = "bad request"
 defaultMessage code
-  | code >= 400 && code < 500 = "internal server error"
-  | code >= 500 && code < 600 = "user error"
+  | code >= 400 && code < 500 = "user error"
+  | code >= 500 && code < 600 = "internal server error"
   | otherwise                 = "error"
 
 encodeE :: SomeException -> Reply
