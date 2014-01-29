@@ -295,7 +295,7 @@ lql_cursor_t *leela_lql_cursor_init(lql_context_t *ctx, const char *username, co
 
 leela_status leela_lql_cursor_execute(lql_cursor_t *cursor, const char *query)
 {
-  char buffer[5];
+  char buffer[4];
   if (cursor == NULL || cursor->channel != NULL)
   { return(LEELA_BADARGS); }
 
@@ -342,7 +342,7 @@ leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
   if (cursor->channel == NULL && cursor->elems[0] == 0)
   { return(LEELA_EOF); }
 
-  char buffer[5];
+  char buffer[6];
   if (cursor->elems[0] == 0 || cursor->elems[1] > 0)
   {
     int frames;
@@ -358,7 +358,7 @@ leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
   else
   { cursor->elems[0] -= 1; }
 
-  if (__zmq_recvmsg_str(cursor, buffer, 4) == -1)
+  if (__zmq_recvmsg_str(cursor, buffer, 6) == -1)
   { return(LEELA_ERROR); }
   if (strncmp(buffer, "list", 4) == 0)
   {
@@ -388,6 +388,17 @@ leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
   {
     cursor->elems[0] = 1;
     return(leela_lql_cursor_next(cursor));
+  }
+  else if (strncmp(buffer, "n-attr", 6) == 0)
+  {
+    cursor->row = LQL_NATTR_MSG;
+    if (! __zmq_recvmsg_uint32(cursor, cursor->elems + 1))
+    { return(LEELA_ERROR); }
+  }
+  else if (strncmp(buffer, "k-attr", 6) == 0)
+  {
+    cursor->row      = LQL_KATTR_MSG;
+    cursor->elems[1] = 3;
   }
   else if (strncmp(buffer, "done", 4) == 0)
   { return(LEELA_EOF); }
@@ -429,6 +440,36 @@ lql_name_t *leela_lql_fetch_name(lql_cursor_t *cursor)
   }
 
   leela_lql_name_free(name);
+  return(NULL);
+}
+
+lql_nattr_t *leela_lql_fetch_nattr(lql_cursor_t *cursor)
+{
+  if (cursor->row != LQL_NATTR_MSG)
+  { return(NULL); }
+
+  lql_nattr_t *nattr = (lql_nattr_t *) malloc(sizeof(lql_nattr_t));
+  if (nattr != NULL)
+  {
+    nattr->size  = cursor->elems[1];
+    nattr->guid  = __zmq_recvmsg_copystr(cursor);
+    nattr->names = (char **) malloc(nattr->size * sizeof(char *));
+    if (nattr->names == NULL || nattr->guid == NULL)
+    { goto handle_error; }
+
+    for (int k=0; k<nattr->size; k+=1)
+    { nattr->names[k] = NULL; }
+    for (int k=0; k<nattr->size; k+=1)
+    {
+      nattr->names[k] = __zmq_recvmsg_copystr(cursor);
+      if (nattr->names[k] == NULL)
+      { goto handle_error; }
+    }
+  }
+  return(nattr);
+
+handle_error:
+  leela_lql_nattr_free(nattr);
   return(NULL);
 }
 
@@ -557,6 +598,21 @@ void leela_lql_fail_free(lql_fail_t *fail)
   {
     free(fail->message);
     free(fail);
+  }
+}
+
+void leela_lql_nattr_free(lql_nattr_t *nattr)
+{
+  if (nattr != NULL)
+  {
+    free(nattr->guid);
+    if (nattr->names != NULL)
+    {
+      for (int k=0; k<nattr->size; k+=1)
+      { free(nattr->names[k]); }
+      free(nattr->names);
+    }
+    free(nattr);
   }
 }
 

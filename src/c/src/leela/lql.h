@@ -34,8 +34,36 @@ typedef enum
   LQL_NAME_MSG,
   LQL_PATH_MSG,
   LQL_STAT_MSG,
-  LQL_FAIL_MSG
+  LQL_FAIL_MSG,
+  LQL_NATTR_MSG,
+  LQL_KATTR_MSG,
 } lql_row_type;
+
+typedef enum
+{
+  LQL_BOOL_TYPE,
+  LQL_TEXT_TYPE,
+  LQL_INT32_TYPE,
+  LQL_INT64_TYTE,
+  LQL_UINT32_TYPE,
+  LQL_UINT64_TYPE,
+  LQL_DOUBLE_TYPE
+} lql_value_type;
+
+typedef struct
+{
+  lql_value_type vtype;
+  union
+  {
+    char    *v_str;
+    int32_t  v_i32;
+    int64_t  v_i64;
+    uint32_t v_u32;
+    uint64_t v_u64;
+    bool     v_bool;
+    double   v_real;
+  } value;
+} lql_value_t;
 
 //! A simple 2-tuple type;
 typedef struct
@@ -61,11 +89,27 @@ typedef struct
 } lql_name_t;
 
 //! An fail entry as defined in warpdrive(1);
-typedef struct lql_fail_t
+typedef struct
 {
   uint32_t code;          //!^ The fail code reported;
   char *message;          //!^ The fail message;
 } lql_fail_t;
+
+//! The attribute names (n-attr message)
+typedef struct
+{
+  int size;               //!^ The number of entries
+  char *guid;             //!^ The node we are referencing
+  char **names;           //!^ The attr names
+} lql_nattr_t;
+
+//! The attribute name & value (k-attr message)
+typedef struct
+{
+  char *guid;             //!^ The node this attribute is set on
+  char *attr;             //!^ The name of the attribute
+  lql_value_t *value;     //!^ The value
+} lql_kattr_t;
 
 //! Information about the cluster
 typedef struct
@@ -158,10 +202,17 @@ lql_stat_t *leela_lql_fetch_stat(lql_cursor_t *cursor);
  */
 lql_fail_t *leela_lql_fetch_fail(lql_cursor_t *cursor);
 
+/*! Extracts the nattr name from the cursor, which contains the
+ *  attribute names of a given node. Use this function only if the
+ *  message type is LQL_NATTR_MSG (refer to leela_lql_nattr_type).
+ */
+lql_nattr_t *leela_lql_fetch_nattr(lql_cursor_t *cursor);
+
 void leela_lql_name_free(lql_name_t *);
 void leela_lql_path_free(lql_path_t *);
 void leela_lql_stat_free(lql_stat_t *);
 void leela_lql_fail_free(lql_fail_t *);
+void leela_lql_nattr_free(lql_nattr_t *);
 
 /*! Terminates a cursor. Remember to always call this function after
  *  you are done iterating.

@@ -73,7 +73,8 @@ def dump_list(cache, ctx, opts, row):
     elif (row[0] == "stat"):
         dump_stat(row)
     else:
-        raise(RuntimeError())
+        print("unknow type: %s" % row[0])
+        print(row[1])
 
 def rewrite_guid(cache, ctx, opts, q0, f):
     q = q0

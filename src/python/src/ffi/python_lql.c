@@ -67,10 +67,41 @@ PyObject *__make_name_msg(lql_name_t *name)
   if (tuple == NULL)
   { return(NULL); }
 
-  PyTuple_SetItem(tuple, 0, PyString_FromString(name->user));
-  PyTuple_SetItem(tuple, 1, PyString_FromString(name->tree));
-  PyTuple_SetItem(tuple, 2, PyString_FromString(name->name));
-  PyTuple_SetItem(tuple, 3, PyString_FromString(name->guid));
+  int rc = PyTuple_SetItem(tuple, 0, PyString_FromString(name->user))
+         | PyTuple_SetItem(tuple, 1, PyString_FromString(name->tree))
+         | PyTuple_SetItem(tuple, 2, PyString_FromString(name->name))
+         | PyTuple_SetItem(tuple, 3, PyString_FromString(name->guid));
+  if (rc != 0)
+  {
+    Py_DECREF(tuple);
+    return(NULL);
+  }
+  return(tuple);
+}
+
+static
+PyObject *__make_nattr_msg(lql_nattr_t *nattr)
+{
+  PyObject *list  = PyTuple_New(nattr->size);
+  PyObject *tuple = PyTuple_New(2);
+  if (list == NULL || tuple == NULL)
+  {
+    Py_XDECREF(list);
+    Py_XDECREF(tuple);
+    return(NULL);
+  }
+
+  int rc = PyTuple_SetItem(tuple, 0, PyString_FromString(nattr->guid))
+         | PyTuple_SetItem(tuple, 1, list);
+  for (int k=0; k<nattr->size; k+=1)
+  { rc = rc | PyTuple_SetItem(list, k, PyString_FromString(nattr->names[k])); }
+
+  if (rc != 0)
+  {
+    Py_DECREF(tuple);
+    Py_DECREF(list);
+    return(NULL);
+  }
   return(tuple);
 }
 
@@ -123,7 +154,7 @@ void __make_fail_msg(lql_fail_t *fail)
   PyObject *pClass = NULL;
   PyObject *pTuple = NULL;
 
-  if (fail != NULL)
+  if (pModule != NULL && fail != NULL)
   {
     if (fail->code == 400)
     {
@@ -169,7 +200,7 @@ void __make_fail_msg(lql_fail_t *fail)
     }
   }
   else
-  { PyErr_SetString(PyExc_RuntimeError, "Reading Error!"); }
+  { PyErr_SetString(PyExc_RuntimeError, "unexpected error"); }
 
   Py_XDECREF(pModule);
   Py_XDECREF(pClass);
@@ -183,11 +214,8 @@ void __throw_exception(pylql_cursor_t *cursor)
   Py_BEGIN_ALLOW_THREADS
   fail = leela_lql_fetch_fail(cursor->cursor);
   Py_END_ALLOW_THREADS
-  if (fail != NULL)
-  {
-    __make_fail_msg(fail);
-    leela_lql_fail_free(fail);
-  }
+  __make_fail_msg(fail);
+  leela_lql_fail_free(fail);
 }
 
 static
@@ -471,6 +499,19 @@ PyObject *pylql_cursor_fetch(PyObject *self, PyObject *args)
       value = __make_stat_msg(stat);
       type  = PyString_FromString("stat");
       leela_lql_stat_free(stat);
+    }
+  }
+  else if (row == LQL_NATTR_MSG)
+  {
+    lql_nattr_t *nattr;
+    Py_BEGIN_ALLOW_THREADS
+    nattr = leela_lql_fetch_nattr(cursor->cursor);
+    Py_END_ALLOW_THREADS
+    if (nattr != NULL)
+    {
+      value = __make_nattr_msg(nattr);
+      type  = PyString_FromString("nattr");
+      leela_lql_nattr_free(nattr);
     }
   }
   else if (row == LQL_FAIL_MSG)
