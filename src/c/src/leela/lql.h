@@ -41,6 +41,7 @@ typedef enum
 
 typedef enum
 {
+  LQL_NIL_TYPE    = -1,
   LQL_BOOL_TYPE   = 0,
   LQL_TEXT_TYPE   = 1,
   LQL_INT32_TYPE  = 2,

@@ -616,6 +616,9 @@ lql_kattr_t *leela_lql_fetch_kattr(lql_cursor_t *cursor)
       if (! __zmq_recvmsg_double(cursor, &kattr->value->data.v_double))
       { goto handle_error; }
       break;
+    case -1:
+      kattr->value->vtype = LQL_TYPE_NIL;
+      break;
     default:
       goto handle_error;
     };

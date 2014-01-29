@@ -133,7 +133,7 @@ encodeRValue (Path p)             = let f acc (g, l) = toByteString l : toByteSt
                                     in "path" : encodeShow (2 * length p) : foldl' f [] p
 encodeRValue (List v)             = "list" : encodeShow (length v) : concatMap encodeRValue v
 encodeRValue (Stat prop)          = "stat" : encodeShow (2 * length prop) : concatMap (\(a, b) -> [a, b]) prop
-encodeRValue (KAttr g a Nothing)  = ["k-attr", toByteString g, toByteString a, ""]
+encodeRValue (KAttr g a Nothing)  = ["k-attr", toByteString g, toByteString a, "-1", ""]
 encodeRValue (KAttr g a (Just v)) = "k-attr" : toByteString g : toByteString a : encodeValue v
 encodeRValue (NAttrs g names)     = "n-attr" : encodeShow (length names) : toByteString g : map toByteString names
 
