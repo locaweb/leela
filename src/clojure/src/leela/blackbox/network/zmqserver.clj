@@ -143,7 +143,7 @@
       (fn [[k n v o]] [{:key (f/bytes-to-uuid k)
                         :name (f/bytes-to-str n)
                         :value (f/str-to-bytes v)}
-                       (parse-opts o)])
+                       (parse-opts (f/bytes-to-str o))])
         (partition 4 attrs))))
   (msg-done))
 
