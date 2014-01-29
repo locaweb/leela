@@ -71,7 +71,7 @@ data RValue = Path [(GUID, Label)]
             | Stat [(B.ByteString, B.ByteString)]
             | List [RValue]
             | KAttr GUID Attr (Maybe Value)
-            | Attrs GUID [Attr]
+            | NAttrs GUID [Attr]
             | Name User Tree Node GUID
 
 isEOF :: Reply -> Bool
@@ -135,7 +135,7 @@ encodeRValue (List v)             = "list" : encodeShow (length v) : concatMap e
 encodeRValue (Stat prop)          = "stat" : encodeShow (2 * length prop) : concatMap (\(a, b) -> [a, b]) prop
 encodeRValue (KAttr g a Nothing)  = ["k-attr", toByteString g, toByteString a, ""]
 encodeRValue (KAttr g a (Just v)) = "k-attr" : toByteString g : toByteString a : encodeValue v
-encodeRValue (Attrs g names)      = "attr" : toByteString g : map toByteString names
+encodeRValue (NAttrs g names)     = "n-attr" : encodeShow (length names) : toByteString g : map toByteString names
 
 encode :: Reply -> [B.ByteString]
 encode (Done fh)              = ["done", encodeShow fh]
