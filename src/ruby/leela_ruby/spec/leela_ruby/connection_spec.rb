@@ -34,7 +34,21 @@ describe Leela::Connection do
       expect(result.size > 0).to be_true
     end
 
-    it "executes a simple query to return name structure"
-    it "executes a simple query to return path structure"
+    it "executes a simple query to return name structure" do
+      result = @conn.execute("using (leelaruby) make (test), make (test2);")
+      expect(result).to_not be_nil
+      expect(result).to be_a(Array)
+      expect(result.size > 0).to be_true
+    end
+
+    it "executes a simple query to return path structure" do
+      result = @conn.execute("using (leelaruby) make (test), make (test2);")
+      firstguid, lastguid = result.first.last.first, result.last.last.first
+      result = @conn.execute("using (leelaruby) make #{firstguid} -[test]> #{lastguid}, path #{firstguid};")
+
+      expect(result).to_not be_nil
+      expect(result).to be_a(Array)
+      expect(result.size > 0).to be_true
+    end
   end
 end
