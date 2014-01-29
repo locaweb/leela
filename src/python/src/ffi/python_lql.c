@@ -67,10 +67,10 @@ PyObject *__make_name_msg(lql_name_t *name)
   if (tuple == NULL)
   { return(NULL); }
 
-  PyTuple_SetItem(tuple, 0, PyString_FromString(name->guid));
-  PyTuple_SetItem(tuple, 1, PyString_FromString(name->user));
-  PyTuple_SetItem(tuple, 2, PyString_FromString(name->tree));
-  PyTuple_SetItem(tuple, 3, PyString_FromString(name->name));
+  PyTuple_SetItem(tuple, 0, PyString_FromString(name->user));
+  PyTuple_SetItem(tuple, 1, PyString_FromString(name->tree));
+  PyTuple_SetItem(tuple, 2, PyString_FromString(name->name));
+  PyTuple_SetItem(tuple, 3, PyString_FromString(name->guid));
   return(tuple);
 }
 
@@ -128,43 +128,43 @@ void __make_fail_msg(lql_fail_t *fail)
     if (fail->code == 400)
     {
       pClass = PyObject_GetAttrString(pModule, "BadRequestError");
-      pTuple = Py_BuildValue("si", (fail->message ? fail->message : "Bad Request!"), fail->code);
+      pTuple = Py_BuildValue("si", fail->message, fail->code);
       PyErr_SetObject(pClass, pTuple);
     }
     else if (fail->code == 403)
     {
       pClass = PyObject_GetAttrString(pModule, "ForbiddenError");
-      pTuple = Py_BuildValue("si", (fail->message ? fail->message : "Forbidden!"), fail->code);
+      pTuple = Py_BuildValue("si", fail->message, fail->code);
       PyErr_SetObject(pClass, pTuple);
     }
     else if (fail->code == 404)
     {
       pClass = PyObject_GetAttrString(pModule, "NotFoundError");
-      pTuple = Py_BuildValue("si", (fail->message ? fail->message : "Not Found!"), fail->code);
+      pTuple = Py_BuildValue("si", fail->message, fail->code);
       PyErr_SetObject(pClass, pTuple);
     }
     else if (fail->code == 500)
     {
       pClass = PyObject_GetAttrString(pModule, "InternalServerError");
-      pTuple = Py_BuildValue("si", (fail->message ? fail->message : "Internal Server Error!"), fail->code);
+      pTuple = Py_BuildValue("si", fail->message, fail->code);
       PyErr_SetObject(pClass, pTuple);
     }
     else if (fail->code > 400 && fail->code < 500)
     {
       pClass = PyObject_GetAttrString(pModule, "UserError");
-      pTuple = Py_BuildValue("si", (fail->message ? fail->message : "User Error!"), fail->code);
+      pTuple = Py_BuildValue("si", fail->message, fail->code);
       PyErr_SetObject(pClass, pTuple);
     }
     else if (fail->code > 500 && fail->code < 600)
     {
       pClass = PyObject_GetAttrString(pModule, "ServerError");
-      pTuple = Py_BuildValue("si", (fail->message ? fail->message : "Server Error!"), fail->code);
+      pTuple = Py_BuildValue("si", fail->message, fail->code);
       PyErr_SetObject(pClass, pTuple);
     }
     else
     {
       pClass = PyObject_GetAttrString(pModule, "LeelaError");
-      pTuple = Py_BuildValue("si", (fail->message ? fail->message : "Leela Error!"), fail->code);
+      pTuple = Py_BuildValue("si", fail->message, fail->code);
       PyErr_SetObject(pClass, pTuple);
     }
   }
