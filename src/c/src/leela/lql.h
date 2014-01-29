@@ -41,13 +41,13 @@ typedef enum
 
 typedef enum
 {
-  LQL_BOOL_TYPE,
-  LQL_TEXT_TYPE,
-  LQL_INT32_TYPE,
-  LQL_INT64_TYTE,
-  LQL_UINT32_TYPE,
-  LQL_UINT64_TYPE,
-  LQL_DOUBLE_TYPE
+  LQL_BOOL_TYPE   = 0,
+  LQL_TEXT_TYPE   = 1,
+  LQL_INT32_TYPE  = 2,
+  LQL_INT64_TYPE  = 3,
+  LQL_UINT32_TYPE = 4,
+  LQL_UINT64_TYPE = 5,
+  LQL_DOUBLE_TYPE = 6
 } lql_value_type;
 
 typedef struct
@@ -61,8 +61,8 @@ typedef struct
     uint32_t v_u32;
     uint64_t v_u64;
     bool     v_bool;
-    double   v_real;
-  } value;
+    double   v_double;
+  } data;
 } lql_value_t;
 
 //! A simple 2-tuple type;
@@ -107,7 +107,7 @@ typedef struct
 typedef struct
 {
   char *guid;             //!^ The node this attribute is set on
-  char *attr;             //!^ The name of the attribute
+  char *name;             //!^ The name of the attribute
   lql_value_t *value;     //!^ The value
 } lql_kattr_t;
 
@@ -202,17 +202,24 @@ lql_stat_t *leela_lql_fetch_stat(lql_cursor_t *cursor);
  */
 lql_fail_t *leela_lql_fetch_fail(lql_cursor_t *cursor);
 
-/*! Extracts the nattr name from the cursor, which contains the
+/*! Extracts the nattr message from the cursor, which contains the
  *  attribute names of a given node. Use this function only if the
  *  message type is LQL_NATTR_MSG (refer to leela_lql_nattr_type).
  */
 lql_nattr_t *leela_lql_fetch_nattr(lql_cursor_t *cursor);
+
+/*! Extracts the kattr message from the cursor. This message contains
+ *  the attribute value. Use this function only if the message type is
+ *  LQL_KATTR_MSG (refer to leela_lql_kattr_type).
+ */
+lql_kattr_t *leela_lql_fetch_kattr(lql_cursor_t *cursor);
 
 void leela_lql_name_free(lql_name_t *);
 void leela_lql_path_free(lql_path_t *);
 void leela_lql_stat_free(lql_stat_t *);
 void leela_lql_fail_free(lql_fail_t *);
 void leela_lql_nattr_free(lql_nattr_t *);
+void leela_lql_kattr_free(lql_kattr_t *);
 
 /*! Terminates a cursor. Remember to always call this function after
  *  you are done iterating.

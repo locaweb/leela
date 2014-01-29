@@ -198,14 +198,95 @@ bool __zmq_recvmsg_done(lql_cursor_t *cursor)
 }
 
 static
+bool __zmq_recvmsg_longlong(lql_cursor_t *cursor, long long *out)
+{
+  char buffer[21];
+  buffer[20] = '\0';
+  if (__zmq_recvmsg_str(cursor, buffer, 20) != -1)
+  {
+    *out = (long long) atoll(buffer);
+    return(true);
+  }
+  return(false);
+}
+
+static
 bool __zmq_recvmsg_uint32(lql_cursor_t *cursor, uint32_t *out)
 {
-  char buffer[11];
-  buffer[10] = '\0';
-  if (__zmq_recvmsg_str(cursor, buffer, 10) != -1)
+  long long tmp;
+  if (__zmq_recvmsg_longlong(cursor, &tmp))
   {
-    *out = (uint32_t) atol(buffer);
+    *out = (uint32_t) tmp;
     return(true);
+  }
+  return(false);
+}
+
+static
+bool __zmq_recvmsg_uint64(lql_cursor_t *cursor, uint64_t *out)
+{
+  long long tmp;
+  if (__zmq_recvmsg_longlong(cursor, &tmp))
+  {
+    *out = (uint64_t) tmp;
+    return(true);
+  }
+  return(false);
+}
+
+static
+bool __zmq_recvmsg_int32(lql_cursor_t *cursor, int32_t *out)
+{
+  long long tmp;
+  if (__zmq_recvmsg_longlong(cursor, &tmp))
+  {
+    *out = (int32_t) tmp;
+    return(true);
+  }
+  return(false);
+}
+
+static
+bool __zmq_recvmsg_int64(lql_cursor_t *cursor, int64_t *out)
+{
+  long long tmp;
+  if (__zmq_recvmsg_longlong(cursor, &tmp))
+  {
+    *out = (int64_t) tmp;
+    return(true);
+  }
+  return(false);
+}
+
+static
+bool __zmq_recvmsg_double(lql_cursor_t *cursor, double *out)
+{
+  char *tmp = __zmq_recvmsg_copystr(cursor);
+  if (tmp != NULL)
+  {
+    *out = strtod(tmp, NULL);
+    free(tmp);
+    return(true);
+  }
+  return(false);
+}
+
+static
+bool __zmq_recvmsg_bool(lql_cursor_t *cursor, bool *out)
+{
+  char buffer[5];
+  if (__zmq_recvmsg_str(cursor, buffer, 5) != -1)
+  {
+    if (strncmp(buffer, "true", 4) == 0)
+    {
+      *out = true;
+      return(true);
+    }
+    else if (strncmp(buffer, "false", 5) == 0)
+    {
+      *out = false;
+      return(true);
+    }
   }
   return(false);
 }
@@ -398,6 +479,11 @@ leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
   else if (strncmp(buffer, "k-attr", 6) == 0)
   {
     cursor->row      = LQL_KATTR_MSG;
+    cursor->elems[1] = 4;
+  }
+  else if (strncmp(buffer, "k-attr", 6) == 0)
+  {
+    cursor->row      = LQL_KATTR_MSG;
     cursor->elems[1] = 3;
   }
   else if (strncmp(buffer, "done", 4) == 0)
@@ -470,6 +556,75 @@ lql_nattr_t *leela_lql_fetch_nattr(lql_cursor_t *cursor)
 
 handle_error:
   leela_lql_nattr_free(nattr);
+  return(NULL);
+}
+
+lql_kattr_t *leela_lql_fetch_kattr(lql_cursor_t *cursor)
+{
+  if (cursor->row != LQL_KATTR_MSG)
+  { return(NULL); }
+
+  lql_kattr_t *kattr = (lql_kattr_t *) malloc(sizeof(lql_kattr_t));
+  if (kattr != NULL)
+  {
+    uint32_t vtype = 0;
+    kattr->guid    = __zmq_recvmsg_copystr(cursor);
+    kattr->name    = __zmq_recvmsg_copystr(cursor);
+    kattr->value   = malloc(sizeof(lql_value_t));
+    if (kattr->guid == NULL || kattr->name == NULL || kattr->value == NULL)
+    { goto handle_error; }
+
+    kattr->value->data.v_str = NULL;
+    if (! __zmq_recvmsg_uint32(cursor, &vtype))
+    { goto handle_error; }
+
+    switch (vtype)
+    {
+    case 0:
+      kattr->value->vtype = LQL_BOOL_TYPE;
+      if (! __zmq_recvmsg_bool(cursor, &kattr->value->data.v_bool))
+      { goto handle_error; }
+      break;
+    case 1:
+      kattr->value->vtype      = LQL_TEXT_TYPE;
+      kattr->value->data.v_str = __zmq_recvmsg_copystr(cursor);
+      if (kattr->value->data.v_str == NULL)
+      { goto handle_error; }
+      break;
+    case 2:
+      kattr->value->vtype = LQL_INT32_TYPE;
+      if (! __zmq_recvmsg_int32(cursor, &kattr->value->data.v_i32))
+      { goto handle_error; }
+      break;
+    case 3:
+      kattr->value->vtype = LQL_INT64_TYPE;
+      if (! __zmq_recvmsg_int64(cursor, &kattr->value->data.v_i64))
+      { goto handle_error; }
+      break;
+    case 4:
+      kattr->value->vtype = LQL_UINT32_TYPE;
+      if (! __zmq_recvmsg_uint32(cursor, &kattr->value->data.v_u32))
+      { goto handle_error; }
+      break;
+    case 5:
+      kattr->value->vtype = LQL_UINT64_TYPE;
+      if (! __zmq_recvmsg_uint64(cursor, &kattr->value->data.v_u64))
+      { goto handle_error; }
+      break;
+    case 6:
+      kattr->value->vtype = LQL_DOUBLE_TYPE;
+      if (! __zmq_recvmsg_double(cursor, &kattr->value->data.v_double))
+      { goto handle_error; }
+      break;
+    default:
+      goto handle_error;
+    };
+  }
+
+  return(kattr);
+
+handle_error:
+  leela_lql_kattr_free(kattr);
   return(NULL);
 }
 
@@ -613,6 +768,22 @@ void leela_lql_nattr_free(lql_nattr_t *nattr)
       free(nattr->names);
     }
     free(nattr);
+  }
+}
+
+void leela_lql_kattr_free(lql_kattr_t *kattr)
+{
+  if (kattr != NULL)
+  {
+    free(kattr->guid);
+    free(kattr->name);
+    if (kattr->value != NULL)
+    {
+      if (kattr->value->vtype == LQL_TEXT_TYPE)
+      { free(kattr->value->data.v_str); }
+      free(kattr->value);
+    }
+    free(kattr);
   }
 }
 

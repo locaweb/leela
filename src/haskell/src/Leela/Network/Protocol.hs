@@ -118,14 +118,14 @@ decode [sig,"fetch",fh]          = liftM2 Fetch (readSignature sig) (readDecimal
 decode _                         = Left $ Fail 400 (Just "syntax error: bad frame")
 
 encodeValue :: Value -> [B.ByteString]
-encodeValue (Bool True)  = ["bool", "true"]
-encodeValue (Bool False) = ["bool", "false"]
-encodeValue (Text v)     = ["str", v]
-encodeValue (Int32 v)    = ["i32", encodeShow v]
-encodeValue (Int64 v)    = ["i64", encodeShow v]
-encodeValue (UInt32 v)   = ["u32", encodeShow v]
-encodeValue (UInt64 v)   = ["u64", encodeShow v]
-encodeValue (Double v)   = ["double", toShortest v]
+encodeValue (Bool True)  = ["0", "true"]
+encodeValue (Bool False) = ["0", "false"]
+encodeValue (Text v)     = ["1", v]
+encodeValue (Int32 v)    = ["2", encodeShow v]
+encodeValue (Int64 v)    = ["3", encodeShow v]
+encodeValue (UInt32 v)   = ["4", encodeShow v]
+encodeValue (UInt64 v)   = ["5", encodeShow v]
+encodeValue (Double v)   = ["6", toShortest v]
 
 encodeRValue :: RValue -> [B.ByteString]
 encodeRValue (Name u t n g)       = ["name", toByteString u, toByteString t, toByteString n, toByteString g]

@@ -170,8 +170,7 @@ parseValue = do
 parseWithStmt :: Parser [Option]
 parseWithStmt = "with " .*> parseOption `sepBy` (word8 0x3a)
     where
-      parseOption = do
-        "ttl: " .*> liftM TTL decimal
+      parseOption = "ttl:" .*> liftM TTL decimal
 
 parseStmtMake :: Using -> Parser LQL
 parseStmtMake u = do
