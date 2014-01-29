@@ -28,9 +28,9 @@ import           Data.Word
 import           Control.Monad
 import           Leela.Data.LQL
 import           Data.Attoparsec.ByteString as A
+import           Data.Attoparsec.Char8 (decimal, double, signed)
 import qualified Data.ByteString as B
-import           Leela.Data.Graph as G
-import           Leela.Data.Naming
+import           Leela.Data.Types
 import           Control.Applicative
 import qualified Data.ByteString.UTF8 as U
 import qualified Data.ByteString.Lazy as L
@@ -51,13 +51,16 @@ hardspace :: Parser ()
 hardspace = void $ word8 0x20
 
 parseNode :: Parser Node
-parseNode = liftM Node (qstring 128 0x28 0x29)
+parseNode = liftM Node (qstring 512 0x28 0x29)
 
 parseTree :: Parser Tree
-parseTree = liftM Tree (qstring 128 0x28 0x29)
+parseTree = liftM Tree (qstring 512 0x28 0x29)
 
 parseLabel :: Parser Label
-parseLabel = liftM Label (qstring 128 0x5b 0x5d)
+parseLabel = liftM Label (qstring 512 0x5b 0x5d)
+
+parseAttr :: Parser Attr
+parseAttr = liftM Attr (qstring 512 0x20 0x20)
 
 parseGUID :: Parser GUID
 parseGUID = liftM GUID (A.take 36)
@@ -70,7 +73,7 @@ qstring limit l r = word8 l >> anyWord8 >>= loop limit []
     where
       loop lim acc x
         | x == r    = return (B.pack (reverse acc))
-        | lim < 0   = fail "qstring:too long"
+        | lim < 0   = fail "name is too long"
         | x == 0x5c = do
             c <- anyWord8
             anyWord8 >>= loop (lim - 1) (c : acc)
@@ -150,6 +153,26 @@ parseQuery1 acc = do
     else
       return (reverse acc)
 
+parseValue :: Parser Value
+parseValue = do
+  mw <- peekWord8
+  case mw of
+    Just 0x22 -> liftM Text $ qstring (1024 * 1024) 0x22 0x22
+    Just 0x28 -> liftM Int32 ("(int32 " .*> (signed decimal `endBy` word8 0x29))
+                 <|> liftM Int64 ("(int64 " .*> (signed decimal `endBy` word8 0x29))
+                 <|> liftM UInt32 ("(uint32 " .*> (decimal `endBy` word8 0x29))
+                 <|> liftM UInt64 ("(uint64 " .*> (decimal `endBy` word8 0x29))
+                 <|> liftM Double ("(double " .*> (signed double `endBy` word8 0x29))
+                 <|> ("(bool true)" .*> return (Bool True))
+                 <|> ("(bool false)" .*> return (Bool False))
+    _         -> fail "bad value"
+
+parseWithStmt :: Parser [Option]
+parseWithStmt = "with " .*> parseOption `sepBy` (word8 0x3a)
+    where
+      parseOption = do
+        "ttl: " .*> liftM TTL decimal
+
 parseStmtMake :: Using -> Parser LQL
 parseStmtMake u = do
   void $ string "make "
@@ -188,6 +211,34 @@ parseStmtKill = "kill " .*> doParse
           (Just a, Just b, B l)  -> return $ AlterStmt [DelLink a l (Just b), DelLink b l (Just a)]
           _                      -> fail "invalid kill command"
 
+parseStmtAttr :: Parser LQL
+parseStmtAttr = "attr put " .*> parsePutAttr
+                <|> "attr get " .*> parseGetAttr
+                <|> "attr del " .*> parseDelAttr
+                <|> "attr list " .*> parseListAttr
+    where
+      parsePutAttr = do
+        g <- parseGUID
+        k <- parseAttr
+        v <- parseValue
+        w <- option [] (hardspace >> parseWithStmt)
+        return (AlterStmt [PutAttr g k v w])
+
+      parseGetAttr = do
+        g <- parseGUID
+        a <- parseAttr
+        return (AttrGetStmt g a)
+
+      parseListAttr = do
+        g      <- parseGUID
+        Attr a <- parseAttr
+        return (AttrListStmt g (fmap Attr $ glob a))
+
+      parseDelAttr = do
+        g <- parseGUID
+        k <- parseAttr
+        return (AlterStmt [DelAttr g k])
+
 parseStmt :: Using -> Parser LQL
 parseStmt u = do
   w <- peekWord8
@@ -198,6 +249,7 @@ parseStmt u = do
     Just 0x6e -> parseStmtName u
     Just 0x6b -> parseStmtKill
     Just 0x73 -> parseStmtStat
+    Just 0x61 -> parseStmtAttr
     _         -> fail "bad statement"
 
 parseStmts :: Using -> Parser [LQL]

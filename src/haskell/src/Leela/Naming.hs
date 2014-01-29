@@ -63,8 +63,8 @@ resolver myself ioref endpoint = do
                            , ("cassandra", cassandra)
                            , ("redis", redis)
                            ]
-  sleep4 <- randomRIO (15, 60)
-  linfo Naming (printf "next-in: %d" sleep4)
+  sleep4 <- randomRIO (5, 30)
+  linfo Types (printf "next-in: %d" sleep4)
   threadDelay $ sleep4 * 1000 * 1000
   resolver myself ioref endpoint
     where

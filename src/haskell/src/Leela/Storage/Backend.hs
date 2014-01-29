@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleInstances         #-}
 
@@ -17,24 +16,15 @@
 -- limitations under the License.
 
 module Leela.Storage.Backend
-    ( Mode (..)
-    , Page
+    ( Page
     , Limit
     , AnyBackend (..)
     , GraphBackend (..)
-    , glob
-    , nextPage
     ) where
 
-import qualified Data.ByteString as B
-import           Leela.Data.Naming
+import Leela.Data.Types
 
 data AnyBackend = forall b. (GraphBackend b) => AnyBackend { anyBackend :: b }
-
-data Mode a = All (Maybe a)
-            | Prefix a a
-            | Suffix a a
-            | Precise a
 
 type Page = Maybe
 
@@ -58,24 +48,17 @@ class GraphBackend m where
 
   putLabel  :: m -> [(GUID, Label)] -> IO ()
 
+  putAttr   :: m -> [(GUID, Attr, Value, [Option])] -> IO ()
+
+  getAttr   :: m -> GUID -> Attr -> IO (Maybe Value)
+
+  listAttr  :: m -> GUID -> Mode Attr -> Limit -> IO [Attr]
+
+  delAttr   :: m -> [(GUID, Attr)] -> IO ()
+
   unlink    :: m -> [(GUID, Label, Maybe GUID)] -> IO ()
 
   remove    :: m -> GUID -> IO ()
-
-glob :: Label -> Mode Label
-glob l@(Label s)
-  | "*" == s           = All Nothing
-  | B.isPrefixOf "*" s = uncurry Suffix (range $ B.tail s)
-  | B.isSuffixOf "*" s = uncurry Prefix (range $ B.init s)
-  | otherwise          = Precise l
-    where
-      range str = (Label str, Label $ B.init str `B.snoc` (B.last str + 1))
-
-nextPage :: Mode Label -> Label -> Mode Label
-nextPage (All _) l      = All (Just l)
-nextPage (Prefix _ b) l = Prefix l b
-nextPage (Suffix _ b) l = Suffix l b
-nextPage _ _            = error "precise has no pagination"
 
 instance GraphBackend AnyBackend where
 
@@ -94,6 +77,14 @@ instance GraphBackend AnyBackend where
   getLink (AnyBackend db) a l page limit = getLink db a l page limit
 
   putLink (AnyBackend db) links = putLink db links
+
+  putAttr (AnyBackend db) attrs = putAttr db attrs
+
+  delAttr (AnyBackend db) attrs = delAttr db attrs
+
+  getAttr (AnyBackend db) a k = getAttr db a k
+
+  listAttr (AnyBackend db) a mode limit = listAttr db a mode limit
 
   unlink (AnyBackend db) links = unlink db links
 

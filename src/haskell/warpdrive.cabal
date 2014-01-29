@@ -27,6 +27,7 @@ executable warpdrive
                   , unix              (>= 2.6  && < 3)
                   , async             (>= 2.0  && < 3)
                   , clock             (>= 0.3  && < 1)
+                  , cereal            (>= 0.4  && < 1)
                   , hflags            (>= 0.2  && < 1)
                   , random            (>= 1.0  && < 2)
                   , hslogger          (>= 1.2  && < 2)
@@ -37,6 +38,7 @@ executable warpdrive
                   , utf8-string       (>= 0.3  && < 1)
                   , random-shuffle    (>= 0    && < 1)
                   , zeromq3-haskell   (>= 0.5  && < 1)
+                  , double-conversion (>= 0.2  && < 1)
                   , base16-bytestring (>= 0.1  && < 1)
   hs-source-dirs:   src
   default-language: Haskell2010

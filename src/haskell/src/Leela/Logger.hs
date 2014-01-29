@@ -39,7 +39,7 @@ import Data.ByteString.Lazy.Builder
 
 data Facility = HZMQ
               | Global
-              | Naming
+              | Types
               | Network
               | Storage
 
@@ -53,12 +53,12 @@ logsetup :: Priority -> IO ()
 logsetup prio = do
   h <- fmap (flip setFormatter myfmt) (streamHandler stderr prio)
   updateGlobalLogger rootLoggerName (setHandlers [h])
-  mapM_ (flip setupLog (setLevel prio)) [HZMQ, Global, Naming, Network, Storage]
+  mapM_ (flip setupLog (setLevel prio)) [HZMQ, Global, Types, Network, Storage]
 
 facility :: Facility -> String
 facility HZMQ    = "leela.hzmq"
 facility Global  = "leela"
-facility Naming  = "leela.naming"
+facility Types  = "leela.naming"
 facility Network = "leela.network"
 facility Storage = "leela.storage"
 

@@ -38,11 +38,11 @@ import           Control.Monad
 import qualified Data.ByteString as B
 import           Leela.Data.Time
 import           Control.Exception
-import           Leela.Data.Naming
+import           Leela.Data.Types
 import           Leela.Data.Excepts
-import           Control.Applicative
 import           Data.ByteString.UTF8 (fromString)
 import qualified Data.ByteString.Char8 as B8
+import           Data.Double.Conversion.ByteString
 
 type FH = Word64
 
@@ -62,22 +62,24 @@ data Query = Begin Signature [B.ByteString]
            | Close Bool Signature FH
            | Fetch Signature FH
 
-data Reply = Done FH
-           | Last (Maybe RValue)
+data Reply = Last
+           | Done FH
            | Item RValue
            | Fail Int (Maybe String)
 
 data RValue = Path [(GUID, Label)]
             | Stat [(B.ByteString, B.ByteString)]
             | List [RValue]
+            | KAttr GUID Attr (Maybe Value)
+            | Attrs GUID [Attr]
             | Name User Tree Node GUID
 
 isEOF :: Reply -> Bool
 isEOF m = isLast m || isFail m
 
 isLast :: Reply -> Bool
-isLast (Last _) = True
-isLast _        = False
+isLast Last = True
+isLast _    = False
 
 isFail :: Reply -> Bool
 isFail (Fail _ _) = True
@@ -115,20 +117,41 @@ decode [sig,"close",fh,"nowait"] = liftM2 (Close True) (readSignature sig) (read
 decode [sig,"fetch",fh]          = liftM2 Fetch (readSignature sig) (readDecimal fh)
 decode _                         = Left $ Fail 400 (Just "syntax error: bad frame")
 
+encodeValue :: Value -> [B.ByteString]
+encodeValue (Bool True)  = ["bool", "true"]
+encodeValue (Bool False) = ["bool", "false"]
+encodeValue (Text v)     = ["str", v]
+encodeValue (Int32 v)    = ["i32", encodeShow v]
+encodeValue (Int64 v)    = ["i64", encodeShow v]
+encodeValue (UInt32 v)   = ["u32", encodeShow v]
+encodeValue (UInt64 v)   = ["u64", encodeShow v]
+encodeValue (Double v)   = ["double", toShortest v]
+
 encodeRValue :: RValue -> [B.ByteString]
-encodeRValue (Name u t n g) = ["name", toByteString u, toByteString t, toByteString n, toByteString g]
-encodeRValue (Path p)       = let f acc (g, l) = toByteString l : toByteString g : acc
-                              in "path" : encodeShow (2 * length p) : foldl' f [] p
-encodeRValue (List v)       = "list" : encodeShow (length v) : concatMap encodeRValue v
-encodeRValue (Stat prop)    = "stat" : encodeShow (2 * length prop) : concatMap (\(a, b) -> [a, b]) prop
+encodeRValue (Name u t n g)       = ["name", toByteString u, toByteString t, toByteString n, toByteString g]
+encodeRValue (Path p)             = let f acc (g, l) = toByteString l : toByteString g : acc
+                                    in "path" : encodeShow (2 * length p) : foldl' f [] p
+encodeRValue (List v)             = "list" : encodeShow (length v) : concatMap encodeRValue v
+encodeRValue (Stat prop)          = "stat" : encodeShow (2 * length prop) : concatMap (\(a, b) -> [a, b]) prop
+encodeRValue (KAttr g a Nothing)  = ["k-attr", toByteString g, toByteString a, ""]
+encodeRValue (KAttr g a (Just v)) = "k-attr" : toByteString g : toByteString a : encodeValue v
+encodeRValue (Attrs g names)      = "attr" : toByteString g : map toByteString names
 
 encode :: Reply -> [B.ByteString]
 encode (Done fh)              = ["done", encodeShow fh]
-encode (Last Nothing)         = ["done"]
-encode (Last (Just v))        = "done" : encodeRValue v
-encode (Fail code Nothing)    = ["fail", encodeShow code]
+encode Last                   = ["done"]
+encode (Fail code Nothing)    = ["fail", encodeShow code, defaultMessage code]
 encode (Fail code (Just msg)) = ["fail", encodeShow code, fromString msg]
 encode (Item v)               = "item" : encodeRValue v
+
+defaultMessage :: Int -> B.ByteString
+defaultMessage 404  = "not found"
+defaultMessage 403  = "forbidden"
+defaultMessage 400  = "bad request"
+defaultMessage code
+  | code >= 400 && code < 500 = "internal server error"
+  | code >= 500 && code < 600 = "user error"
+  | otherwise                 = "error"
 
 encodeE :: SomeException -> Reply
 encodeE e = 
@@ -150,7 +173,6 @@ reduce m@(Fail _ _) _    = m
 reduce _ m@(Fail _ _)    = m
 reduce m@(Done _) _      = m
 reduce _ m@(Done _)      = m
-reduce (Last a) (Last b) = Last (liftA2 reduceRValue a b <|> a <|> b)
-reduce (Last a) (Item b) = Last ((reduceRValue b <$> a) <|> (Just b))
-reduce (Item a) (Last b) = Last ((reduceRValue a <$> b) <|> (Just a))
+reduce m Last            = m
+reduce Last m            = m
 reduce (Item a) (Item b) = Item (reduceRValue a b)

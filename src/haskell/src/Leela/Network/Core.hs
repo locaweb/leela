@@ -32,7 +32,7 @@ import           Leela.Data.LQL
 import qualified Data.ByteString as B
 import           Leela.Data.Graph
 import           Control.Exception
-import           Leela.Data.Naming
+import           Leela.Data.Types
 import           Control.Concurrent
 import           Leela.Data.QDevice
 import           Leela.Data.Endpoint
@@ -125,9 +125,6 @@ data Stream a = Chunk a
               | Error SomeException
               | EOF
 
-thr :: (a, b, c) -> c
-thr (_, _, c) = c
-
 navigate :: (GraphBackend m) => m -> Device Reply -> (Matcher, [(GUID -> Matcher)]) -> IO ()
 navigate db queue (source, pipeline) = do
   srcpipe <- openIO queue 16
@@ -146,8 +143,8 @@ navigate db queue (source, pipeline) = do
         case mg of
           Nothing                   -> return ()
           Just (Chunk (feed, path)) -> do
-            forM_ feed (\link -> 
-              query db (devwriteIO dstpipe . Chunk . (, (two link) : path)) (f $ thr link))
+            forM_ feed (\(_, b, c) -> 
+              query db (devwriteIO dstpipe . Chunk . (, (c, b) : path)) (f $ c))
             runFilter srcpipe f dstpipe
           Just chunk                -> devwriteIO dstpipe chunk
 
@@ -162,16 +159,24 @@ navigate db queue (source, pipeline) = do
           (either (devwriteIO dstpipe . Error) (const $ devwriteIO dstpipe EOF))
         return dstpipe
 
-      forkFilters srcpipipe []               = return srcpipipe
-      forkFilters srcpipipe (f:fs) = do
-        dstpipe <- forkFilter srcpipipe f
+      forkFilters srcpipe []     = return srcpipe
+      forkFilters srcpipe (f:fs) = do
+        dstpipe <- forkFilter srcpipe f
         forkFilters dstpipe fs
 
 evalLQL :: (GraphBackend m) => m -> CoreServer -> Device Reply -> [LQL] -> IO ()
-evalLQL _ _ queue []         = devwriteIO queue (Last Nothing)
+evalLQL _ _ queue []         = devwriteIO queue Last
 evalLQL db core queue (x:xs) =
   case x of
-    PathStmt q        -> navigate db queue q >> evalLQL db core queue xs
+    PathStmt q        -> do
+      navigate db queue q
+      evalLQL db core queue xs
+    AttrListStmt g a  -> do
+      enumAttrs db (devwriteIO queue . Item . Attrs g) g a
+      evalLQL db core queue xs
+    AttrGetStmt g a   -> do
+      getAttr db g a >>= devwriteIO queue . Item . KAttr g a
+      evalLQL db core queue xs
     NameStmt _ g      -> do
       (gUser, gTree, gName) <- getName db g
       devwriteIO queue (Item $ Name gUser gTree gName g)
@@ -219,10 +224,10 @@ process _ srv (Fetch sig fh) = do
     Just dev -> do
       blocks <- blkreadIO 32 dev
       case blocks of
-        [] -> closeIO dev >> return (Last Nothing)
+        [] -> closeIO dev >> return Last
         _  -> let answer = foldr1 reduce blocks
               in when (isEOF answer) (closeIO dev) >> return answer
 process _ srv (Close nowait sig fh) = do
   lnotice Network (printf "CLOSE %d" fh)
   closeFD srv nowait (sigUser sig, fh)
-  return $ Last Nothing
+  return Last

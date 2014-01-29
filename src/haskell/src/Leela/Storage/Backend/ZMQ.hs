@@ -39,70 +39,80 @@ recv (Just msg) = decode msg
 send :: Dealer -> Query -> IO Reply
 send pool req = fmap recv (request pool (encode req))
 
+send_ :: Dealer -> Query -> IO ()
+send_ pool req = do
+  reply <- send pool req
+  case reply of
+    DoneMsg -> return ()
+    _       -> throwIO SystemExcept
+
 instance GraphBackend ZMQBackend where
 
   getName m g = do
-    reply <- send (dealer m) (GetName g)
+    reply <- send (dealer m) (MsgGetName g)
     case reply of
       NameMsg u t n _ -> return (u, t, n)
       FailMsg 404     -> throwIO NotFoundExcept
       _               -> throwIO SystemExcept
 
   getGUID m u t n = do
-   reply <- send (dealer m) (GetGUID u t n)
+   reply <- send (dealer m) (MsgGetGUID u t n)
    case reply of
      NameMsg _ _ _ g -> return (Just g)
      FailMsg 404     -> return Nothing
      _               -> throwIO SystemExcept
 
   putName m u t n = do
-    reply <- send (dealer m) (PutName u t n)
+    reply <- send (dealer m) (MsgPutName u t n)
     case reply of
       NameMsg _ _ _ g -> return g
       _               -> throwIO SystemExcept
 
   getLabel m g page limit = do
-    reply <- send (dealer m) (GetLabel g page limit)
+    reply <- send (dealer m) (MsgGetLabel g page limit)
     case reply of
       LabelMsg xs -> return xs
       _           -> throwIO SystemExcept
 
   putLabel _ []     = return ()
-  putLabel m labels = do
-    reply <- send (dealer m) (PutLabel labels)
-    case reply of
-      DoneMsg -> return ()
-      _       -> throwIO SystemExcept
+  putLabel m labels = send_ (dealer m) (MsgPutLabel labels)
 
   hasLink m a l b = do
-    reply <- send (dealer m) (HasLink a l b)
+    reply <- send (dealer m) (MsgHasLink a l b)
     case reply of
       LinkMsg [] -> return False
       LinkMsg _  -> return True
       _          -> throwIO SystemExcept
 
   getLink m a l page limit = do
-    reply <- send (dealer m) (GetLink a l page limit)
+    reply <- send (dealer m) (MsgGetLink a l page limit)
     case reply of
       LinkMsg xs -> return xs
       _          -> throwIO SystemExcept
 
   putLink _ []    = return ()
-  putLink m links = do
-    reply <- send (dealer m) (PutLink links)
-    case reply of
-      DoneMsg -> return ()
-      _       -> throwIO SystemExcept
+  putLink m links = send_ (dealer m) (MsgPutLink links)
 
   unlink _ []    = return ()
-  unlink m links = do
-    reply <- send (dealer m) (Unlink links)
-    case reply of
-      DoneMsg -> return ()
-      _       -> throwIO SystemExcept
+  unlink m links = send_ (dealer m) (MsgUnlink links)
 
-  remove m a = do
-    reply <- send (dealer m) (Delete a)
+  putAttr _ []    = return ()
+  putAttr m attrs = send_ (dealer m) (MsgPutAttr attrs)
+
+  getAttr m a k   = do
+    reply <- send (dealer m) (MsgGetAttr a k)
     case reply of
-      DoneMsg -> return ()
-      _       -> throwIO SystemExcept
+      KAttrMsg v  -> return (Just v)
+      FailMsg 404 -> return Nothing
+      _           -> throwIO SystemExcept
+
+  listAttr m g page limit = do
+    reply <- send (dealer m) (MsgListAttr g page limit)
+    case reply of
+      NAttrMsg xs -> return xs
+      _           -> throwIO SystemExcept
+
+  delAttr _ []    = return ()
+  delAttr m attrs = send_ (dealer m) (MsgDelAttr attrs)
+
+  remove m a = send_ (dealer m) (MsgDelete a)

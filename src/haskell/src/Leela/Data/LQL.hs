@@ -17,16 +17,17 @@ module Leela.Data.LQL
     , LQL (..)
     ) where
 
-import Leela.Data.Graph
-import Leela.Data.Naming
+import Leela.Data.Types
 
 data Using = Using { uUser :: User
                    , uTree :: Tree
                    }
-    deriving (Eq)
+           deriving (Eq)
 
 data LQL = StatStmt
          | PathStmt (Matcher, [(GUID -> Matcher)])
+         | AttrGetStmt GUID Attr
+         | AttrListStmt GUID (Mode Attr)
          | NameStmt Using GUID
          | GUIDStmt Using Node
          | AlterStmt [Journal]

@@ -18,7 +18,7 @@ module Leela.Test.TestParser
 
 import           Test.Tasty
 import           Test.Tasty.HUnit
-import           Leela.Data.Naming
+import           Leela.Data.Types
 import           Leela.Data.LQL.Comp
 import qualified Data.ByteString as B
 
