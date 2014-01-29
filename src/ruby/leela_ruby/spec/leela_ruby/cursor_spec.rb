@@ -90,6 +90,31 @@ describe Leela::Cursor do
       expect(attrval).to be_a(String)
     end
 
+    it "returns more than one path" do
+      result = @cursor.execute("using (leelaruby) make (test), make (test2), make (test3);")
+      guids = result.map{|r| r.last.first}
+
+      query = "using (leelaruby) make #{guids.first} -[test]> #{guids.last}, make #{guids[1]} -[test]> #{guids.last}, path #{guids.first};"
+
+      result = @cursor.execute(query)
+      expect(result.size).to eql(2)
+    end
+
+    it "returns more than one path when using a block" do
+      result = @cursor.execute("using (leelaruby) make (test), make (test2), make (test3);")
+
+      guids  = result.map{|r| r.last.first}
+      query  = "using (leelaruby) make #{guids.first} -[test]> #{guids.last}, make #{guids[1]} -[test]> #{guids.last}, path #{guids.first};"
+
+      result = []
+
+      @cursor.execute(query) do |row|
+        result << row
+      end
+
+      expect(result.size).to eql(2)
+    end
+
     it "executes a simple query to return a fail structure" do
       result = @cursor.execute("fail")
 

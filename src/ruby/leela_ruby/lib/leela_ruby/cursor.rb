@@ -6,7 +6,7 @@ module Leela
       @conn       = conn
     end
 
-    def execute(query)
+    def execute(query, &block)
       lql_cursor = Leela::Raw.leela_lql_cursor_init(
         @conn.context, @conn.user, @conn.pass, @conn.timeout
       )
@@ -19,12 +19,16 @@ module Leela
       until (cnext = Leela::Raw.leela_lql_cursor_next(lql_cursor)) == :leela_eof
         raise Leela::Badargs if cnext == :leela_badargs
 
-        messages << fetch(lql_cursor)
+        if block_given?
+          block.call(fetch(lql_cursor))
+        else
+          messages << fetch(lql_cursor)
+        end
       end
 
       Leela::Raw.leela_lql_cursor_close(lql_cursor)
 
-      messages
+      block_given? ? nil : messages
     end
 
     def fetch cursor
