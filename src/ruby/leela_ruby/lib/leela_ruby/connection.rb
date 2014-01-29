@@ -25,7 +25,13 @@ module Leela
     end
 
     def execute(query, &block)
-      Leela::Cursor.new(self).execute(query)
+      cursor = Leela::Cursor.new(self)
+
+      if block_given?
+        cursor.execute(query, &block)
+      else
+        cursor.execute(query)
+      end
     end
 
     def close
