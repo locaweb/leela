@@ -390,19 +390,11 @@ leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
     return(leela_lql_cursor_next(cursor));
   }
   else if (strncmp(buffer, "done", 4) == 0)
-  {
-    if (zmq_msg_more(&cursor->buffer))
-    {
-      cursor->elems[0] = 1;
-      return(leela_lql_cursor_next(cursor));
-    }
-    else
-    { return(LEELA_EOF); }
-  }
+  { return(LEELA_EOF); }
   else if (strncmp(buffer, "fail", 4) == 0)
   {
     cursor->row = LQL_FAIL_MSG;
-    cursor->elems[1] = 1;
+    cursor->elems[1] = 2;
   }
   else
   { return(LEELA_ERROR); }
@@ -508,14 +500,12 @@ lql_fail_t *leela_lql_fetch_fail(lql_cursor_t *cursor)
   lql_fail_t *fail = (lql_fail_t *) malloc(sizeof(lql_fail_t));
   if (fail != NULL)
   {
-    fail->code = 0;
-    fail->message = NULL;
-
     __zmq_recvmsg_uint32(cursor, &(fail->code));
-    if (zmq_msg_more(&cursor->buffer))
+    fail->message = __zmq_recvmsg_copystr(cursor);
+    if (fail->message == NULL)
     {
-      cursor->elems[1] = 1;
-      fail->message = __zmq_recvmsg_copystr(cursor);
+      leela_lql_fail_free(fail);
+      fail = NULL;
     }
   }
   return(fail);
