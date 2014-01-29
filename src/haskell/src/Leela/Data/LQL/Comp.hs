@@ -60,7 +60,7 @@ parseLabel :: Parser Label
 parseLabel = liftM Label (qstring 512 0x5b 0x5d)
 
 parseAttr :: Parser Attr
-parseAttr = liftM Attr (qstring 512 0x20 0x20)
+parseAttr = liftM Attr (qstring 512 0x22 0x22)
 
 parseGUID :: Parser GUID
 parseGUID = liftM GUID (A.take 36)
@@ -219,23 +219,28 @@ parseStmtAttr = "attr put " .*> parsePutAttr
     where
       parsePutAttr = do
         g <- parseGUID
+        hardspace
         k <- parseAttr
+        hardspace
         v <- parseValue
         w <- option [] (hardspace >> parseWithStmt)
         return (AlterStmt [PutAttr g k v w])
 
       parseGetAttr = do
         g <- parseGUID
+        hardspace
         a <- parseAttr
         return (AttrGetStmt g a)
 
       parseListAttr = do
         g      <- parseGUID
+        hardspace
         Attr a <- parseAttr
         return (AttrListStmt g (fmap Attr $ glob a))
 
       parseDelAttr = do
         g <- parseGUID
+        hardspace
         k <- parseAttr
         return (AlterStmt [DelAttr g k])
 

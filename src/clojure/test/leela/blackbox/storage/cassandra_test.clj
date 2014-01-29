@@ -103,16 +103,16 @@
         (storage/putlink cluster [{:a node-a :l "l" :b node-b}
                                   {:a node-a :l "l" :b node-c}
                                   {:a node-a :l "l" :b node-d}])
-        (storage/dellink cluster [[node-a "l" node-b]
-                                  [node-a "l" node-c]
-                                  [node-a "l" node-d]])
+        (storage/dellink cluster [{:a node-a :l "l" :b node-b}
+                                  {:a node-a :l "l" :b node-c}
+                                  {:a node-a :l "l" :b node-d}])
         (is (= [] (storage/getlink cluster node-a "l" (f/uuid-from-time 0)))))
 
       (truncate-n-test cluster "getlink after dellink with no optional argument"
         (storage/putlink cluster [{:a node-a :l "l" :b node-b}
                                   {:a node-a :l "l" :b node-c}
                                   {:a node-a :l "l" :b node-d}])
-        (storage/dellink cluster [[node-a "l" nil]])
+        (storage/dellink cluster [{:a node-a :l "l" :b nil}])
         (is (= [] (storage/getlink cluster node-a "l" (f/uuid-from-time 0))))))))
 
 (deftest test-get-tattr
@@ -162,7 +162,7 @@
 
       (truncate-n-test cluster "getakattr after del-kattr"
         (storage/put-kattr cluster [[{:key node-a :name "attr#0" :value (f/str-to-bytes "foobar")} []]])
-        (storage/del-kattr cluster node-a "attr#0")
+        (storage/del-kattr cluster [{:key node-a :name "attr#0"}])
         (is (= nil (storage/get-kattr cluster node-a "attr#0")))))))
 
 (deftest test-naming

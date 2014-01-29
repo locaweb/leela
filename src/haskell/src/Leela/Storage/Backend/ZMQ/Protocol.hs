@@ -81,10 +81,10 @@ encode (MsgPutName u t n)            = ["put", "name", toByteString u, toByteStr
 encode (MsgPutLink links)            = "put" : "link" : concatMap (\(a, l, b) -> [toByteString a, toByteString l, toByteString b]) links
 encode (MsgPutLabel labels)          = "put" : "label" : concatMap (\(a, l) -> [toByteString a, toByteString l]) labels
 encode (MsgUnlink links)             = "del" : "link" : concatMap (\(a, l, mb) -> [toByteString a, toByteString l, maybe B.empty toByteString mb]) links
-encode (MsgPutAttr attrs)            = "put" : "attr" : concatMap (\(g, a, v, o) -> [toByteString g, toByteString a, S.encode v , encodeOptions o]) attrs
-encode (MsgDelAttr attrs)            = "del" : "attr" : concatMap (\(g, a) -> [toByteString g, toByteString a]) attrs
-encode (MsgGetAttr g a)              = ["get", "attr", toByteString g, toByteString a]
-encode (MsgListAttr g mode limit)    = "list" : "attr" : encodeMode limit g mode
+encode (MsgPutAttr attrs)            = "put" : "k-attr" : concatMap (\(g, a, v, o) -> [toByteString g, toByteString a, S.encode v , encodeOptions o]) attrs
+encode (MsgDelAttr attrs)            = "del" : "k-attr" : concatMap (\(g, a) -> [toByteString g, toByteString a]) attrs
+encode (MsgGetAttr g a)              = ["get", "k-attr", toByteString g, toByteString a]
+encode (MsgListAttr g mode limit)    = "get" : "attr" : encodeMode limit g mode
 encode (MsgDelete a)                 = ["del", "node", toByteString a]
 
 decode :: [B.ByteString] -> Reply

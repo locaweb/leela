@@ -92,8 +92,8 @@
      (map
       (fn [[a l b]]
         (if (empty? b)
-          [(f/bytes-to-uuid a) (f/bytes-to-str l) nil]
-          [(f/bytes-to-uuid a) (f/bytes-to-str l) (f/bytes-to-uuid b)]))
+          {:a (f/bytes-to-uuid a) :l (f/bytes-to-str l)}
+          {:a (f/bytes-to-uuid a) :l (f/bytes-to-str l) :b (f/bytes-to-uuid b)}))
       (partition 3 links))))
   (msg-done))
 
@@ -147,12 +147,14 @@
         (partition 4 attrs))))
   (msg-done))
 
-(defn exec-del-kattr [cluster [k s]]
-  (let [k (f/bytes-to-uuid k)
-        s (f/bytes-to-str s)]
-    (storage/with-consistency :one
-      (storage/del-kattr cluster k s))
-    (msg-done)))
+(defn exec-del-kattr [cluster attrs]
+  (storage/with-consistency :one
+    (storage/del-kattr
+     cluster
+     (map
+      (fn [[k n]] {:key (f/bytes-to-uuid k) :name (f/bytes-to-str n)})
+      (partition 2 attrs))))
+  (msg-done))
 
 (defn exec-getindex-exact [cluster table [k n]]
   (let [k (f/bytes-to-uuid k)
@@ -213,6 +215,7 @@
     "guid" (exec-getguid cluster (drop 1 msg))
     "link" (exec-getlink cluster (drop 1 msg))
     "label" (exec-getlabel cluster (drop 1 msg))
+    "attr" (exec-listattr cluster (drop 1 msg))
     "t-attr" (exec-get-tattr cluster (drop 1 msg))
     "k-attr" (exec-get-kattr cluster (drop 1 msg))
     (msg-fail 400)))

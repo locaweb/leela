@@ -208,6 +208,27 @@
         (is (= (server/msg-done) (server/handle-message cluster ["del" "k-attr" node "attr"])))
         (is (= (server/msg-kattr "") (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "k-attr" node "attr"]))))))))
 
+(deftest test-zmqserver-handle-attr-message
+  (let [node (str (f/uuid-1))
+        value (f/str-to-bytes "foobar")]
+    (storage/with-session [cluster ["127.0.0.1"] "leela"]
+
+      (truncate-n-test cluster "get-attr with no data"
+        (is (= (server/msg-nattr []) (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "attr" "all" node ""])))))
+
+      (truncate-n-test cluster "get-attr after put-attr with ttl"
+        (is (= (server/msg-done) (server/handle-message cluster ["put" "k-attr" node "attr#1" value "ttl:3600" node "attr#2" value "ttl:3600"])))
+        (is (= (server/msg-nattr ["attr#1" "attr#2"]) (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "attr" "all" node ""])))))
+
+      (truncate-n-test cluster "get-attr after put-kattr"
+        (is (= (server/msg-done) (server/handle-message cluster ["put" "k-attr" node "attr#1" value "" node "attr#2" value ""])))
+        (is (= (server/msg-nattr ["attr#1" "attr#2"]) (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "attr" "all" node ""])))))
+
+      (truncate-n-test cluster "get-attr after del-kattr"
+        (server/handle-message cluster ["put" "k-attr" node "attr" value ""])
+        (is (= (server/msg-done) (server/handle-message cluster ["del" "k-attr" node "attr"])))
+        (is (= (server/msg-nattr []) (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "attr" "all" node ""]))))))))
+
 (deftest test-zmqserver-zmqworker-interface
   (testing "just checks the interface"
     (is (:onjob (server/zmqworker nil)))

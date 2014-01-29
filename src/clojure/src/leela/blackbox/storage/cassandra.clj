@@ -109,25 +109,43 @@
   (doseq [t [:graph :g_index :p_index :t_attr :k_attr :n_naming :g_naming]]
     (truncate cluster t)))
 
-(defn fmt-put-index [table data]
+(defn fmt-put-index-opts [table data opts]
   (let [value (:name data)]
-    [(insert-query table (into data {:rev true :name (s/reverse value)}))
-     (insert-query table (into data {:rev false}))]))
+    (if (empty? opts)
+      [(insert-query table (into data {:rev true :name (s/reverse value)}))
+       (insert-query table (into data {:rev false}))]
+      [(insert-query table (into data {:rev true :name (s/reverse value)}) (apply using opts))
+       (insert-query table (into data {:rev false}) (apply using opts))])))
+
+(defn fmt-put-index [table data]
+  (fmt-put-index-opts table data []))
+
+(defn fmt-del-index [table data]
+  (let [value (:name data)]
+    [(delete-query table (where :key (:key data) :rev true :name (s/reverse value)))
+     (delete-query table (where :key (:key data) :rev false :name value))]))
 
 (defn fmt-put-link [data]
   (insert-query :graph data))
 
-(defn fmt-del-link [[a l b]]
-  (if b
-    (delete-query :graph (where :a a :l l :b b))
-    (delete-query :graph (where :a a :l l))))
+(defn fmt-del-link [data]
+  (if-let [b (:b data)]
+    (delete-query :graph (where :a (:a data) :l (:l data) :b b))
+    (delete-query :graph (where :a (:a data) :l (:l data)))))
 
 (defn fmt-put-kattr [[data opts]]
-  (let [idx (fmt-put-index :p_index {:key (:key data)
-                                     :name (:name data)})]
+  (let [idx (fmt-put-index-opts :p_index
+                                {:key (:key data)
+                                 :name (:name data)}
+                                opts)]
     (if (empty? opts)
-      (conj (insert-query :k_attr data) idx)
-      (conj (insert-query :k_attr data (apply using opts)) idx))))
+      (cons (insert-query :k_attr data) idx)
+      (cons (insert-query :k_attr data (apply using opts)) idx))))
+
+(defn fmt-del-kattr [data]
+  (cons (delete-query :k_attr (where :key (:key data) :name (:name data)))
+        (fmt-del-index :p_index {:key (:key data)
+                                 :name (:name data)})))
 
 (defn put-index [cluster table indexes]
   (let [query (->> indexes
@@ -228,7 +246,7 @@
 
 (defn put-kattr [cluster attrs]
   (let [query (->> attrs
-                   (map fmt-put-kattr)
+                   (mapcat fmt-put-kattr)
                    (apply queries)
                    (batch-query (logged false))
                    client/render-query)]
@@ -243,7 +261,10 @@
                 (where :key k :name name)
                 (limit 1)))))
 
-(defn del-kattr [cluster k name]
-  (delete cluster
-          :k_attr
-          (where :key k :name name)))
+(defn del-kattr [cluster attrs]
+  (let [query (->> attrs
+                   (mapcat fmt-del-kattr)
+                   (apply queries)
+                   (batch-query (logged false))
+                   client/render-query)]
+    (client/execute cluster query)))
