@@ -20,12 +20,18 @@ describe Leela::Connection do
     }.to_not raise_error
   end
 
+  it "raises an exception when an invalid machine was provided" do
+    expect {
+      Leela::Connection.new("tcp://warp9999.locaweb.com.br:4080", "pothix", "V1fR0sTo")
+    }.to raise_error
+  end
+
   context "with a valid connection" do
     before do
       @conn = Leela::Connection.new("tcp://warp0013.locaweb.com.br:4080", "pothix", "V1fR0sTo")
     end
 
-    after { @conn.close }
+    after { @conn.close if @conn.connected? }
 
     it "executes a simple query to return stat structure" do
       result = @conn.execute("using (locaweb) stat;")

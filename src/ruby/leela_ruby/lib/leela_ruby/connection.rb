@@ -20,6 +20,8 @@ module Leela
       mendpoint[endpoints.size].put_pointer(0, nil)
 
       @context = Leela::Raw.leela_lql_context_init(mendpoint)
+
+      raise "Could not establish connection. context is null" if @context.null?
     end
 
     def execute(query, &block)
@@ -28,6 +30,10 @@ module Leela
 
     def close
       Leela::Raw.leela_lql_context_close(@context) if @context
+    end
+
+    def connected?
+      not @context.null?
     end
   end
 end
