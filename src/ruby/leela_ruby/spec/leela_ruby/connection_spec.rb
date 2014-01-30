@@ -26,6 +26,18 @@ describe Leela::Connection do
     }.to raise_error(Leela::LeelaError)
   end
 
+  it "executes a query with Leela.open" do
+    result = []
+
+    Leela::Connection.open("tcp://warp0013.locaweb.com.br:4080", "pothix", "V1fR0sTo") do |conn|
+      result = conn.execute("using (locaweb) stat;")
+    end
+
+    expect(result).to_not be_nil
+    expect(result).to be_a(Array)
+    expect(result.size > 0).to be_true
+  end
+
   context "with a valid connection" do
     before do
       @conn = Leela::Connection.new("tcp://warp0013.locaweb.com.br:4080", "pothix", "V1fR0sTo")

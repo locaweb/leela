@@ -1,27 +1,19 @@
 module Leela
   class Connection
+    DEFAULT_TIMEOUT = 6000
+
     attr_reader :user, :pass, :timeout, :context
 
-    def initialize(endpoints, user, pass, timeout=6000)
-      endpoints  = [endpoints].flatten
+    def initialize(endpoints, user, pass, timeout=DEFAULT_TIMEOUT)
+      init_context(endpoints, user, pass, timeout=DEFAULT_TIMEOUT)
+    end
 
-      @endpoints = endpoints
-      @user      = user
-      @pass      = pass
-      @timeout   = timeout
+    def self.open(endpoints, user, pass, timeout=DEFAULT_TIMEOUT, &block)
+      raise "a block should be given to use open" unless block_given?
 
-      mendpoint  = FFI::MemoryPointer.new(:pointer, endpoints.size+1)
-
-      endpoints.each_with_index do |endp, index|
-        endpoint = Leela::Raw.leela_endpoint_load(endp)
-        mendpoint[index].put_pointer(0, endpoint)
-      end
-
-      mendpoint[endpoints.size].put_pointer(0, nil)
-
-      @context = Leela::Raw.leela_lql_context_init(mendpoint)
-
-      raise Leela::LeelaError.new(code = 0) if @context.null?
+      conn = self.new(endpoints, user, pass, timeout=DEFAULT_TIMEOUT)
+      block.call(conn)
+      conn.close
     end
 
     def execute(query, &block)
@@ -40,6 +32,34 @@ module Leela
 
     def connected?
       not @context.null?
+    end
+
+    private
+
+    def init_context(endpoints, user, pass, timeout=DEFAULT_TIMEOUT, &block)
+      endpoints  = [endpoints].flatten
+
+      @endpoints = endpoints
+      @user      = user
+      @pass      = pass
+      @timeout   = timeout
+
+      mendpoint  = FFI::MemoryPointer.new(:pointer, endpoints.size+1)
+
+      endpoints.each_with_index do |endp, index|
+        endpoint = Leela::Raw.leela_endpoint_load(endp)
+        mendpoint[index].put_pointer(0, endpoint)
+      end
+
+      mendpoint[endpoints.size].put_pointer(0, nil)
+
+      @context = Leela::Raw.leela_lql_context_init(mendpoint)
+
+      if @context.null?
+        Leela::Raw.leela_endpoint_free(mendpoint[0].get_pointer(0))
+        mendpoint.free
+        raise Leela::LeelaError.new(code = 0)
+      end
     end
   end
 end

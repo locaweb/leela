@@ -34,21 +34,37 @@ module Leela
     def fetch cursor
       case type_of(cursor)
       when :lql_name_msg
-        msg = Leela::Raw::LqlName.new(Leela::Raw.leela_lql_fetch_name(cursor))
-        [:name, [msg[:guid], msg[:user], msg[:tree], msg[:name]]]
+        begin
+          msg = Leela::Raw::LqlName.new(Leela::Raw.leela_lql_fetch_name(cursor))
+          [:name, [msg[:guid], msg[:user], msg[:tree], msg[:name]]]
+        ensure
+          Leela::Raw::leela_lql_name_free(msg.pointer)
+        end
 
       when :lql_path_msg
-        msg = Leela::Raw::LqlPath.new(Leela::Raw.leela_lql_fetch_path(cursor))
-        [:path, build_attrs_for(msg[:entries], msg[:size]) ]
+        begin
+          msg = Leela::Raw::LqlPath.new(Leela::Raw.leela_lql_fetch_path(cursor))
+          [:path, build_attrs_for(msg[:entries], msg[:size]) ]
+        ensure
+          Leela::Raw::leela_lql_path_free(msg.pointer)
+        end
 
       when :lql_stat_msg
-        msg = Leela::Raw::LqlStat.new(Leela::Raw.leela_lql_fetch_stat(cursor))
-        [:stat, build_attrs_for(msg[:attrs], msg[:size]) ]
+        begin
+          msg = Leela::Raw::LqlStat.new(Leela::Raw.leela_lql_fetch_stat(cursor))
+          [:stat, build_attrs_for(msg[:attrs], msg[:size]) ]
+        ensure
+          Leela::Raw::leela_lql_stat_free(msg.pointer)
+        end
 
       when :lql_fail_msg
-        msg = Leela::Raw::LqlFail.new(Leela::Raw.leela_lql_fetch_fail(cursor))
-        Leela::Raw.leela_lql_cursor_close(cursor)
-        throw_exception msg[:message], msg[:code]
+        begin
+          msg = Leela::Raw::LqlFail.new(Leela::Raw.leela_lql_fetch_fail(cursor))
+          Leela::Raw.leela_lql_cursor_close(cursor)
+          throw_exception msg[:message], msg[:code]
+        ensure
+          Leela::Raw::leela_lql_fail_free(msg.pointer)
+        end
       end
     end
 
