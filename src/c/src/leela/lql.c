@@ -567,7 +567,7 @@ lql_kattr_t *leela_lql_fetch_kattr(lql_cursor_t *cursor)
   lql_kattr_t *kattr = (lql_kattr_t *) malloc(sizeof(lql_kattr_t));
   if (kattr != NULL)
   {
-    uint32_t vtype = 0;
+    int32_t vtype = 0;
     kattr->guid    = __zmq_recvmsg_copystr(cursor);
     kattr->name    = __zmq_recvmsg_copystr(cursor);
     kattr->value   = malloc(sizeof(lql_value_t));
@@ -575,11 +575,16 @@ lql_kattr_t *leela_lql_fetch_kattr(lql_cursor_t *cursor)
     { goto handle_error; }
 
     kattr->value->data.v_str = NULL;
-    if (! __zmq_recvmsg_uint32(cursor, &vtype))
+    if (! __zmq_recvmsg_int32(cursor, &vtype))
     { goto handle_error; }
 
     switch (vtype)
     {
+    case -1:
+      kattr->value->vtype = LQL_NIL_TYPE;
+      if (__zmq_recvmsg(cursor) == -1)
+      { goto handle_error; }
+      break;
     case 0:
       kattr->value->vtype = LQL_BOOL_TYPE;
       if (! __zmq_recvmsg_bool(cursor, &kattr->value->data.v_bool))
@@ -615,9 +620,6 @@ lql_kattr_t *leela_lql_fetch_kattr(lql_cursor_t *cursor)
       kattr->value->vtype = LQL_DOUBLE_TYPE;
       if (! __zmq_recvmsg_double(cursor, &kattr->value->data.v_double))
       { goto handle_error; }
-      break;
-    case -1:
-      kattr->value->vtype = LQL_TYPE_NIL;
       break;
     default:
       goto handle_error;

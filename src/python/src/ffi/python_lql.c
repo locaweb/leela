@@ -145,9 +145,9 @@ PyObject *__make_kattr_msg(lql_kattr_t *kattr)
     rc = rc | PyTuple_SetItem(tuple, 2, PyFloat_FromDouble(kattr->value->data.v_double));
     break;
   case LQL_NIL_TYPE:
+    Py_INCREF(Py_None);
     value = Py_None;
     rc    = rc | PyTuple_SetItem(tuple, 2, value);
-    Py_INCREF(value);
     break;
   };
 
