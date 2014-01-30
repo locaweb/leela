@@ -14,16 +14,22 @@ describe Leela::Raw do
 
     while Leela::Raw.leela_lql_cursor_next(cursor) == :leela_ok
       i, attrs  = 0, []
-      stat      = Leela::Raw::LqlStat.new(Leela::Raw.leela_lql_fetch_stat(cursor))
+      begin
+        stat = Leela::Raw::LqlStat.new(Leela::Raw.leela_lql_fetch_stat(cursor))
 
-      while i < stat[:size]
-        attr = Leela::Raw::LqlAttrs.new(stat[:attrs]+Leela::Raw::LqlAttrs.size*i)
-        attrs << [attr[:first], attr[:second]]
+        while i < stat[:size]
+          attr = Leela::Raw::LqlAttrs.new(stat[:attrs]+Leela::Raw::LqlAttrs.size*i)
+          attrs << [attr[:first], attr[:second]]
 
-        i += 1
+          i += 1
+        end
+      ensure
+        Leela::Raw::leela_lql_stat_free(stat.pointer)
       end
     end
 
+    Leela::Raw.leela_endpoint_free(mendpoint[0].get_pointer(0))
+    mendpoint.free
     Leela::Raw.leela_lql_cursor_close(cursor)
     Leela::Raw.leela_lql_context_close(context)
   end
