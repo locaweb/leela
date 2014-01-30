@@ -28,12 +28,16 @@ module Leela
     attach_function :leela_lql_cursor_execute, [:pointer, :string], :status
 
     attach_function :leela_lql_fetch_type, [:pointer], :lql_row_type
+
     attach_function :leela_lql_fetch_name, [:pointer], :pointer
     attach_function :leela_lql_name_free,  [:pointer], :void
+
     attach_function :leela_lql_fetch_stat, [:pointer], :pointer
     attach_function :leela_lql_stat_free,  [:pointer], :void
+
     attach_function :leela_lql_fetch_path, [:pointer], :pointer
     attach_function :leela_lql_path_free,  [:pointer], :void
+
     attach_function :leela_lql_fetch_fail, [:pointer], :pointer
     attach_function :leela_lql_fail_free,  [:pointer], :void
 
@@ -57,14 +61,20 @@ module Leela
              :attrs, :pointer
     end
 
+    class LqlFail < FFI::Struct
+      layout :code,    :uint32,
+             :message, :string
+    end
+
     class LqlAttrs < FFI::Struct
       layout :first,  :string,
              :second, :string
     end
 
-    class LqlFail < FFI::Struct
-      layout :code,    :uint32,
-             :message, :string
+    class LqlNAttr < FFI::Struct
+      layout :size,  :int,
+             :guid, :string,
+             :names, :pointer
     end
   end
 end
