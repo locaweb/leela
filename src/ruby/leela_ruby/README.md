@@ -25,6 +25,7 @@ Or install it yourself as:
 
 ## Usage
 
+
 Everything is done by using the connection class of leela ruby:
 
         # more than 1 endpoints are available
@@ -48,9 +49,18 @@ and to stream data block syntax are also available:
           puts row
         end
 
+
 at the end the connection should be closed:
 
         conn.close
+
+
+Also there is an `open` method that works just like `File.open` and closes at the end:
+
+        Leela::Connection.open(endpoints, "user", "password") do |conn|
+          puts conn.execute("using (namespace) stat")
+        end
+
 
 
 ## Contributing
