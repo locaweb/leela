@@ -56,9 +56,12 @@ module Leela
       @context = Leela::Raw.leela_lql_context_init(mendpoint)
 
       if @context.null?
-        Leela::Raw.leela_endpoint_free(mendpoint[0].get_pointer(0))
+        endpoints.size.times do |index|
+          Leela::Raw.leela_endpoint_free(mendpoint[index].get_pointer(0))
+        end
         mendpoint.free
-        raise Leela::LeelaError.new(code = 0)
+
+        raise Leela::LeelaError.new(code: 0)
       end
     end
   end

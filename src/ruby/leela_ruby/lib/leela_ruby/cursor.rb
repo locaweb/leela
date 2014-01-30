@@ -75,11 +75,10 @@ module Leela
     private
 
     def build_attrs_for entries, size
-      i = 0
-      attrs = []
+      i, attrs = 0, []
 
       while i < size
-        attr = Leela::Raw::LqlAttrs.new(entries+Leela::Raw::LqlAttrs.size*i)
+        attr = Leela::Raw::LqlAttrs.new(entries + Leela::Raw::LqlAttrs.size*i)
         attrs << [attr[:first], attr[:second]]
 
         i += 1
@@ -95,7 +94,7 @@ module Leela
       raise Leela::InternalServerError.new(msg, code) if code == 500
       raise Leela::UserError.new(msg, code) if code > 400 && code < 500
       raise Leela::ServerError.new(msg, code) if code > 500 && code < 600
-      raise Leela::LeelaError.new(msg, code) 
+      raise Leela::LeelaError.new(msg, code)
     end
   end
 end
