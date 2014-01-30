@@ -16,11 +16,12 @@ def close_(fd):
 
 class Session(object):
 
-    def __init__(self, exe):
+    def __init__(self, exe, tree):
         self.exe   = exe
+        self.tree  = tree
         self.clean = True
 
-    def execute(self, tree, *stmt):
+    def execute(self, *stmt):
         while (not self.clean):
             self.message()
         env  = {"rnd_name.0": names.rnd_name(),
@@ -28,22 +29,31 @@ class Session(object):
                 "rnd_name.2": names.rnd_name(),
                 "rnd_name.3": names.rnd_name()}
         stmt = [line % env for line in stmt]
-        self.exe.stdin.write("%s\n" % json.dumps("using (%s) %s;" % (tree, "\n".join(stmt))))
+        self.exe.stdin.write("%s\n" % json.dumps("using (%s) %s;" % (self.tree, "\n".join(stmt))))
         self.exe.stdin.flush()
         self.clean = False
 
+    def execute_fetch(self, *stmt):
+        self.execute(*stmt)
+        rows = []
+        for row in self.messages():
+            if (row is None):
+                break
+            rows.append(row)
+        return(rows)
+
+    def execute_fmap(self, f, *stmt):
+        return(f(self.execute_fetch(*stmt)))
+
     def message(self):
-        try:
-            return(self.messages().next())
-        except StopIteration:
-            return(None)
+        return(self.messages().next())
 
     def messages(self):
         while (True):
             data = self.exe.stdout.readline()
             if (data == ""):
                 break
-            data       = json.loads(data)
+            data = json.loads(data)
             self.clean = data == None
             yield(data)
 
@@ -57,7 +67,7 @@ class Driver(object):
         self.endpoint = endpoint
 
     @contextlib.contextmanager
-    def session(self):
+    def session(self, tree):
         with open("try_leela.stderr", "a") as fh:
             exe = subprocess.Popen(shlex.split(self.program),
                                    stdin     = subprocess.PIPE,
@@ -70,7 +80,7 @@ class Driver(object):
                                                      "endpoint": self.endpoint,
                                                      "username": self.user}))
                 exe.stdin.flush()
-                yield(Session(exe))
+                yield(Session(exe, tree))
             finally:
                 close_(exe.stdin)
                 close_(exe.stdout)

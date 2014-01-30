@@ -2,6 +2,7 @@
 
 import unittest
 from try_leela import env
+from try_leela import helpers
 
 class TestMake(unittest.TestCase):
 
@@ -9,27 +10,13 @@ class TestMake(unittest.TestCase):
         self.driver = env.driver()
 
     def test_make_returns_name(self):
-        with self.driver.session() as session:
-            session.execute("fast/test_make", "make (%(rnd_name.0)s)")
-            self.assertEqual("name", session.message()[0])
-
-    def test_multiple_make_returns_multiple_names(self):
-        with self.driver.session() as session:
-            session.execute("fast/test_make",
-                            "make (%(rnd_name.0)s)",
-                            "make (%(rnd_name.1)s)")
-            self.assertEqual("name", session.message()[0])
+        with self.driver.session("fast/test_make") as session:
+            session.execute("make (%(rnd_name.0)s)")
             self.assertEqual("name", session.message()[0])
 
     def test_linking_two_vertexes(self):
-        with self.driver.session() as session:
-            session.execute("fast/test_make",
-                            "make (%(rnd_name.0)s)",
-                            "make (%(rnd_name.1)s)")
-            a_guid = session.message()[1][-1]
-            b_guid = session.message()[1][-1]
-            session.execute("fast/test_make",
-                            "make %s -[foobar]> %s" % (a_guid, b_guid))
-            session.execute("fast/test_make",
-                            "path %s -[foobar]> ()" % (a_guid,))
-            self.assertEqual(["path", [["foobar", b_guid]]], session.message())
+        with self.driver.session("fast/test_make") as session:
+            a_guid = helpers.make(session)
+            b_guid = helpers.make(session)
+            helpers.link(session, a_guid, "foobar", b_guid)
+            self.assertEqual([["path", [["foobar", b_guid]]]], session.execute_fetch("path %s -[foobar]> ()" % (a_guid,)))
