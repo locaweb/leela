@@ -10,7 +10,7 @@ def read_lines(fd):
         l = fd.readline()
         if (l == ""):
             break
-        yield(json.loads(l).encode("ascii"))
+        yield(json.loads(l)[0].encode("ascii"))
 
 def run():
     session = json.loads(sys.stdin.readline())
@@ -23,9 +23,9 @@ def run():
                         row = cursor.fetch()
                     except LeelaError, e:
                         row = ("fail", e.code, e.message)
-                    sys.stdout.write("%s\n" % json.dumps(row))
+                    sys.stdout.write("%s\n" % json.dumps([row]))
                     sys.stdout.flush()
-                sys.stdout.write("null\n")
+                sys.stdout.write("[null]\n")
                 sys.stdout.flush()
 
 if (__name__ == "__main__"):

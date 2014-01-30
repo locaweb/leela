@@ -29,7 +29,7 @@ class Session(object):
                 "rnd_name.2": names.rnd_name(),
                 "rnd_name.3": names.rnd_name()}
         stmt = [line % env for line in stmt]
-        self.exe.stdin.write("%s\n" % json.dumps("using (%s) %s;" % (self.tree, "\n".join(stmt))))
+        self.exe.stdin.write("%s\n" % json.dumps(["using (%s) %s;" % (self.tree, "\n".join(stmt))]))
         self.exe.stdin.flush()
         self.clean = False
 
@@ -53,7 +53,7 @@ class Session(object):
             data = self.exe.stdout.readline()
             if (data == ""):
                 break
-            data = json.loads(data)
+            data = json.loads(data)[0]
             self.clean = data == None
             yield(data)
 
