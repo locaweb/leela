@@ -200,9 +200,9 @@ bool __zmq_recvmsg_done(lql_cursor_t *cursor)
 static
 bool __zmq_recvmsg_longlong(lql_cursor_t *cursor, long long *out)
 {
-  char buffer[21];
-  buffer[20] = '\0';
-  if (__zmq_recvmsg_str(cursor, buffer, 20) != -1)
+  char buffer[22];
+  buffer[21] = '\0';
+  if (__zmq_recvmsg_str(cursor, buffer, 21) != -1)
   {
     *out = (long long) atoll(buffer);
     return(true);
