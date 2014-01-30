@@ -43,7 +43,9 @@
   (cons "t-attr" (flatten (map (fn [[k v]] [(str k) v]) msg))))
 
 (defn msg-kattr [data]
-  ["k-attr" (if data data (byte-array 0))])
+  (if-not data
+    (msg-fail 404)
+    ["k-attr" data]))
 
 (defn exec-getname [cluster [g]]
   (let [g (f/bytes-to-uuid g)]
