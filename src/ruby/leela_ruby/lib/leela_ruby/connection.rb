@@ -21,7 +21,7 @@ module Leela
 
       @context = Leela::Raw.leela_lql_context_init(mendpoint)
 
-      raise "Could not establish connection. context is null" if @context.null?
+      raise Leela::LeelaError.new(code = 0) if @context.null?
     end
 
     def execute(query, &block)

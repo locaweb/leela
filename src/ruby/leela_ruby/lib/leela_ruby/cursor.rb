@@ -12,12 +12,12 @@ module Leela
       )
 
       ret_code = Leela::Raw.leela_lql_cursor_execute(lql_cursor, query)
-      raise Leela::Badargs unless ret_code == :leela_ok
+      raise Leela::Badargs.new(code = 0) unless ret_code == :leela_ok
 
       messages = []
 
       until (cnext = Leela::Raw.leela_lql_cursor_next(lql_cursor)) == :leela_eof
-        raise Leela::Badargs if cnext == :leela_badargs
+        raise Leela::Badargs.new(code = 0) if cnext == :leela_badargs
 
         if block_given?
           block.call(fetch(lql_cursor))
@@ -47,7 +47,8 @@ module Leela
 
       when :lql_fail_msg
         msg = Leela::Raw::LqlFail.new(Leela::Raw.leela_lql_fetch_fail(cursor))
-        [:fail, [msg[:message], msg[:code]] ]
+        Leela::Raw.leela_lql_cursor_close(cursor)
+        throw_exception msg[:message], msg[:code]
       end
     end
 
@@ -69,6 +70,16 @@ module Leela
       end
 
       attrs
+    end
+
+    def throw_exception msg, code
+      raise Leela::BadRequestError.new(msg, code) if code == 400
+      raise Leela::ForbiddenError.new(msg, code) if code == 403
+      raise Leela::NotFoundError.new(msg, code) if code == 404
+      raise Leela::InternalServerError.new(msg, code) if code == 500
+      raise Leela::UserError.new(msg, code) if code > 400 && code < 500
+      raise Leela::ServerError.new(msg, code) if code > 500 && code < 600
+      raise Leela::LeelaError.new(msg, code) 
     end
   end
 end

@@ -116,26 +116,9 @@ describe Leela::Cursor do
     end
 
     it "executes a simple query to return a fail structure" do
-      result = @cursor.execute("fail")
-
-      message = result.first
-
-      message_type   = message.first
-      message_values = message.last
-
-      attrkey = message_values.first
-      attrval = message_values.last
-
-      expect(result.size > 0).to be_true
-
-      expect(result).to_not be_nil
-      expect(result).to be_a(Array)
-
-      expect(message_type).to be_a(Symbol)
-      expect(message).to be_a(Array)
-
-      expect(attrkey).to be_a(String)
-      expect(attrval).to be_a(Integer)
+      expect {
+      @cursor.execute("fail")
+      }.to raise_error(Leela::BadRequestError)
     end
   end
 end
