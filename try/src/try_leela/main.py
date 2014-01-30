@@ -49,9 +49,10 @@ def parse_args():
     return(parser.parse_args())
 
 def main():
-    env.set_args(parse_args())
+    args = parse_args()
+    env.set_args(args)
     suite  = unittest.TestSuite()
-    suite.addTests(unittest.TestLoader().discover("try_leela.suites.fast", "test*.py"))
+    suite.addTests(unittest.TestLoader().discover("try_leela.suites.%s" % (args.suite), "test*.py"))
     runner = unittest.TextTestRunner()
     runner.run(suite)
 
