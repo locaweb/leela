@@ -1,8 +1,0 @@
-./dist/usr/libexec/leela-interact --unsafe
-<<<
-dmproc-connect "proc=proc match 1|. (- 1) | abs | (* 100);"
-udp-send "message=gauge 6|foobar 0.0 {now};"
-dmproc-disconnect
->>>
-event 6|foobar 100.0 0.0;
->>>= 0

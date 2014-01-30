@@ -1,8 +1,0 @@
-./dist/usr/libexec/leela-interact --unsafe
-<<<
-initd-restart script=leela-timeline
-cassandra-truncate cf=events_%02d{now|%Y}
-http-request method=POST url=/v1/foobar 'data={"type": "gauge", "value": 0, "timestamp": {now}}'
->>>
-{"results": [{"name": "foobar", "timestamp": 0.0, "type": "gauge", "value": 0.0}], "status": 201}
->>>= 0

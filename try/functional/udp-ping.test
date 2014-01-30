@@ -1,6 +1,0 @@
-./dist/usr/libexec/leela-interact --unsafe
-<<<
-udp-send message=ping\n
->>>
-pong
->>>= 0
