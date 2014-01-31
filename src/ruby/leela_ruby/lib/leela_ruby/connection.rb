@@ -9,11 +9,14 @@ module Leela
     end
 
     def self.open(endpoints, user, pass, timeout=DEFAULT_TIMEOUT, &block)
-      raise "a block should be given to use open" unless block_given?
-
       conn = self.new(endpoints, user, pass, timeout=DEFAULT_TIMEOUT)
-      block.call(conn)
-      conn.close
+
+      if block_given?
+        block.call(conn)
+        conn.close
+      else
+        conn
+      end
     end
 
     def execute(query, &block)
