@@ -33,39 +33,37 @@ module Leela
       Leela::Raw.leela_lql_context_close(@context) if @context
     end
 
-    def connected?
-      not @context.null?
-    end
-
     private
 
     def init_context(endpoints, user, pass, timeout=DEFAULT_TIMEOUT, &block)
-      endpoints  = [endpoints].flatten
+      ends      = [endpoints].flatten
+      ends_null = []
 
-      @endpoints = endpoints
-      @user      = user
-      @pass      = pass
-      @timeout   = timeout
+      @user     = user
+      @pass     = pass
+      @timeout  = timeout
 
       mendpoint  = FFI::MemoryPointer.new(:pointer, endpoints.size+1)
 
-      endpoints.each_with_index do |endp, index|
+      ends.each_with_index do |endp, index|
         endpoint = Leela::Raw.leela_endpoint_load(endp)
         mendpoint[index].put_pointer(0, endpoint)
+
+        ends_null << (endpoint.null? || nil)
       end
 
       mendpoint[endpoints.size].put_pointer(0, nil)
 
+      raise Leela::BadRequestError.new("invalid endpoint found") if ends_null.compact.any?
+
       @context = Leela::Raw.leela_lql_context_init(mendpoint)
+      raise Leela::LeelaError.new(code: 0) if @context.null?
 
-      if @context.null?
-        endpoints.size.times do |index|
-          Leela::Raw.leela_endpoint_free(mendpoint[index].get_pointer(0))
-        end
-        mendpoint.free
-
-        raise Leela::LeelaError.new(code: 0)
+    ensure
+      endpoints.size.times do |index|
+        Leela::Raw.leela_endpoint_free(mendpoint[index].get_pointer(0))
       end
+      mendpoint.free
     end
   end
 end

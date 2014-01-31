@@ -43,7 +43,7 @@ describe Leela::Connection do
       @conn = Leela::Connection.new("tcp://warp0013.locaweb.com.br:4080", "pothix", "V1fR0sTo")
     end
 
-    after { @conn.close if @conn.connected? }
+    after { @conn.close unless @conn.context.null? }
 
     it "executes a simple query to return stat structure" do
       result = @conn.execute("using (locaweb) stat;")
