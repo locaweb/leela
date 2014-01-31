@@ -40,6 +40,10 @@ def parse_args():
                         metavar = "SECRET",
                         default = "leela",
                         help    = "The secret to use to sign request messages")
+    parser.add_argument("--logfile",
+                        metavar = "LOGFILE",
+                        default = "/dev/null",
+                        help    = "The file to write the output of the driver program")
     parser.add_argument("--timeout-in-ms",
                         metavar = "TIMEOUT-IN-MS",
                         default = 60000,

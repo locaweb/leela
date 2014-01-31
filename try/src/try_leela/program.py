@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import sys
 import json
 import shlex
 import select
@@ -62,16 +63,29 @@ class Session(object):
 
 class Driver(object):
 
-    def __init__(self, program, endpoint, user, secret, timeout):
-        self.user     = user
-        self.secret   = secret
-        self.program  = program
-        self.timeout  = timeout
-        self.endpoint = endpoint
+    def __init__(self, opts):
+        self.user     = opts.username
+        self.secret   = opts.secret
+        self.logfile  = opts.logfile
+        self.program  = opts.program
+        self.timeout  = opts.timeout
+        self.endpoint = opts.endpoint
+        self.logfile  = opts.logfile
+
+    @contextlib.contextmanager
+    def openlog(self):
+        if (self.logfile == "-"):
+            yield(sys.stderr)
+        else:
+            fh = open(self.logfile, "a")
+            try:
+                yield(fh)
+            finally:
+                fh.close()
 
     @contextlib.contextmanager
     def session(self, tree):
-        with open("try_leela.stderr", "a") as fh:
+        with self.openlog() as fh:
             exe = subprocess.Popen(shlex.split(self.program),
                                    stdin     = subprocess.PIPE,
                                    stdout    = subprocess.PIPE,

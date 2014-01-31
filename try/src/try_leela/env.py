@@ -10,4 +10,4 @@ def set_args(value):
 
 def driver():
     global args
-    return(program.Driver(args.program, args.endpoint, args.username, args.secret, args.timeout))
+    return(program.Driver(args))
