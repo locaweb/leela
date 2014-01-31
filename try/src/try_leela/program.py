@@ -53,7 +53,10 @@ class Session(object):
             data = self.exe.stdout.readline()
             if (data == ""):
                 break
-            data = json.loads(data)[0]
+            try:
+                data = json.loads(data)[0]
+            except:
+                raise(RuntimeError("bad message: %s" % data))
             self.clean = data == None
             yield(data)
 
