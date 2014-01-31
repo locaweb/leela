@@ -79,6 +79,21 @@ char *__unquote(char *string)
 }
 
 static
+char *__unslash(char *string)
+{
+  if (string == NULL)
+  { return(NULL); }
+
+  int of = 0;
+  for (int at=0; string[at]!='\0'; at+=1)
+  {
+    if (string[at] != '\\')
+    { string[of++] = string[at]; }
+  }
+  return(string);
+}
+
+static
 char *__get_key(const char *json, const char *key)
 {
   const char *begin = __spaces(__skip(strstr(json, key), strlen(key)));
@@ -183,6 +198,55 @@ void __consume_cursor(lql_cursor_t *cursor)
       leela_lql_path_free(path);
       break;
     }
+    case LQL_NATTR_MSG:
+    {
+      lql_nattr_t *nattr = leela_lql_fetch_nattr(cursor);
+      fprintf(stdout, "[[\"n-attr\", [\"%s\",[", nattr->guid);
+      for (int k=0; k<nattr->size; k+=1)
+      {  fprintf(stdout, "%s\"%s\"", (k == 0 ? "" : ","), nattr->names[k]); }
+      fprintf(stdout, "]]]]\n");
+      fflush(stdout);
+      leela_lql_nattr_free(nattr);
+      break;
+    }
+    case LQL_KATTR_MSG:
+    {
+      lql_kattr_t *kattr = leela_lql_fetch_kattr(cursor);
+      fprintf(stdout, "[[\"k-attr\", [\"%s\", \"%s\", ", kattr->guid, kattr->name);
+      switch (kattr->value->vtype)
+      {
+      case LQL_NIL_TYPE:
+        fprintf(stdout, "null]]]\n");
+        break;
+      case LQL_BOOL_TYPE:
+        if (kattr->value->data.v_bool)
+        { fprintf(stdout, "true]]]\n"); }
+        else
+        { fprintf(stdout, "false]]]\n"); }
+        break;
+      case LQL_TEXT_TYPE:
+        fprintf(stdout, "\"%s\"]]]\n", kattr->value->data.v_str);
+        break;
+      case LQL_INT32_TYPE:
+        fprintf(stdout, "%ld]]]\n", (long int) kattr->value->data.v_i32);
+        break;
+      case LQL_INT64_TYPE:
+        fprintf(stdout, "%lld]]]\n", (long long int) kattr->value->data.v_i64);
+        break;
+      case LQL_UINT32_TYPE:
+        fprintf(stdout, "%lu]]]\n", (long unsigned int) kattr->value->data.v_u32);
+        break;
+      case LQL_UINT64_TYPE:
+        fprintf(stdout, "%llu]]]\n", (long long unsigned int) kattr->value->data.v_u64);
+        break;
+      case LQL_DOUBLE_TYPE:
+        fprintf(stdout, "%f]]]\n", kattr->value->data.v_double);
+        break;
+      }
+      fflush(stdout);
+      leela_lql_kattr_free(kattr);
+      break;
+    }
     case LQL_FAIL_MSG:
     {
       lql_fail_t *fail = leela_lql_fetch_fail(cursor);
@@ -207,7 +271,7 @@ void __mainloop(lql_context_t *ctx, const char *username, const char *secret, in
   while (strlen(__readline(buffer, 8192)) > 4)
   {
     buffer[strlen(buffer)-2] = '\0';
-    const char *query        = buffer+2;
+    const char *query        = __unslash(buffer+2);
     lql_cursor_t *cursor = leela_lql_cursor_init(ctx, username, secret, timeout);
     if (cursor != NULL)
     {
