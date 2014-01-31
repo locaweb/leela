@@ -22,7 +22,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description = "leela testing engine")
     parser.add_argument("suite",
                         metavar = "SUITE",
-                        choices = ("fast", "perf", "integrity"),
+                        choices = ("smoke", "perf", "integrity"),
                         help    = "The test suite you want to invoke")
     parser.add_argument("program",
                         metavar = "PROGRAM",
