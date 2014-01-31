@@ -12,8 +12,8 @@ class TestPath(unittest.TestCase):
 
     def test_path_without_a_know_guid_produces_no_results(self):
         with self.driver.session("smoke/test_path") as session:
-            nil_guid = str(uuid.uuid1())
-            self.assertEqual([], session.execute_fetch("path %s -[*]> ()" % (nil_guid,)))
+            guid = str(uuid.uuid1())
+            self.assertEqual([], session.execute_fetch("path %s -[*]> ()" % (guid,)))
 
     def test_path_using_prefix(self):
         with self.driver.session("smoke/test_path") as session:
