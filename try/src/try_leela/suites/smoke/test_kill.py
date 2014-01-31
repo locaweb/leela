@@ -10,7 +10,7 @@ class TestKill(unittest.TestCase):
         self.driver = env.driver()
 
     def test_kill_without_right_node(self):
-        with self.driver.session("fast/test_kill") as session:
+        with self.driver.session("smoke/test_kill") as session:
             a_guid = helpers.make(session)
             b_guid = helpers.make(session)
             c_guid = helpers.make(session)
@@ -21,7 +21,7 @@ class TestKill(unittest.TestCase):
             self.assertEqual([["path", [["c", c_guid]]]], session.execute_fetch("path %s -[*]> ()" % (a_guid,)))
 
     def test_kill_with_right_node(self):
-        with self.driver.session("fast/test_kill") as session:
+        with self.driver.session("smoke/test_kill") as session:
             a_guid = helpers.make(session)
             b_guid = helpers.make(session)
             c_guid = helpers.make(session)
