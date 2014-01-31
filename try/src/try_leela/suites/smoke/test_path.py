@@ -10,7 +10,7 @@ class TestPath(unittest.TestCase):
     def setUp(self):
         self.driver = env.driver()
 
-    def test_path_without_a_valid_node_produces_no_results(self):
+    def test_path_without_a_know_guid_produces_no_results(self):
         with self.driver.session("smoke/test_path") as session:
             nil_guid = str(uuid.uuid1())
             self.assertEqual([], session.execute_fetch("path %s -[*]> ()" % (nil_guid,)))
