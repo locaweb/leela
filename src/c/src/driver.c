@@ -177,7 +177,7 @@ void __consume_cursor(lql_cursor_t *cursor)
       lql_path_t *path = leela_lql_fetch_path(cursor);
       fprintf(stdout, "[[\"path\", [");
       for (int k=0; k<path->size; k+=1)
-      { fprintf(stdout, "[\"%s\",\"%s\"]", path->entries[k].fst, path->entries[k].snd); }
+      { fprintf(stdout, "%s[\"%s\",\"%s\"]", (k == 0 ? "" : ","), path->entries[k].fst, path->entries[k].snd); }
       fprintf(stdout, "]]]\n");
       fflush(stdout);
       leela_lql_path_free(path);
@@ -189,6 +189,7 @@ void __consume_cursor(lql_cursor_t *cursor)
       fprintf(stdout, "[[\"fail\", %d, \"%s\"]]\n", fail->code, fail->message);
       fflush(stdout);
       leela_lql_fail_free(fail);
+      break;
     }
     }
   }
