@@ -1,11 +1,11 @@
 // Copyright 2014 (c) Diego Souza <dsouza@c0d3.xxx>
-//  
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-//  
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
-//  
+//
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -510,10 +510,10 @@ lql_name_t *leela_lql_fetch_name(lql_cursor_t *cursor)
   lql_name_t *name = (lql_name_t *) malloc(sizeof(lql_name_t));
   if (name != NULL)
   {
-    name->guid = NULL;
     name->user = NULL;
     name->tree = NULL;
     name->name = NULL;
+    name->guid = NULL;
 
     name->user = __zmq_recvmsg_copystr(cursor);
     name->tree = __zmq_recvmsg_copystr(cursor);
@@ -716,10 +716,10 @@ void leela_lql_name_free(lql_name_t *name)
 {
   if (name != NULL)
   {
-    free(name->guid);
     free(name->user);
     free(name->tree);
     free(name->name);
+    free(name->guid);
     free(name);
   }
 }

@@ -83,10 +83,10 @@ typedef struct lql_path_t
 //! A name entry as defined in warpdrive(1);
 typedef struct
 {
-  char *guid;             //!^ The hash that has been requested;
   char *user;             //!^ The owner of this node;
   char *tree;             //!^ The namespace of this node;
   char *name;             //!^ The name of this name;
+  char *guid;             //!^ The hash that has been requested;
 } lql_name_t;
 
 //! An fail entry as defined in warpdrive(1);
