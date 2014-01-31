@@ -3,6 +3,7 @@
 *.swp
 *.o
 *.class
+try_leela.stderr
 /tmp/
 /tags
 /TAGS
@@ -29,5 +30,4 @@
 /src/c/libleela.so*
 /src/python/build
 /src/c/libleela4.0.0.so
-/try/src/try_leela.stderr
 /src/c/src/driver
