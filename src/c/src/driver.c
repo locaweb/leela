@@ -131,7 +131,7 @@ static
 void __free_endpoints(leela_endpoint_t **endpoints)
 {
   for (int at=0; endpoints[at] != NULL; at+=1)
-  { free(endpoints[at]); }
+  { leela_endpoint_free(endpoints[at]); }
   free(endpoints);
 }
 
@@ -207,7 +207,6 @@ void __mainloop(lql_context_t *ctx, const char *username, const char *secret, in
   {
     buffer[strlen(buffer)-2] = '\0';
     const char *query        = buffer+2;
-    fprintf(stderr, "<%s>\n", query);
     lql_cursor_t *cursor = leela_lql_cursor_init(ctx, username, secret, timeout);
     if (cursor != NULL)
     {
