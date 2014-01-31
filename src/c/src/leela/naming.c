@@ -86,7 +86,7 @@ leela_naming_cluster_t *__naming_discover2(leela_naming_t *naming, const leela_e
   { goto handle_error; }
 
   size_t count = 0;
-  for (size_t k=0; k<stat->size; k+=1)
+  for (int k=0; k<stat->size; k+=1)
   {
     lql_tuple2_t *entry = (stat->attrs + k);
     if (strcmp(entry->fst, "endpoint/warpdrive") == 0)
@@ -98,7 +98,7 @@ leela_naming_cluster_t *__naming_discover2(leela_naming_t *naming, const leela_e
   { goto handle_error; }
 
   count = 0;
-  for (size_t k=0; k<stat->size; k+=1)
+  for (int k=0; k<stat->size; k+=1)
   {
     lql_tuple2_t *entry = (stat->attrs + k);
     if (strcmp(entry->fst, "endpoint/warpdrive") == 0)
