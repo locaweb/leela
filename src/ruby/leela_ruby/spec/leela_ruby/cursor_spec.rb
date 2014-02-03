@@ -14,7 +14,7 @@ describe Leela::Cursor do
     it "executes a simple query to return a fail structure" do
       expect {
       @cursor.execute("fail")
-      }.to raise_error(Leela::BadRequestError)
+      }.to raise_error(Leela::UserError)
     end
   end
 end

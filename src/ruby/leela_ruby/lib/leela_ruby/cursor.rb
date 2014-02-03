@@ -3,21 +3,24 @@ module Leela
     attr_accessor :lql_cursor
 
     def initialize(conn)
-      @conn       = conn
+      @conn = conn
     end
 
     def execute(query, &block)
+      raise Leela::BadargsError.new("Username not given") unless @conn.user
+      raise Leela::BadargsError.new("Password not given") unless @conn.pass
+
       lql_cursor = Leela::Raw.leela_lql_cursor_init(
         @conn.context, @conn.user, @conn.pass, @conn.timeout
       )
 
       ret_code = Leela::Raw.leela_lql_cursor_execute(lql_cursor, query)
-      raise Leela::Badargs.new(code = 0) unless ret_code == :leela_ok
+      raise Leela::BadargsError.new(code = 0) unless ret_code == :leela_ok
 
       messages = []
 
       until (cnext = Leela::Raw.leela_lql_cursor_next(lql_cursor)) == :leela_eof
-        raise Leela::Badargs.new(code = 0) if cnext == :leela_badargs
+        raise Leela::BadargsError.new(code = 0) if cnext == :leela_badargs
 
         if block_given?
           block.call(fetch(lql_cursor))

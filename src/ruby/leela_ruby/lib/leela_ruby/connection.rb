@@ -4,12 +4,12 @@ module Leela
 
     attr_reader :user, :pass, :timeout, :context
 
-    def initialize(endpoints, user, pass, timeout=DEFAULT_TIMEOUT)
-      init_context(endpoints, user, pass, timeout=DEFAULT_TIMEOUT)
+    def initialize(endpoints, timeout=DEFAULT_TIMEOUT, user=nil, pass=nil)
+      init_context(endpoints, user, pass, timeout)
     end
 
-    def self.open(endpoints, user, pass, timeout=DEFAULT_TIMEOUT, &block)
-      conn = self.new(endpoints, user, pass, timeout=DEFAULT_TIMEOUT)
+    def self.open(endpoints, timeout=DEFAULT_TIMEOUT, user, pass, &block)
+      conn = self.new(endpoints, user, pass, timeout)
 
       if block_given?
         block.call(conn)
@@ -19,7 +19,10 @@ module Leela
       end
     end
 
-    def execute(query, &block)
+    def execute(query, user=nil, pass=nil, &block)
+      @user = user if user
+      @pass = pass if pass
+
       cursor = Leela::Cursor.new(self)
 
       if block_given?
@@ -35,7 +38,7 @@ module Leela
 
     private
 
-    def init_context(endpoints, user, pass, timeout=DEFAULT_TIMEOUT, &block)
+    def init_context(endpoints, user, pass, timeout, &block)
       ends      = [endpoints].flatten
       ends_null = []
 

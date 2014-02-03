@@ -33,11 +33,11 @@ end
 def run(with_block)
   session = JSON.parse($stdin.readline)
   if with_block
-    Leela::Connection.open(session["endpoint"], session["username"], session["secret"], session["timeout"]) do |conn|
+    Leela::Connection.open(session["endpoint"], session["timeout"], session["username"], session["secret"]) do |conn|
       exec_with_connection with_block, conn
     end
   else
-    conn = Leela::Connection.new(session["endpoint"], session["username"], session["secret"], session["timeout"])
+    conn = Leela::Connection.new(session["endpoint"], session["timeout"], session["username"], session["secret"])
     begin
       exec_with_connection with_block, conn
     ensure
