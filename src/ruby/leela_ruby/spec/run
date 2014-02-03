@@ -1,0 +1,3 @@
+[ ! -z $bin_python ] || bin_python=python
+
+PYTHONPATH=../../../try/src $bin_python ../../../try/src/try_leela/main.py --endpoint=tcp://$1 smoke 'bundle exec spec/bin/driver.rb no-stream'
