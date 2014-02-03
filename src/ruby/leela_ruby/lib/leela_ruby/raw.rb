@@ -18,31 +18,32 @@ module Leela
       :lql_fail_msg
     ]
 
-    attach_function :leela_endpoint_load, [:string], :pointer
-    attach_function :leela_endpoint_free, [:pointer], :void
-
     attach_function :leela_lql_context_init, [:pointer], :pointer
     attach_function :leela_lql_context_close, [:pointer], :status
 
-    attach_function :leela_lql_cursor_init, [:pointer, :string, :string, :int], :pointer
-    attach_function :leela_lql_cursor_execute, [:pointer, :string], :status
+    attach_function :leela_lql_cursor_init, [:pointer, :string, :string, :int], :pointer,  :blocking => true
+    attach_function :leela_lql_cursor_execute, [:pointer, :string], :status,  :blocking => true
 
-    attach_function :leela_lql_fetch_type, [:pointer], :lql_row_type
+    attach_function :leela_lql_fetch_type, [:pointer], :lql_row_type, :blocking => true
 
-    attach_function :leela_lql_fetch_name, [:pointer], :pointer
-    attach_function :leela_lql_name_free,  [:pointer], :void
+    attach_function :leela_endpoint_load,    [:string],  :pointer, :blocking => true
+    attach_function :leela_endpoint_free,    [:pointer], :void,    :blocking => true
 
-    attach_function :leela_lql_fetch_stat, [:pointer], :pointer
-    attach_function :leela_lql_stat_free,  [:pointer], :void
+    attach_function :leela_lql_fetch_name,   [:pointer], :pointer, :blocking => true
+    attach_function :leela_lql_name_free,    [:pointer], :void,    :blocking => true
 
-    attach_function :leela_lql_fetch_path, [:pointer], :pointer
-    attach_function :leela_lql_path_free,  [:pointer], :void
+    attach_function :leela_lql_fetch_stat,   [:pointer], :pointer, :blocking => true
+    attach_function :leela_lql_stat_free,    [:pointer], :void,    :blocking => true
 
-    attach_function :leela_lql_fetch_fail, [:pointer], :pointer
-    attach_function :leela_lql_fail_free,  [:pointer], :void
+    attach_function :leela_lql_fetch_path,   [:pointer], :pointer, :blocking => true
+    attach_function :leela_lql_path_free,    [:pointer], :void,    :blocking => true
 
-    attach_function :leela_lql_cursor_next, [:pointer], :status
-    attach_function :leela_lql_cursor_close, [:pointer], :status
+    attach_function :leela_lql_fetch_fail,   [:pointer], :pointer, :blocking => true
+    attach_function :leela_lql_fail_free,    [:pointer], :void,    :blocking => true
+
+    attach_function :leela_lql_cursor_next,  [:pointer], :status,  :blocking => true
+    attach_function :leela_lql_cursor_close, [:pointer], :status,  :blocking => true
+
 
     class LqlName < FFI::Struct
       layout :guid, :string,
