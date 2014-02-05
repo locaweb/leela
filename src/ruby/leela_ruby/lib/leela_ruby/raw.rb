@@ -15,7 +15,20 @@ module Leela
       :lql_name_msg,
       :lql_path_msg,
       :lql_stat_msg,
-      :lql_fail_msg
+      :lql_fail_msg,
+      :lql_nattr_msg,
+      :lql_kattr_msg
+    ]
+
+    enum :lql_value_type, [
+      :lql_nil_type,   -1,
+      :lql_bool_type,   0,
+      :lql_text_type,   1,
+      :lql_int32_type,  2,
+      :lql_int64_type,  3,
+      :lql_uint32_type, 4,
+      :lql_uint64_type, 5,
+      :lql_double_type,  6
     ]
 
     attach_function :leela_lql_context_init, [:pointer], :pointer
@@ -45,11 +58,17 @@ module Leela
     attach_function :leela_lql_cursor_close, [:pointer], :status,  :blocking => true
 
 
+    attach_function :leela_lql_fetch_nattr, [:pointer], :pointer
+    attach_function :leela_lql_nattr_free, [:pointer], :void
+
+    attach_function :leela_lql_fetch_kattr, [:pointer], :pointer
+    attach_function :leela_lql_kattr_free, [:pointer], :void
+
     class LqlName < FFI::Struct
-      layout :guid, :string,
-             :user, :string,
+      layout :user, :string,
              :tree, :string,
-             :name, :string
+             :name, :string,
+             :guid, :string
     end
 
     class LqlPath < FFI::Struct
@@ -74,8 +93,30 @@ module Leela
 
     class LqlNAttr < FFI::Struct
       layout :size,  :int,
-             :guid, :string,
+             :guid,  :string,
              :names, :pointer
+    end
+
+    class LqlValueU < FFI::Union
+      layout :v_str,    :string,
+             :v_i32,    :int32,
+             :v_i64,    :int64,
+             :v_u32,    :uint32,
+             :v_u64,    :uint64,
+             :v_bool,   :bool,
+             :v_double, :double
+    end
+
+    class LqlValueT < FFI::Struct
+      layout :vtype, :lql_value_type,
+             :data,  LqlValueU
+    end
+
+    class LqlKAttr < FFI::Struct
+      layout :guid,  :string,
+             :name,  :string,
+             :value, :pointer #LqlValueT
+             #:value, LqlValueT
     end
   end
 end

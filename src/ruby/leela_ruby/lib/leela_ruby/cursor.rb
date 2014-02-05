@@ -23,12 +23,10 @@ module Leela
         raise Leela::BadargsError.new(code = 0) if cnext == :leela_badargs
 
         if block_given?
-          last_value = block.call(fetch(lql_cursor))
+          block.call(fetch(lql_cursor))
         else
           messages << fetch(lql_cursor)
         end
-
-        break if last_value == :break
       end
 
       Leela::Raw.leela_lql_cursor_close(lql_cursor)
@@ -41,7 +39,7 @@ module Leela
       when :lql_name_msg
         begin
           msg = Leela::Raw::LqlName.new(Leela::Raw.leela_lql_fetch_name(cursor))
-          [:name, [msg[:guid], msg[:user], msg[:tree], msg[:name]]]
+          [:name, [msg[:user], msg[:tree], msg[:name], msg[:guid]]]
         ensure
           Leela::Raw::leela_lql_name_free(msg.pointer)
         end
@@ -60,6 +58,23 @@ module Leela
           [:stat, build_attrs_for(msg[:attrs], msg[:size]) ]
         ensure
           Leela::Raw::leela_lql_stat_free(msg.pointer)
+        end
+
+      when :lql_nattr_msg
+        begin
+          msg = Leela::Raw::LqlNAttr.new(Leela::Raw.leela_lql_fetch_nattr(cursor))
+          [:'n-attr', make_nattr_msg(msg[:size], msg[:guid], msg[:names])]
+        ensure
+          Leela::Raw::leela_lql_nattr_free(msg.pointer)
+        end
+
+      when :lql_kattr_msg
+        begin
+          msg = Leela::Raw::LqlKAttr.new(Leela::Raw.leela_lql_fetch_kattr(cursor))
+          val = make_kattr_msg(msg[:guid], msg[:name], msg[:value])
+          [:'k-attr', val]
+        ensure
+          Leela::Raw::leela_lql_kattr_free(msg.pointer)
         end
 
       when :lql_fail_msg
@@ -92,6 +107,36 @@ module Leela
       attrs
     end
 
+    def make_nattr_msg size, guid, names
+      attr = names.get_array_of_string(0, size)
+      [guid, attr]
+    end
+
+    def make_kattr_msg guid, name, value
+      attr = Leela::Raw::LqlValueT.new(value)
+
+      case attr[:vtype]
+      when :lql_bool_type
+        val = attr[:data][:v_bool]
+      when :lql_text_type
+        val = attr[:data][:v_str]
+      when :lql_int32_type
+        val = attr[:data][:v_i32]
+      when :lql_int64_type
+        val = attr[:data][:v_i64]
+      when :lql_uint32_type
+        val = attr[:data][:v_u32]
+      when :lql_uint64_type
+        val = attr[:data][:v_u64]
+      when :lql_double_type
+        val = attr[:data][:v_double]
+      when :lql_nil_type
+        val = nil
+      end
+
+      [guid, name, val]
+    end
+
     def throw_exception msg, code
       raise Leela::BadRequestError.new(msg, code) if code == 400
       raise Leela::ForbiddenError.new(msg, code) if code == 403
@@ -101,6 +146,6 @@ module Leela
       raise Leela::ServerError.new(msg, code) if code > 500 && code < 600
       raise Leela::LeelaError.new(msg, code)
     end
+
   end
 end
-
