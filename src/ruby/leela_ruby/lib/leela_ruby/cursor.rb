@@ -23,10 +23,12 @@ module Leela
         raise Leela::BadargsError.new(code = 0) if cnext == :leela_badargs
 
         if block_given?
-          block.call(fetch(lql_cursor))
+          last_value = block.call(fetch(lql_cursor))
         else
           messages << fetch(lql_cursor)
         end
+
+        break if last_value == :break
       end
 
       Leela::Raw.leela_lql_cursor_close(lql_cursor)
