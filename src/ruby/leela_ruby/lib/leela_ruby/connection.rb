@@ -60,7 +60,7 @@ module Leela
       raise Leela::BadRequestError.new("invalid endpoint found") if ends_null.compact.any?
 
       @context = Leela::Raw.leela_lql_context_init(mendpoint)
-      raise Leela::LeelaError.new(code: 0) if @context.null?
+      raise Leela::LeelaError.new() if @context.null?
 
     ensure
       endpoints.size.times do |index|
