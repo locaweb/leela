@@ -39,29 +39,29 @@ module Leela
 
     attach_function :leela_lql_fetch_type, [:pointer], :lql_row_type, :blocking => true
 
-    attach_function :leela_endpoint_load,    [:string],  :pointer, :blocking => true
-    attach_function :leela_endpoint_free,    [:pointer], :void,    :blocking => true
+    attach_function :leela_endpoint_load,    [:string],  :pointer
+    attach_function :leela_endpoint_free,    [:pointer], :void
 
     attach_function :leela_lql_fetch_name,   [:pointer], :pointer, :blocking => true
-    attach_function :leela_lql_name_free,    [:pointer], :void,    :blocking => true
+    attach_function :leela_lql_name_free,    [:pointer], :void
 
     attach_function :leela_lql_fetch_stat,   [:pointer], :pointer, :blocking => true
-    attach_function :leela_lql_stat_free,    [:pointer], :void,    :blocking => true
+    attach_function :leela_lql_stat_free,    [:pointer], :void
 
     attach_function :leela_lql_fetch_path,   [:pointer], :pointer, :blocking => true
-    attach_function :leela_lql_path_free,    [:pointer], :void,    :blocking => true
+    attach_function :leela_lql_path_free,    [:pointer], :void
 
     attach_function :leela_lql_fetch_fail,   [:pointer], :pointer, :blocking => true
-    attach_function :leela_lql_fail_free,    [:pointer], :void,    :blocking => true
+    attach_function :leela_lql_fail_free,    [:pointer], :void
 
     attach_function :leela_lql_cursor_next,  [:pointer], :status,  :blocking => true
     attach_function :leela_lql_cursor_close, [:pointer], :status,  :blocking => true
 
 
-    attach_function :leela_lql_fetch_nattr, [:pointer], :pointer
+    attach_function :leela_lql_fetch_nattr, [:pointer], :pointer,  :blocking => true
     attach_function :leela_lql_nattr_free, [:pointer], :void
 
-    attach_function :leela_lql_fetch_kattr, [:pointer], :pointer
+    attach_function :leela_lql_fetch_kattr, [:pointer], :pointer,  :blocking => true
     attach_function :leela_lql_kattr_free, [:pointer], :void
 
     class LqlName < FFI::Struct
@@ -116,7 +116,6 @@ module Leela
       layout :guid,  :string,
              :name,  :string,
              :value, :pointer #LqlValueT
-             #:value, LqlValueT
     end
   end
 end
