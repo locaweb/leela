@@ -3,7 +3,7 @@ require "spec_helper"
 describe Leela::Cursor do
   context "with a valid connection" do
     before do
-      @conn   = Leela::Connection.new("tcp://warp0013.locaweb.com.br:4080", "pothix", "V1fR0sTo")
+      @conn   = Leela::Connection.new("tcp://warp0013.locaweb.com.br:4080", 6000, "pothix", "V1fR0sTo")
       @cursor = Leela::Cursor.new(@conn)
     end
 
@@ -13,7 +13,7 @@ describe Leela::Cursor do
 
     it "executes a simple query to return a fail structure" do
       expect {
-      @cursor.execute("fail")
+        @cursor.execute("fail")
       }.to raise_error(Leela::UserError)
     end
   end

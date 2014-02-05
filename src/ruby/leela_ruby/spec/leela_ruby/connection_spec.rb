@@ -26,7 +26,7 @@ describe Leela::Connection do
       expect {
         conn = Leela::Connection.new("tcp://warp0013.locaweb.com.br:4080")
         conn.execute("anything")
-      }.to raise_error(Leela::BadargsError)
+      }.to raise_error(Leela::UserError)
     end
   end
 

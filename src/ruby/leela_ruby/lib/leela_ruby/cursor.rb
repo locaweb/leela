@@ -7,8 +7,8 @@ module Leela
     end
 
     def execute(query, &block)
-      raise Leela::BadargsError.new("Username not given") unless @conn.user
-      raise Leela::BadargsError.new("Password not given") unless @conn.pass
+      throw_exception("Username not given", 498) unless @conn.user
+      throw_exception("Password not given", 499) unless @conn.pass
 
       lql_cursor = Leela::Raw.leela_lql_cursor_init(
         @conn.context, @conn.user, @conn.pass, @conn.timeout
