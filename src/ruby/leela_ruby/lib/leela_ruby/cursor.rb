@@ -15,12 +15,12 @@ module Leela
       )
 
       ret_code = Leela::Raw.leela_lql_cursor_execute(lql_cursor, query)
-      raise Leela::BadargsError.new() unless ret_code == :leela_ok
+      raise Leela::BadargsError.new unless ret_code == :leela_ok
 
       messages = []
 
       until (cnext = Leela::Raw.leela_lql_cursor_next(lql_cursor)) == :leela_eof
-        raise Leela::BadargsError.new() if cnext == :leela_badargs
+        raise Leela::BadargsError.new if cnext == :leela_badargs
 
         if block_given?
           last_value = block.call(fetch(lql_cursor))
