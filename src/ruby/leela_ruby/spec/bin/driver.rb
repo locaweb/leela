@@ -25,6 +25,8 @@ def exec_with_connection(with_block, conn)
       end
     rescue Leela::LeelaError => e
       writeln [[:fail, e.code, e.message]].to_json
+    rescue
+      writeln [[:fail, -1, 'lib error']].to_json
     end
     writeln "[null]"
   end
