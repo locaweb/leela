@@ -86,7 +86,7 @@ class Driver(object):
     @contextlib.contextmanager
     def session(self, tree):
         with self.openlog() as fh:
-            exe = subprocess.Popen(shlex.split(self.program),
+            exe = subprocess.Popen(shlex.split("timeout %d %s" % (self.timeout / 1000, self.program)),
                                    stdin     = subprocess.PIPE,
                                    stdout    = subprocess.PIPE,
                                    stderr    = fh,
