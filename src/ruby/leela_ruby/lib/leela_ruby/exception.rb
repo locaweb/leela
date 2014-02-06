@@ -16,6 +16,7 @@ module Leela
     def self.raise_from_fail(msg)
       code = msg[:code]
       msg  = msg[:message]
+
       if (code == 400)
         raise Leela::BadRequestError.new(msg, code)
       elsif (code == 403)
@@ -33,50 +34,50 @@ module Leela
       end
     end
 
-    def initialize msg, code = 0
+    def initialize(msg, code = 0)
       super msg
       @code = code
     end
   end
 
   class TimeoutError < LeelaError
-    def initialize msg
+    def initialize(msg)
       super msg, 0
     end
   end
 
   class UserError < LeelaError
-    def initialize msg, code = 499
+    def initialize(msg, code = 499)
       super msg, code
     end
   end
 
   class ServerError < LeelaError
-    def initialize msg, code = 599
+    def initialize(msg, code = 599)
       super msg, code
     end
   end
 
   class BadRequestError < UserError
-    def initialize msg, code = 400
+    def initialize(msg, code = 400)
       super msg, code
     end
   end
 
   class ForbiddenError < UserError
-    def initialize msg, code = 403
+    def initialize(msg, code = 403)
       super msg, code
     end
   end
 
   class NotFoundError < UserError
-    def initialize msg, code = 404
+    def initialize(msg, code = 404)
       super msg, code
     end
   end
 
   class InternalServerError < ServerError
-    def initialize msg, code = 500
+    def initialize(msg, code = 500)
       super msg, code
     end
   end

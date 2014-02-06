@@ -14,21 +14,22 @@ module Leela
     def execute(query)
       Leela::Raw.with_cursor(@conn.context, @user, @pass, @timeout) do |cursor|
         rc = Leela::Raw.leela_lql_cursor_execute(cursor, query)
-        Leela::LeelaError.raise_from_leela_status rc if (rc != :leela_ok)
+        Leela::LeelaError.raise_from_leela_status(rc) unless rc == :leela_ok
 
         answer = []
+
         while (rc = Leela::Raw.leela_lql_cursor_next(cursor)) == :leela_ok
-          row = fetch(cursor)
-          if (block_given?)
+          row = fetch cursor
+          if block_given?
             ctrl = yield row
-            break if (ctrl == :break)
+            break if ctrl == :break
           else
             answer << row
           end
         end
-        Leela::LeelaError.raise_from_leela_status rc if (rc != :leela_eof)
+        Leela::LeelaError.raise_from_leela_status(rc) unless rc == :leela_eof
 
-        answer unless (block_given?)
+        answer unless block_given?
       end
     end
 
@@ -91,7 +92,7 @@ module Leela
       end
     end
 
-    def build_attrs_for entries, size
+    def build_attrs_for(entries, size)
       attrs = []
       0.upto(size-1) do |i|
         attr = Leela::Raw::LqlAttrs.new(entries + Leela::Raw::LqlAttrs.size*i)
@@ -100,12 +101,12 @@ module Leela
       attrs
     end
 
-    def make_nattr_msg size, guid, names
+    def make_nattr_msg(size, guid, names)
       attr = names.get_array_of_string(0, size)
       [guid, attr]
     end
 
-    def make_kattr_msg guid, name, value
+    def make_kattr_msg(guid, name, value)
       attr = Leela::Raw::LqlValueT.new(value)
 
       case attr[:vtype]
@@ -129,6 +130,5 @@ module Leela
 
       [guid, name, val]
     end
-
   end
 end

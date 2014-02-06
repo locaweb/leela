@@ -67,7 +67,7 @@ module Leela
     def self.with_cursor(ctx, user, pass, timeout)
       cursor = Leela::Raw.leela_lql_cursor_init(ctx, user, pass, timeout)
       begin
-        return yield(cursor)
+        yield(cursor)
       ensure
         rc = leela_lql_cursor_close(cursor)
         Leela::LeelaError.raise_from_leela_status rc if (rc != :leela_ok)
@@ -125,7 +125,7 @@ module Leela
     class LqlKAttr < FFI::Struct
       layout :guid,  :string,
              :name,  :string,
-             :value, :pointer #LqlValueT
+             :value, :pointer # LqlValueT
     end
   end
 end

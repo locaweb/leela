@@ -44,11 +44,13 @@ module Leela
       ends      = [endpoints].flatten
       null      = false
       mendpoint = FFI::MemoryPointer.new(:pointer, endpoints.size+1)
+
       ends.each_with_index do |endp, index|
         endpoint = Leela::Raw.leela_endpoint_load(endp)
         null     = null || endpoint.null?
         mendpoint[index].put_pointer(0, endpoint)
       end
+
       mendpoint[endpoints.size].put_pointer(0, nil)
       raise Leela::LeelaError.new("error parsing endpoint") if null
 
