@@ -22,8 +22,8 @@ module Leela
       end
     end
 
-    def execute(query, user=nil, pass=nil, timeout=nil, &block)
-      cursor = Leela::Cursor.new(self, user || @user, pass || @pass, timeout || DEFAULT_TIMEOUT)
+    def execute(query, timeout=DEFAULT_TIMEOUT, user=nil, pass=nil, &block)
+      cursor = Leela::Cursor.new(self, user || @user, pass || @pass, timeout)
       if block_given?
         cursor.execute(query, &block)
       else

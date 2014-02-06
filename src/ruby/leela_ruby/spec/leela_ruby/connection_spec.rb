@@ -20,7 +20,7 @@ describe Leela::Connection do
     it "works passing user for execute" do
       expect {
         Leela::Connection.open("tcp://warp0013.locaweb.com.br:4080") do |conn|
-          conn.execute("using (locaweb) stat;", "pothix", "V1fR0sTo")
+          conn.execute("using (locaweb) stat;", 60000, "pothix", "V1fR0sTo")
         end
       }.to_not raise_error
     end
