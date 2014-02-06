@@ -24,8 +24,8 @@ module Leela.Storage.Backend.ZMQ.Protocol
 import qualified Data.Serialize as S
 import qualified Data.ByteString as B
 import           Leela.Data.Types
+import           Leela.Storage.Graph (Limit)
 import qualified Data.ByteString.Char8 as B8
-import           Leela.Storage.Backend (Limit)
 
 data Query = MsgGetName GUID
            | MsgGetGUID User Tree Node

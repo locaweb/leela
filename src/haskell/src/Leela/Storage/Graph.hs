@@ -12,7 +12,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-module Leela.Storage.Backend
+module Leela.Storage.Graph
     ( Page
     , Limit
     , GraphBackend (..)

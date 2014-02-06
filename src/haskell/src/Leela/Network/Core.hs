@@ -37,10 +37,10 @@ import           Control.Concurrent
 import           Leela.Data.QDevice
 import           Leela.Data.Endpoint
 import           Leela.Data.LQL.Comp
+import           Leela.Storage.Graph
 import           Data.ByteString.Lazy (toStrict)
 import           Data.ByteString.UTF8 (fromString)
 import           System.Random.Shuffle
-import           Leela.Storage.Backend
 import           Control.Concurrent.STM
 import           Leela.Network.Protocol
 
