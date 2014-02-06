@@ -1,39 +1,41 @@
 module Leela
   class Cursor
-    attr_accessor :lql_cursor
 
-    def initialize(conn)
-      @conn = conn
+    def initialize(conn, user, pass, timeout)
+      raise Leela::LeelaError.new("no context") unless conn.context
+      raise Leela::LeelaError.new("no username given") unless user
+      raise Leela::LeelaError.new("no secret given") unless pass
+      @conn    = conn
+      @user    = user
+      @pass    = pass
+      @timeout = timeout
     end
 
-    def execute(query, &block)
-      throw_exception("Username not given", 498) unless @conn.user
-      throw_exception("Password not given", 499) unless @conn.pass
+    def execute(query)
+      Leela::Raw.with_cursor(@conn.context, @user, @pass, @timeout) do |cursor|
+        rc = Leela::Raw.leela_lql_cursor_execute(cursor, query)
+        Leela::LeelaError.raise_from_leela_status rc if (rc != :leela_ok)
 
-      lql_cursor = Leela::Raw.leela_lql_cursor_init(
-        @conn.context, @conn.user, @conn.pass, @conn.timeout
-      )
-
-      ret_code = Leela::Raw.leela_lql_cursor_execute(lql_cursor, query)
-      raise Leela::BadargsError.new unless ret_code == :leela_ok
-
-      messages = []
-
-      until (cnext = Leela::Raw.leela_lql_cursor_next(lql_cursor)) == :leela_eof
-        raise Leela::BadargsError.new if cnext == :leela_badargs
-
-        if block_given?
-          last_value = block.call(fetch(lql_cursor))
-        else
-          messages << fetch(lql_cursor)
+        answer = []
+        while (rc = Leela::Raw.leela_lql_cursor_next(cursor)) == :leela_ok
+          row = fetch(cursor)
+          if (block_given?)
+            ctrl = yield row
+            break if (ctrl == :break)
+          else
+            answer << row
+          end
         end
+        Leela::LeelaError.raise_from_leela_status rc if (rc != :leela_eof)
 
-        break if last_value == :break
+        answer unless (block_given?)
       end
+    end
 
-      Leela::Raw.leela_lql_cursor_close(lql_cursor)
+    private
 
-      block_given? ? nil : messages
+    def type_of cursor
+      Leela::Raw.leela_lql_fetch_type(cursor)
     end
 
     def fetch cursor
@@ -82,30 +84,19 @@ module Leela
       when :lql_fail_msg
         begin
           msg = Leela::Raw::LqlFail.new(Leela::Raw.leela_lql_fetch_fail(cursor))
-          Leela::Raw.leela_lql_cursor_close(cursor)
-          throw_exception msg[:message], msg[:code]
+          Leela::LeelaError.raise_from_fail msg
         ensure
           Leela::Raw::leela_lql_fail_free(msg.pointer)
         end
       end
     end
 
-    def type_of cursor
-      Leela::Raw.leela_lql_fetch_type(cursor)
-    end
-
-    private
-
     def build_attrs_for entries, size
-      i, attrs = 0, []
-
-      while i < size
+      attrs = []
+      0.upto(size-1) do |i|
         attr = Leela::Raw::LqlAttrs.new(entries + Leela::Raw::LqlAttrs.size*i)
         attrs << [attr[:first], attr[:second]]
-
-        i += 1
       end
-
       attrs
     end
 
@@ -137,16 +128,6 @@ module Leela
       end
 
       [guid, name, val]
-    end
-
-    def throw_exception msg, code
-      raise Leela::BadRequestError.new(msg, code) if code == 400
-      raise Leela::ForbiddenError.new(msg, code) if code == 403
-      raise Leela::NotFoundError.new(msg, code) if code == 404
-      raise Leela::InternalServerError.new(msg, code) if code == 500
-      raise Leela::UserError.new(msg, code) if code > 400 && code < 500
-      raise Leela::ServerError.new(msg, code) if code > 500 && code < 600
-      raise Leela::LeelaError.new(msg, code)
     end
 
   end

@@ -2,29 +2,28 @@ module Leela
   class Connection
     DEFAULT_TIMEOUT = 6000
 
-    attr_reader :user, :pass, :timeout, :context
+    attr_reader :context
 
-    def initialize(endpoints, timeout=DEFAULT_TIMEOUT, user=nil, pass=nil)
-      init_context(endpoints, user, pass, timeout)
+    def initialize(endpoints, user=nil, pass=nil)
+      init_context(endpoints, user, pass)
     end
 
-    def self.open(endpoints, timeout=DEFAULT_TIMEOUT, user, pass, &block)
-      conn = self.new(endpoints, user, pass, timeout)
+    def self.open(endpoints, user=nil, pass=nil)
+      conn = self.new(endpoints, user, pass)
 
       if block_given?
-        block.call(conn)
-        conn.close
+        begin
+          yield conn
+        ensure
+          conn.close
+        end
       else
         conn
       end
     end
 
-    def execute(query, user=nil, pass=nil, &block)
-      @user = user if user
-      @pass = pass if pass
-
-      cursor = Leela::Cursor.new(self)
-
+    def execute(query, user=nil, pass=nil, timeout=nil, &block)
+      cursor = Leela::Cursor.new(self, user || @user, pass || @pass, timeout || DEFAULT_TIMEOUT)
       if block_given?
         cursor.execute(query, &block)
       else
@@ -38,29 +37,23 @@ module Leela
 
     private
 
-    def init_context(endpoints, user, pass, timeout, &block)
-      ends      = [endpoints].flatten
-      ends_null = []
-
+    def init_context(endpoints, user, pass, &block)
       @user     = user
       @pass     = pass
-      @timeout  = timeout
 
-      mendpoint  = FFI::MemoryPointer.new(:pointer, endpoints.size+1)
-
+      ends      = [endpoints].flatten
+      null      = false
+      mendpoint = FFI::MemoryPointer.new(:pointer, endpoints.size+1)
       ends.each_with_index do |endp, index|
         endpoint = Leela::Raw.leela_endpoint_load(endp)
+        null     = null || endpoint.null?
         mendpoint[index].put_pointer(0, endpoint)
-
-        ends_null << (endpoint.null? || nil)
       end
-
       mendpoint[endpoints.size].put_pointer(0, nil)
-
-      raise Leela::BadRequestError.new("invalid endpoint found") if ends_null.compact.any?
+      raise Leela::LeelaError.new("error parsing endpoint") if null
 
       @context = Leela::Raw.leela_lql_context_init(mendpoint)
-      raise Leela::LeelaError.new if @context.null?
+      raise Leela::LeelaError.new("error connecting to leela cluster") if @context.null?
 
     ensure
       endpoints.size.times do |index|

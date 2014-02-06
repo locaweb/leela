@@ -28,7 +28,7 @@ module Leela
       :lql_int64_type,  3,
       :lql_uint32_type, 4,
       :lql_uint64_type, 5,
-      :lql_double_type,  6
+      :lql_double_type, 6
     ]
 
     attach_function :leela_lql_context_init, [:pointer], :pointer
@@ -37,7 +37,7 @@ module Leela
     attach_function :leela_lql_cursor_init, [:pointer, :string, :string, :int], :pointer,  :blocking => true
     attach_function :leela_lql_cursor_execute, [:pointer, :string], :status,  :blocking => true
 
-    attach_function :leela_lql_fetch_type, [:pointer], :lql_row_type, :blocking => true
+    attach_function :leela_lql_fetch_type, [:pointer], :lql_row_type
 
     attach_function :leela_endpoint_load,    [:string],  :pointer
     attach_function :leela_endpoint_free,    [:pointer], :void
@@ -63,6 +63,16 @@ module Leela
 
     attach_function :leela_lql_fetch_kattr, [:pointer], :pointer,  :blocking => true
     attach_function :leela_lql_kattr_free, [:pointer], :void
+
+    def self.with_cursor(ctx, user, pass, timeout)
+      cursor = Leela::Raw.leela_lql_cursor_init(ctx, user, pass, timeout)
+      begin
+        return yield(cursor)
+      ensure
+        rc = leela_lql_cursor_close(cursor)
+        Leela::LeelaError.raise_from_leela_status rc if (rc != :leela_ok)
+      end
+    end
 
     class LqlName < FFI::Struct
       layout :user, :string,
