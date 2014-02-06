@@ -143,7 +143,7 @@ navigate db queue (source, pipeline) = do
         case mg of
           Nothing                   -> return ()
           Just (Chunk (feed, path)) -> do
-            forM_ feed (\(_, b, c) -> 
+            forM_ feed (\(_, b, c) ->
               query db (devwriteIO dstpipe . Chunk . (, (c, b) : path)) (f $ c))
             runFilter srcpipe f dstpipe
           Just chunk                -> devwriteIO dstpipe chunk
