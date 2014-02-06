@@ -798,9 +798,9 @@ leela_status leela_lql_cursor_close(lql_cursor_t *cursor)
   leela_status rc = LEELA_ERROR;
   if (cursor != NULL)
   {
+    rc = LEELA_OK;
     if (cursor->socket != NULL && cursor->channel != NULL)
     {
-      rc = LEELA_OK;
       if (__zmq_sendmsg_str(cursor, "close", cursor->channel, NULL) != -1)
       { __zmq_recvmsg_done(cursor); }
     }
