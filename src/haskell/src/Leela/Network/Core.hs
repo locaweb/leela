@@ -154,7 +154,7 @@ navigate db queue (source, pipeline) = do
 
       forkFilter srcpipe f = do
         dstpipe <- openIO srcpipe 16
-        void $ forkFinally
+        _       <- forkFinally
           (runFilter srcpipe f dstpipe)
           (either (devwriteIO dstpipe . Error) (const $ devwriteIO dstpipe EOF))
         return dstpipe

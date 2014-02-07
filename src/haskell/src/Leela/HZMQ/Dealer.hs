@@ -101,7 +101,7 @@ create cfg ctx ctrl = do
   lnotice HZMQ "creating zmq.dealer"
   queue <- openIO ctrl (backlog cfg)
   pool  <- createPool (createWorker queue) destroyWorker
-  void $ forkSupervised (notClosedIO ctrl) "dealer/watcher" $ do
+  _     <- forkSupervised (notClosedIO ctrl) "dealer/watcher" $ do
     let (db, readFunc) = endpoint cfg
     updatePool pool =<< readFunc db
     threadDelay 1000000

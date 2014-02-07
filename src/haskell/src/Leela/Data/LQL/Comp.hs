@@ -80,7 +80,7 @@ qstring limit l r = word8 l >> anyWord8 >>= loop limit []
         | otherwise = anyWord8 >>= loop (lim - 1) (x : acc)
 
 newline :: Parser ()
-newline = void $ ((word8 0x2c >> word8 0x20) <|> word8 0x0a)
+newline = void ((word8 0x2c >> word8 0x20) <|> word8 0x0a)
 
 separator :: Parser ()
 separator = void (word8 0x0a <|> word8 0x20)
@@ -174,7 +174,7 @@ parseWithStmt = "with " .*> parseOption `sepBy` (word8 0x3a)
 
 parseStmtMake :: Using -> Parser LQL
 parseStmtMake u = do
-  void $ string "make "
+  _  <- string "make "
   at <- peekWord8
   case at of
     Just 0x28 -> liftM (AlterStmt . return . PutNode (uUser u) (uTree u)) parseNode
