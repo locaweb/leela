@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 -- Copyright 2014 (c) Diego Souza <dsouza@c0d3.xxx>
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,10 +26,15 @@ module Leela.Data.Time
        , seconds
        , nseconds
        , toDouble
+       , fromISO8601
+       , fromUTCTime
        ) where
 
-import System.Clock
-import Data.Time.Clock
+import           Data.Time
+import           System.Clock
+import           Control.Applicative
+import           Data.Time.Clock.POSIX
+import qualified Data.ByteString.Char8 as B
 
 newtype Time = Time { unTime :: (Int, Int) }
              deriving (Show, Eq, Ord)
@@ -75,6 +82,29 @@ now :: IO Time
 now = do
   t <- getTime Monotonic
   return (Time (sec t, nsec t))
+
+asInt :: (Num i) => B.ByteString -> Maybe i
+asInt s = case (B.readInt s) of
+           Just (n, "") -> Just (fromIntegral n)
+           _            -> Nothing
+
+fromUTCTime :: UTCTime -> Time
+fromUTCTime t = Time (floor $ utcTimeToPOSIXSeconds t, 0)
+
+fromISO8601 :: B.ByteString -> Maybe UTCTime
+fromISO8601 date
+  | t == "T" && z == "Z" = liftA2 UTCTime
+                             (fromGregorian <$> (asInt year) <*> (asInt month) <*> (asInt day))
+                             ((+) <$> ((3600 *) <$> asInt hour) <*> ((+) <$> ((60 *) <$> asInt minute) <*> asInt second))
+  | otherwise            = Nothing
+    where
+      (year, monthPart) = B.splitAt 4 date
+      (month, dayPart)  = B.splitAt 2 monthPart
+      (day, timePart)   = B.splitAt 2 dayPart
+      (t, hourPart)     = B.splitAt 1 timePart
+      (hour, minPart)   = B.splitAt 2 hourPart
+      (minute, secPart) = B.splitAt 2 minPart
+      (second, z)       = B.splitAt 2 secPart
 
 sysnow :: IO UTCTime
 sysnow = getCurrentTime
