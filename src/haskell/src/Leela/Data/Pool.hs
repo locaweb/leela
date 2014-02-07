@@ -17,21 +17,27 @@ module Leela.Data.Pool
        , createPool
        , updatePool
        , deletePool
+       , use
        ) where
 
 import qualified Data.Map as M
 import qualified Data.Set as S
+import           Control.Monad
+import           Control.Exception (bracket)
+import           Leela.Data.Excepts
 import           Control.Concurrent.STM
 
 data Pool a b = Pool { state  :: TVar (M.Map a b)
+                     , using  :: TVar (M.Map a Int)
                      , create :: a -> IO b
                      , delete :: a -> b -> IO ()
                      }
 
 createPool :: (a -> IO b) -> (a -> b -> IO ()) -> IO (Pool a b)
 createPool add del = do
-  m <- newTVarIO M.empty
-  return $ Pool m add del
+  m0 <- newTVarIO M.empty
+  m1 <- newTVarIO M.empty
+  return $ Pool m0 m1 add del
 
 updatePool :: (Ord a) => Pool a b -> [a] -> IO ()
 updatePool pool lcluster = do
@@ -59,9 +65,12 @@ deletePool pool = do
 kill :: (Ord a) => Pool a b -> a -> IO ()
 kill pool k = do
   mhandle <- atomically $ do
-    m <- readTVar (state pool)
-    writeTVar (state pool) (M.delete k m)
-    return (M.lookup k m)
+    m0 <- readTVar (state pool)
+    m1 <- readTVar (using pool)
+    when (M.findWithDefault 0 k m1 /= 0) retry
+    writeTVar (state pool) (M.delete k m0)
+    writeTVar (using pool) (M.delete k m1)
+    return (M.lookup k m0)
   case mhandle of
     Nothing     -> return ()
     Just handle -> delete pool k handle
@@ -70,3 +79,17 @@ open :: (Ord a) => Pool a b -> a -> IO ()
 open pool k = do
   handle  <- create pool k
   atomically $ modifyTVar (state pool) (M.insert k handle)
+
+use :: (Ord a) => Pool a b -> ([a] -> a) -> (b -> IO c) -> IO c
+use pool select apply = bracket acquire release (apply . snd)
+    where
+      acquire = atomically $ do
+        m <- readTVar (state pool)
+        let a = select (M.keys m)
+        modifyTVar' (using pool) (M.insertWith (+) a 1)
+        case (M.lookup a m) of
+          Just b -> return (a, b)
+          _      -> throwSTM SystemExcept
+
+      release (a, _) = atomically $
+        modifyTVar' (using pool) (M.insertWith (+) a (-1))
