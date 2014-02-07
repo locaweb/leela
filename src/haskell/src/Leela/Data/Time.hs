@@ -26,8 +26,8 @@ module Leela.Data.Time
        , seconds
        , nseconds
        , toDouble
+       , fromUTC
        , fromISO8601
-       , fromUTCTime
        ) where
 
 import           Data.Time
@@ -88,8 +88,8 @@ asInt s = case (B.readInt s) of
            Just (n, "") -> Just (fromIntegral n)
            _            -> Nothing
 
-fromUTCTime :: UTCTime -> Time
-fromUTCTime t = Time (floor $ utcTimeToPOSIXSeconds t, 0)
+fromUTC :: UTCTime -> Time
+fromUTC t = Time (floor $ utcTimeToPOSIXSeconds t, 0)
 
 fromISO8601 :: B.ByteString -> Maybe UTCTime
 fromISO8601 date

@@ -174,7 +174,7 @@ evalLQL db core queue (x:xs) =
     AttrListStmt g a  -> do
       enumAttrs db (devwriteIO queue . Item . NAttrs g) g a
       evalLQL db core queue xs
-    AttrGetStmt g a   -> do
+    KAttrGetStmt g a _ -> do
       getAttr db g a >>= devwriteIO queue . Item . KAttr g a
       evalLQL db core queue xs
     NameStmt _ g      -> do

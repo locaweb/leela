@@ -26,7 +26,8 @@ data Using = Using { uUser :: User
 
 data LQL = StatStmt
          | PathStmt (Matcher, [(GUID -> Matcher)])
-         | AttrGetStmt GUID Attr
+         | KAttrGetStmt GUID Attr [Option]
+         | TAttrGetStmt GUID Attr TimeRange [Option]
          | AttrListStmt GUID (Mode Attr)
          | NameStmt Using GUID
          | GUIDStmt Using Node

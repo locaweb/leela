@@ -30,8 +30,8 @@ data Batch = Batch { bPutLink  :: [(GUID, Label, GUID)]
                    , bPutLabel :: [(GUID, Label)]
                    , bPutNode  :: [(User, Tree, Node)]
                    , bUnlinks  :: [(GUID, Label, Maybe GUID)]
-                   , bPutAttr  :: [(GUID, Attr, Value, [Option])]
-                   , bDelAttr  :: [(GUID, Attr)]
+                   , bPutKAttr :: [(GUID, Attr, Value, [Option])]
+                   , bDelKAttr :: [(GUID, Attr)]
                    , bDelNode  :: [GUID]
                    }
 
@@ -76,14 +76,14 @@ intoChunks n l  = let (a, rest) = splitAt n l
                   in a : intoChunks n rest
 
 plan :: Batch -> [Journal] -> Batch
-plan rt []                     = rt
-plan rt (PutLink a l b : xs)   = plan (rt { bPutLink = (a, l, b) : bPutLink rt }) xs
-plan rt (PutLabel a l : xs)    = plan (rt { bPutLabel = (a, l) : bPutLabel rt }) xs
-plan rt (PutNode u t n : xs)   = plan (rt { bPutNode = (u, t, n) : bPutNode rt }) xs
-plan rt (DelLink a l mb : xs)  = plan (rt { bUnlinks = (a, l, mb) : bUnlinks rt }) xs
-plan rt (DelNode a : xs)       = plan (rt { bDelNode = a : bDelNode rt }) xs
-plan rt (PutAttr g a v o : xs) = plan (rt { bPutAttr = (g, a, v, o) : bPutAttr rt}) xs
-plan rt (DelAttr g a : xs)     = plan (rt { bDelAttr = (g, a) : bDelAttr rt}) xs
+plan rt []                      = rt
+plan rt (PutLink a l b : xs)    = plan (rt { bPutLink = (a, l, b) : bPutLink rt }) xs
+plan rt (PutLabel a l : xs)     = plan (rt { bPutLabel = (a, l) : bPutLabel rt }) xs
+plan rt (PutNode u t n : xs)    = plan (rt { bPutNode = (u, t, n) : bPutNode rt }) xs
+plan rt (DelLink a l mb : xs)   = plan (rt { bUnlinks = (a, l, mb) : bUnlinks rt }) xs
+plan rt (DelNode a : xs)        = plan (rt { bDelNode = a : bDelNode rt }) xs
+plan rt (PutKAttr g a v o : xs) = plan (rt { bPutKAttr = (g, a, v, o) : bPutKAttr rt}) xs
+plan rt (DelKAttr g a : xs)     = plan (rt { bDelKAttr = (g, a) : bDelKAttr rt}) xs
 
 exec :: (GraphBackend db) => db -> Batch -> IO [(User, Tree, Node, GUID)]
 exec db rt = do
@@ -91,8 +91,8 @@ exec db rt = do
   a2 <- async (mapM_ (putLabel db) (intoChunks 100 $ bPutLabel rt))
   a3 <- async (mapM (mapConcurrently myPutName) (intoChunks 8 $ bPutNode rt))
   a4 <- async (mapM_ (unlink db) (intoChunks 8 $ bUnlinks rt))
-  a5 <- async (mapM_ (putAttr db) (intoChunks 100 $ bPutAttr rt))
-  a6 <- async (mapM_ (delAttr db) (intoChunks 8 $ bDelAttr rt))
+  a5 <- async (mapM_ (putAttr db) (intoChunks 100 $ bPutKAttr rt))
+  a6 <- async (mapM_ (delAttr db) (intoChunks 8 $ bDelKAttr rt))
   mapM_ wait [a1, a2, a4, a5, a6]
   liftM concat (wait a3)
 

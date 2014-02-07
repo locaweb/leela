@@ -26,6 +26,7 @@ module Leela.Data.Types
        , Option (..)
        , Journal (..)
        , Matcher (..)
+       , TimeRange (..)
        , AsByteString (..)
        , glob
        , nextPage
@@ -48,17 +49,12 @@ data Value = Bool Bool
            | UInt64 Word64
            deriving (Eq)
 
-data TimeSpec = Point Resolution Time
-              | Range Resolution Time Time
-              deriving (Eq)
-
-data Resolution = Seconds
-                | Minutes
-                | Hours
-                | Days
-                | Months
-                | Years
-                deriving (Eq)
+data TimeRange = Point Time
+               | LPoint Time
+               | RPoint Time
+               | Range Time Time
+               | NoRange
+               deriving (Eq)
 
 data Matcher = ByLabel GUID Label
              | ByNode GUID
@@ -70,11 +66,14 @@ data Journal = PutLink GUID Label GUID
              | PutNode User Tree Node
              | DelLink GUID Label (Maybe GUID)
              | DelNode GUID
-             | DelAttr GUID Attr
-             | PutAttr GUID Attr Value [Option]
+             | DelKAttr GUID Attr
+             | PutKAttr GUID Attr Value [Option]
+             | DelTAttr GUID Attr TimeRange
+             | PutTAttr GUID Attr Time Value [Option]
              deriving (Eq)
 
 data Option = TTL Int
+            | Limit Int
             deriving (Eq)
 
 data Mode a = All (Maybe a)

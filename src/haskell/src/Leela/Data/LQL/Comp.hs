@@ -27,7 +27,7 @@ module Leela.Data.LQL.Comp
 import           Data.Word
 import           Control.Monad
 import           Leela.Data.LQL
-import           Data.Attoparsec.ByteString as A
+import           Leela.Data.Time
 import           Data.Attoparsec.Char8 (decimal, double, signed)
 import qualified Data.ByteString as B
 import           Leela.Data.Types
@@ -35,6 +35,7 @@ import           Control.Applicative
 import qualified Data.ByteString.UTF8 as U
 import qualified Data.ByteString.Lazy as L
 import           Data.Attoparsec.Char8 ((.*>))
+import           Data.Attoparsec.ByteString as A
 
 data Direction a = L a
                  | R a
@@ -167,10 +168,34 @@ parseValue = do
                  <|> ("(bool false)" .*> return (Bool False))
     _         -> fail "bad value"
 
+parseTimePoint :: Parser Time
+parseTimePoint = do
+  mtime <- liftM fromISO8601 (qstring 18 0x5b 0x5d)
+  case mtime of
+    Just time -> return (fromUTC time)
+    _         -> fail "invalid date"
+
+parseTimeRange :: Parser TimeRange
+parseTimeRange = do
+  (l, r) <- liftM (B.breakByte 0x3a) (qstring 35 0x5b 0x5d)
+  case (l, r) of
+    ("", "")                 -> return NoRange
+    (_, ":")                 -> liftM LPoint (asTime l)
+    ("", _)                  -> liftM RPoint (asTime $ B.drop 1 r)
+    _
+      | ":" `B.isPrefixOf` r -> liftM2 Range (asTime l) (asTime $ B.drop 1 r)
+      | otherwise            -> liftM Point (asTime l)
+
+    where
+      asTime s = case (fromUTC <$> fromISO8601 s) of
+                   Just t  -> return t
+                   Nothing -> fail "invalid time range"
+
 parseWithStmt :: Parser [Option]
-parseWithStmt = "with " .*> parseOption `sepBy` (word8 0x3a)
+parseWithStmt = "with " .*> (parseOption `sepBy` (string ", "))
     where
       parseOption = "ttl:" .*> liftM TTL decimal
+                    <|> "limit:" .*> liftM Limit decimal
 
 parseStmtMake :: Using -> Parser LQL
 parseStmtMake u = do
@@ -221,15 +246,29 @@ parseStmtAttr = "attr put " .*> parsePutAttr
         hardspace
         k <- parseAttr
         hardspace
+        token <- peekWord8
+        case token of
+          Just 0x5b -> parsePutTAttr g k
+          _         -> parsePutKAttr g k
+
+      parsePutKAttr g k = do
         v <- parseValue
         w <- option [] (hardspace >> parseWithStmt)
-        return (AlterStmt [PutAttr g k v w])
+        return (AlterStmt [PutKAttr g k v w])
+
+      parsePutTAttr g k = do
+        t <- parseTimePoint
+        hardspace
+        v <- parseValue
+        w <- option [] (hardspace >> parseWithStmt)
+        return (AlterStmt [PutTAttr g k t v w])
 
       parseGetAttr = do
-        g <- parseGUID
+        g  <- parseGUID
         hardspace
-        a <- parseAttr
-        return (AttrGetStmt g a)
+        a  <- parseAttr
+        ((liftM2 (TAttrGetStmt g a) (hardspace >> parseTimeRange) (option [] (hardspace >> parseWithStmt)))
+         <|> liftM (KAttrGetStmt g a) (option [] (hardspace >> parseWithStmt)))
 
       parseListAttr = do
         g      <- parseGUID
@@ -238,10 +277,11 @@ parseStmtAttr = "attr put " .*> parsePutAttr
         return (AttrListStmt g (fmap Attr $ glob a))
 
       parseDelAttr = do
-        g <- parseGUID
+        g  <- parseGUID
         hardspace
-        k <- parseAttr
-        return (AlterStmt [DelAttr g k])
+        k  <- parseAttr
+        liftM (AlterStmt . (:[])) ((liftM (DelTAttr g k) (hardspace >> parseTimeRange))
+                                   <|> return (DelKAttr g k))
 
 parseStmt :: Using -> Parser LQL
 parseStmt u = do
