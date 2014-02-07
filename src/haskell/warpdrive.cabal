@@ -19,7 +19,7 @@ source-repository head
 
 executable warpdrive
   main-is:          warpdrive.hs
-  ghc-options:      -threaded -rtsopts -W -Wall 
+  ghc-options:      -threaded -rtsopts -W -Wall
   build-depends:    stm               (>= 2.4  && < 3)
                   , hzk               (>= 2.0  && < 3)
                   , base              (>= 4    && < 5)
@@ -27,6 +27,7 @@ executable warpdrive
                   , unix              (>= 2.6  && < 3)
                   , async             (>= 2.0  && < 3)
                   , clock             (>= 0.3  && < 1)
+                  , hedis             (>= 0.6  && < 1)
                   , cereal            (>= 0.4  && < 1)
                   , hflags            (>= 0.2  && < 1)
                   , random            (>= 1.0  && < 2)
