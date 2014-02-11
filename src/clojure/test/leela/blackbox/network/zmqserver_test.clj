@@ -168,24 +168,36 @@
     (storage/with-session [cluster ["127.0.0.1"] "leela"]
 
       (truncate-n-test cluster "get-tattr with no data"
-        (is (= (server/msg-tattr []) (server/handle-message cluster ["get" "t-attr" node "attr"]))))
+        (is (= (server/msg-tattr []) (server/handle-message cluster ["get" "t-attr" node "attr" "0"]))))
 
       (truncate-n-test cluster "get-tattr after put-tattr"
-        (server/handle-message cluster ["put" "t-attr" node "attr" "0" value])
-        (is (= (server/msg-tattr [[0 "foobar"]]) (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "t-attr" node "attr"])))))
+        (server/handle-message cluster ["put" "t-attr" node "attr" "0" "0" value ""])
+        (is (= (server/msg-tattr [[0 "foobar"]]) (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "t-attr" node "attr" "0"])))))
 
       (truncate-n-test cluster "get-tattr after del-tattr"
-        (server/handle-message cluster ["put" "t-attr" node "name" "0" value])
-        (is (= (server/msg-done) (server/handle-message cluster ["del" "t-attr" node "name" "0"])))
-        (is (= (server/msg-tattr []) (server/handle-message cluster ["get" "t-attr" node "name"]))))
+        (server/handle-message cluster ["put" "t-attr" node "name" "0" "0" value ""])
+        (is (= (server/msg-done) (server/handle-message cluster ["del" "t-attr" node "name" "0" ""])))
+        (is (= (server/msg-tattr []) (server/handle-message cluster ["get" "t-attr" node "name" "0"]))))
+
+      (truncate-n-test cluster "get-tattr after del-tattr (selective)"
+        (server/handle-message cluster ["put" "t-attr"
+                                        node "name" "0" "0" value ""
+                                        node "name" "0" "1" value ""])
+        (is (= (server/msg-done) (server/handle-message cluster ["del" "t-attr" node "name" "0" "0"])))
+        (is (= (server/msg-tattr [[1 "foobar"]]) (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "t-attr" node "name" "0"])))))
+
+      (truncate-n-test cluster "get-tattr without indexing"
+        (server/handle-message cluster ["put" "t-attr" node "name" "0" "0" value ""])
+        (is (= (server/msg-)
 
       (truncate-n-test cluster "get-tattr limit"
-        (server/handle-message cluster ["put" "t-attr" node "name" "0" value])
-        (server/handle-message cluster ["put" "t-attr" node "name" "1" value])
-        (server/handle-message cluster ["put" "t-attr" node "name" "2" value])
-        (is (= 3 (count (server/handle-message cluster ["get" "t-attr" node "name" "1"]))))
-        (is (= 5 (count (server/handle-message cluster ["get" "t-attr" node "name" "2"]))))
-        (is (= 7 (count (server/handle-message cluster ["get" "t-attr" node "name" "3"]))))))))
+        (server/handle-message cluster ["put" "t-attr"
+                                        node "name" "0" "0" value ""
+                                        node "name" "0" "1" value ""
+                                        node "name" "0" "2" value ""])
+        (is (= 3 (count (server/handle-message cluster ["get" "t-attr" node "name" "0" "1"]))))
+        (is (= 5 (count (server/handle-message cluster ["get" "t-attr" node "name" "0" "2"]))))
+        (is (= 7 (count (server/handle-message cluster ["get" "t-attr" node "name" "0" "3"]))))))))
 
 (deftest test-zmqserver-handle-k-attr-message
   (let [node (str (f/uuid-1))

@@ -59,7 +59,7 @@
     (create-table
      cluster :t_attr
      (if-not-exists)
-     (column-definitions {:key :uuid :name :varchar :slot :int :value :blob :primary-key [[:key :name] :slot]})
+     (column-definitions {:key :uuid :name :varchar :partition :int :slot :int :value :blob :primary-key [[:key :name :partition] :slot]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
   (when-not (describe-table cluster keyspace :k_attr)
     (warn "creating table k_attr")
@@ -79,6 +79,13 @@
     (warn "creating table p_index")
     (create-table
      cluster :p_index
+     (if-not-exists)
+     (column-definitions {:key :uuid :rev :boolean :name :varchar :primary-key [[:key :rev] :name]})
+     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
+  (when-not (describe-table cluster keyspace :t_index)
+    (warn "creating table t_index")
+    (create-table
+     cluster :t_index
      (if-not-exists)
      (column-definitions {:key :uuid :rev :boolean :name :varchar :primary-key [[:key :rev] :name]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}}))))
@@ -106,7 +113,7 @@
      ~@body))
 
 (defn truncate-all [cluster]
-  (doseq [t [:graph :g_index :p_index :t_attr :k_attr :n_naming :g_naming]]
+  (doseq [t [:graph :g_index :p_index :t_index :t_attr :k_attr :n_naming :g_naming]]
     (truncate cluster t)))
 
 (defn fmt-put-index-opts [table data opts]
@@ -142,10 +149,33 @@
       (cons (insert-query :k_attr data) idx)
       (cons (insert-query :k_attr data (apply using opts)) idx))))
 
+(defn fmt-put-tattr [[data opts0]]
+  (let [opts (dissoc opts0 :index)
+        idx (if (:index opts0)
+              (fmt-put-index-opts :t_index
+                                  {:key (:key data)
+                                   :name (:name data)} opts)
+              [])]
+    (if (empty? opts)
+      (cons (insert-query :t_attr data) idx)
+      (cons (insert-query :t_attr data (apply using opts)) idx))))
+
 (defn fmt-del-kattr [data]
   (cons (delete-query :k_attr (where :key (:key data) :name (:name data)))
         (fmt-del-index :p_index {:key (:key data)
                                  :name (:name data)})))
+
+(defn fmt-del-tattr [data]
+  (if (contains? data :slot)
+    [(delete-query :t_attr (where :key (:key data)
+                                  :name (:name data)
+                                  :partition (:partition data)
+                                  :slot (:slot data)))]
+    (cons (delete-query :t_attr (where :key (:key data)
+                                       :name (:name data)
+                                       :partition (:partition data)))
+          (fmt-del-index :t_index {:key (:key data)
+                                   :name (:name data)}))))
 
 (defn put-index [cluster table indexes]
   (let [query (->> indexes
@@ -227,22 +257,29 @@
                          (where :a k :l l))
                        (limit +limit+))))
 
-(defn put-tattr [cluster k name slot value]
-  (insert cluster
-          :t_attr {:key k :name name :slot slot :value value}))
+(defn put-tattr [cluster attrs]
+  (let [query (->> attrs
+                   (mapcat fmt-put-tattr)
+                   (apply queries)
+                   (batch-query (logged false))
+                   client/render-query)]
+    (client/execute cluster query)))
 
-(defn get-tattr [cluster k name]
+(defn get-tattr [cluster k name partition]
   (map (fn [row] [(:slot row) (f/binary-to-bytes (:value row))])
        (select cluster
                :t_attr
                (columns :slot :value)
-               (where :key k :name name)
+               (where :key k :name name :partition partition)
                (limit +limit+))))
 
-(defn del-tattr [cluster k name slot]
-  (delete cluster
-          :t_attr
-          (where :key k :name name :slot slot)))
+(defn del-tattr [cluster attrs]
+  (let [query (->> attrs
+                   (mapcat fmt-del-tattr)
+                   (apply queries)
+                   (batch-query (logged false))
+                   client/render-query)]
+    (client/execute cluster query)))
 
 (defn put-kattr [cluster attrs]
   (let [query (->> attrs
