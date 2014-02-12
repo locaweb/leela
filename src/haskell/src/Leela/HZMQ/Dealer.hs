@@ -66,7 +66,7 @@ notify mvar mmsg = atomically (putTMVar mvar mmsg)
 logresult :: Job -> Maybe SomeException -> IO ()
 logresult job me = do
   elapsed <- fmap (`diff` (jtime job)) now
-  linfo HZMQ $ printf "%s (%.4fms)" (failOrSucc me) (1000 * toDouble elapsed)
+  linfo HZMQ $ printf "%s (%.4fms)" (failOrSucc me) (1000 * elapsed)
     where
       failOrSucc :: Maybe SomeException -> String
       failOrSucc Nothing  = "DEALER.ok"

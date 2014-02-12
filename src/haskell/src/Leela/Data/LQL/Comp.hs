@@ -170,10 +170,10 @@ parseValue = do
 
 parseTimePoint :: Parser Time
 parseTimePoint = do
-  mtime <- liftM fromISO8601 (qstring 18 0x5b 0x5d)
-  case mtime of
-    Just time -> return (fromUTC time)
-    _         -> fail "invalid date"
+  _ <- word8 0x5b
+  r <- liftM fromSeconds double
+  _ <- word8 0x5d
+  return r
 
 parseTimeRange :: Parser TimeRange
 parseTimeRange = do
@@ -187,7 +187,7 @@ parseTimeRange = do
       | otherwise            -> liftM Point (asTime l)
 
     where
-      asTime s = case (fromUTC <$> fromISO8601 s) of
+      asTime s = case (fromISO8601 s) of
                    Just t  -> return t
                    Nothing -> fail "invalid time range"
 

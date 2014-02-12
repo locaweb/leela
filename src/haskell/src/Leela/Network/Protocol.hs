@@ -95,7 +95,7 @@ readDecimal s = case (B8.readInteger s) of
                   _            -> Left $ Fail 400 (Just "syntax error: invalid number")
 
 readTime :: B.ByteString -> Either Reply Time
-readTime = fmap (flip mktime 0) . readDecimal
+readTime = fmap (fromSeconds . fromIntegral) . readDecimal
 
 readSignature :: B.ByteString -> Either Reply Signature
 readSignature s =

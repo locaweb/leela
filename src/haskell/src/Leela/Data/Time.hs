@@ -16,86 +16,56 @@
 
 module Leela.Data.Time
        ( Time
-       , add
-       , mul
        , now
        , diff
-       , zero
-       , mktime
-       , sysnow
        , seconds
-       , nseconds
-       , toDouble
        , fromUTC
+       , dateTime
        , fromISO8601
+       , fromSeconds
+       , fromDateTime
        ) where
 
 import           Data.Time
-import           System.Clock
 import           Control.Applicative
 import           Data.Time.Clock.POSIX
 import qualified Data.ByteString.Char8 as B
+import           Data.Time.Calendar.OrdinalDate
 
-newtype Time = Time { unTime :: (Int, Int) }
+newtype Time = Time { unTime :: UTCTime }
              deriving (Show, Eq, Ord)
 
-seconds :: Time -> Int
-seconds = fst . unTime
+seconds :: Time -> Double
+seconds = realToFrac . utcTimeToPOSIXSeconds . unTime
 
-nseconds :: Time -> Int
-nseconds = snd . unTime
+dateTime :: Time -> (Integer, Int, Double)
+dateTime (Time u) = let (year, dayofyear) = toOrdinalDate $ utctDay u
+                        time              = realToFrac $ utctDayTime u
+                    in (year, dayofyear, time)
 
-toDouble :: Time -> Double
-toDouble t =
-  let s = fromIntegral (seconds t)
-      n = fromIntegral (nseconds t)
-  in s + n / nmax
-
-mktime :: Int -> Int -> Time
-mktime s n
-    | s < 0 || n < 0 = error "mktime: negative numbers"
-    | n < nmax       = Time (s, n)
-    | otherwise      =
-        let (s1, n1) = n `quotRem` nmax
-        in Time (s+s1, n1)
-
-zero :: Time -> Bool
-zero t = seconds t == 0 && nseconds t == 0
-
-nmax :: (Num a) => a
-nmax = 1000000000
-
-diff :: Time -> Time -> Time
-diff t0 t1 =
-  let s0     = abs $ seconds t1 - seconds t0
-      (r, n) = (nseconds t1 - nseconds t0) `quotRem` nmax
-      s      = abs $ s0 - (abs r)
-  in mktime s (abs n)
-
-add :: Time -> Time -> Time
-add t0 t1 = mktime (seconds t0 + seconds t1) (nseconds t0 + nseconds t1)
-
-mul :: Time -> Int -> Time
-mul t x = mktime (x * seconds t) (nseconds t)
-
-now :: IO Time
-now = do
-  t <- getTime Monotonic
-  return (Time (sec t, nsec t))
+diff :: Time -> Time -> Double
+diff (Time a) (Time b) = realToFrac $ a `diffUTCTime` b
 
 asInt :: (Num i) => B.ByteString -> Maybe i
 asInt s = case (B.readInt s) of
            Just (n, "") -> Just (fromIntegral n)
            _            -> Nothing
 
-fromUTC :: UTCTime -> Time
-fromUTC t = Time (floor $ utcTimeToPOSIXSeconds t, 0)
 
-fromISO8601 :: B.ByteString -> Maybe UTCTime
+fromSeconds :: Double -> Time
+fromSeconds = Time . posixSecondsToUTCTime . realToFrac
+
+fromDateTime :: Integer -> Int -> Double -> Time
+fromDateTime year dayofyear time = Time $ UTCTime (fromOrdinalDate year dayofyear) (realToFrac time)
+
+fromUTC :: UTCTime -> Time
+fromUTC = undefined
+
+fromISO8601 :: B.ByteString -> Maybe Time
 fromISO8601 date
-  | t == "T" && z == "Z" = liftA2 UTCTime
+  | t == "T" && z == "Z" = liftA Time (liftA2 UTCTime
                              (fromGregorian <$> (asInt year) <*> (asInt month) <*> (asInt day))
-                             ((+) <$> ((3600 *) <$> asInt hour) <*> ((+) <$> ((60 *) <$> asInt minute) <*> asInt second))
+                             ((+) <$> ((3600 *) <$> asInt hour) <*> ((+) <$> ((60 *) <$> asInt minute) <*> asInt second)))
   | otherwise            = Nothing
     where
       (year, monthPart) = B.splitAt 4 date
@@ -106,5 +76,5 @@ fromISO8601 date
       (minute, secPart) = B.splitAt 2 minPart
       (second, z)       = B.splitAt 2 secPart
 
-sysnow :: IO UTCTime
-sysnow = getCurrentTime
+now :: IO Time
+now = fmap Time getCurrentTime

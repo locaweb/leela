@@ -51,7 +51,7 @@ reqTime (Request val _ _) = val
 logresult :: Request -> Maybe SomeException -> IO ()
 logresult job me = do
   elapsed <- fmap (`diff` (reqTime job)) now
-  linfo HZMQ $ printf "%s (%.4fms)" (failOrSucc me) (1000 * toDouble elapsed)
+  linfo HZMQ $ printf "%s (%.4fms)" (failOrSucc me) (1000 * elapsed)
     where
       failOrSucc :: Maybe SomeException -> String
       failOrSucc Nothing  = "ROUTER.ok"
