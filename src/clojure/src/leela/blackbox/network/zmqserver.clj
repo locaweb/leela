@@ -215,10 +215,10 @@
   (let [table (get {"k-attr" :p_index
                     "t-attr" :t_index} (first msg))]
     (case (f/bytes-to-str (second msg))
-      "all" (msg-nattr (exec-getindex-all cluster :p_index (drop 2 msg)))
-      "pre" (msg-nattr (exec-getindex-prefix cluster :p_index (drop 2 msg)))
-      "suf" (msg-nattr (exec-getindex-suffix cluster :p_index (drop 2 msg)))
-      "ext" (msg-nattr (exec-getindex-exact cluster :p_index (drop 2 msg))))))
+      "all" (msg-nattr (exec-getindex-all cluster table (drop 2 msg)))
+      "pre" (msg-nattr (exec-getindex-prefix cluster table (drop 2 msg)))
+      "suf" (msg-nattr (exec-getindex-suffix cluster table (drop 2 msg)))
+      "ext" (msg-nattr (exec-getindex-exact cluster table (drop 2 msg))))))
 
 (defn exec-putlabel [cluster labels]
   (storage/with-consistency :one
