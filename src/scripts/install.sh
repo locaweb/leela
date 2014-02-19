@@ -45,7 +45,7 @@ install_debian () {
     oldpath=$(pwd)
     TMPDIR=$(mktemp -d) && cd "$TMPDIR" && {
       file="$TMPDIR"/$(basename "$u")
-      wget -q -O"$file" "$u"
+      wget --no-check-certificate -q -O"$file" "$u"
       if echo $u | grep -q Twisted
       then
         tar -x -j --xform 's,[^/]*/,,' -f "$file"

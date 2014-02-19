@@ -2,7 +2,7 @@ Source: leela
 Section: misc
 Priority: extra
 Maintainer: Diego Souza <dsouza@c0d3.xxx>
-Build-Depends: debhelper, build-essential, realpath, python (>= 2.6), ghc (>= 7.6), cabal-install (>= 1.16)
+Build-Depends: debhelper, build-essential, realpath, python (>= 2.6), ghc (>= 7.6), cabal-install (>= 1.16), wget, python-dev, python-setuptools
 Standards-Version: 3.9.1
 X-Python-Version: >= 2.6
 Homepage: https://github.com/locaweb/leela
