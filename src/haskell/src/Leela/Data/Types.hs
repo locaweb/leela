@@ -30,6 +30,14 @@ module Leela.Data.Types
        , AsByteString (..)
        , glob
        , nextPage
+       , setOpt
+       , isPutNode
+       , isPutLink
+       , isDelLink
+       , isPutTAttr
+       , isPutLabel
+       , isPutKAttr
+       , isDelKAttr
        ) where
 
 import           Data.Int
@@ -47,13 +55,9 @@ data Value = Bool Bool
            | Double Double
            | UInt32 Word32
            | UInt64 Word64
-           deriving (Eq)
+           deriving (Show, Eq)
 
-data TimeRange = Point Time
-               | LPoint Time
-               | RPoint Time
-               | Range Time Time
-               | NoRange
+data TimeRange = Range Time Time
                deriving (Eq)
 
 data Matcher = ByLabel GUID Label
@@ -73,13 +77,53 @@ data Journal = PutLink GUID Label GUID
              deriving (Eq)
 
 data Option = TTL Int
-            | Limit Int
+            | Indexing
             deriving (Eq)
 
 data Mode a = All (Maybe a)
             | Prefix a a
             | Suffix a a
             | Precise a
+
+
+isDelKAttr :: Journal -> Bool
+isDelKAttr (DelKAttr _ _) = True
+isDelKAttr _              = False
+
+isPutKAttr :: Journal -> Bool
+isPutKAttr (PutKAttr _ _ _ _) = True
+isPutKAttr _                  = False
+
+isDelLink :: Journal -> Bool
+isDelLink (DelLink _ _ _) = True
+isDelLink _               = False
+
+isPutLink :: Journal -> Bool
+isPutLink (PutLink _ _ _) = True
+isPutLink _               = False
+
+isPutLabel :: Journal -> Bool
+isPutLabel (PutLabel _ _) = True
+isPutLabel _              = False
+
+isPutNode :: Journal -> Bool
+isPutNode (PutNode _ _ _) = True
+isPutNode _               = False
+
+isPutTAttr :: Journal -> Bool
+isPutTAttr (PutTAttr _ _ _ _ _) = True
+isPutTAttr _                    = False
+
+setOpt :: Option -> [Option] -> [Option]
+setOpt o1 []       = [o1]
+setOpt o1 (o : xs)
+  | o `same` o1    = o1 : xs
+  | otherwise      = o : setOpt o1 xs
+
+    where
+      same (TTL _) (TTL _)   = True
+      same Indexing Indexing = True
+      same _ _               = False
 
 glob :: B.ByteString -> Mode B.ByteString
 glob s

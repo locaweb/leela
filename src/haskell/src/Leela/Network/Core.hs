@@ -30,9 +30,10 @@ import           Leela.Helpers
 import           Control.Monad
 import           Leela.Data.LQL
 import qualified Data.ByteString as B
+import           Leela.Data.Time
 import           Leela.Data.Graph
-import           Control.Exception
 import           Leela.Data.Types
+import           Control.Exception
 import           Control.Concurrent
 import           Leela.Data.QDevice
 import           Leela.Data.Endpoint
@@ -43,6 +44,8 @@ import           Data.ByteString.UTF8 (fromString)
 import           System.Random.Shuffle
 import           Control.Concurrent.STM
 import           Leela.Network.Protocol
+import           Leela.Storage.KeyValue
+import           Control.Concurrent.Async
 
 data CoreServer = CoreServer { stat   :: IORef [(String, [Endpoint])]
                              , fdseq  :: TVar FH
@@ -164,38 +167,51 @@ navigate db queue (source, pipeline) = do
         dstpipe <- forkFilter srcpipe f
         forkFilters dstpipe fs
 
-evalLQL :: (GraphBackend m) => m -> CoreServer -> Device Reply -> [LQL] -> IO ()
-evalLQL _ _ queue []         = devwriteIO queue Last
-evalLQL db core queue (x:xs) =
+evalLQL :: (KeyValue cache, GraphBackend m, AttrBackend m) => cache -> m -> CoreServer -> Device Reply -> [LQL] -> IO ()
+evalLQL _ _ _ queue []             = devwriteIO queue Last
+evalLQL cache db core queue (x:xs) =
   case x of
     PathStmt q        -> do
       navigate db queue q
-      evalLQL db core queue xs
-    AttrListStmt g a  -> do
-      enumAttrs db (devwriteIO queue . Item . NAttrs g) g a
-      evalLQL db core queue xs
+      evalLQL cache db core queue xs
+    TAttrListStmt g a  -> do
+      enumTAttrs db (devwriteIO queue . Item . NAttrs g) g a
+      evalLQL cache db core queue xs
+    KAttrListStmt g a  -> do
+      enumKAttrs db (devwriteIO queue . Item . NAttrs g) g a
+      evalLQL cache db core queue xs
     KAttrGetStmt g a _ -> do
       getAttr db g a >>= devwriteIO queue . Item . KAttr g a
-      evalLQL db core queue xs
+      evalLQL cache db core queue xs
+    TAttrGetStmt g a (Range t0 t1) _ -> do
+      let day0         = fst $ dateTime t0
+          day1         = fst $ dateTime t1
+          filterSeries = filter (\(t, _) -> (t >= t0) && (t <= t1))
+          flush series = when (not $ null series) (devwriteIO queue . Item . TAttr g a $ series)
+      flush =<< liftM filterSeries (getTAttr db g a t0 24)
+      forM_ [(succ day0)..(pred day1)] $ \day ->
+        flush =<< getTAttr db g a (fromDateTime day 0) 24
+      when (day0 < day1) (flush =<< liftM filterSeries (getTAttr db g a t1 24))
+      evalLQL cache db core queue xs
     NameStmt _ g      -> do
       (gUser, gTree, gName) <- getName db g
       devwriteIO queue (Item $ Name gUser gTree gName g)
-      evalLQL db core queue xs
+      evalLQL cache db core queue xs
     StatStmt          -> do
       state <- dumpStat core
       devwriteIO queue (Item $ Stat state)
-      evalLQL db core queue xs
+      evalLQL cache db core queue xs
     AlterStmt journal -> do
-      names <- update db journal
+      names <- exec db journal
       mapM_ (\(u, t, n, g) -> devwriteIO queue (Item $ Name u t n g)) names
-      evalLQL db core queue xs
+      evalLQL cache db core queue xs
     GUIDStmt u n      -> do
       mg <- getGUID db (uUser u) (uTree u) n
       case mg of
         Nothing -> devwriteIO queue (Fail 404 Nothing)
         Just g  -> do
           devwriteIO queue (Item $ Name (uUser u) (uTree u) n g)
-          evalLQL db core queue xs
+          evalLQL cache db core queue xs
 
 evalFinalizer :: FH -> Device Reply -> Either SomeException () -> IO ()
 evalFinalizer chan dev (Left e)  = do
@@ -206,16 +222,16 @@ evalFinalizer chan dev (Right _)   = do
   closeIO dev
   linfo Network $ printf "[fd: %s] session terminated successfully" (show chan)
 
-process :: (GraphBackend m) => m -> CoreServer -> Query -> IO Reply
-process storage srv (Begin sig msg) =
+process :: (KeyValue cache, GraphBackend m, AttrBackend m) => cache -> m -> CoreServer -> Query -> IO Reply
+process cache storage srv (Begin sig msg) =
   case (chkloads (parseLQL $ sigUser sig) msg) of
     Left _      -> return $ Fail 400 (Just "syntax error")
     Right stmts -> do
       (fh, dev) <- makeFD srv (sigUser sig)
       lnotice Network (printf "BEGIN %s %d" (show msg) fh)
-      _         <- forkFinally (evalLQL storage srv dev stmts) (evalFinalizer fh dev)
+      _         <- forkFinally (evalLQL cache storage srv dev stmts) (evalFinalizer fh dev)
       return $ Done fh
-process _ srv (Fetch sig fh) = do
+process _ _ srv (Fetch sig fh) = do
   let channel = (sigUser sig, fh)
   ldebug Network (printf "FETCH %d" fh)
   mdev <- selectFD srv channel
@@ -227,7 +243,7 @@ process _ srv (Fetch sig fh) = do
         [] -> closeIO dev >> return Last
         _  -> let answer = foldr1 reduce blocks
               in when (isEOF answer) (closeIO dev) >> return answer
-process _ srv (Close nowait sig fh) = do
+process _ _ srv (Close nowait sig fh) = do
   lnotice Network (printf "CLOSE %d" fh)
   closeFD srv nowait (sigUser sig, fh)
   return Last

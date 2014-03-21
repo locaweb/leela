@@ -14,7 +14,9 @@
 ;; limitations under the License.
 
 (ns leela.blackbox.storage.cassandra
-  (:use     [clojure.tools.logging :only [info warn]]
+  (:use     [clj-time.core :only [date-time year month day]]
+            [clj-time.coerce]
+            [clojure.tools.logging :only [info warn]]
             [clojurewerkz.cassaforte.query]
             [clojurewerkz.cassaforte.multi.cql])
   (:require [clojure.string :as s]
@@ -22,6 +24,16 @@
             [clojurewerkz.cassaforte.client :as client]))
 
 (def +limit+ 32)
+
+(defn decode-time [time-in-sec]
+  (let [time (from-long (* 1000 time-in-sec))
+        bucket (quot (to-long (date-time (year time) (month time) (day time))) 1000)
+        hitime (quot (- time-in-sec bucket) 3600)
+        lotime (rem (- time-in-sec bucket) 3600)]
+    [bucket hitime lotime]))
+
+(defn encode-time [bucket hitime lotime]
+  (+ bucket (* 3600 hitime) lotime))
 
 (defn check-schema [cluster keyspace]
   (when-not (describe-keyspace cluster keyspace)
@@ -59,7 +71,7 @@
     (create-table
      cluster :t_attr
      (if-not-exists)
-     (column-definitions {:key :uuid :name :varchar :partition :int :slot :int :value :blob :primary-key [[:key :name :partition] :slot]})
+     (column-definitions {:key :uuid :name :varchar :bucket :bigint :hitime :int :data (map-type :int :blob) :primary-key [[:key :name :bucket] :hitime]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
   (when-not (describe-table cluster keyspace :k_attr)
     (warn "creating table k_attr")
@@ -75,17 +87,17 @@
      (if-not-exists)
      (column-definitions {:key :uuid :rev :boolean :name :varchar :primary-key [[:key :rev] :name]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
-  (when-not (describe-table cluster keyspace :p_index)
-    (warn "creating table p_index")
+  (when-not (describe-table cluster keyspace :k_index)
+    (warn "creating table k_index")
     (create-table
-     cluster :p_index
+     cluster :k_index
      (if-not-exists)
      (column-definitions {:key :uuid :rev :boolean :name :varchar :primary-key [[:key :rev] :name]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
   (when-not (describe-table cluster keyspace :t_index)
     (warn "creating table t_index")
-    (create-table
-     cluster :t_index
+    (create-table 
+    cluster :t_index
      (if-not-exists)
      (column-definitions {:key :uuid :rev :boolean :name :varchar :primary-key [[:key :rev] :name]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}}))))
@@ -113,7 +125,7 @@
      ~@body))
 
 (defn truncate-all [cluster]
-  (doseq [t [:graph :g_index :p_index :t_index :t_attr :k_attr :n_naming :g_naming]]
+  (doseq [t [:graph :g_index :k_index :t_index :t_attr :k_attr :n_naming :g_naming]]
     (truncate cluster t)))
 
 (defn fmt-put-index-opts [table data opts]
@@ -140,42 +152,59 @@
     (delete-query :graph (where :a (:a data) :l (:l data) :b b))
     (delete-query :graph (where :a (:a data) :l (:l data)))))
 
-(defn fmt-put-kattr [[data opts]]
-  (let [idx (fmt-put-index-opts :p_index
-                                {:key (:key data)
-                                 :name (:name data)}
-                                opts)]
+(defn fmt-put-kattr [[data opts0]]
+  (let [opts (flatten (seq (dissoc opts0 :index)))
+        idx (if (:index opts0)
+              (fmt-put-index-opts :k_index
+                                  {:key (:key data)
+                                   :name (:name data)} opts)
+              [])]
     (if (empty? opts)
       (cons (insert-query :k_attr data) idx)
       (cons (insert-query :k_attr data (apply using opts)) idx))))
 
 (defn fmt-put-tattr [[data opts0]]
-  (let [opts (dissoc opts0 :index)
+  (let [opts (flatten (seq (dissoc opts0 :index)))
+        [bucket hitime lotime] (decode-time (:time data))
         idx (if (:index opts0)
               (fmt-put-index-opts :t_index
                                   {:key (:key data)
                                    :name (:name data)} opts)
               [])]
     (if (empty? opts)
-      (cons (insert-query :t_attr data) idx)
-      (cons (insert-query :t_attr data (apply using opts)) idx))))
+      (cons (update-query :t_attr
+                          {:data [+ {lotime (:value data)}]}
+                          (where
+                           :key (:key data)
+                           :name (:name data)
+                           :bucket bucket
+                           :hitime hitime)) idx)
+      (cons (update-query :t_attr
+                          {:data [+ {lotime (:value data)}]}
+                          (where
+                           :key (:key data)
+                           :name (:name data)
+                           :bucket bucket
+                           :hitime hitime)
+                           (apply using opts)) idx))))
 
 (defn fmt-del-kattr [data]
   (cons (delete-query :k_attr (where :key (:key data) :name (:name data)))
-        (fmt-del-index :p_index {:key (:key data)
+        (fmt-del-index :k_index {:key (:key data)
                                  :name (:name data)})))
 
 (defn fmt-del-tattr [data]
-  (if (contains? data :slot)
-    [(delete-query :t_attr (where :key (:key data)
-                                  :name (:name data)
-                                  :partition (:partition data)
-                                  :slot (:slot data)))]
-    (cons (delete-query :t_attr (where :key (:key data)
-                                       :name (:name data)
-                                       :partition (:partition data)))
-          (fmt-del-index :t_index {:key (:key data)
-                                   :name (:name data)}))))
+  (if (contains? data :time)
+    (let [[bucket hitime lotime] (decode-time (:time data))]
+      [(delete-query
+        :t_attr
+        (columns {:data lotime})
+        (where :key (:key data)
+               :name (:name data)
+               :bucket bucket
+               :hitime hitime))])
+    (fmt-del-index :t_index {:key (:key data)
+                             :name (:name data)})))
 
 (defn put-index [cluster table indexes]
   (let [query (->> indexes
@@ -265,13 +294,18 @@
                    client/render-query)]
     (client/execute cluster query)))
 
-(defn get-tattr [cluster k name partition]
-  (map (fn [row] [(:slot row) (f/binary-to-bytes (:value row))])
-       (select cluster
-               :t_attr
-               (columns :slot :value)
-               (where :key k :name name :partition partition)
-               (limit +limit+))))
+(defn get-tattr [cluster k name time]
+  (let [[bucket hitime] (take 2 (decode-time time))]
+    (mapcat
+     (fn [row]
+       (map
+        (fn [[lotime value]]
+          [(encode-time bucket (:hitime row) lotime) (f/binary-to-bytes value)])
+        (:data row)))
+     (select cluster
+             :t_attr
+             (columns :hitime :data)
+             (where :key k :name name :bucket bucket :hitime [:>= hitime])))))
 
 (defn del-tattr [cluster attrs]
   (let [query (->> attrs

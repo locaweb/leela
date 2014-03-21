@@ -45,3 +45,8 @@ foreverWith check io = do
 
 sleep :: Int -> IO ()
 sleep s = threadDelay (s * 1000000)
+
+intoChunks :: Int -> [a] -> [[a]]
+intoChunks _ [] = []
+intoChunks n l  = let (a, rest) = splitAt n l
+                  in a : intoChunks n rest

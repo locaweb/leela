@@ -30,6 +30,12 @@
 PyTypeObject pylql_context_type = { PyObject_HEAD_INIT(NULL) };
 PyTypeObject pylql_cursor_type  = { PyObject_HEAD_INIT(NULL) };
 
+typedef PyObject*(*to_python_f)(const void *);
+
+static
+PyObject *__to_python_from_double(const void *raw)
+{ return(PyFloat_FromDouble(*((const double*) raw))); }
+
 static
 PyObject *pylql_context_init(PyTypeObject *, PyObject *, PyObject *);
 
@@ -106,62 +112,48 @@ PyObject *__make_nattr_msg(lql_nattr_t *nattr)
 }
 
 static
-PyObject *__make_kattr_msg(lql_kattr_t *kattr)
+PyObject *__make_pyvalue(const lql_value_t *value)
 {
-  PyObject *tuple = PyTuple_New(3);
-  PyObject *value = NULL;
-  if (tuple == NULL)
-  { return(NULL); }
+  PyObject *pyvalue = NULL;
 
-  int rc = PyTuple_SetItem(tuple, 0, PyString_FromString(kattr->guid))
-         | PyTuple_SetItem(tuple, 1, PyString_FromString(kattr->name));
-
-  switch (kattr->value->vtype)
+  switch (value->vtype)
   {
   case LQL_BOOL_TYPE:
-    if (kattr->value->data.v_bool)
-    { value = Py_True; }
+    if (value->data.v_bool)
+    { pyvalue = Py_True; }
     else
-    { value = Py_False; }
-    Py_INCREF(value);
-    rc = rc | PyTuple_SetItem(tuple, 2, value);
+    { pyvalue = Py_False; }
+    Py_INCREF(pyvalue);
     break;
   case LQL_TEXT_TYPE:
-    rc = rc | PyTuple_SetItem(tuple, 2, PyString_FromString(kattr->value->data.v_str));
+    pyvalue = PyString_FromString(value->data.v_str);
     break;
   case LQL_INT32_TYPE:
-    rc = rc | PyTuple_SetItem(tuple, 2, PyInt_FromLong(kattr->value->data.v_i32));
+    pyvalue = PyInt_FromLong(value->data.v_i32);
     break;
   case LQL_UINT32_TYPE:
-    rc = rc | PyTuple_SetItem(tuple, 2, PyInt_FromLong(kattr->value->data.v_u32));
+    pyvalue = PyInt_FromLong(value->data.v_u32);
     break;
   case LQL_INT64_TYPE:
-    rc = rc | PyTuple_SetItem(tuple, 2, PyLong_FromLongLong(kattr->value->data.v_i64));
+    pyvalue = PyLong_FromLongLong(value->data.v_i64);
     break;
   case LQL_UINT64_TYPE:
-    rc = rc | PyTuple_SetItem(tuple, 2, PyLong_FromLongLong(kattr->value->data.v_u64));
+    pyvalue = PyLong_FromLongLong(value->data.v_u64);
     break;
   case LQL_DOUBLE_TYPE:
-    rc = rc | PyTuple_SetItem(tuple, 2, PyFloat_FromDouble(kattr->value->data.v_double));
+    pyvalue = PyFloat_FromDouble(value->data.v_double);
     break;
   case LQL_NIL_TYPE:
     Py_INCREF(Py_None);
-    value = Py_None;
-    rc    = rc | PyTuple_SetItem(tuple, 2, value);
+    pyvalue = Py_None;
     break;
   };
 
-  if (rc != 0)
-  {
-    Py_DECREF(tuple);
-    return(NULL);
-  }
-
-  return(tuple);
+  return(pyvalue);
 }
 
 static
-PyObject *__make_list_of_tuples(int size, lql_tuple2_t *entries)
+PyObject *__make_list_of_tuples(int size, lql_tuple2_t *entries, to_python_f parse_fst, to_python_f parse_snd)
 {
   PyObject *tuple = PyTuple_New(size);
   if (tuple == NULL)
@@ -176,8 +168,8 @@ PyObject *__make_list_of_tuples(int size, lql_tuple2_t *entries)
       return(NULL);
     }
 
-    if (PyTuple_SetItem(entry, 0, PyString_FromString(entries[k].fst)) != 0
-        || PyTuple_SetItem(entry, 1, PyString_FromString(entries[k].snd)) != 0)
+    if (PyTuple_SetItem(entry, 0, parse_fst(entries[k].fst)) != 0
+        || PyTuple_SetItem(entry, 1, parse_snd(entries[k].snd)) != 0)
     {
       Py_DECREF(tuple);
       Py_DECREF(entry);
@@ -195,12 +187,52 @@ PyObject *__make_list_of_tuples(int size, lql_tuple2_t *entries)
 }
 
 static
+PyObject *__make_tattr_msg(lql_tattr_t *tattr)
+{
+  PyObject *tuple = PyTuple_New(3);
+  if (tuple == NULL)
+  { return(NULL); }
+
+  int rc = PyTuple_SetItem(tuple, 0, PyString_FromString(tattr->guid))
+    | PyTuple_SetItem(tuple, 1, PyString_FromString(tattr->name))
+    | PyTuple_SetItem(tuple, 2, __make_list_of_tuples(tattr->size, tattr->series, __to_python_from_double, (to_python_f) __make_pyvalue));
+
+  if (rc != 0)
+  {
+    Py_DECREF(tuple);
+    return(NULL);
+  }
+
+  return(tuple);
+}
+
+static
+PyObject *__make_kattr_msg(lql_kattr_t *kattr)
+{
+  PyObject *tuple = PyTuple_New(3);
+  if (tuple == NULL)
+  { return(NULL); }
+
+  int rc = PyTuple_SetItem(tuple, 0, PyString_FromString(kattr->guid))
+         | PyTuple_SetItem(tuple, 1, PyString_FromString(kattr->name))
+         | PyTuple_SetItem(tuple, 2, __make_pyvalue(kattr->value));
+
+  if (rc != 0)
+  {
+    Py_DECREF(tuple);
+    return(NULL);
+  }
+
+  return(tuple);
+}
+
+static
 PyObject *__make_path_msg(lql_path_t *path)
-{ return(__make_list_of_tuples(path->size, path->entries)); }
+{ return(__make_list_of_tuples(path->size, path->entries, (to_python_f) PyString_FromString, (to_python_f) PyString_FromString)); }
 
 static
 PyObject *__make_stat_msg(lql_stat_t *stat)
-{ return(__make_list_of_tuples(stat->size, stat->attrs)); }
+{ return(__make_list_of_tuples(stat->size, stat->attrs, (to_python_f) PyString_FromString, (to_python_f) PyString_FromString)); }
 
 static
 void __make_fail_msg(lql_fail_t *fail)
@@ -580,6 +612,19 @@ PyObject *pylql_cursor_fetch(PyObject *self, PyObject *args)
       value = __make_kattr_msg(kattr);
       type  = PyString_FromString("k-attr");
       leela_lql_kattr_free(kattr);
+    }
+  }
+  else if (row == LQL_TATTR_MSG)
+  {
+    lql_tattr_t *tattr;
+    Py_BEGIN_ALLOW_THREADS
+    tattr = leela_lql_fetch_tattr(cursor->cursor);
+    Py_END_ALLOW_THREADS
+    if (tattr != NULL)
+    {
+      value = __make_tattr_msg(tattr);
+      type  = PyString_FromString("t-attr");
+      leela_lql_tattr_free(tattr);
     }
   }
   else if (row == LQL_FAIL_MSG)

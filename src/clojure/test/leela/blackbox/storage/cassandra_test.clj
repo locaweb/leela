@@ -16,7 +16,7 @@
 
 (deftest test-get-gindex
   (let [node (f/uuid-1)
-        table (rand-nth [:g_index :p_index])]
+        table (rand-nth [:g_index :k_index])]
     (storage/with-session [cluster ["127.0.0.1"] "leela"]
 
       (truncate-n-test cluster "get-gindex with no data"
@@ -80,16 +80,14 @@
       (truncate-n-test cluster "put-tattr without index"
          (storage/put-tattr cluster [[{:key node-a
                                        :name "foobar"
-                                       :partition 0
-                                       :slot 0
+                                       :time 0
                                        :value (f/str-to-bytes "foobar")} {}]])
          (is (= [] (storage/get-index cluster :t_index node-a false))))
 
       (truncate-n-test cluster "put-tattr with index"
          (storage/put-tattr cluster [[{:key node-a
                                        :name "foobar"
-                                       :partition 0
-                                       :slot 0
+                                       :time 0
                                        :value (f/str-to-bytes "foobar")} {:index true}]])
          (is (= ["foobar"] (storage/get-index cluster :t_index node-a false)))))))
 
@@ -148,37 +146,48 @@
       (truncate-n-test cluster "get-tattr after put-tattr"
         (storage/put-tattr cluster [[{:key node-a
                                       :name "attr"
-                                      :partition 0
-                                      :slot 0
+                                      :time 0
                                       :value (f/str-to-bytes "foobar")} {}]])
         (let [results (storage/get-tattr cluster node-a "attr" 0)]
-          (is (= [[0 "foobar"]] (for [[k v] results] [k (f/bytes-to-str v)])))))
+          (is (= [[0 "foobar"]] (map (partial map f/bytes-to-str) results)))))
 
       (truncate-n-test cluster "get-tattr after put-tattr (overwrite)"
         (storage/put-tattr cluster [[{:key node-a
                                       :name "attr"
-                                      :partition 0
-                                      :slot 0
+                                      :time 0
                                       :value (f/str-to-bytes "foobar")} {}]
                                     [{:key node-a
                                       :name "attr"
-                                      :partition 0
-                                      :slot 0
+                                      :time 0
                                       :value (f/str-to-bytes "foobaz")} {}]])
         (let [results (storage/get-tattr cluster node-a "attr" 0)]
-          (is (= [[0 "foobaz"]] (for [[k v] results] [k (f/bytes-to-str v)])))))
+          (is (= [[0 "foobaz"]] (map (partial map f/bytes-to-str) results)))))
 
       (truncate-n-test cluster "get-tattr after delattr"
         (storage/put-tattr cluster [[{:key node-c
                                       :name "attr"
-                                      :partition 0
-                                      :slot 0
+                                      :time 0
                                       :value (f/str-to-bytes "foobar")} {}]])
         (storage/del-tattr cluster [{:key node-c
                                      :name "attr"
-                                     :partition 0
-                                     :slot 0}])
+                                     :time 0}])
         (is (= [] (storage/get-tattr cluster node-c "attr" 0)))))))
+
+(deftest test-put-kattr
+  (let [node-a (f/uuid-from-time 1)]
+    (storage/with-session [cluster ["127.0.0.1"] "leela"]
+
+      (truncate-n-test cluster "put-kattr without index"
+         (storage/put-kattr cluster [[{:key node-a
+                                       :name "foobar"
+                                       :value (f/str-to-bytes "foobar")} {}]])
+         (is (= [] (storage/get-index cluster :k_index node-a false))))
+
+      (truncate-n-test cluster "put-kattr with index"
+         (storage/put-kattr cluster [[{:key node-a
+                                       :name "foobar"
+                                       :value (f/str-to-bytes "foobar")} {:index true}]])
+         (is (= ["foobar"] (storage/get-index cluster :k_index node-a false)))))))
 
 (deftest test-get-kattr
   (let [node-a (f/uuid-from-time 1)
@@ -191,16 +200,16 @@
         (is (= nil (storage/get-kattr cluster node-a "attr"))))
 
       (truncate-n-test cluster "get-kattr after put-kattr"
-        (storage/put-kattr cluster [[{:key node-a :name "attr#0" :value (f/str-to-bytes "foobar")} []]])
+        (storage/put-kattr cluster [[{:key node-a :name "attr#0" :value (f/str-to-bytes "foobar")} {}]])
         (is (not (= nil (storage/get-kattr cluster node-a "attr#0")))))
 
       (truncate-n-test cluster "get-kattr after put-kattr (overwrite)"
-        (storage/put-kattr cluster [[{:key node-a :name "attr#0" :value (f/str-to-bytes "foobar")} []]
-                                    [{:key node-a :name "attr#0" :value (f/str-to-bytes "foobaz")} []]])
+        (storage/put-kattr cluster [[{:key node-a :name "attr#0" :value (f/str-to-bytes "foobar")} {}]
+                                    [{:key node-a :name "attr#0" :value (f/str-to-bytes "foobaz")} {}]])
         (is (= "foobaz" (f/bytes-to-str (storage/get-kattr cluster node-a "attr#0")))))
 
       (truncate-n-test cluster "getakattr after del-kattr"
-        (storage/put-kattr cluster [[{:key node-a :name "attr#0" :value (f/str-to-bytes "foobar")} []]])
+        (storage/put-kattr cluster [[{:key node-a :name "attr#0" :value (f/str-to-bytes "foobar")} {}]])
         (storage/del-kattr cluster [{:key node-a :name "attr#0"}])
         (is (= nil (storage/get-kattr cluster node-a "attr#0")))))))
 

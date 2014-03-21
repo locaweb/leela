@@ -31,9 +31,10 @@ import           Control.Concurrent
 import           Leela.Data.Excepts
 import           Control.Monad.Trans
 import           Leela.Data.Endpoint
+import           Data.ByteString.Char8 (pack)
 import           Leela.Storage.KeyValue
 
-type Password = B.ByteString
+type Password = String
 
 data Answer a = Value a
               | Failure
@@ -57,7 +58,8 @@ redisOpen (a, f) password = do
       onBegin (TCP host port _) =
         connect (ConnInfo { connectHost           = host
                           , connectPort           = PortNumber (fromIntegral port)
-                          , connectAuth           = Just password
+                          , connectAuth           = Just (pack password)
+                          , connectDatabase       = 0
                           , connectMaxConnections = 64
                           , connectMaxIdleTime    = 600
                           })
@@ -104,10 +106,10 @@ instance KeyValue RedisBackend where
   update (RedisBackend _ pool) k f = use pool (hashSelector k) (runRedisIO transaction)
       where
         transaction = do
-          _     <- liftRedis $ watch [k]
-          value <- (liftIO . f =<< liftRedis (get k))
-          _     <- liftTxRedis (multiExec (set k value))
-          return value
+          _  <- liftRedis $ watch [k]
+          v  <- (liftIO . f =<< liftRedis (get k))
+          _  <- liftTxRedis (multiExec (set k v))
+          return v
 
 instance (Monad m) => Monad (AnswerT m) where
 

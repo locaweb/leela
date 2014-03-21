@@ -41,6 +41,10 @@ suite = testGroup "Parser"
     , testCase "kill a" $
         (count "using (leela) kill 00000000-0000-0000-0000-000000000000;") @?= 1
     ]
+  , testGroup "k-attr"
+    []
+  , testGroup "t-attr"
+    []
   , testGroup "stat"
     [ testCase "stat command" $
         (count "using (leela) stat;") @?= 1
@@ -59,6 +63,8 @@ suite = testGroup "Parser"
     [ testCase "name g" $
         (count "using (leela) name 00000000-0000-0000-0000-000000000000;") @?= 1
     ]
+  , testGroup "guid"
+    []
   , testGroup "path"
     [ testCase "path a" $
         (count "using (leela) path 00000000-0000-0000-0000-000000000000;") @?= 1

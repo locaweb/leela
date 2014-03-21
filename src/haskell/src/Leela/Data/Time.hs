@@ -16,65 +16,64 @@
 
 module Leela.Data.Time
        ( Time
+       , Date (..)
+       , add
        , now
        , diff
        , seconds
-       , fromUTC
        , dateTime
-       , fromISO8601
+       , dateToInt
        , fromSeconds
        , fromDateTime
        ) where
 
-import           Data.Time
-import           Control.Applicative
-import           Data.Time.Clock.POSIX
-import qualified Data.ByteString.Char8 as B
-import           Data.Time.Calendar.OrdinalDate
+import Data.Bits
+import Data.Time
+import Data.Time.Clock.POSIX
 
 newtype Time = Time { unTime :: UTCTime }
              deriving (Show, Eq, Ord)
 
+newtype Date = Date (Int, Int, Int)
+             deriving (Show, Eq, Ord)
+
+add :: NominalDiffTime -> Time -> Time
+add increment (Time t) = Time (addUTCTime increment t)
+
 seconds :: Time -> Double
 seconds = realToFrac . utcTimeToPOSIXSeconds . unTime
 
-dateTime :: Time -> (Integer, Int, Double)
-dateTime (Time u) = let (year, dayofyear) = toOrdinalDate $ utctDay u
-                        time              = realToFrac $ utctDayTime u
-                    in (year, dayofyear, time)
+dateTime :: Time -> (Date, Double)
+dateTime (Time u) = let time                      = realToFrac $ utctDayTime u
+                        (year, month, dayOfMonth) = toGregorian $ utctDay u
+                    in (Date (fromIntegral $ year, month, dayOfMonth), time)
+
+dateToInt :: Date -> Int
+dateToInt (Date (y, m, d)) = (y `shiftL` 9) .|. (m `shiftL` 5) .|. d
 
 diff :: Time -> Time -> Double
 diff (Time a) (Time b) = realToFrac $ a `diffUTCTime` b
 
-asInt :: (Num i) => B.ByteString -> Maybe i
-asInt s = case (B.readInt s) of
-           Just (n, "") -> Just (fromIntegral n)
-           _            -> Nothing
-
-
 fromSeconds :: Double -> Time
 fromSeconds = Time . posixSecondsToUTCTime . realToFrac
 
-fromDateTime :: Integer -> Int -> Double -> Time
-fromDateTime year dayofyear time = Time $ UTCTime (fromOrdinalDate year dayofyear) (realToFrac time)
+fromDateTime :: Date -> Double -> Time
+fromDateTime date time = Time $ UTCTime (fromDate date) (realToFrac time)
 
-fromUTC :: UTCTime -> Time
-fromUTC = undefined
+fromDate :: Date -> Day
+fromDate (Date (y, m, d)) = fromGregorian (fromIntegral y) m d
 
-fromISO8601 :: B.ByteString -> Maybe Time
-fromISO8601 date
-  | t == "T" && z == "Z" = liftA Time (liftA2 UTCTime
-                             (fromGregorian <$> (asInt year) <*> (asInt month) <*> (asInt day))
-                             ((+) <$> ((3600 *) <$> asInt hour) <*> ((+) <$> ((60 *) <$> asInt minute) <*> asInt second)))
-  | otherwise            = Nothing
-    where
-      (year, monthPart) = B.splitAt 4 date
-      (month, dayPart)  = B.splitAt 2 monthPart
-      (day, timePart)   = B.splitAt 2 dayPart
-      (t, hourPart)     = B.splitAt 1 timePart
-      (hour, minPart)   = B.splitAt 2 hourPart
-      (minute, secPart) = B.splitAt 2 minPart
-      (second, z)       = B.splitAt 2 secPart
+toDate :: Day -> Date
+toDate day = let (year, month, dayOfMonth) = toGregorian day
+             in Date (fromIntegral year, month, dayOfMonth)
 
 now :: IO Time
 now = fmap Time getCurrentTime
+
+instance Enum Date where
+
+  succ = toDate . succ . fromDate
+  pred = toDate . pred . fromDate
+
+  toEnum   = toDate . toEnum
+  fromEnum = fromEnum . fromDate

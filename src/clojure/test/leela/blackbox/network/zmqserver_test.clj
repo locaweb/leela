@@ -171,29 +171,20 @@
         (is (= (server/msg-tattr []) (server/handle-message cluster ["get" "t-attr" node "attr" "0"]))))
 
       (truncate-n-test cluster "get-tattr after put-tattr"
-        (server/handle-message cluster ["put" "t-attr" node "attr" "0" "0" value ""])
-        (is (= (server/msg-tattr [[0 "foobar"]]) (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "t-attr" node "attr" "0"])))))
+        (server/handle-message cluster ["put" "t-attr" node "attr" "0" value ""])
+        (is (= (server/msg-tattr [[0 "foobar"]]) (map f/bytes-to-str (server/handle-message cluster ["get" "t-attr" node "attr" "0"])))))
 
       (truncate-n-test cluster "get-tattr after del-tattr"
-        (server/handle-message cluster ["put" "t-attr" node "name" "0" "0" value ""])
-        (is (= (server/msg-done) (server/handle-message cluster ["del" "t-attr" node "name" "0" ""])))
+        (server/handle-message cluster ["put" "t-attr" node "name" "0" value ""])
+        (is (= (server/msg-done) (server/handle-message cluster ["del" "t-attr" node "name" "0"])))
         (is (= (server/msg-tattr []) (server/handle-message cluster ["get" "t-attr" node "name" "0"]))))
 
       (truncate-n-test cluster "get-tattr after del-tattr (selective)"
         (server/handle-message cluster ["put" "t-attr"
-                                        node "name" "0" "0" value ""
-                                        node "name" "0" "1" value ""])
-        (is (= (server/msg-done) (server/handle-message cluster ["del" "t-attr" node "name" "0" "0"])))
-        (is (= (server/msg-tattr [[1 "foobar"]]) (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "t-attr" node "name" "0"])))))
-
-      (truncate-n-test cluster "get-tattr limit"
-        (server/handle-message cluster ["put" "t-attr"
-                                        node "name" "0" "0" value ""
-                                        node "name" "0" "1" value ""
-                                        node "name" "0" "2" value ""])
-        (is (= 3 (count (server/handle-message cluster ["get" "t-attr" node "name" "0" "1"]))))
-        (is (= 5 (count (server/handle-message cluster ["get" "t-attr" node "name" "0" "2"]))))
-        (is (= 7 (count (server/handle-message cluster ["get" "t-attr" node "name" "0" "3"]))))))))
+                                        node "name" "0" value ""
+                                        node "name" "1" value ""])
+        (is (= (server/msg-done) (server/handle-message cluster ["del" "t-attr" node "name" "0"])))
+        (is (= (server/msg-tattr [[1 "foobar"]]) (map f/bytes-to-str (server/handle-message cluster ["get" "t-attr" node "name" "0"]))))))))
 
 (deftest test-zmqserver-handle-k-attr-message
   (let [node (str (f/uuid-1))
@@ -201,20 +192,20 @@
     (storage/with-session [cluster ["127.0.0.1"] "leela"]
 
       (truncate-n-test cluster "get-kattr with no data"
-        (is (= (server/msg-fail 404) (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "k-attr" node "attr"])))))
+        (is (= (server/msg-fail 404) (map f/bytes-to-str (server/handle-message cluster ["get" "k-attr" node "attr"])))))
 
       (truncate-n-test cluster "get-kattr after put-kattr with ttl"
         (is (= (server/msg-done) (server/handle-message cluster ["put" "k-attr" node "attr" value "ttl:3600"])))
-        (is (= (server/msg-kattr "foobar") (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "k-attr" node "attr"])))))
+        (is (= (server/msg-kattr "foobar") (map f/bytes-to-str (server/handle-message cluster ["get" "k-attr" node "attr"])))))
 
       (truncate-n-test cluster "get-kattr after put-kattr"
         (is (= (server/msg-done) (server/handle-message cluster ["put" "k-attr" node "attr" value ""])))
-        (is (= (server/msg-kattr "foobar") (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "k-attr" node "attr"])))))
+        (is (= (server/msg-kattr "foobar") (map f/bytes-to-str (server/handle-message cluster ["get" "k-attr" node "attr"])))))
 
       (truncate-n-test cluster "del-kattr after put-kattr"
         (server/handle-message cluster ["put" "k-attr" node "attr" value ""])
         (is (= (server/msg-done) (server/handle-message cluster ["del" "k-attr" node "attr"])))
-        (is (= (server/msg-fail 404) (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "k-attr" node "attr"]))))))))
+        (is (= (server/msg-fail 404) (map f/bytes-to-str (server/handle-message cluster ["get" "k-attr" node "attr"]))))))))
 
 (deftest test-zmqserver-handle-attr-message
   (let [node (str (f/uuid-1))
@@ -222,20 +213,24 @@
     (storage/with-session [cluster ["127.0.0.1"] "leela"]
 
       (truncate-n-test cluster "get-attr with no data"
-        (is (= (server/msg-nattr []) (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "attr" "k-attr" "all" node ""])))))
+        (is (= (server/msg-nattr []) (map f/bytes-to-str (server/handle-message cluster ["get" "attr" "k-attr" "all" node ""])))))
 
       (truncate-n-test cluster "get-attr after put-attr with ttl"
-        (is (= (server/msg-done) (server/handle-message cluster ["put" "k-attr" node "attr#1" value "ttl:3600" node "attr#2" value "ttl:3600"])))
-        (is (= (server/msg-nattr ["attr#1" "attr#2"]) (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "attr" "k-attr" "all" node ""])))))
+        (is (= (server/msg-done) (server/handle-message cluster ["put" "k-attr" node "attr#1" value "ttl:3600, index:true" node "attr#2" value "ttl:3600, index:true"])))
+        (is (= (server/msg-nattr ["attr#1" "attr#2"]) (map f/bytes-to-str (server/handle-message cluster ["get" "attr" "k-attr" "all" node ""])))))
 
-      (truncate-n-test cluster "get-attr after put-kattr"
+      (truncate-n-test cluster "get-attr after put-kattr (index:false)"
         (is (= (server/msg-done) (server/handle-message cluster ["put" "k-attr" node "attr#1" value "" node "attr#2" value ""])))
-        (is (= (server/msg-nattr ["attr#1" "attr#2"]) (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "attr" "k-attr" "all" node ""])))))
+        (is (= (server/msg-nattr []) (map f/bytes-to-str (server/handle-message cluster ["get" "attr" "k-attr" "all" node ""])))))
+
+      (truncate-n-test cluster "get-attr after put-kattr (index:true)"
+        (is (= (server/msg-done) (server/handle-message cluster ["put" "k-attr" node "attr#1" value "index:true" node "attr#2" value "index:true"])))
+        (is (= (server/msg-nattr ["attr#1" "attr#2"]) (map f/bytes-to-str (server/handle-message cluster ["get" "attr" "k-attr" "all" node ""])))))
 
       (truncate-n-test cluster "get-attr after del-kattr"
-        (server/handle-message cluster ["put" "k-attr" node "attr" value ""])
+        (server/handle-message cluster ["put" "k-attr" node "attr" value "index:true"])
         (is (= (server/msg-done) (server/handle-message cluster ["del" "k-attr" node "attr"])))
-        (is (= (server/msg-nattr []) (map #(f/bytes-to-str %) (server/handle-message cluster ["get" "attr" "k-attr" "all" node ""]))))))))
+        (is (= (server/msg-nattr []) (map f/bytes-to-str (server/handle-message cluster ["get" "attr" "k-attr" "all" node ""]))))))))
 
 (deftest test-zmqserver-zmqworker-interface
   (testing "just checks the interface"

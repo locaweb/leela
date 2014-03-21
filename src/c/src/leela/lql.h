@@ -17,17 +17,18 @@
 
 #include <zmq.h>
 #include <stdbool.h>
+#include "leela/base.h"
 #include "leela/status.h"
 #include "leela/endpoint.h"
 
 #define LQL_DEFAULT_TIMEOUT 60
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+LEELA_CPLUSPLUS_OPEN
 
 typedef struct lql_cursor_t lql_cursor_t;
 typedef struct lql_context_t lql_context_t;
+
+typedef void(*finalizer_f)(void *);
 
 typedef enum
 {
@@ -37,6 +38,7 @@ typedef enum
   LQL_FAIL_MSG,
   LQL_NATTR_MSG,
   LQL_KATTR_MSG,
+  LQL_TATTR_MSG
 } lql_row_type;
 
 typedef enum
@@ -69,15 +71,17 @@ typedef struct
 //! A simple 2-tuple type;
 typedef struct
 {
-  char *fst;
-  char *snd;
+  void *fst;
+  void *snd;
+  finalizer_f fst_finalizer;
+  finalizer_f snd_finalizer;
 } lql_tuple2_t;
 
 //! A path entry as defined in warpdrive(1);
 typedef struct lql_path_t
 {
   int          size;      //!^ The number of path entries;
-  lql_tuple2_t *entries;  //!^ The path entries;
+  lql_tuple2_t *entries;  //!^ The path entries (char *, char *);
 } lql_path_t;
 
 //! A name entry as defined in warpdrive(1);
@@ -93,13 +97,13 @@ typedef struct
 typedef struct
 {
   uint32_t code;          //!^ The fail code reported;
-  char *message;          //!^ The fail message;
+  char    *message;       //!^ The fail message;
 } lql_fail_t;
 
 //! The attribute names (n-attr message)
 typedef struct
 {
-  int size;               //!^ The number of entries
+  int   size;             //!^ The number of entries
   char *guid;             //!^ The node we are referencing
   char **names;           //!^ The attr names
 } lql_nattr_t;
@@ -107,16 +111,25 @@ typedef struct
 //! The attribute name & value (k-attr message)
 typedef struct
 {
-  char *guid;             //!^ The node this attribute is set on
-  char *name;             //!^ The name of the attribute
+  char        *guid;      //!^ The node this attribute is set on
+  char        *name;      //!^ The name of the attribute
   lql_value_t *value;     //!^ The value
 } lql_kattr_t;
+
+//! Time-series (t-attr message)
+typedef struct
+{
+  char         *guid;     //! ^ The node this attribute is set on
+  char         *name;     //! ^ The name of the attribute
+  int           size;     //! ^ The number of time-value entries
+  lql_tuple2_t *series;   //! ^ The time-series: (double *, value *)
+} lql_tattr_t;
 
 //! Information about the cluster
 typedef struct
 {
   int           size;     //!^ The number of key-value entries;
-  lql_tuple2_t *attrs;    //!^ The property (key-value);
+  lql_tuple2_t *attrs;    //!^ The property: (char *, char *);
 } lql_stat_t;
 
 /*! Initializes the leela context. You should call this only once and
@@ -215,12 +228,15 @@ lql_nattr_t *leela_lql_fetch_nattr(lql_cursor_t *cursor);
  */
 lql_kattr_t *leela_lql_fetch_kattr(lql_cursor_t *cursor);
 
+lql_tattr_t *leela_lql_fetch_tattr(lql_cursor_t *cursor);
+
 void leela_lql_name_free(lql_name_t *);
 void leela_lql_path_free(lql_path_t *);
 void leela_lql_stat_free(lql_stat_t *);
 void leela_lql_fail_free(lql_fail_t *);
 void leela_lql_nattr_free(lql_nattr_t *);
 void leela_lql_kattr_free(lql_kattr_t *);
+void leela_lql_tattr_free(lql_tattr_t *);
 
 /*! Terminates a cursor. Remember to always call this function after
  *  you are done iterating.
@@ -240,8 +256,6 @@ leela_status leela_lql_cursor_close(lql_cursor_t *cursor);
  */
 leela_status leela_lql_context_close(lql_context_t *ctx);
 
-#ifdef __cplusplus
-}
-#endif
+LEELA_CPLUSPLUS_CLOSE
 
 #endif

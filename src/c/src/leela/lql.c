@@ -48,6 +48,27 @@ struct lql_cursor_t {
   zmq_msg_t    buffer;
 };
 
+void __leela_lql_value_free(lql_value_t *value)
+{
+  if (value != NULL)
+  {
+    if (value->vtype == LQL_TEXT_TYPE)
+    { free(value->data.v_str); }
+    free(value);
+  }
+}
+
+void __leela_lql_tuple2_free_members(const lql_tuple2_t *pair)
+{
+  if (pair != NULL)
+  {
+    if (pair->fst_finalizer != NULL)
+    { pair->fst_finalizer(pair->fst); }
+    if (pair->snd_finalizer != NULL)
+    { pair->snd_finalizer(pair->snd); }
+  }
+}
+
 static
 leela_endpoint_t *__select_endpoint(lql_context_t *ctx)
 {
@@ -85,7 +106,9 @@ char *__signature(lql_cursor_t *cursor, va_list args)
 static
 int __zmq_sendmsg_str(lql_cursor_t *cursor, const char *data, ...)
 {
-  int rc = -1;
+  int rc           = -1;
+  const char *part = NULL;
+  const char *last = NULL;
   va_list args;
 
   va_start(args, data);
@@ -95,8 +118,6 @@ int __zmq_sendmsg_str(lql_cursor_t *cursor, const char *data, ...)
   va_end(args);
 
   va_start(args, data);
-  const char *part = NULL;
-  const char *last = NULL;
   do
   {
     if (part != NULL)
@@ -176,7 +197,7 @@ char *__zmq_recvmsg_copystr(lql_cursor_t *cursor)
   { return(NULL); }
 
   size_t buflen = zmq_msg_size(&cursor->buffer);
-  char *buffer  = malloc(buflen + 1);
+  char *buffer  = (char *) malloc(buflen + 1);
   if (buffer != NULL)
   {
     memcpy(buffer, zmq_msg_data(&cursor->buffer), buflen);
@@ -272,6 +293,19 @@ bool __zmq_recvmsg_double(lql_cursor_t *cursor, double *out)
 }
 
 static
+double *__zmq_recvmsg_copydouble(lql_cursor_t *cursor)
+{
+  double *d = (double *) malloc(sizeof(double));
+  if (d != NULL)
+  {
+    if (__zmq_recvmsg_double(cursor, d))
+    { return(d); }
+  }
+  free(d);
+  return(NULL);
+}
+
+static
 bool __zmq_recvmsg_bool(lql_cursor_t *cursor, bool *out)
 {
   char buffer[5];
@@ -289,6 +323,71 @@ bool __zmq_recvmsg_bool(lql_cursor_t *cursor, bool *out)
     }
   }
   return(false);
+}
+
+lql_value_t *__zmq_recvmsg_copylqlvalue(lql_cursor_t *cursor)
+{
+  lql_value_t *value = (lql_value_t *) malloc(sizeof(lql_value_t));
+  if (value == NULL)
+  { return(NULL); }
+
+  int32_t vtype = 0;
+  value->data.v_str = NULL;
+  if (! __zmq_recvmsg_int32(cursor, &vtype))
+  { goto handle_error; }
+
+  switch (vtype)
+  {
+  case -1:
+    value->vtype = LQL_NIL_TYPE;
+    if (__zmq_recvmsg(cursor) == -1)
+    { goto handle_error; }
+    break;
+  case 0:
+    value->vtype = LQL_BOOL_TYPE;
+    if (! __zmq_recvmsg_bool(cursor, &value->data.v_bool))
+    { goto handle_error; }
+    break;
+  case 1:
+    value->vtype      = LQL_TEXT_TYPE;
+    value->data.v_str = __zmq_recvmsg_copystr(cursor);
+    if (value->data.v_str == NULL)
+    { goto handle_error; }
+    break;
+  case 2:
+    value->vtype = LQL_INT32_TYPE;
+    if (! __zmq_recvmsg_int32(cursor, &value->data.v_i32))
+    { goto handle_error; }
+    break;
+  case 3:
+    value->vtype = LQL_INT64_TYPE;
+    if (! __zmq_recvmsg_int64(cursor, &value->data.v_i64))
+    { goto handle_error; }
+    break;
+  case 4:
+    value->vtype = LQL_UINT32_TYPE;
+    if (! __zmq_recvmsg_uint32(cursor, &value->data.v_u32))
+    { goto handle_error; }
+    break;
+  case 5:
+    value->vtype = LQL_UINT64_TYPE;
+    if (! __zmq_recvmsg_uint64(cursor, &value->data.v_u64))
+    { goto handle_error; }
+    break;
+  case 6:
+    value->vtype = LQL_DOUBLE_TYPE;
+    if (! __zmq_recvmsg_double(cursor, &value->data.v_double))
+    { goto handle_error; }
+    break;
+  default:
+    goto handle_error;
+  };
+
+  return(value);
+
+handle_error:
+  __leela_lql_value_free(value);
+  return(NULL);
 }
 
 lql_context_t *leela_lql_context_init(const leela_endpoint_t *const *warpdrive)
@@ -318,6 +417,7 @@ handle_error:
 
 lql_cursor_t *leela_lql_cursor_init2(lql_context_t *ctx, const leela_endpoint_t *endpoint, const char *username, const char *secret, int timeout_in_ms)
 {
+  int linger            = 0;
   char *zmqendpoint     = NULL;
   lql_cursor_t *cursor  = (lql_cursor_t *) malloc(sizeof(lql_cursor_t));
   if (cursor == NULL || zmq_msg_init(&cursor->buffer) == -1)
@@ -345,7 +445,6 @@ lql_cursor_t *leela_lql_cursor_init2(lql_context_t *ctx, const leela_endpoint_t 
   cursor->socket = zmq_socket(ctx->zmqctx, ZMQ_REQ);
   if (cursor->socket == NULL)
   { goto handle_error; }
-  int linger = 0;
   zmq_setsockopt(cursor->socket, ZMQ_LINGER, &linger, sizeof(linger));
 
   if (zmq_connect(cursor->socket, zmqendpoint) != 0)
@@ -458,12 +557,14 @@ leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
     cursor->row = LQL_STAT_MSG;
     if (! __zmq_recvmsg_uint32(cursor, cursor->elems + 1))
     { return(LEELA_ERROR); }
+    cursor->elems[1] = cursor->elems[1] * 2;
   }
   else if (strncmp(buffer, "path", 4) == 0)
   {
     cursor->row = LQL_PATH_MSG;
     if (! __zmq_recvmsg_uint32(cursor, cursor->elems + 1))
     { return(LEELA_ERROR); }
+    cursor->elems[1] = cursor->elems[1] * 2;
   }
   else if (strncmp(buffer, "item", 4) == 0)
   {
@@ -480,6 +581,13 @@ leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
   {
     cursor->row      = LQL_KATTR_MSG;
     cursor->elems[1] = 4;
+  }
+  else if (strncmp(buffer, "t-attr", 6) == 0)
+  {
+    cursor->row      = LQL_TATTR_MSG;
+    if (! __zmq_recvmsg_uint32(cursor, cursor->elems + 1))
+    { return(LEELA_ERROR); }
+    cursor->elems[1] = cursor->elems[1] * 2 + 2;
   }
   else if (strncmp(buffer, "k-attr", 6) == 0)
   {
@@ -560,6 +668,38 @@ handle_error:
   return(NULL);
 }
 
+lql_tattr_t *leela_lql_fetch_tattr(lql_cursor_t *cursor)
+{
+  if (cursor->row != LQL_TATTR_MSG)
+  { return(NULL); }
+
+  lql_tattr_t *tattr = (lql_tattr_t *) malloc(sizeof(lql_tattr_t));
+  if (tattr != NULL)
+  {
+    uint32_t elems = (cursor->elems[1] - 2) / 2;
+    tattr->guid    = __zmq_recvmsg_copystr(cursor);
+    tattr->name    = __zmq_recvmsg_copystr(cursor);
+    tattr->size    = 0;
+    tattr->series  = (lql_tuple2_t *) malloc(elems * sizeof(lql_tuple2_t));
+    uint32_t k     = 0;
+    for (; k<elems && tattr->series != NULL; k+=1)
+    {
+      tattr->size                   += 1;
+      tattr->series[k].fst           = __zmq_recvmsg_copydouble(cursor);
+      tattr->series[k].snd           = __zmq_recvmsg_copylqlvalue(cursor);
+      tattr->series[k].fst_finalizer = free;
+      tattr->series[k].snd_finalizer = (finalizer_f) __leela_lql_value_free;
+      if (tattr->series[k].fst == NULL || tattr->series[k].snd == NULL)
+      { break; }
+    }
+    if (k == elems)
+    { return(tattr); }
+  }
+
+  leela_lql_tattr_free(tattr);
+  return(NULL);
+}
+
 lql_kattr_t *leela_lql_fetch_kattr(lql_cursor_t *cursor)
 {
   if (cursor->row != LQL_KATTR_MSG)
@@ -568,70 +708,17 @@ lql_kattr_t *leela_lql_fetch_kattr(lql_cursor_t *cursor)
   lql_kattr_t *kattr = (lql_kattr_t *) malloc(sizeof(lql_kattr_t));
   if (kattr != NULL)
   {
-    int32_t vtype = 0;
     kattr->guid    = __zmq_recvmsg_copystr(cursor);
     kattr->name    = __zmq_recvmsg_copystr(cursor);
-    kattr->value   = malloc(sizeof(lql_value_t));
+    kattr->value   = __zmq_recvmsg_copylqlvalue(cursor);
     if (kattr->guid == NULL || kattr->name == NULL || kattr->value == NULL)
-    { goto handle_error; }
-
-    kattr->value->data.v_str = NULL;
-    if (! __zmq_recvmsg_int32(cursor, &vtype))
-    { goto handle_error; }
-
-    switch (vtype)
     {
-    case -1:
-      kattr->value->vtype = LQL_NIL_TYPE;
-      if (__zmq_recvmsg(cursor) == -1)
-      { goto handle_error; }
-      break;
-    case 0:
-      kattr->value->vtype = LQL_BOOL_TYPE;
-      if (! __zmq_recvmsg_bool(cursor, &kattr->value->data.v_bool))
-      { goto handle_error; }
-      break;
-    case 1:
-      kattr->value->vtype      = LQL_TEXT_TYPE;
-      kattr->value->data.v_str = __zmq_recvmsg_copystr(cursor);
-      if (kattr->value->data.v_str == NULL)
-      { goto handle_error; }
-      break;
-    case 2:
-      kattr->value->vtype = LQL_INT32_TYPE;
-      if (! __zmq_recvmsg_int32(cursor, &kattr->value->data.v_i32))
-      { goto handle_error; }
-      break;
-    case 3:
-      kattr->value->vtype = LQL_INT64_TYPE;
-      if (! __zmq_recvmsg_int64(cursor, &kattr->value->data.v_i64))
-      { goto handle_error; }
-      break;
-    case 4:
-      kattr->value->vtype = LQL_UINT32_TYPE;
-      if (! __zmq_recvmsg_uint32(cursor, &kattr->value->data.v_u32))
-      { goto handle_error; }
-      break;
-    case 5:
-      kattr->value->vtype = LQL_UINT64_TYPE;
-      if (! __zmq_recvmsg_uint64(cursor, &kattr->value->data.v_u64))
-      { goto handle_error; }
-      break;
-    case 6:
-      kattr->value->vtype = LQL_DOUBLE_TYPE;
-      if (! __zmq_recvmsg_double(cursor, &kattr->value->data.v_double))
-      { goto handle_error; }
-      break;
-    default:
-      goto handle_error;
-    };
+      leela_lql_kattr_free(kattr);
+      kattr = NULL;
+    }
   }
 
   return(kattr);
-
-handle_error:
-  leela_lql_kattr_free(kattr);
-  return(NULL);
 }
 
 lql_stat_t *leela_lql_fetch_stat(lql_cursor_t *cursor)
@@ -645,13 +732,14 @@ lql_stat_t *leela_lql_fetch_stat(lql_cursor_t *cursor)
     uint32_t elems = cursor->elems[1] / 2;
     stat->size  = 0;
     stat->attrs = (lql_tuple2_t *) malloc(elems * sizeof(lql_tuple2_t));
-
-    uint32_t k;
-    for (k=0; k<elems; k+=1)
+    uint32_t k  = 0;
+    for (; k<elems && stat->attrs != NULL; k+=1)
     {
-      stat->attrs[k].fst = __zmq_recvmsg_copystr(cursor);
-      stat->attrs[k].snd = __zmq_recvmsg_copystr(cursor);
-      stat->size          += 1;
+      stat->size                  += 1;
+      stat->attrs[k].fst           = (void *) __zmq_recvmsg_copystr(cursor);
+      stat->attrs[k].snd           = (void *) __zmq_recvmsg_copystr(cursor);
+      stat->attrs[k].fst_finalizer = free;
+      stat->attrs[k].snd_finalizer = free;
       if (stat->attrs[k].fst == NULL
           || stat->attrs[k].snd == NULL)
       { break; }
@@ -675,13 +763,14 @@ lql_path_t *leela_lql_fetch_path(lql_cursor_t *cursor)
     uint32_t elems = cursor->elems[1] / 2;
     path->size     = 0;
     path->entries  = (lql_tuple2_t *) malloc(elems * sizeof(lql_tuple2_t));
-
-    uint32_t k;
-    for (k=0; k<elems; k+=1)
+    uint32_t k     = 0;
+    for (; k<elems && path->entries != NULL; k+=1)
     {
-      path->entries[k].fst = __zmq_recvmsg_copystr(cursor);
-      path->entries[k].snd = __zmq_recvmsg_copystr(cursor);
-      path->size          += 1;
+      path->size                    += 1;
+      path->entries[k].fst           = __zmq_recvmsg_copystr(cursor);
+      path->entries[k].snd           = __zmq_recvmsg_copystr(cursor);
+      path->entries[k].fst_finalizer = free;
+      path->entries[k].snd_finalizer = free;
       if (path->entries[k].fst == NULL
           || path->entries[k].snd == NULL)
       { break; }
@@ -731,10 +820,7 @@ void leela_lql_stat_free(lql_stat_t *stat)
   { return; }
 
   for (int k=0; k<stat->size; k+=1)
-  {
-    free(stat->attrs[k].fst);
-    free(stat->attrs[k].snd);
-  }
+  { __leela_lql_tuple2_free_members(&stat->attrs[k]); }
   free(stat->attrs);
   free(stat);
 }
@@ -745,10 +831,7 @@ void leela_lql_path_free(lql_path_t *path)
   { return; }
 
   for (int k=0; k<path->size; k+=1)
-  {
-    free(path->entries[k].fst);
-    free(path->entries[k].snd);
-  }
+  { __leela_lql_tuple2_free_members(& path->entries[k]); }
   free(path->entries);
   free(path);
 }
@@ -783,13 +866,24 @@ void leela_lql_kattr_free(lql_kattr_t *kattr)
   {
     free(kattr->guid);
     free(kattr->name);
-    if (kattr->value != NULL)
-    {
-      if (kattr->value->vtype == LQL_TEXT_TYPE)
-      { free(kattr->value->data.v_str); }
-      free(kattr->value);
-    }
+    __leela_lql_value_free(kattr->value);
     free(kattr);
+  }
+}
+
+void leela_lql_tattr_free(lql_tattr_t *tattr)
+{
+  if (tattr != NULL)
+  {
+    free(tattr->guid);
+    free(tattr->name);
+    if (tattr->series != NULL)
+    {
+      for (int k=0; k<tattr->size; k+=1)
+      { __leela_lql_tuple2_free_members(tattr->series + k); }
+      free(tattr->series);
+    }
+    free(tattr);
   }
 }
 

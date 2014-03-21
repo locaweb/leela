@@ -177,25 +177,17 @@ parseTimePoint = do
 
 parseTimeRange :: Parser TimeRange
 parseTimeRange = do
-  (l, r) <- liftM (B.breakByte 0x3a) (qstring 35 0x5b 0x5d)
-  case (l, r) of
-    ("", "")                 -> return NoRange
-    (_, ":")                 -> liftM LPoint (asTime l)
-    ("", _)                  -> liftM RPoint (asTime $ B.drop 1 r)
-    _
-      | ":" `B.isPrefixOf` r -> liftM2 Range (asTime l) (asTime $ B.drop 1 r)
-      | otherwise            -> liftM Point (asTime l)
-
-    where
-      asTime s = case (fromISO8601 s) of
-                   Just t  -> return t
-                   Nothing -> fail "invalid time range"
+  _  <- word8 0x5b
+  t0 <- liftM fromSeconds double
+  _  <- word8 0x3a
+  t1 <- liftM fromSeconds double
+  _  <- word8 0x5d
+  return (Range t0 t1)
 
 parseWithStmt :: Parser [Option]
 parseWithStmt = "with " .*> (parseOption `sepBy` (string ", "))
     where
       parseOption = "ttl:" .*> liftM TTL decimal
-                    <|> "limit:" .*> liftM Limit decimal
 
 parseStmtMake :: Using -> Parser LQL
 parseStmtMake u = do
@@ -239,7 +231,8 @@ parseStmtAttr :: Parser LQL
 parseStmtAttr = "attr put " .*> parsePutAttr
                 <|> "attr get " .*> parseGetAttr
                 <|> "attr del " .*> parseDelAttr
-                <|> "attr list " .*> parseListAttr
+                <|> "attr kls " .*> parseListAttr KAttrListStmt
+                <|> "attr tls " .*> parseListAttr TAttrListStmt
     where
       parsePutAttr = do
         g <- parseGUID
@@ -270,11 +263,11 @@ parseStmtAttr = "attr put " .*> parsePutAttr
         ((liftM2 (TAttrGetStmt g a) (hardspace >> parseTimeRange) (option [] (hardspace >> parseWithStmt)))
          <|> liftM (KAttrGetStmt g a) (option [] (hardspace >> parseWithStmt)))
 
-      parseListAttr = do
+      parseListAttr kind = do
         g      <- parseGUID
         hardspace
         Attr a <- parseAttr
-        return (AttrListStmt g (fmap Attr $ glob a))
+        return (kind g (fmap Attr $ glob a))
 
       parseDelAttr = do
         g  <- parseGUID

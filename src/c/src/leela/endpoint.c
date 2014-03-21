@@ -27,6 +27,8 @@ leela_endpoint_t *leela_endpoint_load(const char *endpoint)
 
   result->host = NULL;
   result->path = NULL;
+  size_t k     = 6;
+  size_t start = 6;
   if (strncmp("tcp://", endpoint, 6) == 0)
   { result->protocol = PROTO_TCP; }
   else if (strncmp("udp://", endpoint, 6) == 0)
@@ -34,8 +36,6 @@ leela_endpoint_t *leela_endpoint_load(const char *endpoint)
   else
   { goto handle_error; }
 
-  size_t k     = 6;
-  size_t start = k;
   while (true)
   {
     if (endpoint[k] == ':')

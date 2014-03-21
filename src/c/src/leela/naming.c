@@ -72,6 +72,7 @@ leela_naming_cluster_t *__naming_discover2(leela_naming_t *naming, const leela_e
 {
   lql_cursor_t *cursor           = leela_lql_cursor_init2(naming->context, endpoint, "nobody", "", 1000);
   lql_stat_t *stat               = NULL;
+  size_t count                   = 0;
   leela_naming_cluster_t *result = NULL;
 
   if (cursor == NULL)
@@ -85,11 +86,10 @@ leela_naming_cluster_t *__naming_discover2(leela_naming_t *naming, const leela_e
   if (stat == NULL || stat->size == 0)
   { goto handle_error; }
 
-  size_t count = 0;
   for (int k=0; k<stat->size; k+=1)
   {
     lql_tuple2_t *entry = (stat->attrs + k);
-    if (strcmp(entry->fst, "endpoint/warpdrive") == 0)
+    if (strcmp((char *) entry->fst, "endpoint/warpdrive") == 0)
     { count += 1; }
   }
 
@@ -101,9 +101,9 @@ leela_naming_cluster_t *__naming_discover2(leela_naming_t *naming, const leela_e
   for (int k=0; k<stat->size; k+=1)
   {
     lql_tuple2_t *entry = (stat->attrs + k);
-    if (strcmp(entry->fst, "endpoint/warpdrive") == 0)
+    if (strcmp((char *) entry->fst, "endpoint/warpdrive") == 0)
     {
-      result->endpoint[count] = leela_endpoint_load(entry->snd);
+      result->endpoint[count] = leela_endpoint_load((char *) entry->snd);
       if (result->endpoint[count] == NULL)
       { goto handle_error; }
       count += 1;

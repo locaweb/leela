@@ -31,6 +31,7 @@ import Leela.Data.Endpoint
 import System.Posix.Signals
 import Leela.Network.ZMQServer
 import Leela.Storage.Backend.ZMQ
+import Leela.Storage.Backend.Redis
 
 defaultEndpoint :: Endpoint
 defaultEndpoint = TCP "*" 50021 ""
@@ -40,6 +41,8 @@ defineEQFlag "debuglevel" [|NOTICE :: Priority|] "LOGLEVEL" "The debug level to 
 defineFlag "zookeeper" "localhost:2181" "The zookeeper cluster to connect to"
 
 defineEQFlag "endpoint" [|defaultEndpoint :: Endpoint|] "ENDPOINT" "The endpoint to bind to"
+
+defineFlag "redis_secret" "" "The password to use when connecting to redis"
 
 defineFlag "blackbox_backlog" (32 :: Int) "Maximum number of pending connections"
 defineFlag "blackbox_capabilities" (4 :: Int) "Numer of worker threads (per endpoint)"
@@ -65,8 +68,9 @@ main = do
                            flags_blackbox_backlog
                            (naming, fmap (maybe [] id . lookup "blackbox") . readIORef)
                            flags_blackbox_capabilities
+      cache   <- redisOpen (naming, fmap (maybe [] id . lookup "redis") . readIORef) flags_redis_secret
       storage <- fmap zmqbackend $ create cfg ctx ctrl
-      void $ forkFinally (startServer core flags_endpoint ctx ctrl storage) $ \e -> do
+      void $ forkFinally (startServer core flags_endpoint ctx ctrl cache storage) $ \e -> do
         lwarn Global (printf "warpdrive has died: %s" (show e))
         signal alive
       takeMVar alive

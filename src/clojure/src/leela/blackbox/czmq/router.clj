@@ -38,11 +38,11 @@
 (defn evaluate [worker [peer msg]]
   (try
     (let [reply ((:onjob worker) msg)]
-      (debug (format "REQUEST/DONE: %s ~> %s" (pr-str (map f/bytes-to-str msg)) (pr-str reply)))
+      (debug (format "REQUEST/DONE: %s ~> %s" (pr-str (map f/bytes-to-str-unsafe msg)) (pr-str reply)))
       (cons peer (cons "" reply)))
     (catch Exception e
       (let [reply (:onerr worker)]
-        (error e (format "REQUEST/FAIL: %s ~> %s" (pr-str (map f/bytes-to-str msg)) (pr-str reply)))
+        (error e (format "REQUEST/FAIL: %s ~> %s" (pr-str (map f/bytes-to-str-unsafe msg)) (pr-str reply)))
         (cons peer (cons "" reply))))))
 
 (defn run-worker [ctx endpoint queue worker]

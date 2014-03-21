@@ -15,9 +15,11 @@
 module Leela.Storage.Graph
     ( Page
     , Limit
+    , AttrBackend (..)
     , GraphBackend (..)
     ) where
 
+import Leela.Data.Time
 import Leela.Data.Types
 
 type Page = Maybe
@@ -42,14 +44,22 @@ class GraphBackend m where
 
   putLabel  :: m -> [(GUID, Label)] -> IO ()
 
+  unlink    :: m -> [(GUID, Label, Maybe GUID)] -> IO ()
+
+  remove    :: m -> GUID -> IO ()
+
+class AttrBackend m where
+
   putAttr   :: m -> [(GUID, Attr, Value, [Option])] -> IO ()
+
+  putTAttr  :: m -> [(GUID, Attr, Time, Value, [Option])] -> IO ()
+
+  getTAttr  :: m -> GUID -> Attr -> Time -> Limit -> IO [(Time, Value)]
 
   getAttr   :: m -> GUID -> Attr -> IO (Maybe Value)
 
   listAttr  :: m -> GUID -> Mode Attr -> Limit -> IO [Attr]
 
+  listTAttr :: m -> GUID -> Mode Attr -> Limit -> IO [Attr]
+
   delAttr   :: m -> [(GUID, Attr)] -> IO ()
-
-  unlink    :: m -> [(GUID, Label, Maybe GUID)] -> IO ()
-
-  remove    :: m -> GUID -> IO ()

@@ -20,7 +20,9 @@ module Leela.Storage.Backend.ZMQ
     , zmqbackend
     ) where
 
+import Leela.Logger
 import Data.ByteString (ByteString)
+import Leela.Data.Types
 import Control.Exception
 import Leela.HZMQ.Dealer
 import Leela.Data.Excepts
@@ -36,6 +38,11 @@ recv :: Maybe [ByteString] -> Reply
 recv Nothing    = FailMsg 500
 recv (Just msg) = decode msg
 
+internalError :: IO a
+internalError = do
+  lerror Storage "error communicating with the storage backend"
+  throwIO SystemExcept
+
 send :: Dealer -> Query -> IO Reply
 send pool req = fmap recv (request pool (encode req))
 
@@ -44,7 +51,46 @@ send_ pool req = do
   reply <- send pool req
   case reply of
     DoneMsg -> return ()
-    _       -> throwIO SystemExcept
+    _       -> internalError
+
+instance AttrBackend ZMQBackend where
+
+  putAttr _ []    = return ()
+  putAttr m attrs = send_ (dealer m) (MsgPutAttr $ map setIndexing attrs)
+      where setIndexing (g, a, v, o) = (g, a, v, setOpt Indexing o)
+
+  putTAttr _ []    = return ()
+  putTAttr m attrs = send_ (dealer m) (MsgPutTAttr $ map setIndexing attrs)
+      where setIndexing (g, a, t, v, o) = (g, a, t, v, setOpt Indexing o)
+
+  getAttr m a k   = do
+    reply <- send (dealer m) (MsgGetAttr a k)
+    case reply of
+      KAttrMsg v  -> return (Just v)
+      FailMsg 404 -> return Nothing
+      _           -> internalError
+
+  getTAttr m g a time limit = do
+    reply <- send (dealer m) (MsgGetTAttr g a time limit)
+    case reply of
+      TAttrMsg v  -> return v
+      FailMsg 404 -> return []
+      _           -> internalError
+
+  listAttr m g page limit = do
+    reply <- send (dealer m) (MsgListAttr g page limit)
+    case reply of
+      NAttrMsg xs -> return xs
+      _           -> internalError
+
+  listTAttr m g page limit = do
+    reply <- send (dealer m) (MsgListTAttr g page limit)
+    case reply of
+      NAttrMsg xs -> return xs
+      _           -> internalError
+
+  delAttr _ []    = return ()
+  delAttr m attrs = send_ (dealer m) (MsgDelAttr attrs)
 
 instance GraphBackend ZMQBackend where
 
@@ -53,26 +99,26 @@ instance GraphBackend ZMQBackend where
     case reply of
       NameMsg u t n _ -> return (u, t, n)
       FailMsg 404     -> throwIO NotFoundExcept
-      _               -> throwIO SystemExcept
+      _               -> internalError
 
   getGUID m u t n = do
    reply <- send (dealer m) (MsgGetGUID u t n)
    case reply of
      NameMsg _ _ _ g -> return (Just g)
      FailMsg 404     -> return Nothing
-     _               -> throwIO SystemExcept
+     _               -> internalError
 
   putName m u t n = do
     reply <- send (dealer m) (MsgPutName u t n)
     case reply of
       NameMsg _ _ _ g -> return g
-      _               -> throwIO SystemExcept
+      _               -> internalError
 
   getLabel m g page limit = do
     reply <- send (dealer m) (MsgGetLabel g page limit)
     case reply of
       LabelMsg xs -> return xs
-      _           -> throwIO SystemExcept
+      _           -> internalError
 
   putLabel _ []     = return ()
   putLabel m labels = send_ (dealer m) (MsgPutLabel labels)
@@ -82,37 +128,18 @@ instance GraphBackend ZMQBackend where
     case reply of
       LinkMsg [] -> return False
       LinkMsg _  -> return True
-      _          -> throwIO SystemExcept
+      _          -> internalError
 
   getLink m a l page limit = do
     reply <- send (dealer m) (MsgGetLink a l page limit)
     case reply of
       LinkMsg xs -> return xs
-      _          -> throwIO SystemExcept
+      _          -> internalError
 
   putLink _ []    = return ()
   putLink m links = send_ (dealer m) (MsgPutLink links)
 
   unlink _ []    = return ()
   unlink m links = send_ (dealer m) (MsgUnlink links)
-
-  putAttr _ []    = return ()
-  putAttr m attrs = send_ (dealer m) (MsgPutAttr attrs)
-
-  getAttr m a k   = do
-    reply <- send (dealer m) (MsgGetAttr a k)
-    case reply of
-      KAttrMsg v  -> return (Just v)
-      FailMsg 404 -> return Nothing
-      _           -> throwIO SystemExcept
-
-  listAttr m g page limit = do
-    reply <- send (dealer m) (MsgListAttr g page limit)
-    case reply of
-      NAttrMsg xs -> return xs
-      _           -> throwIO SystemExcept
-
-  delAttr _ []    = return ()
-  delAttr m attrs = send_ (dealer m) (MsgDelAttr attrs)
 
   remove m a = send_ (dealer m) (MsgDelete a)

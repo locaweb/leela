@@ -39,8 +39,8 @@
 (defn msg-nattr [attrs]
   (cons "n-attr" attrs))
 
-(defn msg-tattr [msg]
-  (cons "t-attr" (flatten (map (fn [[k v]] [(str k) v]) msg))))
+(defn msg-tattr [data]
+  (cons "t-attr" (flatten (map (fn [[k v]] [(str k) v]) data))))
 
 (defn msg-kattr [data]
   (if-not data
@@ -49,13 +49,13 @@
 
 (defn parse-opts [opt]
   (if (empty? opt)
-    []
+    {}
     (let [parse-funcs {"ttl" (fn [v] (Integer. v))
                        "index" (fn [v] (boolean v))}
           parse-keyval (fn [raw]
                          (let [[k v] (s/split raw #":" 2)]
                            [(keyword k) ((get parse-funcs k identity) v)]))]
-      (mapcat parse-keyval (s/split opt #", ")))))
+      (apply (partial assoc {}) (mapcat parse-keyval (s/split opt #", "))))))
 
 (defn exec-getname [cluster [g]]
   (let [g (f/bytes-to-uuid g)]
@@ -109,42 +109,37 @@
       (partition 3 links))))
   (msg-done))
 
-(defn exec-get-tattr [cluster [k n p & limit]]
+(defn exec-get-tattr [cluster [k n t & limit]]
   (let [k (f/bytes-to-uuid k)
         n (f/bytes-to-str n)
-        p (Integer. (f/bytes-to-str p))]
+        t (Long. (f/bytes-to-str t))]
     (storage/with-consistency :one
       (storage/with-limit (f/maybe-bytes-to-str (first limit))
-        (msg-tattr (storage/get-tattr cluster k n p))))))
+        (msg-tattr (storage/get-tattr cluster k n t))))))
 
 (defn exec-put-tattr [cluster attrs]
   (storage/with-consistency :one
     (storage/put-tattr
      cluster
      (map
-      (fn [[k n p s v o]]
+      (fn [[k n t v o]]
         [{:key (f/bytes-to-uuid k)
           :name (f/bytes-to-str n)
-          :partition (Integer. (f/bytes-to-str p))
-          :slot (Integer. (f/bytes-to-str s))
+          :time (Long. (f/bytes-to-str t))
           :value (f/str-to-bytes v)}
-         (apply hash-map (parse-opts (f/bytes-to-str o)))])
-        (partition 6 attrs)))))
+         (parse-opts (f/bytes-to-str o))])
+        (partition 5 attrs))))
+  (msg-done))
 
 (defn exec-del-tattr [cluster attrs]
   (storage/with-consistency :one
     (storage/del-tattr
      cluster
      (map
-      (fn [[k n p s]] (if (empty? s)
-                        {:key (f/bytes-to-uuid k)
-                         :name (f/bytes-to-str n)
-                         :partition (Integer. (f/bytes-to-str p))}
-                        {:key (f/bytes-to-uuid k)
-                         :name (f/bytes-to-str n)
-                         :partition (Integer. (f/bytes-to-str p))
-                         :slot (Integer. (f/bytes-to-str s))}))
-      (partition 4 attrs))))
+      (fn [[k n t]] {:key (f/bytes-to-uuid k)
+                     :name (f/bytes-to-str n)
+                     :time (Long. (f/bytes-to-str t))})
+      (partition 3 attrs))))
   (msg-done))
 
 (defn exec-get-kattr [cluster [k s]]
@@ -212,8 +207,8 @@
     (msg-fail 400)))
 
 (defn exec-listattr [cluster msg]
-  (let [table (get {"k-attr" :p_index
-                    "t-attr" :t_index} (first msg))]
+  (let [table (get {"k-attr" :k_index
+                    "t-attr" :t_index} (f/bytes-to-str (first msg)))]
     (case (f/bytes-to-str (second msg))
       "all" (msg-nattr (exec-getindex-all cluster table (drop 2 msg)))
       "pre" (msg-nattr (exec-getindex-prefix cluster table (drop 2 msg)))

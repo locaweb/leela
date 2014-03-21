@@ -71,6 +71,7 @@ data RValue = Path [(GUID, Label)]
             | Stat [(B.ByteString, B.ByteString)]
             | List [RValue]
             | KAttr GUID Attr (Maybe Value)
+            | TAttr GUID Attr [(Time, Value)]
             | NAttrs GUID [Attr]
             | Name User Tree Node GUID
 
@@ -95,7 +96,10 @@ readDecimal s = case (B8.readInteger s) of
                   _            -> Left $ Fail 400 (Just "syntax error: invalid number")
 
 readTime :: B.ByteString -> Either Reply Time
-readTime = fmap (fromSeconds . fromIntegral) . readDecimal
+readTime = fmap (fromSeconds . fromInt) . readDecimal
+    where
+      fromInt :: Int -> Double
+      fromInt = fromIntegral
 
 readSignature :: B.ByteString -> Either Reply Signature
 readSignature s =
@@ -127,12 +131,16 @@ encodeValue (UInt32 v)   = ["4", encodeShow v]
 encodeValue (UInt64 v)   = ["5", encodeShow v]
 encodeValue (Double v)   = ["6", toShortest v]
 
+encodeTimeSeries :: [(Time, Value)] -> [B.ByteString]
+encodeTimeSeries = concatMap (\(t, v) -> toShortest (seconds t) : encodeValue v)
+
 encodeRValue :: RValue -> [B.ByteString]
 encodeRValue (Name u t n g)       = ["name", toByteString u, toByteString t, toByteString n, toByteString g]
 encodeRValue (Path p)             = let f acc (g, l) = toByteString l : toByteString g : acc
-                                    in "path" : encodeShow (2 * length p) : foldl' f [] p
+                                    in "path" : encodeShow (length p) : foldl' f [] p
 encodeRValue (List v)             = "list" : encodeShow (length v) : concatMap encodeRValue v
-encodeRValue (Stat prop)          = "stat" : encodeShow (2 * length prop) : concatMap (\(a, b) -> [a, b]) prop
+encodeRValue (Stat prop)          = "stat" : encodeShow (length prop) : concatMap (\(a, b) -> [a, b]) prop
+encodeRValue (TAttr g a v)        = "t-attr" : (encodeShow $ length v) : toByteString g : toByteString a : encodeTimeSeries v
 encodeRValue (KAttr g a Nothing)  = ["k-attr", toByteString g, toByteString a, "-1", ""]
 encodeRValue (KAttr g a (Just v)) = "k-attr" : toByteString g : toByteString a : encodeValue v
 encodeRValue (NAttrs g names)     = "n-attr" : encodeShow (length names) : toByteString g : map toByteString names

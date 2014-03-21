@@ -16,24 +16,18 @@
 -- limitations under the License.
 
 module Leela.Data.Graph
-    ( query
-    , update
-    , enumAttrs
+    ( exec
+    , query
+    , enumKAttrs
+    , enumTAttrs
     ) where
 
+import Leela.Helpers
 import Control.Monad
+import Leela.Data.Time
 import Leela.Data.Types
 import Leela.Storage.Graph
 import Control.Concurrent.Async
-
-data Batch = Batch { bPutLink  :: [(GUID, Label, GUID)]
-                   , bPutLabel :: [(GUID, Label)]
-                   , bPutNode  :: [(User, Tree, Node)]
-                   , bUnlinks  :: [(GUID, Label, Maybe GUID)]
-                   , bPutKAttr :: [(GUID, Attr, Value, [Option])]
-                   , bDelKAttr :: [(GUID, Attr)]
-                   , bDelNode  :: [GUID]
-                   }
 
 limit :: Int
 limit = 512
@@ -61,45 +55,68 @@ query db write (ByLabel a (Label l0)) = loadLabels (fmap Label $ glob l0)
             write (map (\b -> (a, l, b)) (init guids))
             loadLinks l (Just $ last guids)
 
-enumAttrs :: (GraphBackend db) => db -> ([Attr] -> IO ()) -> GUID -> Mode Attr -> IO ()
-enumAttrs db write g mode = do
-  values <- listAttr db g mode limit
+enumAttrs :: (AttrBackend db) => (db -> GUID -> Mode Attr -> Limit -> IO [Attr]) -> db -> ([Attr] -> IO ()) -> GUID -> Mode Attr -> IO ()
+enumAttrs listF db write g mode = do
+  values <- listF db g mode limit
   if (length values < limit)
     then write values
     else do
       write (init values)
-      enumAttrs db write g (nextPage mode $ last values)
+      enumAttrs listF db write g (nextPage mode $ last values)
 
-intoChunks :: Int -> [a] -> [[a]]
-intoChunks _ [] = []
-intoChunks n l  = let (a, rest) = splitAt n l
-                  in a : intoChunks n rest
+enumKAttrs :: (AttrBackend db) => db -> ([Attr] -> IO ()) -> GUID -> Mode Attr -> IO ()
+enumKAttrs = enumAttrs listAttr
 
-plan :: Batch -> [Journal] -> Batch
-plan rt []                      = rt
-plan rt (PutLink a l b : xs)    = plan (rt { bPutLink = (a, l, b) : bPutLink rt }) xs
-plan rt (PutLabel a l : xs)     = plan (rt { bPutLabel = (a, l) : bPutLabel rt }) xs
-plan rt (PutNode u t n : xs)    = plan (rt { bPutNode = (u, t, n) : bPutNode rt }) xs
-plan rt (DelLink a l mb : xs)   = plan (rt { bUnlinks = (a, l, mb) : bUnlinks rt }) xs
-plan rt (DelNode a : xs)        = plan (rt { bDelNode = a : bDelNode rt }) xs
-plan rt (PutKAttr g a v o : xs) = plan (rt { bPutKAttr = (g, a, v, o) : bPutKAttr rt}) xs
-plan rt (DelKAttr g a : xs)     = plan (rt { bDelKAttr = (g, a) : bDelKAttr rt}) xs
+enumTAttrs :: (AttrBackend db) => db -> ([Attr] -> IO ()) -> GUID -> Mode Attr -> IO ()
+enumTAttrs = enumAttrs listTAttr
 
-exec :: (GraphBackend db) => db -> Batch -> IO [(User, Tree, Node, GUID)]
+batch :: [Maybe (IO ())] -> IO ()
+batch = go []
+    where
+      go acc []           = mapM_ wait acc
+      go acc (Nothing:xs) = go acc xs
+      go acc (Just io:xs)  = do
+        a <- async io
+        go (a : acc) xs
+
+mkio :: [a] -> ([a] -> IO b) -> Maybe (IO b)
+mkio [] _ = Nothing
+mkio v f  = Just (f v)
+
+getPutNode :: [Journal] -> [(User, Tree, Node)]
+getPutNode = map (\(PutNode u t n) -> (u, t, n)) . filter isPutNode
+
+getPutLabel :: [Journal] -> [(GUID, Label)]
+getPutLabel = map (\(PutLabel a l) -> (a, l)) . filter isPutLabel
+
+getPutLink :: [Journal] -> [(GUID, Label, GUID)]
+getPutLink = map (\(PutLink a l b) -> (a, l, b)) . filter isPutLink
+
+getDelLink :: [Journal] -> [(GUID, Label, Maybe GUID)]
+getDelLink = map (\(DelLink a l mb) -> (a, l, mb)) . filter isDelLink
+
+getPutKAttr :: [Journal] -> [(GUID, Attr, Value, [Option])]
+getPutKAttr = map (\(PutKAttr a t v o) -> (a, t, v, o)) . filter isPutKAttr
+
+getDelKAttr :: [Journal] -> [(GUID, Attr)]
+getDelKAttr = map (\(DelKAttr a t) -> (a, t)) . filter isDelKAttr
+
+getPutTAttr :: [Journal] -> [(GUID, Attr, Time, Value, [Option])]
+getPutTAttr = map (\(PutTAttr g a t v o) -> (g, a, t, v, o)) . filter isPutTAttr
+
+exec :: (GraphBackend db, AttrBackend db) => db -> [Journal] -> IO [(User, Tree, Node, GUID)]
 exec db rt = do
-  a1 <- async (mapM_ (putLink db) (intoChunks 100 $ bPutLink rt))
-  a2 <- async (mapM_ (putLabel db) (intoChunks 100 $ bPutLabel rt))
-  a3 <- async (mapM (mapConcurrently myPutName) (intoChunks 8 $ bPutNode rt))
-  a4 <- async (mapM_ (unlink db) (intoChunks 8 $ bUnlinks rt))
-  a5 <- async (mapM_ (putAttr db) (intoChunks 100 $ bPutKAttr rt))
-  a6 <- async (mapM_ (delAttr db) (intoChunks 8 $ bDelKAttr rt))
-  mapM_ wait [a1, a2, a4, a5, a6]
-  liftM concat (wait a3)
+  guids <- async (mapM (mapConcurrently register) (intoChunks 8 $ getPutNode rt))
+  batch [ mkio (intoChunks 64 $ getPutLink rt) (mapM_ $ putLink db)
+        , mkio (intoChunks 64 $ getPutLabel rt) (mapM_ $ putLabel db)
+        , mkio (intoChunks 64 $ getDelLink rt) (mapM_ $ unlink db)
+        , mkio (intoChunks 64 $ getPutKAttr rt) (mapM_ $ putAttr db)
+        , mkio (intoChunks 64 $ getDelKAttr rt) (mapM_ $ delAttr db)
+        , mkio (intoChunks 64 $ getPutTAttr rt) (mapM_ $ putTAttr db)
+        ]
+  fmap concat (wait guids)
 
   where
-    myPutName (u, t, n) = do
+    register (u, t, n) = do
       g <- putName db u t n
       return (u, t, n, g)
-
-update :: (GraphBackend db) => db -> [Journal] -> IO [(User, Tree, Node, GUID)]
-update db = exec db . plan (Batch [] [] [] [] [] [] [])

@@ -144,12 +144,12 @@ blkreadIO limit = atomically . blkread limit
 blkread :: Limit -> Device a -> STM [a]
 blkread limit dev = blkread_ (max 1 limit) []
     where
-      blkread_ 0 acc = return acc
+      blkread_ 0 acc = return (reverse acc)
       blkread_ l acc = do
         mmsg <- readfunc l
         case mmsg of
           Just msg -> blkread_ (l - 1) (msg : acc)
-          Nothing  -> return acc
+          Nothing  -> return (reverse acc)
 
       readfunc l
           | l == limit = devread dev

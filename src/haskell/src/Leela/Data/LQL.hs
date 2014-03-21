@@ -28,7 +28,8 @@ data LQL = StatStmt
          | PathStmt (Matcher, [(GUID -> Matcher)])
          | KAttrGetStmt GUID Attr [Option]
          | TAttrGetStmt GUID Attr TimeRange [Option]
-         | AttrListStmt GUID (Mode Attr)
+         | KAttrListStmt GUID (Mode Attr)
+         | TAttrListStmt GUID (Mode Attr)
          | NameStmt Using GUID
          | GUIDStmt Using Node
          | AlterStmt [Journal]
