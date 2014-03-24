@@ -25,7 +25,6 @@ module Leela.Network.Protocol
     , Writer
     , Signature (..)
     , isEOF
-    , reduce
     , decode
     , encode
     , encodeE
@@ -169,18 +168,3 @@ encodeE e =
     Just TimeoutExcept   -> Fail 589 Nothing
     Just UserExcept      -> Fail 400 Nothing
     _                    -> Fail 500 Nothing
-
-reduceRValue :: RValue -> RValue -> RValue
-reduceRValue (List a) (List b) = List (a ++ b)
-reduceRValue (List a) b        = List (b : a)
-reduceRValue a (List b)        = List (a : b)
-reduceRValue a b               = List [a, b]
-
-reduce :: Reply -> Reply -> Reply
-reduce m@(Fail _ _) _    = m
-reduce _ m@(Fail _ _)    = m
-reduce m@(Done _) _      = m
-reduce _ m@(Done _)      = m
-reduce m Last            = m
-reduce Last m            = m
-reduce (Item a) (Item b) = Item (reduceRValue a b)
