@@ -1,11 +1,11 @@
 ;; Copyright 2014 (c) Diego Souza <dsouza@c0d3.xxx>
-;;  
+;;
 ;; Licensed under the Apache License, Version 2.0 (the "License");
 ;; you may not use this file except in compliance with the License.
 ;; You may obtain a copy of the License at
-;;  
+;;
 ;;     http://www.apache.org/licenses/LICENSE-2.0
-;;  
+;;
 ;; Unless required by applicable law or agreed to in writing, software
 ;; distributed under the License is distributed on an "AS IS" BASIS,
 ;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -42,10 +42,10 @@
                                    ["--password" "the password to use when connecting to cassandra"
                                     :default "$LEELA_CASSANDRA_PASSWORD"]
                                    ["--capabilities" "the number of workers to fork"
-                                    :default 64
+                                    :default 256
                                     :parse-fn #(Integer/parseInt %)]
                                    ["--queue-size" "the number of outstanding requests"
-                                    :default 32
+                                    :default 128
                                     :parse-fn #(Integer/parseInt %)]
                                    ["--endpoint" "the binding address"
                                     :default "tcp://localhost:50021"])]
