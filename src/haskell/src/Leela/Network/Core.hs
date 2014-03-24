@@ -30,7 +30,6 @@ import           Leela.Helpers
 import           Control.Monad
 import           Leela.Data.LQL
 import qualified Data.ByteString as B
-import           Leela.Data.Time
 import           Leela.Data.Graph
 import           Leela.Data.Types
 import           Control.Exception
@@ -45,7 +44,6 @@ import           System.Random.Shuffle
 import           Control.Concurrent.STM
 import           Leela.Network.Protocol
 import           Leela.Storage.KeyValue
-import           Control.Concurrent.Async
 
 data CoreServer = CoreServer { stat   :: IORef [(String, [Endpoint])]
                              , fdseq  :: TVar FH
@@ -184,14 +182,8 @@ evalLQL cache db core queue (x:xs) =
       getAttr db g a >>= devwriteIO queue . Item . KAttr g a
       evalLQL cache db core queue xs
     TAttrGetStmt g a (Range t0 t1) _ -> do
-      let day0         = fst $ dateTime t0
-          day1         = fst $ dateTime t1
-          filterSeries = filter (\(t, _) -> (t >= t0) && (t <= t1))
-          flush series = when (not $ null series) (devwriteIO queue . Item . TAttr g a $ series)
-      flush =<< liftM filterSeries (getTAttr db g a t0 24)
-      forM_ [(succ day0)..(pred day1)] $ \day ->
-        flush =<< getTAttr db g a (fromDateTime day 0) 24
-      when (day0 < day1) (flush =<< liftM filterSeries (getTAttr db g a t1 24))
+      loadTAttr db (devwriteIO queue . either (flip Fail Nothing) (Item . TAttr g a)) g a t0 t1
+      devwriteIO queue (Item $ TAttr g a [])
       evalLQL cache db core queue xs
     NameStmt _ g      -> do
       (gUser, gTree, gName) <- getName db g
@@ -238,11 +230,10 @@ process _ _ srv (Fetch sig fh) = do
   case mdev of
     Nothing  -> return $ Fail 404 $ Just "no such channel"
     Just dev -> do
-      blocks <- blkreadIO 32 dev
-      case blocks of
-        [] -> closeIO dev >> return Last
-        _  -> let answer = foldr1 reduce blocks
-              in when (isEOF answer) (closeIO dev) >> return answer
+      mmsg <- devreadIO dev
+      case mmsg of
+        Nothing  -> closeIO dev >> return Last
+        Just msg -> return msg
 process _ _ srv (Close nowait sig fh) = do
   lnotice Network (printf "CLOSE %d" fh)
   closeFD srv nowait (sigUser sig, fh)
