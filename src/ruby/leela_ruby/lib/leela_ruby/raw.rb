@@ -17,7 +17,8 @@ module Leela
       :lql_stat_msg,
       :lql_fail_msg,
       :lql_nattr_msg,
-      :lql_kattr_msg
+      :lql_kattr_msg,
+      :lql_tattr_msg
     ]
 
     enum :lql_value_type, [
@@ -57,12 +58,14 @@ module Leela
     attach_function :leela_lql_cursor_next,  [:pointer], :status,  :blocking => true
     attach_function :leela_lql_cursor_close, [:pointer], :status,  :blocking => true
 
-
     attach_function :leela_lql_fetch_nattr, [:pointer], :pointer,  :blocking => true
     attach_function :leela_lql_nattr_free, [:pointer], :void
 
     attach_function :leela_lql_fetch_kattr, [:pointer], :pointer,  :blocking => true
     attach_function :leela_lql_kattr_free, [:pointer], :void
+
+    attach_function :leela_lql_fetch_tattr, [:pointer], :pointer,  :blocking => true
+    attach_function :leela_lql_tattr_free, [:pointer], :void
 
     def self.with_cursor(ctx, user, pass, timeout)
       cursor = Leela::Raw.leela_lql_cursor_init(ctx, user, pass, timeout)
@@ -97,8 +100,10 @@ module Leela
     end
 
     class LqlAttrs < FFI::Struct
-      layout :first,  :string,
-             :second, :string
+      layout :first,   :pointer,
+             :second,  :pointer,
+             :fstfree, :pointer,
+             :sndfree, :pointer
     end
 
     class LqlNAttr < FFI::Struct
@@ -126,6 +131,13 @@ module Leela
       layout :guid,  :string,
              :name,  :string,
              :value, :pointer # LqlValueT
+    end
+
+    class LqlTAttr < FFI::Struct
+      layout :guid,   :string,
+             :name,   :string,
+             :size,   :int,
+             :series, :pointer #LqlAttrs
     end
   end
 end
