@@ -4,7 +4,17 @@ set -e
 set -x
 
 docker_build () {
-  docker build -rm -t leela/dev .
+  local tmpdir
+  local curdir
+  curdir=$(cd "$(dirname "$0")" && pwd)
+  cname=$(basename "$1" .dockerfile)
+  tmpdir="leela-stage1-$RANDOM" && {
+    mkdir -p "$tmpdir"
+    cp "$curdir/$1" "$tmpdir/Dockerfile"
+    cp "$0" "$tmpdir/stage-1.sh"
+    docker build --rm -t "leela/$cname" "$tmpdir" || rm -rf "$tmpdir"
+    rm -rf "$tmpdir"
+  }
 }
 
 stage1_installpkg_squeeze () {
@@ -20,37 +30,32 @@ stage1_installpkg_wheezy () {
   echo "deb http://cdn.debian.net/debian wheezy main non-free contrib" > /etc/apt/sources.list
   echo "deb http://cdn.debian.net/debian wheezy-backports main" > /etc/apt/sources.list.d/bpo.list
   apt-get update && apt-get install -q --yes --force-yes \
-    libncursesw5-dev libffi-dev libzmq3-dev zlib1g-dev libzookeeper-mt-dev python2.7-dev \
+    libncursesw5-dev libffi-dev libzmq3-dev zlib1g-dev libzookeeper-mt-dev python2.7-dev python2.6-dev \
     wget ca-certificates debhelper devscripts coreutils
 }
 
-stage1_installpkg () {
-  if [ "$1" = wheezy ]
-  then
-    stage1_installpkg_wheezy
-  elif [ "$1" = squeeze ]
-  then
-    stage1_installpkg_squeeze
-  fi
+stage1_installpkg_centos6 () {
+  yum install -y --nogpgcheck \
+    ncurses-devel libffi-devel zlib-devel python-devel uuid-devel \
+    wget ca-certificates rpmdevtools tar gcc gcc-c++ git make || true
+  yum install -y --nogpgcheck \
+    zeromq-devel -c "http://download.opensuse.org/repositories/home:/fengshuo:/zeromq/CentOS_CentOS-6/home:fengshuo:zeromq.repo" || true
 }
 
-stage1_installzoo () {
-  wget -O - http://ftp.unicamp.br/pub/apache/zookeeper/zookeeper-3.4.5/zookeeper-3.4.5.tar.gz | tar -x -z -C /opt
-  cd /opt/zookeeper-3.4.5/src/c
-  ./configure --prefix=/usr
-  make
-  make install
+stage1_installpkg_centos5 () {
+  yum install -y --nogpgcheck wget || true
+  wget http://dl.fedoraproject.org/pub/epel/5/i386/epel-release-5-4.noarch.rpm
+  yum localinstall -y --nogpgcheck epel-release-5-4.noarch.rpm || true
+  yum install -y --nogpgcheck \
+    ncurses-devel libffi-devel zlib-devel python-devel uuid-devel \
+    wget ca-certificates rpmdevtools tar gcc gcc-c++ git make || true
+  yum install -y --nogpgcheck \
+    zeromq-devel -c "http://download.opensuse.org/repositories/home:/fengshuo:/zeromq/CentOS_CentOS-5/home:fengshuo:zeromq.repo" || true
 }
 
 stage1_installghc () {
-  if [ "$1" = wheezy ]
-  then
-    ln -s libgmp.so.10 /usr/lib/x86_64-linux-gnu/libgmp.so.3
-    ln -s libgmp.so.10 /usr/lib/x86_64-linux-gnu/libgmp.so
-  elif [ "$1" = squeeze ]
-  then
-    ln -s libgmp.so.3 /usr/lib/libgmp.so
-  fi
+  ln -s libgmp.so.10 /usr/lib/x86_64-linux-gnu/libgmp.so.3
+  ln -s libgmp.so.10 /usr/lib/x86_64-linux-gnu/libgmp.so
 
   wget -O - http://www.haskell.org/ghc/dist/7.6.3/ghc-7.6.3-x86_64-unknown-linux.tar.bz2 | tar -x -j -C /opt
   cd /opt/ghc-7.6.3
@@ -86,17 +91,32 @@ stage1_installclj () {
   chmod 755 /usr/bin/lein
 }
 
-if [ "$(basename $0)" = in-wheezy-target.sh ]
+if [ "$dist" = debian7 ]
 then
-  stage1_installpkg wheezy
-  stage1_installclj wheezy
-  stage1_installghc wheezy
-elif [ "$(basename $0)" = in-squeeze-target.sh ]
+  stage1_installpkg_wheezy
+  if [ "$arch" = amd64 ]
+  then
+    stage1_installclj
+    stage1_installghc
+  fi
+elif [ "$dist" = debian6 ]
 then
-  stage1_installpkg squeeze
-  stage1_installzoo squeeze
-  stage1_installclj squeeze
-  stage1_installghc squeeze
-else
-  docker_build
+  stage1_installpkg_squeeze
+elif [ "$dist" = centos5 ]
+then
+  stage1_installpkg_centos5
+elif [ "$dist" = centos6 ]
+then
+  stage1_installpkg_centos6
+elif [ "$(basename $0)" = stage-1.sh ]
+then
+  if [ -z "$1" ]
+  then
+    for f in *.dockerfile
+    do
+      docker_build "$f"
+    done
+  else
+    docker_build "$1"
+  fi
 fi
