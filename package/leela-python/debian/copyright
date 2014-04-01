@@ -1,7 +1,0 @@
-Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: leela-python
-Source: https://github.com/locaweb/leela
-
-Files: *
-Copyright: 2012-2014, Diego Souza
-License: APACHE-2

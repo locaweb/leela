@@ -1,0 +1,46 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+version = $(shell ../../src/scripts/read-version.sh)
+
+%:
+	dh $@
+
+pyleela_clean:
+	cd ../../src/python && { \
+	  for bin_python in $$(pyversions -rs); \
+	  do \
+	    $$bin_python setup.py clean -a; \
+	  done; \
+	}
+	rm -f debian/*substvars
+
+pyleela_install:
+	cd ../../src/python && { \
+	  for bin_python in $$(pyversions -rs); \
+	  do \
+	    $$bin_python setup.py clean -a; \
+	    $$bin_python setup.py install --install-layout=deb --root=../../package/leela-lib/debian/leela-python; \
+	  done; \
+	}
+
+cleela_clean:
+	$(MAKE) -C ../../src/c clean
+
+cleela_install:
+	mkdir -p debian/leela-c/usr/include/leela
+	mkdir -p debian/leela-c/usr/lib/
+	cp -p ../../src/c/src/leela/*.h debian/leela-c/usr/include/leela/
+	cp -p ../../src/c/libleela.so* debian/leela-c/usr/lib/
+
+cleela_build:
+	$(MAKE) -C ../../src/c build
+
+override_dh_auto_clean: cleela_clean pyleela_clean
+	rm -f debian/*substvars
+	dh_clean
+
+override_dh_install: cleela_install pyleela_install
+	dh_install
+
+override_dh_auto_build: cleela_build
