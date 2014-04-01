@@ -31,3 +31,4 @@ try_leela.stderr
 /src/python/build
 /src/c/libleela4.0.0.so
 /src/c/src/driver
+/package/leela-c/debian

@@ -5,14 +5,15 @@ maybesudo = $(shell [ "$$UID" -ne 0 ] && echo sudo)
 
 images:
 	cd docker-images && { \
-	  $(gainroot) ./stage-0.sh; \
-	  $(gainroot) ./stage-1.sh; \
+	  $(maybesudo) ./stage-0.sh; \
+	  $(maybesudo) ./stage-1.sh; \
 	}
 
 %.debian: dist=debian7
 %.debian: arch=amd64
 %.debian:
 	@echo $(MAKE) $(basename $@) dist=$(dist) arch=$(arch)
+	ln -s -f -n $(dist) $(srcroot)/package/$(basename $@)/debian
 	$(maybesudo) docker run \
 	  -i -t -v $(srcroot):/leela \
 	  -w "/leela/package/$(basename $@)" \
@@ -35,7 +36,7 @@ images:
 	     cp -r /rpmbuild/* ../rpm"
 
 clean:
-	# N.B.: this assumes you uses root user to build packages.
+	# N.B.: this assumes root user to build packages.
 	#       Even more important, you do not use root user to
 	#       clone/edit files.
 	for f in $$(git ls-files -o "$(srcroot)"); \
