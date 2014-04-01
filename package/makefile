@@ -36,9 +36,9 @@ images:
 	     cp -r /rpmbuild/* ../rpm"
 
 clean:
-	# N.B.: this assumes root user to build packages.
-	#       Even more important, you do not use root user to
-	#       clone/edit files.
+	# N.B.: this assumes root user building packages; even more
+	#       important, you *must not* use root user to clone/edit
+	#       files.
 	for f in $$(git ls-files -o "$(srcroot)"); \
 	do \
 	  if [ "$$(stat --printf=%u $$f)" -eq 0 ]; \
