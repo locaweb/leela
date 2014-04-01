@@ -17,6 +17,6 @@ setup(name="leela",
       author       = "Diego Souza",
       author_email = "dsouza@c0d3.xxx",
       url          = "http://github.com/locaweb/leela",
-      packages     = ["leela"],
+      packages     = ["pyleela"],
       ext_modules  = [ffi_lql],
       package_dir  = {"": "src"})

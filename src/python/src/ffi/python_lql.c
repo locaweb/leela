@@ -237,7 +237,7 @@ PyObject *__make_stat_msg(lql_stat_t *stat)
 static
 void __make_fail_msg(lql_fail_t *fail)
 {
-  PyObject *pModule = PyImport_ImportModule("leela.exception");
+  PyObject *pModule = PyImport_ImportModule("pyleela.exception");
   PyObject *pClass = NULL;
   PyObject *pTuple = NULL;
 

@@ -2,8 +2,8 @@
 
 import sys
 import json
-from leela import lql
-from leela.exception import LeelaError
+from pyleela import lql
+from pyleela.exception import LeelaError
 
 def read_lines(fd):
     while (True):

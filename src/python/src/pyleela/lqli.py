@@ -8,7 +8,7 @@ import atexit
 import argparse
 import readline
 import traceback
-from leela import lql
+from pyleela import lql
 
 def resolve(cache, ctx, opts, guid):
     name = cache.get(guid)
