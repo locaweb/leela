@@ -1,0 +1,28 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+PATH        := $(PATH):/usr/local/bin
+version      = $(shell ../../src/scripts/read-version.sh)
+bin_cabal   ?= cabal
+
+%:
+	dh $@
+
+override_dh_auto_clean:
+	rm -f ../..//src/haskell/cabal.sandbox.config
+	rm -r -f ../../src/haskell/dist ../../src/haskell/.cabal-sandbox
+	rm -f debian/*substvars
+	dh_clean
+
+override_dh_installinit:
+	dh_installinit --no-start
+
+override_dh_auto_build:
+	dh_testdir
+	cd ../../src/haskell; { \
+          $(bin_cabal) update; \
+          $(bin_cabal) sandbox init; \
+          $(bin_cabal) install --only-dependencies; \
+          $(bin_cabal) configure -O2; \
+          $(bin_cabal) build; \
+        }

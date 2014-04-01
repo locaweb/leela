@@ -1,0 +1,34 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+
+version                 = $(shell ../../src/scripts/read-version.sh)
+DEB_HOST_MULTIARCH     ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+
+%:
+	dh $@
+
+override_dh_auto_clean:
+	cd ../../src/python && { \
+	  for bin_python in $$(pyversions -rs); \
+	  do \
+	    $$bin_python setup.py clean -a; \
+	  done; \
+	}
+	rm -f debian/*substvars
+	dh_clean
+
+override_dh_install:
+	cd ../../src/python && { \
+	  for bin_python in $$(pyversions -rs); \
+	  do \
+	    $$bin_python setup.py clean -a; \
+	    $$bin_python install --install-layout=deb --root=../../package/leela-python/debian/leela-python; \
+	  done; \
+	}
+	dh_install
+
+override_dh_installinit:
+	dh_installinit --no-start
+
+override_dh_auto_build:

@@ -1,4 +1,0 @@
-src/clojure/target/blackbox.jar /usr/lib/
-src/clojure/target/libjzmq.so* /usr/lib/
-src/scripts/leela-blackbox-watchdog.sh /usr/bin
-etc/security/limits.d/blackbox.conf /etc/security/limits.d

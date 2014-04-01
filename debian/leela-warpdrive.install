@@ -1,3 +1,0 @@
-src/haskell/dist/build/warpdrive/warpdrive /usr/bin
-src/scripts/leela-warpdrive-watchdog.sh /usr/bin
-etc/security/limits.d/warpdrive.conf /etc/security/limits.d
