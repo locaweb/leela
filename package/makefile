@@ -13,10 +13,10 @@ images:
 %.debian: arch=amd64
 %.debian:
 	@echo $(MAKE) $(basename $@) dist=$(dist) arch=$(arch)
-	echo $(maybesudo) docker run \
-	  -i -t -v $$HOME:$$HOME \
-	  -w "$(srcroot)/package/$(basename $@)" \
-	  leela/$(dist)-$(arch) dpkg-buildpackage -us -uc $(DEBUILDFLAGS)
+	$(maybesudo) docker run \
+	  -i -t -v $(srcroot):/leela \
+	  -w "/leela/package/$(basename $@)" \
+	  leela/$(dist)-$(arch) dpkg-buildpackage -us -uc
 
 %.centos: dist=centos6
 %.centos: arch=amd64
@@ -27,6 +27,23 @@ images:
 	  -e package=$(basename $@) \
 	  -e version=$(version) \
 	  -w "/leela/package/$(basename $@)/centos" \
-	  leela/$(dist)-$(arch) sh -c 'rpmdev-setuptree; ../../mksource.sh >/rpmbuild/SOURCES/$$package-$$version.tar.gz; rpmbuild -bb $$package.spec'
+	  leela/$(dist)-$(arch) sh -c " \
+	     rpmdev-setuptree; \
+	     ../../mksource.sh >/rpmbuild/SOURCES/\$$package-\$$version.tar.gz; \
+	     rpmbuild -bb \$$package.spec; \
+	     mkdir -p ../rpm; \
+	     cp -r /rpmbuild/* ../rpm"
+
+clean:
+	# N.B.: this assumes you uses root user to build packages.
+	#       Even more important, you do not use root user to
+	#       clone/edit files.
+	for f in $$(git ls-files -o "$(srcroot)"); \
+	do \
+	  if [ "$$(stat --printf=%u $$f)" -eq 0 ]; \
+	  then \
+	    $(maybesudo) rm -rf "$$f"; \
+	  fi; \
+	done
 
 .PHONY: leela-c
