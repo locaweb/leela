@@ -8,16 +8,15 @@ DEB_HOST_MULTIARCH     ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 %:
 	dh $@
 
-pyleela_clean:
+pyleela-clean:
 	cd ../../src/python && { \
 	  for bin_python in $$(pyversions -rs); \
 	  do \
 	    $$bin_python setup.py clean -a; \
 	  done; \
 	}
-	rm -f debian/*substvars
 
-pyleela_install:
+pyleela-install:
 	cd ../../src/python && { \
 	  for bin_python in $$(pyversions -rs); \
 	  do \
@@ -26,23 +25,25 @@ pyleela_install:
 	  done; \
 	}
 
-cleela_clean:
+cleela-clean:
 	$(MAKE) -C ../../src/c clean
 
-cleela_install:
+cleela-install:
 	mkdir -p debian/leela-c/usr/include/leela
 	mkdir -p debian/leela-c/usr/lib/$(DEB_HOST_MULTIARCH)
 	cp -p ../../src/c/src/leela/*.h debian/leela-c/usr/include/leela/
 	cp -p ../../src/c/libleela.so* debian/leela-c/usr/lib/$(DEB_HOST_MULTIARCH)/
 
-cleela_build:
-	$(MAKE) -C ../../src/c build
+cleela-build:
 
-override_dh_auto_clean: cleela_clean pyleela_clean
+override_dh_auto_clean: cleela-clean pyleela-clean
 	rm -f debian/*substvars
 	dh_clean
 
-override_dh_install: cleela_install pyleela_install
+override_dh_install: cleela-install pyleela-install
 	dh_install
 
-override_dh_auto_build: cleela_build
+override_dh_auto_build:
+	$(MAKE) -C ../../src/c build
+
+.PHONY: cleela-clean cleela-build cleela-install pyleela-clean pyleela-install

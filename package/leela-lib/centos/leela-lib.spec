@@ -1,6 +1,6 @@
 Name:           leela-lib
 Group:          libs
-Version:        %(../../../src/scripts/read-version.sh)
+Version:        %(../src/scripts/read-version.sh)
 Release:        1%{?dist}
 Summary:        Leela Library Package
 
@@ -19,7 +19,7 @@ Requires:       libzmq3
 %package -n leela-python
 Group:          libs
 Summary:        Leela Python Package
-Requires:       leela-c, python >= 2.6
+Requires:       leela-c
 
 %description
  Leela is a property-graph engine that allows storing properties as
