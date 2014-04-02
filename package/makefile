@@ -14,37 +14,36 @@ images:
 %.debian:
 	@echo $(MAKE) $(basename $@) dist=$(dist) arch=$(arch)
 	ln -s -f -n $(dist) $(srcroot)/package/$(basename $@)/debian
+	mkdir -p "$(srcroot)/package/target/$(basename $@)/$(dist).$(arch)"
 	$(maybesudo) docker run \
 	  -i -t -v $(srcroot):/leela \
-	  -w "/leela/package/$(basename $@)" \
-	  leela/$(dist)-$(arch) dpkg-buildpackage -us -uc
+	  -e package=$(basename $@) \
+	  -e version=$(version) \
+	  -e target="/leela/package/target/$(basename $@)/$(dist).$(arch)"
+	  -w "/leela/package" \
+	  leela/$(dist)-$(arch) su leela -c " \
+	    ./mksource.sh | tar -x -z -C /home/leela; \
+	    cd /home/leela/leela-\$$package-\$$version/package/\$$package; \
+	    dpkg-buildpackage -us -uc;"
 
 %.centos: dist=centos6
 %.centos: arch=amd64
 %.centos:
 	@echo $(MAKE) $(basename $@) dist=$(dist) arch=$(arch)
+	mkdir -p "$(srcroot)/package/target/$(basename $@)/$(dist).$(arch)"
 	$(maybesudo) docker run \
 	  -i -t -v $(srcroot):/leela \
 	  -e package=$(basename $@) \
 	  -e version=$(version) \
-	  -w "/leela/package/$(basename $@)/centos" \
-	  leela/$(dist)-$(arch) sh -c " \
+	  -e target="/leela/package/target/$(basename $@)/$(dist).$(arch)" \
+	  -w "/leela/package" \
+	  leela/$(dist)-$(arch) su leela -c " \
 	     rpmdev-setuptree; \
-	     ../../mksource.sh >/rpmbuild/SOURCES/\$$package-\$$version.tar.gz; \
-	     rpmbuild -bb \$$package.spec; \
-	     mkdir -p ../rpm; \
-	     cp -r /rpmbuild/* ../rpm"
+	     ./mksource.sh >/home/leela/rpmbuild/SOURCES/\$$package-\$$version.tar.gz; \
+	     rpmbuild -ba \$$package.spec; \
+	     cp -r /home/leela/rpmbuild/SRPMS/* /home/leela/rpmbuild/RPMS/*/* \$$target"
 
 clean:
-	# N.B.: this assumes root user building packages; even more
-	#       important, you *must not* use root user to clone/edit
-	#       files.
-	for f in $$(git ls-files -o --directory "$(srcroot)"); \
-	do \
-	  if [ "$$(stat --printf=%u $$f)" -eq 0 ]; \
-	  then \
-	    $(maybesudo) rm -rf "$$f"; \
-	  fi; \
-	done
+	rm -rf $(srcroot)/package/target
 
 .PHONY: leela-c
