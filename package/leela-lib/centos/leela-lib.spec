@@ -9,7 +9,7 @@ URL:            https://github.com/locaweb/leela
 Source0:        %{name}-%{version}.tar.gz
 
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
-BuildRequires:  make, gcc >= 4, zeromq-devel >= 3.2.2, python-devel >= 2.6
+BuildRequires:  make, gcc >= 4, zeromq-devel >= 3.2.2
 
 %package -n leela-c
 Group:          libs
