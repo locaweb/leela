@@ -24,7 +24,7 @@ stage1_installpkg_squeeze () {
   apt-get update && apt-get install -q --yes --force-yes \
     libncursesw5-dev libffi-dev libzmq3-dev zlib1g-dev python2.6-dev \
     wget ca-certificates debhelper devscripts coreutils
-  adduser --system --home /home/leela --uid 1000 leela
+  adduser --system --home /home/leela --shell /bin/sh --uid 1000 leela
 }
 
 stage1_installpkg_wheezy () {
@@ -33,7 +33,7 @@ stage1_installpkg_wheezy () {
   apt-get update && apt-get install -q --yes --force-yes \
     libncursesw5-dev libffi-dev libzmq3-dev zlib1g-dev libzookeeper-mt-dev python2.7-dev python2.6-dev \
     wget ca-certificates debhelper devscripts coreutils
-  adduser --system --home /home/leela --uid 1000 leela
+  adduser --system --home /home/leela --shell /bin/sh --uid 1000 leela
 }
 
 stage1_installpkg_centos6 () {
@@ -42,7 +42,7 @@ stage1_installpkg_centos6 () {
     wget ca-certificates rpmdevtools tar gcc gcc-c++ git make || true
   yum install -y --nogpgcheck \
     zeromq-devel -c "http://download.opensuse.org/repositories/home:/fengshuo:/zeromq/CentOS_CentOS-6/home:fengshuo:zeromq.repo" || true
-  adduser -r --uid 1000 --create-home --home-dir /home/leela leela
+  adduser -r --uid 1000 --shell /bin/sh --create-home --home-dir /home/leela leela
 }
 
 stage1_installpkg_centos5 () {
@@ -54,7 +54,7 @@ stage1_installpkg_centos5 () {
     wget ca-certificates python26-devel rpmdevtools tar gcc gcc-c++ git make || true
   yum install -y --nogpgcheck \
     zeromq-devel -c "http://download.opensuse.org/repositories/home:/fengshuo:/zeromq/CentOS_CentOS-5/home:fengshuo:zeromq.repo" || true
-  adduser -r --uid 1000 --create-home --home-dir /home/leela leela
+  adduser -r --uid 1000 --shell /bin/sh --create-home --home-dir /home/leela leela
 }
 
 stage1_installghc () {
