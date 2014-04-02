@@ -47,8 +47,8 @@ stage1_installpkg_centos5 () {
   wget http://dl.fedoraproject.org/pub/epel/5/i386/epel-release-5-4.noarch.rpm
   yum localinstall -y --nogpgcheck epel-release-5-4.noarch.rpm || true
   yum install -y --nogpgcheck \
-    ncurses-devel libffi-devel zlib-devel python-devel uuid-devel \
-    wget ca-certificates rpmdevtools tar gcc gcc-c++ git make || true
+    ncurses-devel libffi-devel zlib-devel uuid-devel \
+    wget ca-certificates python26-devel rpmdevtools tar gcc gcc-c++ git make || true
   yum install -y --nogpgcheck \
     zeromq-devel -c "http://download.opensuse.org/repositories/home:/fengshuo:/zeromq/CentOS_CentOS-5/home:fengshuo:zeromq.repo" || true
 }
