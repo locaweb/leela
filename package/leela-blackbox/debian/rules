@@ -8,7 +8,7 @@ bin_lein    ?= lein
 	dh $@
 
 override_dh_auto_clean:
-	cd ../../src/clojure; env LEIN_ROOT=ok $(bin_lein) clean
+	cd ../../src/blackbox; env LEIN_ROOT=ok $(bin_lein) clean
 	rm -f debian/*substvars
 	dh_clean
 
@@ -17,6 +17,6 @@ override_dh_installinit:
 
 override_dh_auto_build:
 	dh_testdir
-	cd ../../src/clojure; env LEIN_ROOT=ok $(bin_lein) uberjar
-	cp -a /usr/lib/libjzmq*.so* ../../src/clojure/target
-	cp ../../src/clojure/target/blackbox-$(version)-standalone.jar ../../src/clojure/target/blackbox.jar
+	cd ../../src/blackbox; env LEIN_ROOT=ok $(bin_lein) uberjar
+	cp -a /usr/lib/libjzmq*.so* ../../src/blackbox/target
+	cp ../../src/blackbox/target/blackbox-$(version)-standalone.jar ../../src/blackbox/target/blackbox.jar
