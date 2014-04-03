@@ -151,8 +151,8 @@ check_environ
 echo "version: $version"
 write_c_hversion $leela_root/src/c/src/leela/version.h
 write_c_cversion $leela_root/src/c/src/leela/version.c
-write_hsversion $leela_root/src/haskell/src/Leela/Version.hs
+write_hsversion $leela_root/src/warpdrive/src/Leela/Version.hs
 write_clversion $leela_root/src/blackbox/src/leela/version.clj
 update_version $leela_root/src/blackbox/project.clj
-update_version $leela_root/src/haskell/warpdrive.cabal
+update_version $leela_root/src/warpdrive/warpdrive.cabal
 update_version $leela_root/src/python/setup.py
