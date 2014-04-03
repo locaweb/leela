@@ -20,7 +20,7 @@
 #include "leela/endpoint.h"
 
 static
-const char *__spaces(const char *string)
+const char *__spaces (const char *string)
 {
   if (string == NULL)
   { return(NULL); }
@@ -32,7 +32,7 @@ const char *__spaces(const char *string)
 }
 
 static
-const char *__skip(const char *string, int skip)
+const char *__skip (const char *string, int skip)
 {
   if (string == NULL)
   { return(NULL); }
@@ -42,7 +42,7 @@ const char *__skip(const char *string, int skip)
 }
 
 static
-char *__delimited(const char *string, char begin, char end)
+char *__delimited (const char *string, char begin, char end)
 {
   if (string == NULL)
   { return(NULL); }
@@ -61,7 +61,7 @@ char *__delimited(const char *string, char begin, char end)
   return(dest);
 }
 
-char *__unquote(char *string)
+char *__unquote (char *string)
 {
   if (string == NULL)
   { return(NULL); }
@@ -79,7 +79,7 @@ char *__unquote(char *string)
 }
 
 static
-char *__unslash(char *string)
+char *__unslash (char *string)
 {
   if (string == NULL)
   { return(NULL); }
@@ -94,7 +94,7 @@ char *__unslash(char *string)
 }
 
 static
-char *__get_key(const char *json, const char *key)
+char *__get_key (const char *json, const char *key)
 {
   const char *begin = __spaces(__skip(strstr(json, key), strlen(key)));
   if (begin == NULL)
@@ -109,7 +109,7 @@ char *__get_key(const char *json, const char *key)
 }
 
 static
-leela_endpoint_t **__get_endpoint(const char *json, const char *key)
+leela_endpoint_t **__get_endpoint (const char *json, const char *key)
 {
   int size       = 16;
   leela_endpoint_t **endpoints = (leela_endpoint_t **) malloc(sizeof(leela_endpoint_t *) * size);
@@ -136,14 +136,14 @@ leela_endpoint_t **__get_endpoint(const char *json, const char *key)
 }
 
 static
-char *__get_string(const char *json, const char *key)
+char *__get_string (const char *json, const char *key)
 {
   char *string = __get_key(json, key);
   return(__unquote(string));
 }
 
 static
-void __free_endpoints(leela_endpoint_t **endpoints)
+void __free_endpoints (leela_endpoint_t **endpoints)
 {
   for (int at=0; endpoints[at] != NULL; at+=1)
   { leela_endpoint_free(endpoints[at]); }
@@ -151,7 +151,7 @@ void __free_endpoints(leela_endpoint_t **endpoints)
 }
 
 static
-char *__readline(char *buffer, size_t size)
+char *__readline (char *buffer, size_t size)
 {
   int k=0;
   buffer[size-1] = '\0';
@@ -172,7 +172,7 @@ char *__readline(char *buffer, size_t size)
 }
 
 static
-void __consume_cursor(lql_cursor_t *cursor)
+void __consume_cursor (lql_cursor_t *cursor)
 {
   leela_status rc;
   while ((rc = leela_lql_cursor_next(cursor)) == LEELA_OK)
@@ -265,7 +265,7 @@ void __consume_cursor(lql_cursor_t *cursor)
 }
 
 static
-void __mainloop(lql_context_t *ctx, const char *username, const char *secret, int timeout)
+void __mainloop (lql_context_t *ctx, const char *username, const char *secret, int timeout)
 {
   char buffer[8192];
   while (strlen(__readline(buffer, 8192)) > 4)
@@ -296,7 +296,7 @@ void __mainloop(lql_context_t *ctx, const char *username, const char *secret, in
   }
 }
 
-int main(int argc, char *argv[])
+int main (int argc, char *argv[])
 {
   char json[8192];
   __readline(json, 8193);

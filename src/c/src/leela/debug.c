@@ -19,7 +19,7 @@
 
 static pthread_mutex_t debug_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-void leela_debug(const char *fmt, ...)
+void leela_debug (const char *fmt, ...)
 {
   if (pthread_mutex_lock(&debug_mutex) == 0)
   {

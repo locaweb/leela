@@ -27,6 +27,6 @@
 # define LEELA_TRACE(fmt, ...)
 #endif
 
-void leela_debug(const char *fmt, ...);
+void leela_debug (const char *fmt, ...);
 
 #endif

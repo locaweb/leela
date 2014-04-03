@@ -25,7 +25,7 @@
 /* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.            */
 
 #include <Python.h>
-#include <leela/endpoint.h>
+#include "leela/endpoint.h"
 
 #ifndef __python_endpoint__
 #define __python_endpoint__

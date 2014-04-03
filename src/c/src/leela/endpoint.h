@@ -48,26 +48,26 @@ typedef struct
  *  \return NULL      : the endpoint could not be parsed;
  *  \return :otherwise: the parsed endpoint;
  */
-leela_endpoint_t *leela_endpoint_load(const char *endpoint);
+leela_endpoint_t *leela_endpoint_load (const char *endpoint);
 
 /*! Transforms an endpoint into a string. This forms an identity with
  *  `leela_endpoint_load' function: `load(dump(t)) == t';
  *
  *  N.B.: remember to free the returned memory (which might be NULL);
  */
-char *leela_endpoint_dump(const leela_endpoint_t *);
+char *leela_endpoint_dump (const leela_endpoint_t *);
 
 /*! Duplicates an endpoint;
  */
-leela_endpoint_t *leela_endpoint_dup(const leela_endpoint_t *);
+leela_endpoint_t *leela_endpoint_dup (const leela_endpoint_t *);
 
 /*! Duplicates an endpoint;
  */
-leela_endpoint_t *leela_endpoint_dup2(leela_endpoint_t *dst, const leela_endpoint_t *src);
+leela_endpoint_t *leela_endpoint_dup2 (leela_endpoint_t *dst, const leela_endpoint_t *src);
 
 /*! Frees memory.
  */
-void leela_endpoint_free(leela_endpoint_t *);
+void leela_endpoint_free (leela_endpoint_t *);
 
 #ifdef __cplusplus
 }

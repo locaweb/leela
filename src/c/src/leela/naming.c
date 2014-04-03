@@ -36,7 +36,7 @@ struct leela_naming_t
 };
 
 static
-leela_naming_cluster_t *__cluster_init(size_t size)
+leela_naming_cluster_t *__cluster_init (size_t size)
 {
   if (size == 0)
   { return(NULL); }
@@ -60,7 +60,7 @@ leela_naming_cluster_t *__cluster_init(size_t size)
 }
 
 static
-void __naming_notify(leela_naming_t *naming)
+void __naming_notify (leela_naming_t *naming)
 {
   if (naming->notify != NULL)
   { pthread_cond_signal(naming->notify); }
@@ -68,7 +68,7 @@ void __naming_notify(leela_naming_t *naming)
 }
 
 static
-leela_naming_cluster_t *__naming_discover2(leela_naming_t *naming, const leela_endpoint_t *endpoint)
+leela_naming_cluster_t *__naming_discover2 (leela_naming_t *naming, const leela_endpoint_t *endpoint)
 {
   lql_cursor_t *cursor           = leela_lql_cursor_init2(naming->context, endpoint, "nobody", "", 1000);
   lql_stat_t *stat               = NULL;
@@ -125,7 +125,7 @@ handle_error:
 }
 
 static
-leela_naming_cluster_t *__naming_discover(leela_naming_t *naming)
+leela_naming_cluster_t *__naming_discover (leela_naming_t *naming)
 {
   leela_naming_cluster_t *cur_cluster = leela_naming_discover(naming);
   leela_naming_cluster_t *new_cluster = NULL;
@@ -146,7 +146,7 @@ leela_naming_cluster_t *__naming_discover(leela_naming_t *naming)
 }
 
 static
-void *__naming_loop(void *data)
+void *__naming_loop (void *data)
 {
   LEELA_DEBUG0("ENTER:naming loop");
   leela_naming_t *naming = (leela_naming_t *) data;
@@ -189,7 +189,7 @@ void *__naming_loop(void *data)
   return(NULL);
 }
 
-bool leela_naming_start(leela_naming_t *naming, lql_context_t *context)
+bool leela_naming_start (leela_naming_t *naming, lql_context_t *context)
 {
   bool ok = false;
   pthread_mutex_t mutex;
@@ -226,7 +226,7 @@ bool leela_naming_start(leela_naming_t *naming, lql_context_t *context)
   return(ok);
 }
 
-leela_naming_t *leela_naming_init(const leela_endpoint_t *const *warpdrive, int maxdelay)
+leela_naming_t *leela_naming_init (const leela_endpoint_t *const *warpdrive, int maxdelay)
 {
   leela_naming_t *naming = (leela_naming_t *) malloc(sizeof(leela_naming_t));
   if (naming == NULL)
@@ -264,7 +264,7 @@ handle_error:
   return(NULL);
 }
 
-void leela_naming_destroy(leela_naming_t *naming)
+void leela_naming_destroy (leela_naming_t *naming)
 {
   naming->cancel = true;
   pthread_join(naming->thread, NULL);
@@ -273,7 +273,7 @@ void leela_naming_destroy(leela_naming_t *naming)
   free(naming);
 }
 
-void leela_naming_cluster_free(leela_naming_cluster_t *cluster)
+void leela_naming_cluster_free (leela_naming_cluster_t *cluster)
 {
   if (cluster != NULL)
   {
@@ -284,7 +284,7 @@ void leela_naming_cluster_free(leela_naming_cluster_t *cluster)
   }
 }
 
-leela_naming_cluster_t *leela_naming_discover(leela_naming_t *naming)
+leela_naming_cluster_t *leela_naming_discover (leela_naming_t *naming)
 {
   if (pthread_mutex_lock(&naming->mutex) != 0)
   {

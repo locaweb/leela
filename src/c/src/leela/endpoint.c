@@ -19,7 +19,7 @@
 #include "leela/string.h"
 #include "leela/endpoint.h"
 
-leela_endpoint_t *leela_endpoint_load(const char *endpoint)
+leela_endpoint_t *leela_endpoint_load (const char *endpoint)
 {
   leela_endpoint_t *result = (leela_endpoint_t *) malloc(sizeof(leela_endpoint_t));
   if (result == NULL)
@@ -68,7 +68,7 @@ handle_error:
   return(NULL);
 }
 
-leela_endpoint_t *leela_endpoint_dup(const leela_endpoint_t *endpoint)
+leela_endpoint_t *leela_endpoint_dup (const leela_endpoint_t *endpoint)
 {
   leela_endpoint_t *dup = (leela_endpoint_t *) malloc (sizeof(leela_endpoint_t));
   if (dup == NULL)
@@ -78,7 +78,7 @@ leela_endpoint_t *leela_endpoint_dup(const leela_endpoint_t *endpoint)
   return(dup);
 }
 
-leela_endpoint_t *leela_endpoint_dup2(leela_endpoint_t *dup, const leela_endpoint_t *endpoint)
+leela_endpoint_t *leela_endpoint_dup2 (leela_endpoint_t *dup, const leela_endpoint_t *endpoint)
 {
   dup->protocol = endpoint->protocol;
   dup->host     = leela_strdup(endpoint->host);
@@ -97,7 +97,7 @@ leela_endpoint_t *leela_endpoint_dup2(leela_endpoint_t *dup, const leela_endpoin
   return(dup);
 }
 
-char *leela_endpoint_dump(const leela_endpoint_t *endpoint)
+char *leela_endpoint_dump (const leela_endpoint_t *endpoint)
 {
   size_t l  = 6 + 5 + 1; // protocol + port + \0
   l        += strlen(endpoint->host);               
@@ -110,7 +110,7 @@ char *leela_endpoint_dump(const leela_endpoint_t *endpoint)
   return(s);
 }
 
-void leela_endpoint_free(leela_endpoint_t *endpoint)
+void leela_endpoint_free (leela_endpoint_t *endpoint)
 {
   if (endpoint == NULL)
   { return; }

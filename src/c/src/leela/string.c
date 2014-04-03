@@ -17,10 +17,10 @@
 #include <stdlib.h>
 #include "leela/string.h"
 
-char *leela_strdup(const char *s)
+char *leela_strdup (const char *s)
 { return(leela_strndup(s, strlen(s))); }
 
-char *leela_strndup(const char *s, size_t l)
+char *leela_strndup (const char *s, size_t l)
 {
   char *d = (char *) malloc(l + 1);
   if (d != NULL)
@@ -29,7 +29,7 @@ char *leela_strndup(const char *s, size_t l)
   return(d);
 }
 
-char *leela_join(const char *base, ...)
+char *leela_join (const char *base, ...)
 {
   size_t baselen   = strlen(base);
   size_t offset    = baselen;

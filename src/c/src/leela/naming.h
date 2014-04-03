@@ -45,7 +45,7 @@ typedef struct leela_naming_cluster_t
  *  \return NULL      : there was an error and the naming could not be created;
  *  \return :otherwise: success;
  */
-leela_naming_t *leela_naming_init(const leela_endpoint_t *const *warpdrive, int maxdelay);
+leela_naming_t *leela_naming_init (const leela_endpoint_t *const *warpdrive, int maxdelay);
 
 /*! Starts the discover thread. This functions waits for the naming
  *  thread to query a warpdrive instance.
@@ -53,23 +53,23 @@ leela_naming_t *leela_naming_init(const leela_endpoint_t *const *warpdrive, int 
  *  \return true : succesfully connected to the warpdrive cluster;
  *  \return false: could not connect to any machine;
  */
-bool leela_naming_start(leela_naming_t *naming, lql_context_t *ctx);
+bool leela_naming_start (leela_naming_t *naming, lql_context_t *ctx);
 
 /*! Returns the endpoints found under this resource.
  *
  *  \return NULL     : zero endpoints found;
  *  \return otherwise: A valid endpoint;
  */
-leela_naming_cluster_t *leela_naming_discover(leela_naming_t *);
+leela_naming_cluster_t *leela_naming_discover (leela_naming_t *);
 
 /*! Frees memory
  */
-void leela_naming_cluster_free(leela_naming_cluster_t *);
+void leela_naming_cluster_free (leela_naming_cluster_t *);
 
 /*! Terminates the naming thread. This functions waits for the naming
  *  thread to finish, so it may take up to a second to return.
  */
-void leela_naming_destroy(leela_naming_t *);
+void leela_naming_destroy (leela_naming_t *);
 
 #ifdef __cplusplus
 }

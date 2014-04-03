@@ -48,7 +48,7 @@ struct lql_cursor_t {
   zmq_msg_t    buffer;
 };
 
-void __leela_lql_value_free(lql_value_t *value)
+void __leela_lql_value_free (lql_value_t *value)
 {
   if (value != NULL)
   {
@@ -58,7 +58,7 @@ void __leela_lql_value_free(lql_value_t *value)
   }
 }
 
-void __leela_lql_tuple2_free_members(const lql_tuple2_t *pair)
+void __leela_lql_tuple2_free_members (const lql_tuple2_t *pair)
 {
   if (pair != NULL)
   {
@@ -70,7 +70,7 @@ void __leela_lql_tuple2_free_members(const lql_tuple2_t *pair)
 }
 
 static
-leela_endpoint_t *__select_endpoint(lql_context_t *ctx)
+leela_endpoint_t *__select_endpoint (lql_context_t *ctx)
 {
   leela_naming_cluster_t *snapshot = leela_naming_discover(ctx->naming);
   if (snapshot == NULL)
@@ -94,7 +94,7 @@ leela_endpoint_t *__select_endpoint(lql_context_t *ctx)
 }
 
 static
-char *__signature(lql_cursor_t *cursor, va_list args)
+char *__signature (lql_cursor_t *cursor, va_list args)
 {
   (void) args;
   size_t bufflen  = strlen(cursor->username) + 8;
@@ -104,7 +104,7 @@ char *__signature(lql_cursor_t *cursor, va_list args)
 }
 
 static
-int __zmq_sendmsg_str(lql_cursor_t *cursor, const char *data, ...)
+int __zmq_sendmsg_str (lql_cursor_t *cursor, const char *data, ...)
 {
   int rc           = -1;
   const char *part = NULL;
@@ -144,7 +144,7 @@ handle_error:
 }
 
 static
-int __zmq_recvmsg(lql_cursor_t *cursor)
+int __zmq_recvmsg (lql_cursor_t *cursor)
 {
   if (cursor->feedback >= 0)
   {
@@ -167,7 +167,7 @@ int __zmq_recvmsg(lql_cursor_t *cursor)
 }
 
 static
-int __zmq_recvmsg_str(lql_cursor_t *cursor, char *buff, int buflen)
+int __zmq_recvmsg_str (lql_cursor_t *cursor, char *buff, int buflen)
 {
   int rc = __zmq_recvmsg(cursor);
   if (buflen < rc)
@@ -190,7 +190,7 @@ int __zmq_recvmsg_str(lql_cursor_t *cursor, char *buff, int buflen)
 }
 
 static
-char *__zmq_recvmsg_copystr(lql_cursor_t *cursor)
+char *__zmq_recvmsg_copystr (lql_cursor_t *cursor)
 {
   int rc = __zmq_recvmsg(cursor);
   if (rc == -1)
@@ -209,7 +209,7 @@ char *__zmq_recvmsg_copystr(lql_cursor_t *cursor)
 }
 
 static
-bool __zmq_recvmsg_done(lql_cursor_t *cursor)
+bool __zmq_recvmsg_done (lql_cursor_t *cursor)
 {
   char buffer[5];
   if (__zmq_recvmsg_str(cursor, buffer, 5) != -1
@@ -219,7 +219,7 @@ bool __zmq_recvmsg_done(lql_cursor_t *cursor)
 }
 
 static
-bool __zmq_recvmsg_longlong(lql_cursor_t *cursor, long long *out)
+bool __zmq_recvmsg_longlong (lql_cursor_t *cursor, long long *out)
 {
   char buffer[22];
   buffer[21] = '\0';
@@ -232,7 +232,7 @@ bool __zmq_recvmsg_longlong(lql_cursor_t *cursor, long long *out)
 }
 
 static
-bool __zmq_recvmsg_uint32(lql_cursor_t *cursor, uint32_t *out)
+bool __zmq_recvmsg_uint32 (lql_cursor_t *cursor, uint32_t *out)
 {
   long long tmp;
   if (__zmq_recvmsg_longlong(cursor, &tmp))
@@ -244,7 +244,7 @@ bool __zmq_recvmsg_uint32(lql_cursor_t *cursor, uint32_t *out)
 }
 
 static
-bool __zmq_recvmsg_uint64(lql_cursor_t *cursor, uint64_t *out)
+bool __zmq_recvmsg_uint64 (lql_cursor_t *cursor, uint64_t *out)
 {
   long long tmp;
   if (__zmq_recvmsg_longlong(cursor, &tmp))
@@ -256,7 +256,7 @@ bool __zmq_recvmsg_uint64(lql_cursor_t *cursor, uint64_t *out)
 }
 
 static
-bool __zmq_recvmsg_int32(lql_cursor_t *cursor, int32_t *out)
+bool __zmq_recvmsg_int32 (lql_cursor_t *cursor, int32_t *out)
 {
   long long tmp;
   if (__zmq_recvmsg_longlong(cursor, &tmp))
@@ -268,7 +268,7 @@ bool __zmq_recvmsg_int32(lql_cursor_t *cursor, int32_t *out)
 }
 
 static
-bool __zmq_recvmsg_int64(lql_cursor_t *cursor, int64_t *out)
+bool __zmq_recvmsg_int64 (lql_cursor_t *cursor, int64_t *out)
 {
   long long tmp;
   if (__zmq_recvmsg_longlong(cursor, &tmp))
@@ -280,7 +280,7 @@ bool __zmq_recvmsg_int64(lql_cursor_t *cursor, int64_t *out)
 }
 
 static
-bool __zmq_recvmsg_double(lql_cursor_t *cursor, double *out)
+bool __zmq_recvmsg_double (lql_cursor_t *cursor, double *out)
 {
   char *tmp = __zmq_recvmsg_copystr(cursor);
   if (tmp != NULL)
@@ -293,7 +293,7 @@ bool __zmq_recvmsg_double(lql_cursor_t *cursor, double *out)
 }
 
 static
-double *__zmq_recvmsg_copydouble(lql_cursor_t *cursor)
+double *__zmq_recvmsg_copydouble (lql_cursor_t *cursor)
 {
   double *d = (double *) malloc(sizeof(double));
   if (d != NULL)
@@ -306,7 +306,7 @@ double *__zmq_recvmsg_copydouble(lql_cursor_t *cursor)
 }
 
 static
-bool __zmq_recvmsg_bool(lql_cursor_t *cursor, bool *out)
+bool __zmq_recvmsg_bool (lql_cursor_t *cursor, bool *out)
 {
   char buffer[5];
   if (__zmq_recvmsg_str(cursor, buffer, 5) != -1)
@@ -325,7 +325,7 @@ bool __zmq_recvmsg_bool(lql_cursor_t *cursor, bool *out)
   return(false);
 }
 
-lql_value_t *__zmq_recvmsg_copylqlvalue(lql_cursor_t *cursor)
+lql_value_t *__zmq_recvmsg_copylqlvalue (lql_cursor_t *cursor)
 {
   lql_value_t *value = (lql_value_t *) malloc(sizeof(lql_value_t));
   if (value == NULL)
@@ -390,7 +390,7 @@ handle_error:
   return(NULL);
 }
 
-lql_context_t *leela_lql_context_init(const leela_endpoint_t *const *warpdrive)
+lql_context_t *leela_lql_context_init (const leela_endpoint_t *const *warpdrive)
 {
   lql_context_t *ctx = (lql_context_t *) malloc(sizeof(lql_context_t));
   if (ctx != NULL)
@@ -415,7 +415,7 @@ handle_error:
   return(NULL);
 }
 
-lql_cursor_t *leela_lql_cursor_init2(lql_context_t *ctx, const leela_endpoint_t *endpoint, const char *username, const char *secret, int timeout_in_ms)
+lql_cursor_t *leela_lql_cursor_init2 (lql_context_t *ctx, const leela_endpoint_t *endpoint, const char *username, const char *secret, int timeout_in_ms)
 {
   int linger            = 0;
   char *zmqendpoint     = NULL;
@@ -473,7 +473,7 @@ lql_cursor_t *leela_lql_cursor_init(lql_context_t *ctx, const char *username, co
   return(cursor);
 }
 
-leela_status leela_lql_cursor_execute(lql_cursor_t *cursor, const char *query)
+leela_status leela_lql_cursor_execute (lql_cursor_t *cursor, const char *query)
 {
   char buffer[4];
   if (cursor == NULL || cursor->channel != NULL)
@@ -514,7 +514,7 @@ handle_error:
   return(rc);
 }
 
-leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
+leela_status leela_lql_cursor_next (lql_cursor_t *cursor)
 {
   if (cursor == NULL)
   { return(LEELA_BADARGS); }
@@ -607,10 +607,10 @@ leela_status leela_lql_cursor_next(lql_cursor_t *cursor)
   return(LEELA_OK);
 }
 
-lql_row_type leela_lql_fetch_type(lql_cursor_t *cursor)
+lql_row_type leela_lql_fetch_type (lql_cursor_t *cursor)
 { return(cursor->row); }
 
-lql_name_t *leela_lql_fetch_name(lql_cursor_t *cursor)
+lql_name_t *leela_lql_fetch_name (lql_cursor_t *cursor)
 {
   if (cursor->row != LQL_NAME_MSG)
   { return(NULL); }
@@ -638,7 +638,7 @@ lql_name_t *leela_lql_fetch_name(lql_cursor_t *cursor)
   return(NULL);
 }
 
-lql_nattr_t *leela_lql_fetch_nattr(lql_cursor_t *cursor)
+lql_nattr_t *leela_lql_fetch_nattr (lql_cursor_t *cursor)
 {
   if (cursor->row != LQL_NATTR_MSG)
   { return(NULL); }
@@ -668,7 +668,7 @@ handle_error:
   return(NULL);
 }
 
-lql_tattr_t *leela_lql_fetch_tattr(lql_cursor_t *cursor)
+lql_tattr_t *leela_lql_fetch_tattr (lql_cursor_t *cursor)
 {
   if (cursor->row != LQL_TATTR_MSG)
   { return(NULL); }
@@ -700,7 +700,7 @@ lql_tattr_t *leela_lql_fetch_tattr(lql_cursor_t *cursor)
   return(NULL);
 }
 
-lql_kattr_t *leela_lql_fetch_kattr(lql_cursor_t *cursor)
+lql_kattr_t *leela_lql_fetch_kattr (lql_cursor_t *cursor)
 {
   if (cursor->row != LQL_KATTR_MSG)
   { return(NULL); }
@@ -721,7 +721,7 @@ lql_kattr_t *leela_lql_fetch_kattr(lql_cursor_t *cursor)
   return(kattr);
 }
 
-lql_stat_t *leela_lql_fetch_stat(lql_cursor_t *cursor)
+lql_stat_t *leela_lql_fetch_stat (lql_cursor_t *cursor)
 {
   if (cursor->row != LQL_STAT_MSG)
   { return(NULL); }
@@ -752,7 +752,7 @@ lql_stat_t *leela_lql_fetch_stat(lql_cursor_t *cursor)
   return(NULL);
 }
 
-lql_path_t *leela_lql_fetch_path(lql_cursor_t *cursor)
+lql_path_t *leela_lql_fetch_path (lql_cursor_t *cursor)
 {
   if (cursor->row != LQL_PATH_MSG)
   { return(NULL); }
@@ -783,7 +783,7 @@ lql_path_t *leela_lql_fetch_path(lql_cursor_t *cursor)
   return(NULL);
 }
 
-lql_fail_t *leela_lql_fetch_fail(lql_cursor_t *cursor)
+lql_fail_t *leela_lql_fetch_fail (lql_cursor_t *cursor)
 {
   if (cursor->row != LQL_FAIL_MSG)
   { return(NULL); }
@@ -802,7 +802,7 @@ lql_fail_t *leela_lql_fetch_fail(lql_cursor_t *cursor)
   return(fail);
 }
 
-void leela_lql_name_free(lql_name_t *name)
+void leela_lql_name_free (lql_name_t *name)
 {
   if (name != NULL)
   {
@@ -814,7 +814,7 @@ void leela_lql_name_free(lql_name_t *name)
   }
 }
 
-void leela_lql_stat_free(lql_stat_t *stat)
+void leela_lql_stat_free (lql_stat_t *stat)
 {
   if (stat == NULL)
   { return; }
@@ -825,7 +825,7 @@ void leela_lql_stat_free(lql_stat_t *stat)
   free(stat);
 }
 
-void leela_lql_path_free(lql_path_t *path)
+void leela_lql_path_free (lql_path_t *path)
 {
   if (path == NULL)
   { return; }
@@ -836,7 +836,7 @@ void leela_lql_path_free(lql_path_t *path)
   free(path);
 }
 
-void leela_lql_fail_free(lql_fail_t *fail)
+void leela_lql_fail_free (lql_fail_t *fail)
 {
   if (fail != NULL)
   {
@@ -845,7 +845,7 @@ void leela_lql_fail_free(lql_fail_t *fail)
   }
 }
 
-void leela_lql_nattr_free(lql_nattr_t *nattr)
+void leela_lql_nattr_free (lql_nattr_t *nattr)
 {
   if (nattr != NULL)
   {
@@ -860,7 +860,7 @@ void leela_lql_nattr_free(lql_nattr_t *nattr)
   }
 }
 
-void leela_lql_kattr_free(lql_kattr_t *kattr)
+void leela_lql_kattr_free (lql_kattr_t *kattr)
 {
   if (kattr != NULL)
   {
@@ -871,7 +871,7 @@ void leela_lql_kattr_free(lql_kattr_t *kattr)
   }
 }
 
-void leela_lql_tattr_free(lql_tattr_t *tattr)
+void leela_lql_tattr_free (lql_tattr_t *tattr)
 {
   if (tattr != NULL)
   {
@@ -887,7 +887,7 @@ void leela_lql_tattr_free(lql_tattr_t *tattr)
   }
 }
 
-leela_status leela_lql_cursor_close(lql_cursor_t *cursor)
+leela_status leela_lql_cursor_close (lql_cursor_t *cursor)
 {
   leela_status rc = LEELA_ERROR;
   if (cursor != NULL)
@@ -909,7 +909,7 @@ leela_status leela_lql_cursor_close(lql_cursor_t *cursor)
   return(rc);
 }
 
-leela_status leela_lql_context_close(lql_context_t *ctx)
+leela_status leela_lql_context_close (lql_context_t *ctx)
 {
   if (ctx != NULL)
   {
