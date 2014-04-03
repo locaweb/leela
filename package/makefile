@@ -1,6 +1,6 @@
 
 srcroot   = $(shell cd $(CURDIR)/.. && pwd)
-distdir   = "/leela/package/dist/$(basename $@)/$(dist).$(arch)"
+distdir   = "/target/package/dist/$(basename $@)/$(dist).$(arch)"
 version   = $(shell $(srcroot)/src/scripts/read-version.sh)
 maybesudo = $(shell [ "$$UID" -ne 0 ] && echo sudo)
 
@@ -15,38 +15,38 @@ images:
 %.debian:
 	@echo $(MAKE) $(basename $@) dist=$(dist) arch=$(arch)
 	$(maybesudo) docker run \
-	  -i -t -v $(srcroot):/leela \
+	  -i -t -v $(srcroot):/target \
 	  -e HOME=/home/leela \
 	  -e package="$(basename $@)" \
 	  -e version=$(version) \
 	  -e distdir=$(distdir) \
-	  -w /leela/package \
+	  -w /target/package \
 	  -u leela \
 	  leela/$(dist)-$(arch) /bin/bash -l -c " \
-	    ./mksource.sh | tar -x -z -C /home/leela; \
-	    cd /home/leela/\$$package-\$$version/package/\$$package; \
-	    ln -s $(dist) debian; \
+	    ./mksource.sh | tar -x -z -C \$$HOME; \
+	    cd \$$HOME/\$$package-\$$version/package/\$$package; \
+	    [ -d \"$(dist)\" ] && ln -s $(dist) debian; \
 	    dpkg-buildpackage -us -uc; \
-	    /leela/package/collect.sh ../*.{deb,gz,changes,dsc}"
+	    /target/package/collect.sh ../*.{deb,gz,changes,dsc}"
 
 %.centos: dist=centos6
 %.centos: arch=amd64
 %.centos:
 	@echo $(MAKE) $(basename $@) dist=$(dist) arch=$(arch)
 	$(maybesudo) docker run \
-	  -i -t -v $(srcroot):/leela \
+	  -i -t -v $(srcroot):/target \
 	  -e HOME=/home/leela \
 	  -e package="$(basename $@)" \
 	  -e version=$(version) \
 	  -e distdir=$(distdir) \
-	  -w /leela/package \
+	  -w /target/package \
 	  -u leela \
 	  leela/$(dist)-$(arch) /bin/bash -l -c " \
 	    rpmdev-setuptree; \
-	    ./mksource.sh >/home/leela/rpmbuild/SOURCES/\$$package-\$$version.tar.gz; \
-	    cp /leela/package/\$$package/centos/\$$package.spec /tmp/package.spec; \
+	    ./mksource.sh >\$$HOME/rpmbuild/SOURCES/\$$package-\$$version.tar.gz; \
+	    cp /target/package/\$$package/centos/\$$package.spec /tmp/package.spec; \
 	    rpmbuild -ba /tmp/package.spec; \
-	    /leela/package/collect.sh /home/leela/rpmbuild/SRPMS/* /home/leela/rpmbuild/RPMS/*/*"
+	    /target/package/collect.sh \$$HOME/rpmbuild/SRPMS/* \$$HOME/rpmbuild/RPMS/*/*"
 
 clean:
 	rm -rf $(srcroot)/package/dist
