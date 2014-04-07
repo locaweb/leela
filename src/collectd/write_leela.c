@@ -309,6 +309,29 @@ int wl_write (const data_set_t *ds, const value_list_t *vl, user_data_t *data)
 }
 
 static
+int wl_check_guid(wl_data_t *cfg)
+{
+  int rc               = -1;
+  lql_cursor_t *cursor = NULL;
+
+  cursor = leela_lql_cursor_init(cfg->ctx, cfg->user, cfg->pass, cfg->timeout);
+  if (cursor != NULL && wl_print(cfg, "using (%s) name %s;", cfg->tree, cfg->guid) == 0)
+  {
+    if (leela_lql_cursor_execute(cursor, cfg->sndbuf) == LEELA_OK
+        && leela_lql_cursor_next(cursor) == LEELA_OK
+        && leela_lql_fetch_type(cursor) == LQL_NAME_MSG
+        && leela_lql_cursor_next(cursor) == LEELA_EOF)
+    { rc = 0; }
+  }
+
+  if (cursor != NULL)
+  { leela_lql_cursor_close(cursor); }
+  wl_reset_buffer(cfg);
+
+  return(rc);
+}
+
+static
 leela_endpoint_t **wl_parse_cluster (oconfig_item_t *item)
 {
   int k;
@@ -412,9 +435,16 @@ int wl_cfg (oconfig_item_t *cfg)
     wl_data_free(leela_cfg);
     return(-1);
   }
+  wl_reset_buffer(leela_cfg);
   wl_cluster_free(cluster);
 
-  wl_reset_buffer(leela_cfg);
+  if (wl_check_guid(leela_cfg) != 0)
+  {
+    ERROR("write_leela plugin: error initializing, unknow guid: %s", leela_cfg->guid);
+    wl_data_free(leela_cfg);
+    return(-1);
+  }
+
   data.data      = leela_cfg;
   data.free_func = wl_data_free;
   plugin_register_write("write_leela", wl_write, &data);
