@@ -15,6 +15,8 @@
 #ifndef __write_leela_h__
 #define __write_leela_h__
 
+#include <collectd/config.h>
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
