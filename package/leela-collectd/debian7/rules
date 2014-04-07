@@ -1,0 +1,20 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+
+%:
+	dh $@
+
+override_dh_auto_clean:
+	rm -f debian/*substvars
+	$(MAKE) -C ../../src/collectd clean
+	dh_clean
+
+override_dh_install:
+	mkdir -p debian/leela-collectd/usr/lib/$(DEB_HOST_MULTIARCH)/collectd
+	cp -p ../../src/collectd/write_leela.so debian/leela-collectd/usr/lib/$(DEB_HOST_MULTIARCH)/collectd/
+	dh_install
+
+override_dh_auto_build:
+	$(MAKE) -C ../../src/collectd compile

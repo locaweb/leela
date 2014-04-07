@@ -34,8 +34,6 @@ cleela-install:
 	cp -p ../../src/c/src/leela/*.h debian/leela-c/usr/include/leela/
 	cp -p ../../src/c/libleela.so* debian/leela-c/usr/lib/$(DEB_HOST_MULTIARCH)/
 
-cleela-build:
-
 override_dh_auto_clean: cleela-clean pyleela-clean
 	rm -f debian/*substvars
 	dh_clean
@@ -46,4 +44,4 @@ override_dh_install: cleela-install pyleela-install
 override_dh_auto_build:
 	$(MAKE) -C ../../src/c build
 
-.PHONY: cleela-clean cleela-build cleela-install pyleela-clean pyleela-install
+.PHONY: cleela-clean cleela-install pyleela-clean pyleela-install

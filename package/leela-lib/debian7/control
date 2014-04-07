@@ -11,7 +11,7 @@ Multi-Arch: same
 Architecture: any
 Pre-Depends: ${misc:Pre-Depends}
 Depends: ${misc:Depends}, ${shlibs:Depends}
-Description: Leela C library
+Description: Leela C Library
  Leela is a property-graph engine that allows storing properties as
  time-series, besides the usual key-value properties.
  .
@@ -27,7 +27,7 @@ Multi-Arch: same
 Architecture: any
 Pre-Depends: ${misc:Pre-Depends}
 Depends: ${misc:Depends}, ${shlibs:Depends}, ${python:Depends}
-Description: Leela Python library
+Description: Leela Python Library
  Leela is a property-graph engine that allows storing properties as
  time-series, besides the usual key-value properties.
  .
