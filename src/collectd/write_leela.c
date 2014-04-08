@@ -16,6 +16,10 @@
 #define __write_leela_h__
 
 #include <collectd/config.h>
+#include <collectd/collectd.h>
+#include <collectd/common.h>
+#include <collectd/utils_cache.h>
+#include <collectd/plugin.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -24,10 +28,6 @@
 #include <pthread.h>
 #include <inttypes.h>
 #include <sys/types.h>
-
-#include <collectd/collectd.h>
-#include <collectd/common.h>
-#include <collectd/plugin.h>
 
 #include <leela/lql.h>
 #include <leela/endpoint.h>
@@ -57,7 +57,7 @@ void wl_cluster_free (leela_endpoint_t **cluster)
   {
     for (k=0; cluster != NULL && cluster[k] != NULL; k+=1)
     { leela_endpoint_free(cluster[k]); }
-    free(cluster);
+    sfree(cluster);
   }
 }
 
@@ -148,16 +148,16 @@ void wl_data_free (void *ptr)
     {
       wl_send(data);
       leela_lql_context_close(data->ctx);
-      free(data->user);
-      free(data->pass);
-      free(data->tree);
-      free(data->guid);
-      free(data->sndbuf);
+      sfree(data->user);
+      sfree(data->pass);
+      sfree(data->tree);
+      sfree(data->guid);
+      sfree(data->sndbuf);
 
       pthread_mutex_unlock(&data->mutex);
       pthread_mutex_destroy(&data->mutex);
 
-      free(data);
+      sfree(data);
     }
   }
 }
@@ -190,13 +190,13 @@ int wl_print_name (wl_data_t *cfg, const value_list_t *vl)
   char v_type_instance[DATA_MAX_NAME_LEN];
 
   return(wl_print(cfg,
-                  "%s.%s%s%s.%s%s%s",
+                  "%s/%s%s%s/%s%s%s",
                   wl_unquote(v_host, DATA_MAX_NAME_LEN, vl->host),
                   wl_unquote(v_plugin, DATA_MAX_NAME_LEN, vl->plugin),
-                  (wl_blank(vl->plugin_instance) ? "" : "/"),
+                  (wl_blank(vl->plugin_instance) ? "" : "-"),
                   (wl_blank(vl->plugin_instance) ? "" : wl_unquote(v_plugin_instance, DATA_MAX_NAME_LEN, vl->plugin_instance)),
                   wl_unquote(v_type, DATA_MAX_NAME_LEN, vl->type),
-                  (wl_blank(vl->type_instance) ? "" : "/"),
+                  (wl_blank(vl->type_instance) ? "" : "-"),
                   (wl_blank(vl->type_instance) ? "" : wl_unquote(v_type_instance, DATA_MAX_NAME_LEN, vl->type_instance))));
 }
 
@@ -208,36 +208,19 @@ int wl_print_time (wl_data_t *cfg, const cdtime_t cdtime)
   return(wl_print(cfg, "%ld.%ld", (long) time.tv_sec, time.tv_nsec));
 }
 
+// TODO:use something better than %g
 static
-int wl_print_value (wl_data_t *cfg, int type, const value_t *value)
+int wl_print_value (wl_data_t *cfg, int type, const value_t *value, double rate)
 {
   int rc = 0;
   if (type == DS_TYPE_GAUGE)
-  { rc = wl_print(cfg, "(double %f)", value->gauge); } // TODO: use a better str->double
-  else if (type == DS_TYPE_COUNTER)
-  { rc = wl_print(cfg, "(uint64 %llu)", value->counter); }
-  else if (type == DS_TYPE_DERIVE)
-  { rc = wl_print(cfg, "(int64 %"PRIi64")", value->derive); }
-  else if (type == DS_TYPE_ABSOLUTE)
-  { rc = wl_print(cfg, "(uint64 %"PRIu64")", value->absolute); }
+  { rc = wl_print(cfg, "(double %g)", value->gauge); }
+  else if (type == DS_TYPE_COUNTER || type == DS_TYPE_DERIVE || type == DS_TYPE_ABSOLUTE)
+  { rc = wl_print(cfg, "(double %g)", rate); }
+  else
+  { rc = -1; }
   return(rc);
 }
-
-static
-int wl_lock(wl_data_t *cfg)
-{
-  while (pthread_mutex_lock(&cfg->mutex) != 0)
-  {
-    ERROR("write_leela plugin: error acquiring exclusive lock");
-    return(-1);
-  }
-
-  return(0);
-}
-
-static
-int wl_unlock(wl_data_t *cfg)
-{ return(pthread_mutex_unlock(&cfg->mutex)); }
 
 static
 int wl_flush (cdtime_t timeout, const char *identifier, user_data_t *data)
@@ -253,7 +236,7 @@ int wl_flush (cdtime_t timeout, const char *identifier, user_data_t *data)
   { return(-1); }
 
   cfg = data->data;
-  if (wl_lock(cfg) != 0)
+  if (pthread_mutex_lock(&cfg->mutex) != 0)
   { return(-1); }
 
   t0 = CDTIME_T_TO_DOUBLE(cfg->ctime);
@@ -261,53 +244,60 @@ int wl_flush (cdtime_t timeout, const char *identifier, user_data_t *data)
   if (timeout == 0 || t0 + timeout > t1)
   { rc = wl_send(cfg); }
 
-  wl_unlock(cfg);
+  pthread_mutex_unlock(&cfg->mutex);
   return(rc);
 }
 
 static
 int wl_write (const data_set_t *ds, const value_list_t *vl, user_data_t *data)
 {
-  int k, m, rc;
+  int k, rc;
   size_t state;
   wl_data_t *cfg;
+  gauge_t *rates;
 
   if (data == NULL)
   { return(-1); }
 
-  cfg = (wl_data_t *) data->data;
-  if (wl_lock(cfg) != 0)
+  rates = uc_get_rate(ds, vl);
+  cfg   = (wl_data_t *) data->data;
+  if (rates == NULL)
+  {
+    ERROR("write_leela plugin: uc_get_rate failure");
+    return(-1);
+  }
+  if (pthread_mutex_lock(&cfg->mutex) != 0)
   {
     ERROR("write_leela plugin: error acquiring exclusive lock");
+    sfree(rates);
     return(-1);
   }
 
-  for (k=0; k<ds->ds_num; k+=1)
+  for (k=0; k<vl->values_len; k+=1)
   {
-    for (m=0; m<vl->values_len; m+=1)
+    state = cfg->sndbufoff;
+    rc    = (cfg->sndbufoff == 0 ? wl_print(cfg, "using (%s) attr put %s \"", cfg->tree, cfg->guid)
+                                 : wl_print(cfg, "attr put %s \"", cfg->guid))
+          | wl_print_name(cfg, vl)
+          | wl_print(cfg, "\" [")
+          | wl_print_time(cfg, vl->time)
+          | wl_print(cfg, "] ")
+          | wl_print_value(cfg, ds->ds[k].type, &vl->values[k], (double) rates[k])
+          | wl_print(cfg, ", ");
+    if (rc > 0)
     {
-      state = cfg->sndbufoff;
-      rc    = (cfg->sndbufoff == 0 ? wl_print(cfg, "using (%s) attr put %s \"", cfg->tree, cfg->guid)
-                                   : wl_print(cfg, "attr put %s \"", cfg->guid))
-            | wl_print_name(cfg, vl)
-            | wl_print(cfg, "\" [")
-            | wl_print_time(cfg, vl->time)
-            | wl_print(cfg, "] ")
-            | wl_print_value(cfg, ds->ds[m].type, &vl->values[m])
-            | wl_print(cfg, ", ");
-      if (rc > 0)
-      {
-        m             -= 1;
-        cfg->sndbufoff = state;
-        if (wl_send(cfg) != 0)
-        { return(-1); }
-      }
-      else if (rc < 0)
-      { return(-1); }
+      k             -= 1;
+      cfg->sndbufoff = state;
+      rc             = wl_send(cfg);
     }
+
+    if (rc != 0)
+    { break; }
   }
 
-  return(wl_unlock(cfg));
+  pthread_mutex_unlock(&cfg->mutex);
+  sfree(rates);
+  return(rc != 0 ? -1 : 0);
 }
 
 static
@@ -381,7 +371,7 @@ int wl_cfg (oconfig_item_t *cfg)
   leela_cfg->sndbuflen  = 64 * 1024;
   if (pthread_mutex_init(&leela_cfg->mutex, NULL) != 0)
   {
-    free(leela_cfg);
+    sfree(leela_cfg);
     ERROR("write_leela plugin: malloc error");
     return(-1);
   }
