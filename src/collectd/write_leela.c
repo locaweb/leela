@@ -181,7 +181,7 @@ int wl_print (wl_data_t *cfg, const char *fmt, ...)
 }
 
 static
-int wl_print_name (wl_data_t *cfg, const value_list_t *vl)
+int wl_print_name (wl_data_t *cfg, const value_list_t *vl, const char *type)
 {
   char v_host[DATA_MAX_NAME_LEN];
   char v_plugin[DATA_MAX_NAME_LEN];
@@ -190,14 +190,16 @@ int wl_print_name (wl_data_t *cfg, const value_list_t *vl)
   char v_type_instance[DATA_MAX_NAME_LEN];
 
   return(wl_print(cfg,
-                  "%s/%s%s%s/%s%s%s",
+                  "%s/%s%s%s/%s%s%s%s%s",
                   wl_unquote(v_host, DATA_MAX_NAME_LEN, vl->host),
                   wl_unquote(v_plugin, DATA_MAX_NAME_LEN, vl->plugin),
                   (wl_blank(vl->plugin_instance) ? "" : "-"),
                   (wl_blank(vl->plugin_instance) ? "" : wl_unquote(v_plugin_instance, DATA_MAX_NAME_LEN, vl->plugin_instance)),
                   wl_unquote(v_type, DATA_MAX_NAME_LEN, vl->type),
                   (wl_blank(vl->type_instance) ? "" : "-"),
-                  (wl_blank(vl->type_instance) ? "" : wl_unquote(v_type_instance, DATA_MAX_NAME_LEN, vl->type_instance))));
+                  (wl_blank(vl->type_instance) ? "" : wl_unquote(v_type_instance, DATA_MAX_NAME_LEN, vl->type_instance)),
+                  (type == NULL ? "" : "/"),
+                  (type == NULL ? "" : type)));
 }
 
 static
@@ -210,13 +212,17 @@ int wl_print_time (wl_data_t *cfg, const cdtime_t cdtime)
 
 // TODO:use something better than %g
 static
-int wl_print_value (wl_data_t *cfg, int type, const value_t *value, double rate)
+int wl_print_value (wl_data_t *cfg, int type, const value_t *value)
 {
   int rc = 0;
   if (type == DS_TYPE_GAUGE)
   { rc = wl_print(cfg, "(double %g)", value->gauge); }
-  else if (type == DS_TYPE_COUNTER || type == DS_TYPE_DERIVE || type == DS_TYPE_ABSOLUTE)
-  { rc = wl_print(cfg, "(double %g)", rate); }
+  else if (type == DS_TYPE_COUNTER)
+  { rc = wl_print(cfg, "(uint64 %llu)", value->counter); }
+  else if (type == DS_TYPE_DERIVE)
+  { rc = wl_print(cfg, "(int64 %"PRIi64")", value->derive); }
+  else if (type == DS_TYPE_ABSOLUTE)
+  { rc = wl_print(cfg, "(uint64 %"PRIu64")", value->absolute); }
   else
   { rc = -1; }
   return(rc);
@@ -249,6 +255,34 @@ int wl_flush (cdtime_t timeout, const char *identifier, user_data_t *data)
 }
 
 static
+int wl_print_metric(const data_set_t *ds, const value_list_t *vl, wl_data_t *cfg, const gauge_t *rates, int index)
+{
+  int rc = (cfg->sndbufoff == 0 ? wl_print(cfg, "using (%s) attr put %s \"", cfg->tree, cfg->guid)
+                                : wl_print(cfg, "attr put %s \"", cfg->guid))
+         | wl_print_name(cfg, vl, DS_TYPE_TO_STRING(ds->ds[index].type))
+         | wl_print(cfg, "\" [")
+         | wl_print_time(cfg, vl->time)
+         | wl_print(cfg, "] ")
+         | wl_print_value(cfg, ds->ds[index].type, &vl->values[index])
+         | wl_print(cfg, ", ");
+
+  if (rc == 0 && ds->ds[index].type != DS_TYPE_GAUGE)
+  {
+    rc = wl_print(cfg, "attr put %s \"", cfg->guid)
+         | wl_print_name(cfg, vl, "rate")
+         | wl_print(cfg, "\" [")
+         | wl_print_time(cfg, vl->time)
+         | wl_print(cfg, "] ")
+         | wl_print(cfg, "(double %g)", (double) rates[index])
+         | wl_print(cfg, ", ");
+  }
+
+  if (index == 0)
+  printf("%s\n\n\n", cfg->sndbuf);
+  return(rc);
+}
+
+static
 int wl_write (const data_set_t *ds, const value_list_t *vl, user_data_t *data)
 {
   int k, rc;
@@ -259,8 +293,9 @@ int wl_write (const data_set_t *ds, const value_list_t *vl, user_data_t *data)
   if (data == NULL)
   { return(-1); }
 
+  cfg = (wl_data_t *) data->data;
+
   rates = uc_get_rate(ds, vl);
-  cfg   = (wl_data_t *) data->data;
   if (rates == NULL)
   {
     ERROR("write_leela plugin: uc_get_rate failure");
@@ -268,22 +303,15 @@ int wl_write (const data_set_t *ds, const value_list_t *vl, user_data_t *data)
   }
   if (pthread_mutex_lock(&cfg->mutex) != 0)
   {
-    ERROR("write_leela plugin: error acquiring exclusive lock");
     sfree(rates);
+    ERROR("write_leela plugin: error acquiring exclusive lock");
     return(-1);
   }
 
   for (k=0; k<vl->values_len; k+=1)
   {
     state = cfg->sndbufoff;
-    rc    = (cfg->sndbufoff == 0 ? wl_print(cfg, "using (%s) attr put %s \"", cfg->tree, cfg->guid)
-                                 : wl_print(cfg, "attr put %s \"", cfg->guid))
-          | wl_print_name(cfg, vl)
-          | wl_print(cfg, "\" [")
-          | wl_print_time(cfg, vl->time)
-          | wl_print(cfg, "] ")
-          | wl_print_value(cfg, ds->ds[k].type, &vl->values[k], (double) rates[k])
-          | wl_print(cfg, ", ");
+    rc    = wl_print_metric(ds, vl, cfg, rates, k);
     if (rc > 0)
     {
       k             -= 1;
