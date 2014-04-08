@@ -154,6 +154,16 @@ parseQuery1 acc = do
     else
       return (reverse acc)
 
+parseDouble :: Parser Double
+parseDouble = do
+  "nan" .*> return nan
+  <|> "inf" .*> return inf
+  <|> "-inf" .*> (return $ negate inf)
+  <|> signed double
+    where
+      nan = 0/0
+      inf = 1/0
+
 parseValue :: Parser Value
 parseValue = do
   mw <- peekWord8
@@ -163,7 +173,7 @@ parseValue = do
                  <|> liftM Int64 ("(int64 " .*> (signed decimal `endBy` word8 0x29))
                  <|> liftM UInt32 ("(uint32 " .*> (decimal `endBy` word8 0x29))
                  <|> liftM UInt64 ("(uint64 " .*> (decimal `endBy` word8 0x29))
-                 <|> liftM Double ("(double " .*> (signed double `endBy` word8 0x29))
+                 <|> liftM Double ("(double " .*> (parseDouble `endBy` word8 0x29))
                  <|> ("(bool true)" .*> return (Bool True))
                  <|> ("(bool false)" .*> return (Bool False))
     _         -> fail "bad value"
