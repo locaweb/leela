@@ -7,7 +7,7 @@ Standards-Version: 3.9.1
 Homepage: https://github.com/locaweb/leela
 
 Package: leela-warpdrive
-Multi-Arch: none
+Multi-Arch: no
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}, libffi5, zlib1g
 Description: Leela frontend server
