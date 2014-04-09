@@ -168,7 +168,7 @@ parseValue :: Parser Value
 parseValue = do
   mw <- peekWord8
   case mw of
-    Just 0x22 -> liftM Text $ qstring (1024 * 1024) 0x22 0x22
+    Just 0x22 -> liftM Text $ qstring (64 * 1024) 0x22 0x22
     Just 0x28 -> liftM Int32 ("(int32 " .*> (signed decimal `endBy` word8 0x29))
                  <|> liftM Int64 ("(int64 " .*> (signed decimal `endBy` word8 0x29))
                  <|> liftM UInt32 ("(uint32 " .*> (decimal `endBy` word8 0x29))
