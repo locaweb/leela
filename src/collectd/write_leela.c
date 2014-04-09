@@ -277,8 +277,6 @@ int wl_print_metric(const data_set_t *ds, const value_list_t *vl, wl_data_t *cfg
          | wl_print(cfg, ", ");
   }
 
-  if (index == 0)
-  printf("%s\n\n\n", cfg->sndbuf);
   return(rc);
 }
 
