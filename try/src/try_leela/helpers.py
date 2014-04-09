@@ -28,6 +28,14 @@ def kattr_put(session, a, name, value, ttl=None):
     session.execute("attr put %s \"%s\" %s%s" % (a, name, value, ttl))
     assert(session.message() is None)
 
+def tattr_put(session, a, name, time, value, ttl=None):
+    if (ttl is None):
+        ttl = ""
+    else:
+        ttl = " with ttl:%d" % (ttl,)
+    session.execute("attr put %s \"%s\" [%s] %s%s" % (a, name, time, value, ttl))
+    assert(session.message() is None)
+
 def kattr_del(session, a, name):
     session.execute("attr del %s \"%s\"" % (a, name))
     assert(session.message() is None)

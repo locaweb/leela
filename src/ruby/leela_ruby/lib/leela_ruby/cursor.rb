@@ -82,6 +82,15 @@ module Leela
           Leela::Raw::leela_lql_kattr_free(msg.pointer)
         end
 
+      when :lql_tattr_msg
+        begin
+          msg = Leela::Raw::LqlTAttr.new(Leela::Raw.leela_lql_fetch_tattr(cursor))
+          val = make_tattr_msg(msg[:guid], msg[:name], msg[:series], msg[:size])
+          [:'t-attr', val]
+        ensure
+          Leela::Raw::leela_lql_tattr_free(msg.pointer)
+        end
+
       when :lql_fail_msg
         begin
           msg = Leela::Raw::LqlFail.new(Leela::Raw.leela_lql_fetch_fail(cursor))
@@ -96,7 +105,16 @@ module Leela
       attrs = []
       0.upto(size-1) do |i|
         attr = Leela::Raw::LqlAttrs.new(entries + Leela::Raw::LqlAttrs.size*i)
-        attrs << [attr[:first], attr[:second]]
+        attrs << [attr[:first].read_string, attr[:second].read_string]
+      end
+      attrs
+    end
+
+    def build_tattrs_for(entries, size)
+      attrs = []
+      0.upto(size-1) do |i|
+        attr = Leela::Raw::LqlAttrs.new(entries + Leela::Raw::LqlAttrs.size*i)
+        attrs << [attr[:first].read_double, make_attr_msg(attr[:second])]
       end
       attrs
     end
@@ -106,28 +124,36 @@ module Leela
       [guid, attr]
     end
 
-    def make_kattr_msg(guid, name, value)
+    def make_attr_msg(value)
       attr = Leela::Raw::LqlValueT.new(value)
 
       case attr[:vtype]
       when :lql_bool_type
-        val = attr[:data][:v_bool]
+        attr[:data][:v_bool]
       when :lql_text_type
-        val = attr[:data][:v_str]
+        attr[:data][:v_str]
       when :lql_int32_type
-        val = attr[:data][:v_i32]
+        attr[:data][:v_i32]
       when :lql_int64_type
-        val = attr[:data][:v_i64]
+        attr[:data][:v_i64]
       when :lql_uint32_type
-        val = attr[:data][:v_u32]
+        attr[:data][:v_u32]
       when :lql_uint64_type
-        val = attr[:data][:v_u64]
+        attr[:data][:v_u64]
       when :lql_double_type
-        val = attr[:data][:v_double]
+        attr[:data][:v_double]
       when :lql_nil_type
-        val = nil
+        nil
       end
+    end
 
+    def make_kattr_msg(guid, name, value)
+      val = make_attr_msg(value)
+      [guid, name, val]
+    end
+
+    def make_tattr_msg(guid, name, series, size)
+      val = build_tattrs_for(series, size)
       [guid, name, val]
     end
   end
