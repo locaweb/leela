@@ -23,7 +23,8 @@ stage1_installpkg_squeeze () {
   echo "deb http://ftp.br.debian.org/debian-backports squeeze-backports-sloppy main" >> /etc/apt/sources.list.d/bpo.list
   apt-get update && apt-get install -q --yes --force-yes \
     libncursesw5-dev libffi-dev libzmq3-dev zlib1g-dev python2.6-dev \
-    wget ca-certificates debhelper devscripts coreutils collectd-dev
+    wget ca-certificates debhelper devscripts coreutils
+  apt-get -t squeeze-backports install -q --yes --force-yes collectd-dev
   adduser --system --home /home/leela --shell /bin/sh --uid 1000 leela
 }
 
