@@ -40,7 +40,6 @@ import           Leela.Data.LQL.Comp
 import           Leela.Storage.Graph
 import           Data.ByteString.Lazy (toStrict)
 import           Data.ByteString.UTF8 (fromString)
-import           System.Random.Shuffle
 import           Control.Concurrent.STM
 import           Leela.Network.Protocol
 import           Leela.Storage.KeyValue
@@ -55,8 +54,7 @@ ttl = 300
 
 dumpStat :: CoreServer -> IO [(B.ByteString, B.ByteString)]
 dumpStat core = do
-  state <- readIORef (stat core)
-  shuffleM $ concatMap dumpEntry state
+  liftM (concatMap dumpEntry) $ readIORef (stat core)
     where
       dumpEntry (k, [])     = [(fromString $ "endpoint/" ++ k, "")]
       dumpEntry (k, [e])    = [(fromString $ "endpoint/" ++ k, toStrict $ dumpEndpoint e)]

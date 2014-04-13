@@ -62,6 +62,14 @@ bool leela_naming_start (leela_naming_t *naming, lql_context_t *ctx);
  */
 leela_naming_cluster_t *leela_naming_discover (leela_naming_t *);
 
+/*! Returns a endpoint to use, so that the load is distruted uniformly
+ *  amongst the cluster members.
+ *
+ *  \return NULL      : failure;
+ *  \return otherwise : A valid endpoint to use;
+ */
+leela_endpoint_t *leela_naming_select (leela_naming_t *);
+
 /*! Frees memory
  */
 void leela_naming_cluster_free (leela_naming_cluster_t *);

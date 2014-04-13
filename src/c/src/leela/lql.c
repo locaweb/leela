@@ -30,10 +30,8 @@
 struct lql_context_t
 {
   void             *zmqctx;
-  size_t            offset;
   leela_naming_t   *naming;
   leela_endpoint_t *endpoint;
-  pthread_mutex_t   mutex;
 };
 
 struct lql_cursor_t {
@@ -67,30 +65,6 @@ void __leela_lql_tuple2_free_members (const lql_tuple2_t *pair)
     if (pair->snd_finalizer != NULL)
     { pair->snd_finalizer(pair->snd); }
   }
-}
-
-static
-leela_endpoint_t *__select_endpoint (lql_context_t *ctx)
-{
-  leela_naming_cluster_t *snapshot = leela_naming_discover(ctx->naming);
-  if (snapshot == NULL)
-  {
-    LEELA_DEBUG0("0 warpdrive instances found!");
-    return(NULL);
-  }
-
-  if (pthread_mutex_lock(&ctx->mutex) != 0)
-  {
-    LEELA_DEBUG0("could not acquire an exclusive lock");
-    leela_naming_cluster_free(snapshot);
-    return(NULL);
-  }
-
-  leela_endpoint_t *endpoint = leela_endpoint_dup(snapshot->endpoint[ctx->offset % snapshot->size]);
-  ctx->offset                = (ctx->offset + 1) % snapshot->size;
-  pthread_mutex_unlock(&ctx->mutex);
-  leela_naming_cluster_free(snapshot);
-  return(endpoint);
 }
 
 static
@@ -390,18 +364,37 @@ handle_error:
   return(NULL);
 }
 
+static
+void __init_random()
+{
+  unsigned int seed = 0;
+  bool ok           = false;
+  FILE *fh = fopen("/dev/urandom", "r");
+  if (fh != NULL)
+  {
+    size_t res = fread(&seed, sizeof(seed), 1, fh);
+    ok         = res == 1;
+    fclose(fh);
+  }
+  if (! ok)
+  {
+    seed = (unsigned int) time(NULL);
+    LEELA_DEBUG0("__init_random: could not read from /dev/random, falling back to time(0)");
+  }
+  LEELA_DEBUG("__init_random: srand(%lu)", seed);
+  srand(seed);
+  srand48(seed);
+}
+
 lql_context_t *leela_lql_context_init (const leela_endpoint_t *const *warpdrive)
 {
   lql_context_t *ctx = (lql_context_t *) malloc(sizeof(lql_context_t));
   if (ctx != NULL)
   {
-    ctx->offset  = 0;
+    __init_random();
     ctx->zmqctx  = zmq_ctx_new();
     ctx->naming  = leela_naming_init(warpdrive, LQL_DEFAULT_TIMEOUT);
     if (ctx->naming == NULL || ctx->zmqctx == NULL)
-    { goto handle_error; }
-
-    if (pthread_mutex_init(&ctx->mutex, NULL) != 0)
     { goto handle_error; }
 
     bool ok = leela_naming_start(ctx->naming, ctx);
@@ -461,7 +454,7 @@ handle_error:
 
 lql_cursor_t *leela_lql_cursor_init(lql_context_t *ctx, const char *username, const char *secret, int timeout_in_ms)
 {
-  leela_endpoint_t *endpoint = __select_endpoint(ctx);
+  leela_endpoint_t *endpoint = leela_naming_select(ctx->naming);
   if (endpoint == NULL)
   {
     LEELA_DEBUG0("no warpdrive instances avaialble!");
@@ -917,7 +910,6 @@ leela_status leela_lql_context_close (lql_context_t *ctx)
     { leela_naming_destroy(ctx->naming); }
     if (ctx->zmqctx != NULL)
     { zmq_ctx_destroy(ctx->zmqctx); }
-    pthread_mutex_destroy(&ctx->mutex);
     free(ctx);
     return(LEELA_OK);
   }

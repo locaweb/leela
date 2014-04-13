@@ -18,6 +18,7 @@ module Leela.Naming
        , zkResolve
        ) where
 
+import           Data.List
 import           Data.Maybe
 import           Data.IORef
 import           Leela.Logger
@@ -30,7 +31,7 @@ import           Leela.Data.Endpoint
 zkResolve :: Zookeeper -> String -> IO [(String, B.ByteString)]
 zkResolve zh path0 = go [] [[path0]]
     where
-      go acc []                     = return acc
+      go acc []                     = return $ sort acc
       go acc ([]:backlog)           = go acc backlog
       go acc ((path:paths):backlog) = do
         mvalue    <- get zh path Nothing

@@ -13,7 +13,7 @@ clean:
 	rm -f libleela.so*
 	rm -f src/driver
 
-$(OBJ_FILES): override CPPFLAGS += -D_POSIX_SOURCE
+$(OBJ_FILES): override CPPFLAGS += -D_POSIX_SOURCE=200112 -D_XOPEN_SOURCE
 $(OBJ_FILES): override CFLAGS += -Isrc -std=c99 -pedantic -fPIC -pthread
 
 libleela.so.$(LEELA_VERSION): $(OBJ_FILES)
@@ -21,6 +21,6 @@ libleela.so.$(LEELA_VERSION): $(OBJ_FILES)
 	ln -s -f $(@) libleela.so
 
 src/driver: $(OBJ_FILES)
-src/driver: override CPPFLAGS += -D_POSIX_SOURCE
+src/driver: override CPPFLAGS += -D_POSIX_SOURCE=200112 -D_XOPEN_SOURCE
 src/driver: override CFLAGS += -Wall -g -Isrc -std=c99 -pedantic -fPIC -pthread
 src/driver: override LDLIBS += -lpthread -lzmq

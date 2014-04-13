@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <time.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,7 +26,6 @@
 
 struct leela_naming_t
 {
-  unsigned int            rnd0;
   int                     maxdelay;
   bool                    cancel;
   pthread_t               thread;
@@ -131,9 +131,10 @@ leela_naming_cluster_t *__naming_discover (leela_naming_t *naming)
   leela_naming_cluster_t *new_cluster = NULL;
   if (cur_cluster != NULL)
   {
+    size_t offset = ((size_t) lrand48()) - cur_cluster->size;
     for (size_t k=0; k<cur_cluster->size; k+=1)
     {
-      new_cluster = __naming_discover2(naming, cur_cluster->endpoint[k]);
+      new_cluster = __naming_discover2(naming, cur_cluster->endpoint[(k + offset) % cur_cluster->size]);
       if (new_cluster != NULL)
       { break; }
     }
@@ -172,7 +173,7 @@ void *__naming_loop (void *data)
     }
     else
     {
-      w_sec  = ((unsigned int) rand_r(&naming->rnd0)) % naming->maxdelay;
+      w_sec  = ((unsigned int) rand()) % naming->maxdelay;
       w_usec = 0;
     }
     while (!naming->cancel && (w_sec > 0 || w_usec > 0))
@@ -226,12 +227,26 @@ bool leela_naming_start (leela_naming_t *naming, lql_context_t *context)
   return(ok);
 }
 
+leela_endpoint_t *leela_naming_select (leela_naming_t *naming)
+{
+  leela_endpoint_t *endpoint = NULL;
+  if (pthread_mutex_lock(&naming->mutex) == 0)
+  {
+    if (naming->cluster->size > 0)
+    {
+      unsigned int at = lrand48() % naming->cluster->size;
+      endpoint        = leela_endpoint_dup(naming->cluster->endpoint[at]);
+    }
+    pthread_mutex_unlock(&naming->mutex);
+  }
+  return(endpoint);
+}
+
 leela_naming_t *leela_naming_init (const leela_endpoint_t *const *warpdrive, int maxdelay)
 {
   leela_naming_t *naming = (leela_naming_t *) malloc(sizeof(leela_naming_t));
   if (naming == NULL)
   { return(NULL); }
-  naming->rnd0     = time(0);
   naming->maxdelay = maxdelay;
   naming->cancel   = false;
   naming->cluster  = NULL;
