@@ -407,6 +407,13 @@ int wl_cfg (oconfig_item_t *cfg)
     oconfig_item_t *item = cfg->children + k;
     if (strcasecmp("cluster", item->key) == 0 && item->values[0].type == OCONFIG_TYPE_STRING)
     {
+      if (cluster != NULL)
+      {
+        ERROR("write_leela plugin: multiple cluster configuration found");
+        wl_cluster_free(cluster);
+        wl_data_free(leela_cfg);
+        return(-1);
+      }
       cluster = wl_parse_cluster(item);
       if (cluster == NULL)
       {
