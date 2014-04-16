@@ -15,7 +15,7 @@
 module Leela.HZMQ.ZHelpers where
 
 import Data.Int
-import System.ZMQ3
+import System.ZMQ4
 import Data.ByteString (ByteString)
 
 recvTimeout :: (Receiver a) => Int64 -> Socket a -> IO (Maybe [ByteString])

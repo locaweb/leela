@@ -18,7 +18,7 @@ module Leela.Network.ZMQServer
        ( startServer
        ) where
 
-import System.ZMQ3
+import System.ZMQ4
 import Leela.HZMQ.Router
 import Leela.Network.Core
 import Leela.Data.QDevice

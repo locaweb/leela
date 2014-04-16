@@ -20,7 +20,7 @@ module Leela.HZMQ.Router
        ) where
 
 import           Data.Maybe
-import           System.ZMQ3
+import           System.ZMQ4
 import           Leela.Logger
 import           Control.Monad
 import           Leela.Helpers

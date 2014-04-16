@@ -18,7 +18,7 @@ module Main (main) where
 
 import HFlags
 import Data.IORef
-import System.ZMQ3
+import System.ZMQ4
 import Leela.Logger
 import Leela.Naming
 import Control.Monad
