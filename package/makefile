@@ -44,7 +44,7 @@ images:
 	  leela/$(dist)-$(arch) /bin/bash -l -c " \
 	    rpmdev-setuptree; \
 	    ./mksource.sh >\$$HOME/rpmbuild/SOURCES/\$$package-\$$version.tar.gz; \
-	    cp /target/package/\$$package/centos/\$$package.spec /tmp/package.spec; \
+	    cp /target/package/\$$package/$(dist)/\$$package.spec /tmp/package.spec; \
 	    rpmbuild -ba /tmp/package.spec; \
 	    /target/package/collect.sh \$$HOME/rpmbuild/SRPMS/* \$$HOME/rpmbuild/RPMS/*/*"
 
