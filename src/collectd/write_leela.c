@@ -15,19 +15,19 @@
 #ifndef __write_leela_h__
 #define __write_leela_h__
 
+#include <pthread.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdarg.h>
+#include <strings.h>
+#include <inttypes.h>
+#include <sys/types.h>
+
 #include <collectd/config.h>
 #include <collectd/collectd.h>
 #include <collectd/common.h>
 #include <collectd/utils_cache.h>
 #include <collectd/plugin.h>
-
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-#include <strings.h>
-#include <pthread.h>
-#include <inttypes.h>
-#include <sys/types.h>
 
 #include <leela/lql.h>
 #include <leela/endpoint.h>

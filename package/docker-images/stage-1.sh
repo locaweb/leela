@@ -48,13 +48,37 @@ stage1_installpkg_centos6 () {
 
 stage1_installpkg_centos5 () {
   yum install -y --nogpgcheck wget || true
-  wget http://dl.fedoraproject.org/pub/epel/5/i386/epel-release-5-4.noarch.rpm
-  yum localinstall -y --nogpgcheck epel-release-5-4.noarch.rpm || true
+  cat <<EOF >/etc/yum.repos.d/Locaweb.repo
+[loca-core]
+name=Locaweb Core Packages
+baseurl=http://repo.linux.locaweb.com.br/team/core/\$basearch
+enabled=1
+gpgcheck=0
+
+[loca-python]
+name=Locaweb Python Packages
+baseurl=http://repo.linux.locaweb.com.br/python/2.6/base/\$basearch
+enabled=1
+gpgcheck=0
+
+[loca-core-noarch]
+name=Locaweb Core Packages (noarch)
+baseurl=http://repo.linux.locaweb.com.br/team/core/noarch
+enabled=1
+gpgcheck=0
+EOF
+  if [ "$arch" = "amd64" ]
+  then
+      wget http://dl.fedoraproject.org/pub/epel/5/x86_64/epel-release-5-4.noarch.rpm
+  elif [ "$arch" = "i386" ]
+  then
+      wget http://dl.fedoraproject.org/pub/epel/5/i386/epel-release-5-4.noarch.rpm
+  fi
   yum install -y --nogpgcheck \
     ncurses-devel libffi-devel zlib-devel uuid-devel \
-    wget ca-certificates python26-devel rpmdevtools tar gcc gcc-c++ git make || true
-  yum install -y --nogpgcheck \
-    zeromq-devel -c "http://download.opensuse.org/repositories/home:/fengshuo:/zeromq/CentOS_CentOS-5/home:fengshuo:zeromq.repo" || true
+    wget ca-certificates zeromq3 zeromq3-devel python2.6-devel python2.6 tar gcc gcc-c++ make collectd || true
+  yum localinstall -y --nogpgcheck epel-release-5-4.noarch.rpm || true
+  yum install -y --nogpgcheck git rpmdevtools || true
   adduser -r --uid 1000 --shell /bin/sh --create-home --home-dir /home/leela leela
 }
 

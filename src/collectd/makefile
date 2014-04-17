@@ -1,6 +1,6 @@
 CFLAGS = -Wall
 
-compile: override CPPFLAGS += -D_POSIX_SOURCE=200112
+compile: override CPPFLAGS += -D_POSIX_SOURCE=200112 -D__USE_XOPEN -D_XOPEN_SOURCE
 compile: override CFLAGS += -Isrc -std=c99 -pedantic -fPIC -pthread
 
 compile:
