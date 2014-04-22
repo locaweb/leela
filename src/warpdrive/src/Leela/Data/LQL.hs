@@ -31,5 +31,5 @@ data LQL = StatStmt
          | KAttrListStmt GUID (Mode Attr)
          | TAttrListStmt GUID (Mode Attr)
          | NameStmt Using GUID
-         | GUIDStmt Using Node
+         | GUIDStmt Using Kind Node
          | AlterStmt [Journal]

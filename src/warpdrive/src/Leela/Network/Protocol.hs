@@ -72,7 +72,7 @@ data RValue = Path [(GUID, Label)]
             | KAttr GUID Attr (Maybe Value)
             | TAttr GUID Attr [(Time, Value)]
             | NAttrs GUID [Attr]
-            | Name User Tree Node GUID
+            | Name User Tree Kind Node GUID
 
 isEOF :: Reply -> Bool
 isEOF m = isLast m || isFail m
@@ -134,7 +134,7 @@ encodeTimeSeries :: [(Time, Value)] -> [B.ByteString]
 encodeTimeSeries = concatMap (\(t, v) -> toShortest (seconds t) : encodeValue v)
 
 encodeRValue :: RValue -> [B.ByteString]
-encodeRValue (Name u t n g)       = ["name", toByteString u, toByteString t, toByteString n, toByteString g]
+encodeRValue (Name u t k n g)     = ["name", toByteString u, toByteString t, toByteString k, toByteString n, toByteString g]
 encodeRValue (Path p)             = let f acc (g, l) = toByteString l : toByteString g : acc
                                     in "path" : encodeShow (length p) : foldl' f [] p
 encodeRValue (List v)             = "list" : encodeShow (length v) : concatMap encodeRValue v

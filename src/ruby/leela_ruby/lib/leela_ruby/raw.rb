@@ -80,6 +80,7 @@ module Leela
     class LqlName < FFI::Struct
       layout :user, :string,
              :tree, :string,
+             :kind, :string,
              :name, :string,
              :guid, :string
     end

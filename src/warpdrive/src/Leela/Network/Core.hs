@@ -184,8 +184,8 @@ evalLQL cache db core queue (x:xs) =
       devwriteIO queue (Item $ TAttr g a [])
       evalLQL cache db core queue xs
     NameStmt _ g      -> do
-      (gUser, gTree, gName) <- getName db g
-      devwriteIO queue (Item $ Name gUser gTree gName g)
+      (gUser, gTree, gKind, gName) <- getName db g
+      devwriteIO queue (Item $ Name gUser gTree gKind gName g)
       evalLQL cache db core queue xs
     StatStmt          -> do
       state <- dumpStat core
@@ -193,15 +193,11 @@ evalLQL cache db core queue (x:xs) =
       evalLQL cache db core queue xs
     AlterStmt journal -> do
       names <- exec db journal
-      mapM_ (\(u, t, n, g) -> devwriteIO queue (Item $ Name u t n g)) names
+      mapM_ (\(u, t, k, n, g) -> devwriteIO queue (Item $ Name u t k n g)) names
       evalLQL cache db core queue xs
-    GUIDStmt u n      -> do
-      mg <- getGUID db (uUser u) (uTree u) n
-      case mg of
-        Nothing -> devwriteIO queue (Fail 404 Nothing)
-        Just g  -> do
-          devwriteIO queue (Item $ Name (uUser u) (uTree u) n g)
-          evalLQL cache db core queue xs
+    GUIDStmt u k n -> do
+      g <- getGUID db (uUser u) (uTree u) k n
+      devwriteIO queue (Item $ Name (uUser u) (uTree u) k n g)
 
 evalFinalizer :: FH -> Device Reply -> Either SomeException () -> IO ()
 evalFinalizer chan dev (Left e)  = do

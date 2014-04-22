@@ -10,11 +10,12 @@ try_leela.stderr
 /build/
 /dist/
 /doc/build/
-/src/haskell/src/Leela/warpdrive
-/src/haskell/cabal-dev/
-/src/haskell/dist/
-/src/haskell/.cabal-sandbox
-/src/haskell/cabal.sandbox.config
+/src/warpdrive/src/warpdrive
+/src/warpdrive/src/Leela/warpdrive
+/src/warpdrive/cabal-dev/
+/src/warpdrive/dist/
+/src/warpdrive/.cabal-sandbox
+/src/warpdrive/cabal.sandbox.config
 /src/c/try_leela
 /src/c/libleela.so*
 /src/python/build

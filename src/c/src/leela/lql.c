@@ -381,7 +381,6 @@ void __init_random()
     seed = (unsigned int) time(NULL);
     LEELA_DEBUG0("__init_random: could not read from /dev/random, falling back to time(0)");
   }
-  LEELA_DEBUG("__init_random: srand(%lu)", seed);
   srand(seed);
   srand48(seed);
 }
@@ -543,7 +542,7 @@ leela_status leela_lql_cursor_next (lql_cursor_t *cursor)
   if (strncmp(buffer, "name", 4) == 0)
   {
     cursor->row      = LQL_NAME_MSG;
-    cursor->elems[1] = 4;
+    cursor->elems[1] = 5;
   }
   else if (strncmp(buffer, "stat", 4) == 0)
   {
@@ -613,11 +612,13 @@ lql_name_t *leela_lql_fetch_name (lql_cursor_t *cursor)
   {
     name->user = NULL;
     name->tree = NULL;
+    name->kind = NULL;
     name->name = NULL;
     name->guid = NULL;
 
     name->user = __zmq_recvmsg_copystr(cursor);
     name->tree = __zmq_recvmsg_copystr(cursor);
+    name->kind = __zmq_recvmsg_copystr(cursor);
     name->name = __zmq_recvmsg_copystr(cursor);
     name->guid = __zmq_recvmsg_copystr(cursor);
     if (name->user != NULL
@@ -801,6 +802,7 @@ void leela_lql_name_free (lql_name_t *name)
   {
     free(name->user);
     free(name->tree);
+    free(name->kind);
     free(name->name);
     free(name->guid);
     free(name);

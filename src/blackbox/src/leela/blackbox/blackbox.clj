@@ -48,7 +48,7 @@
                                     :default 128
                                     :parse-fn #(Integer/parseInt %)]
                                    ["--endpoint" "the binding address"
-                                    :default "tcp://localhost:50021"])]
+                                    :default "tcp://*:50021"])]
     (when (:help options)
       (println banner)
       (System/exit 0))

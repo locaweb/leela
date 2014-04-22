@@ -38,6 +38,10 @@ recv :: Maybe [ByteString] -> Reply
 recv Nothing    = FailMsg 500
 recv (Just msg) = decode msg
 
+notFoundError :: IO a
+notFoundError = do
+  throwIO NotFoundExcept
+
 internalError :: IO a
 internalError = do
   lerror Storage "error communicating with the storage backend"
@@ -97,22 +101,22 @@ instance GraphBackend ZMQBackend where
   getName m g = do
     reply <- send (dealer m) (MsgGetName g)
     case reply of
-      NameMsg u t n _ -> return (u, t, n)
-      FailMsg 404     -> throwIO NotFoundExcept
-      _               -> internalError
+      NameMsg u t k n _ -> return (u, t, k, n)
+      FailMsg 404       -> notFoundError
+      _                 -> internalError
 
-  getGUID m u t n = do
-   reply <- send (dealer m) (MsgGetGUID u t n)
+  getGUID m u t k n = do
+   reply <- send (dealer m) (MsgGetGUID u t k n)
    case reply of
-     NameMsg _ _ _ g -> return (Just g)
-     FailMsg 404     -> return Nothing
-     _               -> internalError
+     NameMsg _ _ _ _ g -> return g
+     FailMsg 404       -> notFoundError
+     _                 -> internalError
 
-  putName m u t n = do
-    reply <- send (dealer m) (MsgPutName u t n)
+  putName m u t k n = do
+    reply <- send (dealer m) (MsgPutName u t k n)
     case reply of
-      NameMsg _ _ _ g -> return g
-      _               -> internalError
+      NameMsg _ _ _ _ g -> return g
+      _                 -> internalError
 
   getLabel m g page limit = do
     reply <- send (dealer m) (MsgGetLabel g page limit)

@@ -89,7 +89,8 @@ typedef struct
 {
   char *user;             //!^ The owner of this node;
   char *tree;             //!^ The namespace of this node;
-  char *name;             //!^ The name of this name;
+  char *name;             //!^ The name of this node;
+  char *kind;             //!^ The type of this node;
   char *guid;             //!^ The hash that has been requested;
 } lql_name_t;
 

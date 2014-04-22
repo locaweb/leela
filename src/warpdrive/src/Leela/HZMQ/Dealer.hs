@@ -21,7 +21,7 @@ module Leela.HZMQ.Dealer
        ) where
 
 import           Data.Maybe
-import           System.ZMQ4 hiding (Dealer, destroy, backlog)
+import           System.ZMQ4 hiding (Dealer, backlog)
 import           Leela.Logger
 import           Control.Monad
 import           Leela.Helpers

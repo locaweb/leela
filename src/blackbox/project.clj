@@ -7,7 +7,7 @@
   :description  "Leela: scalable metrics monitoring engine [storage component]"
   :dependencies [[pandect "0.3.0"]
                  [clj-time "0.6.0"]
-                 [org.zeromq/jzmq "2.2.2"]
+                 [org.zeromq/jzmq "3.0.1"]
                  [org.clojure/clojure "1.5.1"]
                  [org.clojure/tools.cli "0.2.4"]
                  [clojurewerkz/cassaforte "1.3.0-beta8"]

@@ -16,6 +16,7 @@
 
 module Leela.Data.Types
        ( GUID (..)
+       , Kind (..)
        , Mode (..)
        , Node (..)
        , Tree (..)
@@ -67,7 +68,7 @@ data Matcher = ByLabel GUID Label
 
 data Journal = PutLink GUID Label GUID
              | PutLabel GUID Label
-             | PutNode User Tree Node
+             | PutNode User Tree Kind Node
              | DelLink GUID Label (Maybe GUID)
              | DelNode GUID
              | DelKAttr GUID Attr
@@ -82,7 +83,6 @@ data Option = TTL Int
 
 data Mode a = All (Maybe a)
             | Prefix a a
-            | Suffix a a
             | Precise a
 
 
@@ -107,8 +107,8 @@ isPutLabel (PutLabel _ _) = True
 isPutLabel _              = False
 
 isPutNode :: Journal -> Bool
-isPutNode (PutNode _ _ _) = True
-isPutNode _               = False
+isPutNode (PutNode _ _ _ _) = True
+isPutNode _                 = False
 
 isPutTAttr :: Journal -> Bool
 isPutTAttr (PutTAttr _ _ _ _ _) = True
@@ -128,7 +128,6 @@ setOpt o1 (o : xs)
 glob :: B.ByteString -> Mode B.ByteString
 glob s
   | "*" == s           = All Nothing
-  | B.isPrefixOf "*" s = uncurry Suffix (range $ B.tail s)
   | B.isSuffixOf "*" s = uncurry Prefix (range $ B.init s)
   | otherwise          = Precise s
     where
@@ -137,7 +136,6 @@ glob s
 nextPage :: Mode a -> a -> Mode a
 nextPage (All _) l      = All (Just l)
 nextPage (Prefix _ b) l = Prefix l b
-nextPage (Suffix _ b) l = Suffix l b
 nextPage _ _            = error "precise has no pagination"
 
 newtype GUID = GUID B.ByteString
@@ -155,6 +153,9 @@ newtype User = User B.ByteString
 newtype Tree = Tree B.ByteString
         deriving (Eq, Ord, Show)
 
+newtype Kind = Kind B.ByteString
+        deriving (Eq, Ord, Show)
+
 newtype Attr = Attr B.ByteString
         deriving (Eq, Ord, Show)
 
@@ -169,6 +170,10 @@ instance AsByteString GUID where
 instance AsByteString Label where
 
   toByteString (Label l) = l
+
+instance AsByteString Kind where
+
+  toByteString (Kind l) = l
 
 instance AsByteString Node where
 
@@ -226,6 +231,5 @@ instance Serialize Value where
 instance Functor Mode where
 
   fmap f (All ma)     = All (fmap f ma)
-  fmap f (Suffix a b) = Suffix (f a) (f b)
   fmap f (Prefix a b) = Prefix (f a) (f b)
   fmap f (Precise a)  = Precise (f a)

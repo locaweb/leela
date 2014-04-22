@@ -51,8 +51,13 @@ isSpace = liftM (== Just 0x20) peekWord8
 hardspace :: Parser ()
 hardspace = void $ word8 0x20
 
-parseNode :: Parser Node
-parseNode = liftM Node (qstring 512 0x28 0x29)
+parseNode :: Parser (Kind, Node)
+parseNode = do
+  (Kind kind) <- liftM Kind $ qstring 64 0x28 0x3a
+  (Node name) <- liftM Node $ qstring 512 0x3a 0x29
+  when (B.null kind) (fail "kind must not be null")
+  when (B.null name) (fail "name must not be null")
+  return (Kind kind, Node name)
 
 parseTree :: Parser Tree
 parseTree = liftM Tree (qstring 512 0x28 0x29)
@@ -204,7 +209,7 @@ parseStmtMake u = do
   _  <- string "make "
   at <- peekWord8
   case at of
-    Just 0x28 -> liftM (AlterStmt . return . PutNode (uUser u) (uTree u)) parseNode
+    Just 0x28 -> liftM (AlterStmt . return . uncurry (PutNode (uUser u) (uTree u))) parseNode
     Just _    -> liftM AlterStmt parseMakeCreate
     _         -> fail "bad make statement"
 
@@ -215,7 +220,7 @@ parseStmtName :: Using -> Parser LQL
 parseStmtName u = "name " .*> liftM (NameStmt u) parseGUID
 
 parseStmtGUID :: Using -> Parser LQL
-parseStmtGUID u = "guid " .*> liftM (GUIDStmt u) parseNode
+parseStmtGUID u = "guid " .*> liftM (uncurry (GUIDStmt u)) parseNode
 
 parseStmtStat :: Parser LQL
 parseStmtStat = "stat" .*> return StatStmt

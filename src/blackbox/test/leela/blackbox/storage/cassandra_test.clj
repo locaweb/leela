@@ -20,11 +20,11 @@
     (storage/with-session [cluster ["127.0.0.1"] "leela"]
 
       (truncate-n-test cluster "get-gindex with no data"
-        (is (= [] (storage/get-index cluster table node false))))
+        (is (= [] (storage/get-index cluster table node))))
 
       (truncate-n-test cluster "get-gindex after put-gindex"
         (storage/put-index cluster table [{:key node :name "foobar"}])
-        (is (= ["foobar"] (storage/get-index cluster table node false))))
+        (is (= ["foobar"] (storage/get-index cluster table node))))
 
       (truncate-n-test cluster "get-gindex after multiple put-gindex"
         (storage/put-index cluster table [{:key node :name "f"}
@@ -32,46 +32,24 @@
                                           {:key node :name "b"}
                                           {:key node :name "a"}
                                           {:key node :name "r"}])
-        (is (= ["a" "b" "f" "o" "r"] (storage/get-index cluster table node false))))
+        (is (= ["a" "b" "f" "o" "r"] (storage/get-index cluster table node))))
 
       (truncate-n-test cluster "get-gindex pagination with only start"
         (storage/put-index cluster table [{:key node :name "a0"}
                                           {:key node :name "a1"}
                                           {:key node :name "a2"}])
         (storage/with-limit 1
-          (is (= ["a0"] (storage/get-index cluster table node false)))
-          (is (= ["a1"] (storage/get-index cluster table node false "a1")))
-          (is (= ["a2"] (storage/get-index cluster table node false "a2")))))
+          (is (= ["a0"] (storage/get-index cluster table node)))
+          (is (= ["a1"] (storage/get-index cluster table node "a1")))
+          (is (= ["a2"] (storage/get-index cluster table node "a2")))))
 
       (truncate-n-test cluster "get-gindex pagination with start & finish"
         (storage/put-index cluster table [{:key node :name "fooba0r"}
                                           {:key node :name "fooba1r"}
                                           {:key node :name "fooba2r"}])
-        (is (= ["fooba0r"] (storage/get-index cluster table node false "fooba0" "fooba1")))
-        (is (= ["fooba1r"] (storage/get-index cluster table node false "fooba1" "fooba2")))
-        (is (= ["fooba2r"] (storage/get-index cluster table node false "fooba2" "fooba3"))))
-
-      (truncate-n-test cluster "get-gindex (reverse)"
-        (storage/put-index cluster table [{:key node :name "a0"}
-                                          {:key node :name "a1"}])
-        (is (= ["a0" "a1"] (storage/get-index cluster table node true))))
-
-      (truncate-n-test cluster "get-gindex (reverse) pagination with only start"
-        (storage/put-index cluster table [{:key node :name "a0"}
-                                          {:key node :name "a1"}
-                                          {:key node :name "a2"}])
-        (storage/with-limit 1
-          (is (= ["a0"] (storage/get-index cluster table node true)))
-          (is (= ["a1"] (storage/get-index cluster table node true "a1")))
-          (is (= ["a2"] (storage/get-index cluster table node true "a2")))))
-
-      (truncate-n-test cluster "get-gindex (reverse) pagination with start & finish"
-        (storage/put-index cluster table [{:key node :name "fooba0r"}
-                                          {:key node :name "fooba1r"}
-                                          {:key node :name "fooba2r"}])
-        (is (= ["fooba0r"] (storage/get-index cluster table node true "0r" "1r")))
-        (is (= ["fooba1r"] (storage/get-index cluster table node true "1r" "2r")))
-        (is (= ["fooba2r"] (storage/get-index cluster table node true "2r" "3r")))))))
+        (is (= ["fooba0r"] (storage/get-index cluster table node "fooba0" "fooba1")))
+        (is (= ["fooba1r"] (storage/get-index cluster table node "fooba1" "fooba2")))
+        (is (= ["fooba2r"] (storage/get-index cluster table node "fooba2" "fooba3")))))))
 
 (deftest test-put-tattr
   (let [node-a (f/uuid-from-time 1)]
@@ -216,13 +194,16 @@
 (deftest test-naming
   (storage/with-session [cluster ["127.0.0.1"] "leela"]
     (truncate-n-test cluster "putguid register a new uuid"
-      (is (not (= nil (storage/putguid cluster "leela" "leela" "foobar")))))
+      (is (not (= nil (storage/putguid cluster "leela" "leela" "foo" "bar")))))
 
     (truncate-n-test cluster "getguid is idempotent"
-      (is (= (storage/putguid cluster "leela" "leela" "foobaz") (storage/putguid cluster "leela" "leela" "foobaz"))))
+      (is (= (storage/putguid cluster "leela" "leela" "foo" "bar") (storage/putguid cluster "leela" "leela" "foo" "bar"))))
 
     (truncate-n-test cluster "getguid with no data"
-      (is (= nil (storage/getguid cluster "leela" "leela" "foo"))))
+      (is (empty? (storage/getguid cluster "leela" "leela" "foo" "bar"))))
 
-    (truncate-n-test cluster "getguid aftter getguid"
-      (is (= (storage/putguid cluster "leela" "leela" "bar") (storage/getguid cluster "leela" "leela" "bar"))))))
+    (truncate-n-test cluster "getguid with no data"
+      (is (= nil (storage/getguid cluster "leela" "leela" "foo" "bar"))))
+
+    (truncate-n-test cluster "getguid aftter putguid"
+      (is (= (storage/putguid cluster "leela" "leela" "foo" "bar") (storage/getguid cluster "leela" "leela" "foo" "bar"))))))

@@ -17,8 +17,12 @@ module Leela.Storage.Graph
     , Limit
     , AttrBackend (..)
     , GraphBackend (..)
+    , defaultLimit
+    , enumKAttrs
+    , enumTAttrs
     ) where
 
+import Control.Monad
 import Leela.Data.Time
 import Leela.Data.Types
 
@@ -26,13 +30,32 @@ type Page = Maybe
 
 type Limit = Int
 
+defaultLimit :: Int
+defaultLimit = 512
+
+enumAttrs :: (AttrBackend db) => (db -> GUID -> Mode Attr -> Limit -> IO [Attr]) -> db -> ([Attr] -> IO ()) -> GUID -> Mode Attr -> IO ()
+enumAttrs listF db write g mode = do
+  values <- listF db g mode defaultLimit
+  if (length values < defaultLimit)
+    then write values
+    else
+      when (not $ null values) $ do
+        write (init values)
+        enumAttrs listF db write g (nextPage mode $ last values)
+
+enumKAttrs :: (AttrBackend db) => db -> ([Attr] -> IO ()) -> GUID -> Mode Attr -> IO ()
+enumKAttrs = enumAttrs listAttr
+
+enumTAttrs :: (AttrBackend db) => db -> ([Attr] -> IO ()) -> GUID -> Mode Attr -> IO ()
+enumTAttrs = enumAttrs listTAttr
+
 class GraphBackend m where
 
-  getName   :: m -> GUID -> IO (User, Tree, Node)
+  getName   :: m -> GUID -> IO (User, Tree, Kind, Node)
 
-  getGUID   :: m -> User -> Tree -> Node -> IO (Maybe GUID)
+  getGUID   :: m -> User -> Tree -> Kind -> Node -> IO GUID
 
-  putName   :: m -> User -> Tree -> Node -> IO GUID
+  putName   :: m -> User -> Tree -> Kind -> Node -> IO GUID
 
   hasLink   :: m -> GUID -> Label -> GUID -> IO Bool
 

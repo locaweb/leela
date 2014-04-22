@@ -19,8 +19,6 @@ module Leela.Data.Graph
     ( exec
     , query
     , loadTAttr
-    , enumKAttrs
-    , enumTAttrs
     ) where
 
 import Leela.Helpers
@@ -32,9 +30,6 @@ import Leela.Storage.Graph
 import Control.Concurrent.STM
 import Control.Concurrent.Async
 
-limit :: Int
-limit = 512
-
 query :: (GraphBackend db) => db -> ([(GUID, Label, GUID)] -> IO ()) -> Matcher -> IO ()
 query db write (ByEdge a l b) = do
   ok <- hasLink db a l b
@@ -43,35 +38,20 @@ query db write (ByNode a)     = query db write (ByLabel a (Label "*"))
 query db write (ByLabel a (Label l0)) = loadLabels (fmap Label $ glob l0)
     where
       loadLabels page = do
-        labels <- getLabel db a page limit
-        if (length labels < limit)
+        labels <- getLabel db a page defaultLimit
+        if (length labels < defaultLimit)
           then mapM_ (flip loadLinks Nothing) labels
           else do
             mapM_ (flip loadLinks Nothing) (init labels)
             loadLabels (nextPage page (last labels))
 
       loadLinks l page = do
-        guids <- getLink db a l page limit
-        if (length guids < limit)
+        guids <- getLink db a l page defaultLimit
+        if (length guids < defaultLimit)
           then write (map (\b -> (a, l, b)) guids)
           else do
             write (map (\b -> (a, l, b)) (init guids))
             loadLinks l (Just $ last guids)
-
-enumAttrs :: (AttrBackend db) => (db -> GUID -> Mode Attr -> Limit -> IO [Attr]) -> db -> ([Attr] -> IO ()) -> GUID -> Mode Attr -> IO ()
-enumAttrs listF db write g mode = do
-  values <- listF db g mode limit
-  if (length values < limit)
-    then write values
-    else do
-      write (init values)
-      enumAttrs listF db write g (nextPage mode $ last values)
-
-enumKAttrs :: (AttrBackend db) => db -> ([Attr] -> IO ()) -> GUID -> Mode Attr -> IO ()
-enumKAttrs = enumAttrs listAttr
-
-enumTAttrs :: (AttrBackend db) => db -> ([Attr] -> IO ()) -> GUID -> Mode Attr -> IO ()
-enumTAttrs = enumAttrs listTAttr
 
 batch :: [Maybe (IO ())] -> IO ()
 batch = go []
@@ -86,8 +66,8 @@ mkio :: [a] -> ([a] -> IO b) -> Maybe (IO b)
 mkio [] _ = Nothing
 mkio v f  = Just (f v)
 
-getPutNode :: [Journal] -> [(User, Tree, Node)]
-getPutNode = map (\(PutNode u t n) -> (u, t, n)) . filter isPutNode
+getPutNode :: [Journal] -> [(User, Tree, Kind, Node)]
+getPutNode = map (\(PutNode u t k n) -> (u, t, k, n)) . filter isPutNode
 
 getPutLabel :: [Journal] -> [(GUID, Label)]
 getPutLabel = map (\(PutLabel a l) -> (a, l)) . filter isPutLabel
@@ -152,7 +132,7 @@ loadTAttr db flush guid name t0 t1 = do
             safeFlush =<< liftM Right (getTAttr db guid name t l)
             doSomeWork q
 
-exec :: (GraphBackend db, AttrBackend db) => db -> [Journal] -> IO [(User, Tree, Node, GUID)]
+exec :: (GraphBackend db, AttrBackend db) => db -> [Journal] -> IO [(User, Tree, Kind, Node, GUID)]
 exec db rt = do
   guids <- async (mapM (mapConcurrently register) (intoChunks 8 $ getPutNode rt))
   batch [ mkio (intoChunks 64 $ getPutLink rt) (mapM_ $ putLink db)
@@ -165,6 +145,6 @@ exec db rt = do
   fmap concat (wait guids)
 
   where
-    register (u, t, n) = do
-      g <- putName db u t n
-      return (u, t, n, g)
+    register (u, t, k, n) = do
+      g <- putName db u t k n
+      return (u, t, k, n, g)

@@ -25,10 +25,8 @@
 (defn msg-done []
   ["done"])
 
-(defn msg-name [[u t n g]]
-  (if-not g
-    (msg-fail 404)
-    ["name" u t n (str g)]))
+(defn msg-name [u t k n g]
+  ["name" u t k n (str g)])
 
 (defn msg-link [links]
   (cons "link" (map str links)))
@@ -61,24 +59,27 @@
   (let [g (f/bytes-to-uuid g)]
     (storage/with-consistency :one
       (storage/with-limit 1
-        (if-let [[u t n] (storage/getname cluster g)]
-          (msg-name [u t n g])
-          (msg-name []))))))
+        (if-let [[u t k n] (storage/getname cluster g)]
+          (msg-name u t k n g)
+          (msg-fail 404))))))
 
-(defn exec-getguid [cluster [u t k]]
+(defn exec-getguid [cluster [u t k n]]
   (let [u (f/bytes-to-str u)
         t (f/bytes-to-str t)
-        k (f/bytes-to-str k)]
+        k (f/bytes-to-str k)
+        n (f/bytes-to-str n)]
     (storage/with-consistency :one
-      (msg-name [u t k (storage/getguid cluster u t k)]))))
+      (storage/with-limit 1
+        (msg-name u t k n (storage/getguid cluster u t k n))))))
 
-(defn exec-putname [cluster [u t k]]
+(defn exec-putname [cluster [u t k n]]
   (storage/with-consistency :quorum
     (let [u (f/bytes-to-str u)
           t (f/bytes-to-str t)
           k (f/bytes-to-str k)
-          g (storage/putguid cluster u t k)]
-      (msg-name [u t k g]))))
+          n (f/bytes-to-str n)
+          g (storage/putguid cluster u t k n)]
+      (msg-name u t k n g))))
 
 (defn exec-getlink [cluster [a l page & limit]]
   (let [a (f/bytes-to-uuid a)
@@ -173,14 +174,14 @@
   (let [k (f/bytes-to-uuid k)
         n (f/bytes-to-str n)]
     (storage/with-consistency :one
-      (storage/has-index cluster table k false n))))
+      (storage/has-index cluster table k n))))
 
 (defn exec-getindex-all [cluster table [k page & limit]]
   (let [k (f/bytes-to-uuid k)
         page (f/bytes-to-str page)]
     (storage/with-consistency :one
       (storage/with-limit (f/maybe-bytes-to-str (first limit))
-        (storage/get-index cluster table k false page)))))
+        (storage/get-index cluster table k page)))))
 
 (defn exec-getindex-prefix [cluster table [k start finish & limit]]
   (let [k (f/bytes-to-uuid k)
@@ -188,21 +189,12 @@
         finish (f/bytes-to-str finish)]
     (storage/with-consistency :one
       (storage/with-limit (f/maybe-bytes-to-str (first limit))
-        (storage/get-index cluster table k false start finish)))))
-
-(defn exec-getindex-suffix [cluster table [k start finish & limit]]
-  (let [k (f/bytes-to-uuid k)
-        start (f/bytes-to-str start)
-        finish (f/bytes-to-str finish)]
-    (storage/with-consistency :one
-      (storage/with-limit (f/maybe-bytes-to-str (first limit))
-        (storage/get-index cluster table k true start finish)))))
+        (storage/get-index cluster table k start finish)))))
 
 (defn exec-getlabel [cluster msg]
   (case (f/bytes-to-str (first msg))
     "all" (msg-label (exec-getindex-all cluster :g_index (drop 1 msg)))
     "pre" (msg-label (exec-getindex-prefix cluster :g_index (drop 1 msg)))
-    "suf" (msg-label (exec-getindex-suffix cluster :g_index (drop 1 msg)))
     "ext" (msg-label (exec-getindex-exact cluster :g_index (drop 1 msg)))
     (msg-fail 400)))
 
@@ -212,7 +204,6 @@
     (case (f/bytes-to-str (second msg))
       "all" (msg-nattr (exec-getindex-all cluster table (drop 2 msg)))
       "pre" (msg-nattr (exec-getindex-prefix cluster table (drop 2 msg)))
-      "suf" (msg-nattr (exec-getindex-suffix cluster table (drop 2 msg)))
       "ext" (msg-nattr (exec-getindex-exact cluster table (drop 2 msg))))))
 
 (defn exec-putlabel [cluster labels]

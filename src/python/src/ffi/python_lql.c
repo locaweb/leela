@@ -69,14 +69,15 @@ void pylql_cursor_free(PyObject *);
 static
 PyObject *__make_name_msg(lql_name_t *name)
 {
-  PyObject *tuple = PyTuple_New(4);
+  PyObject *tuple = PyTuple_New(5);
   if (tuple == NULL)
   { return(NULL); }
 
   int rc = PyTuple_SetItem(tuple, 0, PyString_FromString(name->user))
          | PyTuple_SetItem(tuple, 1, PyString_FromString(name->tree))
-         | PyTuple_SetItem(tuple, 2, PyString_FromString(name->name))
-         | PyTuple_SetItem(tuple, 3, PyString_FromString(name->guid));
+         | PyTuple_SetItem(tuple, 2, PyString_FromString(name->kind))
+         | PyTuple_SetItem(tuple, 3, PyString_FromString(name->name))
+         | PyTuple_SetItem(tuple, 4, PyString_FromString(name->guid));
   if (rc != 0)
   {
     Py_DECREF(tuple);

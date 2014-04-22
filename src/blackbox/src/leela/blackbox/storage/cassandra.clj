@@ -57,14 +57,14 @@
     (create-table
      cluster :n_naming
      (if-not-exists)
-     (column-definitions {:user :varchar :tree :varchar :node :varchar :guid :uuid :primary-key [[:user :tree] :node]})
+     (column-definitions {:user :varchar :tree :varchar :kind :varchar :node :varchar :guid :uuid :primary-key [[:user :tree :kind] :node]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
   (when-not (describe-table cluster keyspace :g_naming)
     (warn "creating table g_naming")
     (create-table
      cluster :g_naming
      (if-not-exists)
-     (column-definitions {:guid :uuid :user :varchar :tree :varchar :node :varchar :primary-key [:guid]})
+     (column-definitions {:guid :uuid :user :varchar :tree :varchar :kind :varchar :node :varchar :primary-key [:guid]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
   (when-not (describe-table cluster keyspace :t_attr)
     (warn "creating table t_attr")
@@ -85,21 +85,21 @@
     (create-table
      cluster :g_index
      (if-not-exists)
-     (column-definitions {:key :uuid :rev :boolean :name :varchar :primary-key [[:key :rev] :name]})
+     (column-definitions {:key :uuid :name :varchar :primary-key [[:key] :name]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
   (when-not (describe-table cluster keyspace :k_index)
     (warn "creating table k_index")
     (create-table
      cluster :k_index
      (if-not-exists)
-     (column-definitions {:key :uuid :rev :boolean :name :varchar :primary-key [[:key :rev] :name]})
+     (column-definitions {:key :uuid :name :varchar :primary-key [[:key] :name]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
   (when-not (describe-table cluster keyspace :t_index)
     (warn "creating table t_index")
     (create-table 
     cluster :t_index
      (if-not-exists)
-     (column-definitions {:key :uuid :rev :boolean :name :varchar :primary-key [[:key :rev] :name]})
+     (column-definitions {:key :uuid :name :varchar :primary-key [[:key] :name]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}}))))
 
 (defmacro with-connection [[conn endpoint options] & body]
@@ -131,18 +131,15 @@
 (defn fmt-put-index-opts [table data opts]
   (let [value (:name data)]
     (if (empty? opts)
-      [(insert-query table (into data {:rev true :name (s/reverse value)}))
-       (insert-query table (into data {:rev false}))]
-      [(insert-query table (into data {:rev true :name (s/reverse value)}) (apply using opts))
-       (insert-query table (into data {:rev false}) (apply using opts))])))
+      (insert-query table data)
+      (insert-query table data (apply using opts)))))
 
 (defn fmt-put-index [table data]
   (fmt-put-index-opts table data []))
 
 (defn fmt-del-index [table data]
   (let [value (:name data)]
-    [(delete-query table (where :key (:key data) :rev true :name (s/reverse value)))
-     (delete-query table (where :key (:key data) :rev false :name value))]))
+    [(delete-query table (where :key (:key data) :name value))]))
 
 (defn fmt-put-link [data]
   (insert-query :graph data))
@@ -155,9 +152,9 @@
 (defn fmt-put-kattr [[data opts0]]
   (let [opts (flatten (seq (dissoc opts0 :index)))
         idx (if (:index opts0)
-              (fmt-put-index-opts :k_index
-                                  {:key (:key data)
-                                   :name (:name data)} opts)
+              [(fmt-put-index-opts :k_index
+                                   {:key (:key data)
+                                    :name (:name data)} opts)]
               [])]
     (if (empty? opts)
       (cons (insert-query :k_attr data) idx)
@@ -167,9 +164,9 @@
   (let [opts (flatten (seq (dissoc opts0 :index)))
         [bucket hitime lotime] (decode-time (:time data))
         idx (if (:index opts0)
-              (fmt-put-index-opts :t_index
-                                  {:key (:key data)
-                                   :name (:name data)} opts)
+              [(fmt-put-index-opts :t_index
+                                   {:key (:key data)
+                                    :name (:name data)} opts)]
               [])]
     (if (empty? opts)
       (cons (update-query :t_attr
@@ -208,74 +205,74 @@
 
 (defn put-index [cluster table indexes]
   (let [query (->> indexes
-                   (mapcat (partial fmt-put-index table))
+                   (map (partial fmt-put-index table))
                    (apply queries)
-                   (batch-query (logged false))
-                   client/render-query)]
-    (client/execute cluster query)))
+                   (batch-query (logged false)))]
+    (client/execute cluster (client/render-query query))))
 
-(defn getguid [cluster user tree node]
-  (first (map #(:guid %)
-              (select cluster
-                      :n_naming
-                      (columns :guid)
-                      (where :user user :tree tree :node node)
-                      (limit 1)))))
+(defn getguid0 [cluster user tree kind node]
+  (map (fn [row] [(:guid row) (:node row)])
+       (select cluster
+               :n_naming
+               (columns :node :guid)
+               (where :user user :tree tree :kind kind :node node))))
+
+(defn getguid [cluster user tree kind node]
+  (with-limit 1
+    (if-let [[guid _] (first (getguid0 cluster user tree kind node))]
+      guid)))
 
 (defn getname [cluster guid]
-  (first (map (fn [row] [(:user row) (:tree row) (:node row)])
+  (first (map (fn [row] [(:user row) (:tree row) (:kind row) (:node row)])
               (select cluster
                       :g_naming
-                      (columns :user :tree :node)
+                      (columns :user :tree :kind :node)
                       (where :guid guid)
                       (limit 1)))))
 
-(defn putguid [cluster user tree node]
-  (if-let [guid (getguid cluster user tree node)]
+(defn putguid [cluster user tree kind node]
+  (if-let [guid (getguid cluster user tree kind node)]
     guid
     (let [guid (f/uuid-1)]
       (client/execute cluster
                       (client/render-query
                        (batch-query
-                        (queries (insert-query :n_naming {:user user :tree tree :node node :guid guid})
-                                 (insert-query :g_naming {:user user :tree tree :node node :guid guid})))))
+                        (queries (insert-query :n_naming {:user user :tree tree :kind kind :node node :guid guid})
+                                 (insert-query :g_naming {:user user :tree tree :kind kind :node node :guid guid})))))
       guid)))
 
-(defn get-index [cluster table k rev & optional]
-  (let [[start finish] optional
-        reseq (fn [arg] (if rev (s/reverse arg) arg))]
-    (map #(reseq (:name %))
+(defn get-index [cluster table k & optional]
+  (let [[start finish] optional]
+    (map #(:name %)
          (select cluster
                  table
                  (columns :name)
                  (case [(boolean start) (boolean finish)]
-                   [true true] (where :key k :rev rev :name [:>= (reseq start)] :name [:< (reseq finish)])
-                   [true false] (where :key k :rev rev :name [:>= (reseq start)])
-                   (where :key k :rev rev))
+                   [true true] (where :key k :name [:>= start] :name [:< finish])
+                   [true false] (where :key k :name [:>= start])
+                   (where :key k))
                  (limit +limit+)))))
 
-(defn has-index [cluster table k rev name]
+(defn has-index [cluster table k name]
   (map #(:name %) (select cluster
                           table
                           (columns :name)
-                          (where :key k :rev rev :name name)
+                          (where :key k :name name)
                           (limit 1))))
 
 (defn putlink [cluster links]
   (let [query (->> links
                    (map fmt-put-link)
                    (apply queries)
-                   (batch-query (logged false))
-                   client/render-query)]
-    (client/execute cluster query)))
+                   (batch-query (logged false)))]
+    (client/execute cluster (client/render-query query))))
 
 (defn dellink [cluster links]
   (let [query (->> links
                    (map fmt-del-link)
                    (apply queries)
-                   (batch-query (logged false))
-                   client/render-query)]
-    (client/execute cluster query)))
+                   (batch-query (logged false)))]
+    (client/execute cluster (client/render-query query))))
 
 (defn getlink [cluster k l & page]
   (map #(:b %) (select cluster
@@ -290,9 +287,8 @@
   (let [query (->> attrs
                    (mapcat fmt-put-tattr)
                    (apply queries)
-                   (batch-query (logged false))
-                   client/render-query)]
-    (client/execute cluster query)))
+                   (batch-query (logged false)))]
+    (client/execute cluster (client/render-query query))))
 
 (defn get-tattr [cluster k name time]
   (let [[bucket hitime] (take 2 (decode-time time))]
@@ -319,9 +315,8 @@
   (let [query (->> attrs
                    (mapcat fmt-put-kattr)
                    (apply queries)
-                   (batch-query (logged false))
-                   client/render-query)]
-    (client/execute cluster query)))
+                   (batch-query (logged false)))]
+    (client/execute cluster (client/render-query query))))
 
 (defn get-kattr [cluster k name]
   (first
@@ -336,6 +331,5 @@
   (let [query (->> attrs
                    (mapcat fmt-del-kattr)
                    (apply queries)
-                   (batch-query (logged false))
-                   client/render-query)]
-    (client/execute cluster query)))
+                   (batch-query (logged false)))]
+    (client/execute cluster (client/render-query query))))

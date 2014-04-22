@@ -44,7 +44,7 @@ module Leela
       when :lql_name_msg
         begin
           msg = Leela::Raw::LqlName.new(Leela::Raw.leela_lql_fetch_name(cursor))
-          [:name, [msg[:user], msg[:tree], msg[:name], msg[:guid]]]
+          [:name, [msg[:user], msg[:tree], msg[:kind], msg[:name], msg[:guid]]]
         ensure
           Leela::Raw::leela_lql_name_free(msg.pointer)
         end
