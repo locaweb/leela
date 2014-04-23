@@ -28,11 +28,11 @@ forkSupervised_ = forkSupervised (return True)
 
 superviseWith :: IO Bool -> String -> IO () -> IO ()
 superviseWith check name io =
-  (foreverWith check io) `onException` restart
+  (foreverWith check io) `catch` restart
     where
-      restart = do
+      restart (SomeException e)= do
         threadDelay 500000
-        linfo Global (printf "supervised thread [%s] has died" name)
+        linfo Global (printf "supervised thread [%s] has died: %s" name (show e))
         superviseWith check name io
 
 ignore :: SomeException -> IO ()

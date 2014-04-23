@@ -46,8 +46,8 @@ leela_daemon_start () {
   daemon --delay 10 -r -o $LOGDIR/daemon.log \
     -u $USER:$GROUP -P $RUNDIR -n daemon -- \
     warpdrive \
-      --zookeeper ${LEELA_WARPDRIVE_ZOOKEEPER} \
-      --endpoint ${LEELA_WARPDRIVE_ENDPOINT:-tcp://localhost:50021} \
+      --zookeeper=${LEELA_WARPDRIVE_ZOOKEEPER} \
+      --endpoint=${LEELA_WARPDRIVE_ENDPOINT:-tcp://localhost:50021} \
       $LEELA_WARPDRIVE_OPTS
 }
 

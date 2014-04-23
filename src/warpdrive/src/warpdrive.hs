@@ -1,5 +1,3 @@
-{-# LANGUAGE TemplateHaskell   #-}
-
 -- Copyright 2014 (c) Diego Souza <dsouza@c0d3.xxx>
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +14,6 @@
 
 module Main (main) where
 
-import HFlags
 import Data.IORef
 import System.ZMQ4
 import Leela.Logger
@@ -27,50 +24,97 @@ import Leela.HZMQ.Dealer
 import Control.Concurrent
 import Leela.Data.QDevice
 import Leela.Network.Core
+import System.Environment
 import Leela.Data.Endpoint
 import System.Posix.Signals
+import System.Console.GetOpt
 import Leela.Network.ZMQServer
 import Leela.Storage.Backend.ZMQ
 import Leela.Storage.Backend.Redis
 
-defaultEndpoint :: Endpoint
-defaultEndpoint = TCP "*" 50021 ""
+data Options = Options { optEndpoint     :: Endpoint
+                       , optDebugLevel   :: Priority
+                       , optZookeeper    :: String
+                       , optRedisSecret  :: String
+                       , optBacklog      :: Int
+                       , optCapabilities :: Int
+                       , optTimeout      :: Int
+                       }
 
-defineEQFlag "debuglevel" [|NOTICE :: Priority|] "LOGLEVEL" "The debug level to use"
+defaultOptions :: Options
+defaultOptions = Options { optEndpoint     = TCP "*" 4080 ""
+                         , optDebugLevel   = NOTICE
+                         , optZookeeper    = "localhost:2181"
+                         , optRedisSecret  = ""
+                         , optBacklog      = 64
+                         , optCapabilities = 8
+                         , optTimeout      = 60 * 1000
+                         }
 
-defineFlag "zookeeper" "localhost:2181" "The zookeeper cluster to connect to"
+setReadOpt :: (Read a) => (a -> Options -> Options) -> String -> Options -> Options
+setReadOpt f raw opts = case (reads raw) of
+                          [(a, "")] -> f a opts
+                          _         -> error $ "error parsing: " ++ raw
 
-defineEQFlag "endpoint" [|defaultEndpoint :: Endpoint|] "ENDPOINT" "The endpoint to bind to"
+options :: [OptDescr (Options -> Options)]
+options =
+  [ Option ['e'] ["endpoint"]
+           (ReqArg (setReadOpt (\v opts -> opts { optEndpoint = v })) "ENDPOINT")
+           "endpoint to bind this service to"
+  , Option ['z'] ["zookeeper"]
+           (ReqArg (\v opts -> opts { optZookeeper = v }) "ZOOKEEPER")
+           "zookeeper cluster to connect to"
+  , Option [] ["debug-level"]
+           (ReqArg (setReadOpt (\v opts -> opts { optDebugLevel = v })) "DEBUG|INFO|NOTICE|WARNING|ERROR")
+           "logging level"
+  , Option []    ["redis-secret"]
+           (ReqArg (\v opts -> opts { optRedisSecret = v }) "REDISSECRET")
+           "redis authentication string"
+  , Option [] ["backlog"]
+           (ReqArg (setReadOpt (\v opts -> opts { optBacklog = v })) "BACKLOG")
+           "storage queue size"
+  , Option [] ["capabilities"]
+           (ReqArg (setReadOpt (\v opts -> opts { optCapabilities = v })) "CAPABILITIES")
+           "number of threads per storage connection"
+  , Option [] ["timeout-in-ms"]
+           (ReqArg (setReadOpt (\v opts -> opts { optTimeout = v})) "TIMEOUT-IN-MS")
+           "timeout in milliseconds"
+  ]
 
-defineFlag "redis_secret" "" "The password to use when connecting to redis"
-
-defineFlag "blackbox_backlog" (256 :: Int) "Maximum number of pending connections"
-defineFlag "blackbox_capabilities" (64 :: Int) "Numer of worker threads (per endpoint)"
-defineFlag "blackbox_timeout_in_ms" (60000 :: Int) "Maximum allowed time to wait for a response"
+readOpts :: [String] -> IO Options
+readOpts argv =
+  case (getOpt Permute options argv) of
+    (opts, _, []) -> return $ foldl (flip id) defaultOptions opts
+    (_, _, errs)  -> ioError (userError (concat errs ++ usageInfo "usage: warpdrive [OPTION...]" options))
 
 signal :: MVar () -> IO ()
 signal x = tryPutMVar x () >> return ()
 
 main :: IO ()
 main = do
-  void $ $initHFlags "warpdrive - leela property graph engine"
+  opts   <- getArgs >>= readOpts
   alive  <- newEmptyMVar
   naming <- newIORef []
   core   <- newCore naming
-  logsetup flags_debuglevel
+  logsetup (optDebugLevel opts)
   void $ installHandler sigTERM (Catch $ signal alive) Nothing
   void $ installHandler sigINT (Catch $ signal alive) Nothing
-  lwarn Global "warpdrive: starting..."
-  forkSupervised_ "resolver" $ resolver flags_endpoint naming flags_zookeeper
+  lwarn Global
+    (printf "warpdrive: starting; timeout=%d, backlog=%d caps=%d endpoint=%s"
+            (optTimeout opts)
+            (optBacklog opts)
+            (optCapabilities opts)
+            (show $ optEndpoint opts))
+  forkSupervised_ "resolver" $ resolver (optEndpoint opts) naming (optZookeeper opts)
   withContext $ \ctx -> do
     withControl $ \ctrl -> do
-      let cfg = DealerConf flags_blackbox_timeout_in_ms
-                           flags_blackbox_backlog
+      let cfg = DealerConf (optTimeout opts)
+                           (optBacklog opts)
                            (naming, fmap (maybe [] id . lookup "blackbox") . readIORef)
-                           flags_blackbox_capabilities
-      cache   <- redisOpen (naming, fmap (maybe [] id . lookup "redis") . readIORef) flags_redis_secret
+                           (optCapabilities opts)
+      cache   <- redisOpen (naming, fmap (maybe [] id . lookup "redis") . readIORef) (optRedisSecret opts)
       storage <- fmap zmqbackend $ create cfg ctx ctrl
-      void $ forkFinally (startServer core flags_endpoint ctx ctrl cache storage) $ \e -> do
+      void $ forkFinally (startServer core (optEndpoint opts) ctx ctrl cache storage) $ \e -> do
         lwarn Global (printf "warpdrive has died: %s" (show e))
         signal alive
       takeMVar alive
