@@ -208,11 +208,19 @@ evalFinalizer chan dev (Right _)   = do
   closeIO dev
   linfo Network $ printf "[fd: %s] session terminated successfully" (show chan)
 
+checkSinature :: Signature -> [B.ByteString] -> IO Reply -> IO Reply
+checkSinature sig _ io =
+  let User user = sigUser sig
+      MAC mac   = sigMAC sig
+  in if (user == mac)
+      then io
+      else return $ Fail 403 (Just "forbidden")
+
 process :: (KeyValue cache, GraphBackend m, AttrBackend m) => cache -> m -> CoreServer -> Query -> IO Reply
 process cache storage srv (Begin sig msg) =
   case (chkloads (parseLQL $ sigUser sig) msg) of
     Left _      -> return $ Fail 400 (Just "syntax error")
-    Right stmts -> do
+    Right stmts -> checkSinature sig msg $ do
       (fh, dev) <- makeFD srv (sigUser sig)
       lnotice Network (printf "BEGIN %s %d" (show msg) fh)
       _         <- forkFinally (evalLQL cache storage srv dev stmts) (evalFinalizer fh dev)

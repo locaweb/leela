@@ -71,7 +71,7 @@ void __naming_notify (leela_naming_t *naming)
 static
 leela_naming_cluster_t *__naming_discover2 (leela_naming_t *naming, const leela_endpoint_t *endpoint)
 {
-  lql_cursor_t *cursor           = leela_lql_cursor_init2(naming->context, endpoint, "nobody", "", 1000);
+  lql_cursor_t *cursor           = leela_lql_cursor_init2(naming->context, endpoint, "nobody", "nobody", 1000);
   lql_stat_t *stat               = NULL;
   size_t count                   = 0;
   leela_naming_cluster_t *result = NULL;

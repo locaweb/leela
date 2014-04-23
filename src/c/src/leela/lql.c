@@ -71,9 +71,11 @@ static
 char *__signature (lql_cursor_t *cursor, va_list args)
 {
   (void) args;
-  size_t bufflen  = strlen(cursor->username) + 8;
-  char *signature = (char *) malloc(bufflen);
-  snprintf(signature, bufflen, "%s:0:0 0", cursor->username);
+  int t           = (int) time(0);
+  char *fmt       = "%s:%d:0 %s";
+  size_t bufflen  = snprintf(NULL, 0, fmt, cursor->username, t, cursor->secret) + 1;
+  char *signature = (char *) malloc(bufflen+1);
+  snprintf(signature, bufflen, fmt, cursor->username, (int) time(0), cursor->secret);
   return(signature);
 }
 
