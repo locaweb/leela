@@ -3,7 +3,7 @@
 
 PATH        := $(PATH):/usr/local/bin
 version      = $(shell ../../src/scripts/read-version.sh)
-bin_cabal   ?= cabal
+bin_cabal   ?= env PKG_CONFIG_PATH=/opt/zmq4/lib/pkgconfig cabal
 
 %:
 	dh $@
@@ -26,3 +26,11 @@ override_dh_auto_build:
           $(bin_cabal) configure -O2; \
           $(bin_cabal) build; \
         }
+
+override_dh_auto_install:
+	dh_testdir
+	mkdir -p debian/leela-warpdrive/usr/local/lib
+	cp -a /opt/zmq4/lib/libzmq* debian/leela-warpdrive/usr/local/lib
+	dh_install
+
+override_dh_usrlocal:

@@ -33,7 +33,8 @@ stage1_installpkg_wheezy () {
   echo "deb http://cdn.debian.net/debian wheezy-backports main" > /etc/apt/sources.list.d/bpo.list
   apt-get update && apt-get install -q --yes --force-yes \
     libncursesw5-dev libffi-dev libzmq3-dev zlib1g-dev libzookeeper-mt-dev python2.7-dev python2.6-dev \
-    wget ca-certificates debhelper devscripts coreutils collectd-dev
+    wget ca-certificates debhelper devscripts coreutils collectd-dev \
+    build-essential g++ gcc autoconf automake libtool gettext
   adduser --system --home /home/leela --shell /bin/sh --uid 1000 leela
 }
 
@@ -82,17 +83,25 @@ EOF
   adduser -r --uid 1000 --shell /bin/sh --create-home --home-dir /home/leela leela
 }
 
+stage1_installzmq () {
+  wget -O - https://github.com/zeromq/zeromq4-x/archive/v4.0.4.tar.gz | tar -x -z -C /opt
+  cd /opt/zeromq4-x-4.0.4
+  ./autogen.sh
+  ./configure --prefix=/opt/zmq4
+  make; make install
+}
+
 stage1_installghc () {
   ln -s libgmp.so.10 /usr/lib/x86_64-linux-gnu/libgmp.so.3
   ln -s libgmp.so.10 /usr/lib/x86_64-linux-gnu/libgmp.so
 
-  wget -O - http://www.haskell.org/ghc/dist/7.6.3/ghc-7.6.3-x86_64-unknown-linux.tar.bz2 | tar -x -j -C /opt
-  cd /opt/ghc-7.6.3
+  wget -O - https://www.haskell.org/ghc/dist/7.8.2/ghc-7.8.2-x86_64-unknown-linux-deb7.tar.bz2 | tar -x -j -C /opt
+  cd /opt/ghc-7.8.2
   ./configure
   make install
 
-  wget -O - http://www.haskell.org/cabal/release/cabal-install-1.18.0.2/cabal-install-1.18.0.2.tar.gz | tar -x -z -C /opt
-  cd /opt/cabal-install-1.18.0.2
+  wget -O - http://www.haskell.org/cabal/release/cabal-install-1.18.0.3/cabal-install-1.18.0.3.tar.gz | tar -x -z -C /opt
+  cd /opt/cabal-install-1.18.0.3
   ./bootstrap.sh --global
 
   cabal update
@@ -125,6 +134,7 @@ then
   stage1_installpkg_wheezy
   if [ "$arch" = amd64 ]
   then
+    stage1_installzmq
     stage1_installclj
     stage1_installghc
   fi
