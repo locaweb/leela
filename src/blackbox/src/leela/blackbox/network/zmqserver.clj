@@ -26,7 +26,9 @@
   ["done"])
 
 (defn msg-name [u t k n g]
-  ["name" u t k n (str g)])
+  (if-not g
+    (msg-fail 404)
+    ["name" u t k n (str g)]))
 
 (defn msg-link [links]
   (cons "link" (map str links)))
