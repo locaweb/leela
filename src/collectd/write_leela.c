@@ -36,17 +36,18 @@
 
 typedef struct
 {
-  lql_context_t  *ctx;
-  char           *user;
-  char           *pass;
-  char           *tree;
-  char           *guid;
-  int             timeout;
-  cdtime_t        ctime;
-  char           *sndbuf;
-  size_t          sndbufoff;
-  size_t          sndbuflen;
-  pthread_mutex_t mutex;
+  lql_context_t     *ctx;
+  char              *user;
+  char              *pass;
+  char              *tree;
+  char              *guid;
+  int                timeout;
+  cdtime_t           ctime;
+  char              *sndbuf;
+  size_t             sndbufoff;
+  size_t             sndbuflen;
+  leela_endpoint_t **cluster;
+  pthread_mutex_t    mutex;
 } wl_data_t;
 
 static
@@ -60,6 +61,9 @@ void wl_cluster_free (leela_endpoint_t **cluster)
     sfree(cluster);
   }
 }
+
+static
+wl_data_t *wl_leela_cfg;
 
 static
 char *wl_strdup (const char *src)
@@ -147,6 +151,7 @@ void wl_data_free (void *ptr)
     if (pthread_mutex_lock(&data->mutex) == 0)
     {
       wl_send(data);
+      wl_cluster_free(data->cluster);
       leela_lql_context_close(data->ctx);
       sfree(data->user);
       sfree(data->pass);
@@ -372,12 +377,42 @@ leela_endpoint_t **wl_parse_cluster (oconfig_item_t *item)
 }
 
 static
+int wl_init ()
+{
+  user_data_t data;
+
+  if (wl_leela_cfg == NULL)
+  { return(-1); }
+
+  wl_leela_cfg->ctx = leela_lql_context_init((const leela_endpoint_t * const *) wl_leela_cfg->cluster);
+  if (wl_leela_cfg->ctx == NULL)
+  {
+    ERROR("write_leela plugin: error initializing leela context");
+    wl_data_free(wl_leela_cfg);
+    return(-1);
+  }
+
+  if (wl_check_guid(wl_leela_cfg) != 0)
+  {
+    ERROR("write_leela plugin: error initializing, unknow guid: %s", wl_leela_cfg->guid);
+    wl_data_free(wl_leela_cfg);
+    return(-1);
+  }
+
+  data.data      = wl_leela_cfg;
+  data.free_func = wl_data_free;
+  plugin_register_write("write_leela", wl_write, &data);
+  data.free_func = NULL;
+  plugin_register_flush("write_leela", wl_flush, &data);
+
+  return(0);
+}
+
+static
 int wl_cfg (oconfig_item_t *cfg)
 {
   int k;
-  user_data_t data;
   wl_data_t *leela_cfg;
-  leela_endpoint_t **cluster = NULL;
 
   leela_cfg = (wl_data_t *) malloc(sizeof(wl_data_t));
   if (leela_cfg == NULL)
@@ -391,10 +426,11 @@ int wl_cfg (oconfig_item_t *cfg)
   leela_cfg->tree       = NULL;
   leela_cfg->guid       = NULL;
   leela_cfg->timeout    = 60000;
-  leela_cfg->sndbuf     = NULL;
   leela_cfg->ctime      = cdtime();
   leela_cfg->sndbufoff  = 0;
-  leela_cfg->sndbuflen  = 64 * 1024;
+  leela_cfg->cluster    = NULL;
+  leela_cfg->sndbuflen  = 32 * 1024;
+  leela_cfg->sndbuf     = NULL;
   if (pthread_mutex_init(&leela_cfg->mutex, NULL) != 0)
   {
     sfree(leela_cfg);
@@ -407,15 +443,14 @@ int wl_cfg (oconfig_item_t *cfg)
     oconfig_item_t *item = cfg->children + k;
     if (strcasecmp("cluster", item->key) == 0 && item->values[0].type == OCONFIG_TYPE_STRING)
     {
-      if (cluster != NULL)
+      if (leela_cfg->cluster != NULL)
       {
         ERROR("write_leela plugin: multiple cluster configuration found");
-        wl_cluster_free(cluster);
         wl_data_free(leela_cfg);
         return(-1);
       }
-      cluster = wl_parse_cluster(item);
-      if (cluster == NULL)
+      leela_cfg->cluster = wl_parse_cluster(item);
+      if (leela_cfg->cluster == NULL)
       {
         wl_data_free(leela_cfg);
         return(-1);
@@ -434,52 +469,37 @@ int wl_cfg (oconfig_item_t *cfg)
     else
     {
       ERROR("write_leela plugin: invalid config: %s", item->key);
-      wl_cluster_free(cluster);
       wl_data_free(leela_cfg);
       return(-1);
     }
   }
 
-  leela_cfg->ctx    = leela_lql_context_init((const leela_endpoint_t * const *) cluster);
   leela_cfg->sndbuf = (char *) malloc(sizeof(char) * leela_cfg->sndbuflen);
-
-  if (leela_cfg->ctx == NULL
-      || leela_cfg->sndbuf == NULL
-      || leela_cfg->user == NULL
+  if (leela_cfg->sndbuf == NULL)
+  {
+    ERROR("write_leela: malloc error");
+    return(-1);
+  }
+  if (leela_cfg->user == NULL
       || leela_cfg->pass == NULL
       || leela_cfg->tree == NULL
       || leela_cfg->guid == NULL)
   {
-    if (leela_cfg->ctx == NULL)
-    { ERROR("write_leela plugin: error initializing leela context"); }
-    else if (leela_cfg->sndbuf == NULL)
-    { ERROR("write_leela plugin: malloc error"); }
-    else
-    { ERROR("write_leela plugin: missing required option"); }
-    wl_cluster_free(cluster);
-    wl_data_free(leela_cfg);
-    return(-1);
-  }
-  wl_reset_buffer(leela_cfg);
-  wl_cluster_free(cluster);
-
-  if (wl_check_guid(leela_cfg) != 0)
-  {
-    ERROR("write_leela plugin: error initializing, unknow guid: %s", leela_cfg->guid);
+    ERROR("write_leela plugin: missing required option (user|pass|tree|guid)");
     wl_data_free(leela_cfg);
     return(-1);
   }
 
-  data.data      = leela_cfg;
-  data.free_func = wl_data_free;
-  plugin_register_write("write_leela", wl_write, &data);
-  data.free_func = NULL;
-  plugin_register_flush("write_leela", wl_flush, &data);
+  wl_leela_cfg = leela_cfg;
+  plugin_register_init("write_leela", wl_init);
 
   return(0);
 }
 
 void module_register ()
-{ plugin_register_complex_config("write_leela", wl_cfg); }
+{
+  wl_leela_cfg = NULL;
+  plugin_register_complex_config("write_leela", wl_cfg);
+}
 
 #endif
