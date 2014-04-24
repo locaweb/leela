@@ -30,7 +30,6 @@ executable warpdrive
                   , clock             (>= 0.3  && < 1)
                   , hedis             (>= 0.6  && < 1)
                   , cereal            (>= 0.4  && < 1)
-                  , hflags            (>= 0.2  && < 1)
                   , random            (>= 1.0  && < 2)
                   , hashable          (>= 1.2  && < 2)
                   , hslogger          (>= 1.2  && < 2)
