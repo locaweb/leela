@@ -222,7 +222,7 @@ process cache storage srv (Begin sig msg) =
     Left _      -> return $ Fail 400 (Just "syntax error")
     Right stmts -> checkSinature sig msg $ do
       (fh, dev) <- makeFD srv (sigUser sig)
-      lnotice Network (printf "BEGIN %s %d" (show msg) fh)
+      lnotice Network (printf "BEGIN %s... %d" (take 64 $ show msg) fh)
       _         <- forkFinally (evalLQL cache storage srv dev stmts) (evalFinalizer fh dev)
       return $ Done fh
 process _ _ srv (Fetch sig fh) = do
