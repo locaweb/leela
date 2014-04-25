@@ -50,8 +50,8 @@ suite = testGroup "Parser"
         (count "using (leela) stat;") @?= 1
     ]
   , testGroup "make"
-    [ testCase "make (a)" $
-        (count "using (leela) make (a);") @?= 1
+    [ testCase "make (a:a)" $
+        (count "using (leela) make (a::a);") @?= 1
     , testCase "make a -[l]> b" $
         (count "using (leela) make 00000000-0000-0000-0000-000000000000 -[l]> 00000000-0000-0000-0000-000000000001;") @?= 1
     , testCase "make a <[l]- b" $
@@ -72,15 +72,67 @@ suite = testGroup "Parser"
         (count "using (leela) path 00000000-0000-0000-0000-000000000000 -[l]> 00000000-0000-0000-0000-000000000001;") @?= 1
     , testCase "path a -[l]> ()" $
         (count "using (leela) path 00000000-0000-0000-0000-000000000000 -[l]> ();") @?= 1
-    , testCase "path a -[l*]> ()" $
-        (count "using (leela) path 00000000-0000-0000-0000-000000000000 -[l*]> ();") @?= 1
     , testCase "path a -[*l]> ()" $
         (count "using (leela) path 00000000-0000-0000-0000-000000000000 -[l*]> ();") @?= 1
     ]
   , testGroup "many"
     [ testCase "using ," $
-      (count "using (leela) path 00000000-0000-0000-0000-000000000000, make (a), make (b);" @?= 3)
+      (count "using (leela) path 00000000-0000-0000-0000-000000000000, make (a::a), make (b::b);" @?= 3)
     , testCase "using \\n" $
-      (count "using (leela) path 00000000-0000-0000-0000-000000000001\nmake (a)\nmake (b);" @?= 3)
+      (count "using (leela) path 00000000-0000-0000-0000-000000000001\nmake (a::a)\nmake (b::b);" @?= 3)
+    ]
+  , testGroup "attr [k|t]ls"
+    [ testCase "attr kls" $
+      (count "using (leela) attr kls 00000000-0000-0000-0000-000000000000 \"*\";" @?= 1)
+    , testCase "attr tls" $
+      (count "using (leela) attr tls 00000000-0000-0000-0000-000000000000 \"*\";" @?= 1)
+    ]
+  , testGroup "attr get (key-value)"
+    [ testCase "attr get"
+      (count "using (leela) attr get 00000000-0000-0000-0000-000000000000 \"attr\";" @?= 1)
+    ]
+  , testGroup "attr get (time-series)"
+    [ testCase "attr get"
+      (count "using (leela) attr get 00000000-0000-0000-0000-000000000000 \"attr\" [0:86400];" @?= 1)
+    ]
+  , testGroup "attr put (key-value)"
+    [ testCase "attr put : string"
+      (count "using (leela) attr put 00000000-0000-0000-0000-000000000000 \"attr\" \"string\";" @?= 1)
+    , testCase "attr put : double : decimal"
+      (count "using (leela) attr put 00000000-0000-0000-0000-000000000000 \"attr\" (double 3.14);" @?= 1)
+    , testCase "attr put : double : e-notation"
+      (count "using (leela) attr put 00000000-0000-0000-0000-000000000000 \"attr\" (double 3.14e6);" @?= 1)
+    , testCase "attr put : int32"
+      (count "using (leela) attr put 00000000-0000-0000-0000-000000000000 \"attr\" (int32 42);" @?= 1)
+    , testCase "attr put : uint32"
+      (count "using (leela) attr put 00000000-0000-0000-0000-000000000000 \"attr\" (uint32 42);" @?= 1)
+    , testCase "attr put : int64"
+      (count "using (leela) attr put 00000000-0000-0000-0000-000000000000 \"attr\" (int64 42);" @?= 1)
+    , testCase "attr put : uint64"
+      (count "using (leela) attr put 00000000-0000-0000-0000-000000000000 \"attr\" (uint64 42);" @?= 1)
+    , testCase "attr put : boolean : true"
+      (count "using (leela) attr put 00000000-0000-0000-0000-000000000000 \"attr\" (bool true);" @?= 1)
+    , testCase "attr put : boolean : false"
+      (count "using (leela) attr put 00000000-0000-0000-0000-000000000000 \"attr\" (bool false);" @?= 1)
+    ]
+  , testGroup "attr put (time-series)"
+    [ testCase "attr put : string"
+      (count "using (leela) attr put 00000000-0000-0000-0000-000000000000 \"attr\" [0] \"string\";" @?= 1)
+    , testCase "attr put : double : decimal"
+      (count "using (leela) attr put 00000000-0000-0000-0000-000000000000 \"attr\" [0] (double 3.14);" @?= 1)
+    , testCase "attr put : double : e-notation"
+      (count "using (leela) attr put 00000000-0000-0000-0000-000000000000 \"attr\" [0] (double 3.14e6);" @?= 1)
+    , testCase "attr put : int32"
+      (count "using (leela) attr put 00000000-0000-0000-0000-000000000000 \"attr\" [0] (int32 42);" @?= 1)
+    , testCase "attr put : uint32"
+      (count "using (leela) attr put 00000000-0000-0000-0000-000000000000 \"attr\" [0] (uint32 42);" @?= 1)
+    , testCase "attr put : int64"
+      (count "using (leela) attr put 00000000-0000-0000-0000-000000000000 \"attr\" [0] (int64 42);" @?= 1)
+    , testCase "attr put : uint64"
+      (count "using (leela) attr put 00000000-0000-0000-0000-000000000000 \"attr\" [0] (uint64 42);" @?= 1)
+    , testCase "attr put : boolean : true"
+      (count "using (leela) attr put 00000000-0000-0000-0000-000000000000 \"attr\" [0] (bool true);" @?= 1)
+    , testCase "attr put : boolean : false"
+      (count "using (leela) attr put 00000000-0000-0000-0000-000000000000 \"attr\" [0] (bool false);" @?= 1)
     ]
   ]
