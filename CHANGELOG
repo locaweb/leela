@@ -1,11 +1,15 @@
 --*-- mode: text; --*--
 
-v4.0.0 | 2013-12-17
+v4.1.0 | 2013-04-28
+  * using consul instead of zookeeper | dgvncsz0f;
+
+v4.0.0 | 2014-04-27
   * stat statement: auto-discover feature | dgvncsz0f;
   * kill statement | dgvncsz0f, aabaklini;
   * name statement reply no includes the requested guid | dgvncsz0f;
   * c client library | dgvncsz0f;
   * python client library | dgvncsz0f;
+  * ruby client library | pothix + aabaklini;
   * creating warpdrive [graph engine] | dgvncsz0f;
   * leela query language: new universal input | dgvncsz0f;
   * stream response: new universal output protocol | dgvncsz0f;
