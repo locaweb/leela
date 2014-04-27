@@ -34,7 +34,7 @@ import Leela.Storage.Backend.Redis
 
 data Options = Options { optEndpoint     :: Endpoint
                        , optDebugLevel   :: Priority
-                       , optZookeeper    :: String
+                       , optConsul       :: String
                        , optRedisSecret  :: String
                        , optBacklog      :: Int
                        , optCapabilities :: Int
@@ -44,7 +44,7 @@ data Options = Options { optEndpoint     :: Endpoint
 defaultOptions :: Options
 defaultOptions = Options { optEndpoint     = TCP "*" 4080 ""
                          , optDebugLevel   = NOTICE
-                         , optZookeeper    = "localhost:2181"
+                         , optConsul       = "http://127.0.0.1:8500"
                          , optRedisSecret  = ""
                          , optBacklog      = 64
                          , optCapabilities = 8
@@ -61,9 +61,9 @@ options =
   [ Option ['e'] ["endpoint"]
            (ReqArg (setReadOpt (\v opts -> opts { optEndpoint = v })) "ENDPOINT")
            "endpoint to bind this service to"
-  , Option ['z'] ["zookeeper"]
-           (ReqArg (\v opts -> opts { optZookeeper = v }) "ZOOKEEPER")
-           "zookeeper cluster to connect to"
+  , Option [] ["consul-endpoint"]
+           (ReqArg (\v opts -> opts { optConsul = v }) "CONSULENDPOINT")
+           "the consul endpoint to find leela services"
   , Option [] ["debug-level"]
            (ReqArg (setReadOpt (\v opts -> opts { optDebugLevel = v })) "DEBUG|INFO|NOTICE|WARNING|ERROR")
            "logging level"
@@ -105,7 +105,7 @@ main = do
             (optBacklog opts)
             (optCapabilities opts)
             (show $ optEndpoint opts))
-  forkSupervised_ "resolver" $ resolver (optEndpoint opts) naming (optZookeeper opts)
+  forkSupervised_ "resolver" $ resolver (optEndpoint opts) naming (optConsul opts)
   withContext $ \ctx -> do
     withControl $ \ctrl -> do
       let cfg = DealerConf (optTimeout opts)

@@ -31,14 +31,20 @@ leela_grantaccess () {
 
 leela_watchdog_start () {
   leela_grantaccess
-  daemon --delay 10 -r -o $LOGDIR/watchdog.log \
-    -u $USER:$GROUP -P $RUNDIR -n watchdog -- \
-    tractorbeam send \
-      --zookeeper $LEELA_WARPDRIVE_ZOOKEEPER \
-      --exec /usr/bin/leela-warpdrive-watchdog.sh \
-      --path "${LEELA_WARPDRIVE_WATCHDOG_PATH}" \
-      $LEELA_WARPDRIVE_WATHDOG_OPTS
+  [ ! -r /etc/consul/conf.d/warpdrive.json ] && {
+    ln -s -f /etc/consul/conf.d/warpdrive.service /etc/consul/conf.d/warpdrive.json
+    /etc/init.d/consul reload
+  }
 }
+
+leela_watchdog_stop () {
+  leela_grantaccess
+  [ -r /etc/consul/conf.d/warpdrive.json ] && {
+    rm -f /etc/consul/conf.d/warpdrive.json
+    /etc/init.d/consul reload
+  }
+}
+
 
 leela_daemon_start () {
   leela_grantaccess
@@ -46,7 +52,6 @@ leela_daemon_start () {
   daemon --delay 10 -r -o $LOGDIR/daemon.log \
     -u $USER:$GROUP -P $RUNDIR -n daemon -- \
     warpdrive \
-      --zookeeper=${LEELA_WARPDRIVE_ZOOKEEPER} \
       --endpoint=${LEELA_WARPDRIVE_ENDPOINT:-tcp://localhost:50021} \
       $LEELA_WARPDRIVE_OPTS
 }
@@ -54,11 +59,6 @@ leela_daemon_start () {
 leela_daemon_stop () {
   leela_grantaccess
   daemon --stop -P $RUNDIR -n daemon
-}
-
-leela_watchdog_stop () {
-  leela_grantaccess
-  daemon --stop -P $RUNDIR -n watchdog
 }
 
 case "$1" in
@@ -77,6 +77,7 @@ case "$1" in
     echo "waiting 120 seconds to allow clients to disconnect ..."; sleep 120
     leela_daemon_stop
     leela_watchdog_start
+    sleep 1
     leela_daemon_start
     ;;
 

@@ -31,13 +31,18 @@ leela_grantaccess () {
 
 leela_watchdog_start () {
   leela_grantaccess
-  daemon --delay 10 -r -o $LOGDIR/watchdog.log \
-    -u $USER:$GROUP -P $RUNDIR -n watchdog -- \
-    tractorbeam send \
-      --zookeeper $LEELA_BLACKBOX_WATCHDOG_ZOOKEEPER \
-      --exec /usr/bin/leela-blackbox-watchdog.sh \
-      --path "${LEELA_BLACKBOX_WATCHDOG_PATH}" \
-      $LEELA_BLACKBOX_WATHDOG_OPTS
+  [ ! -r /etc/consul/conf.d/blackbox.json ] && {
+    ln -s -f /etc/consul/conf.d/blackbox.service /etc/consul/conf.d/blackbox.json
+    /etc/init.d/consul reload
+  }
+}
+
+leela_watchdog_stop () {
+  leela_grantaccess
+  [ -r /etc/consul/conf.d/blackbox.json ] && {
+    rm -f /etc/consul/conf.d/blackbox.json
+    /etc/init.d/consul reload
+  }
 }
 
 leela_daemon_start () {
@@ -61,11 +66,6 @@ leela_daemon_stop () {
   daemon --stop -P $RUNDIR -n daemon
 }
 
-leela_watchdog_stop () {
-  leela_grantaccess
-  daemon --stop -P $RUNDIR -n watchdog
-}
-
 case "$1" in
   (start)
     leela_daemon_start
@@ -79,9 +79,10 @@ case "$1" in
 
   (restart)
     leela_watchdog_stop
-    echo "waiting 120 seconds to allow clients to disconnect ..."; sleep 120
+    echo "waiting 60 seconds to allow clients to disconnect ..."; sleep 60
     leela_daemon_stop
     leela_watchdog_start
+    sleep 1
     leela_daemon_start
     ;;
 
@@ -106,7 +107,7 @@ case "$1" in
     ;;
 
   (*)
-    echo "Usage: $0 {start|stop|restart}" >&2
+    echo "Usage: $0 {start|stop|restart|daemon-stop|daemon-start|watchdog-start|watchdog-stop}" >&2
     exit 1
     ;;
 

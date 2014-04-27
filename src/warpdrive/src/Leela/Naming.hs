@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 -- Copyright 2014 (c) Diego Souza <dsouza@c0d3.xxx>
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,61 +15,64 @@
 -- limitations under the License.
 
 module Leela.Naming
-       ( resolve
-       , resolver
-       , zkResolve
+       ( resolver
        ) where
 
-import           Data.List
-import           Data.Maybe
+import qualified Data.Map as M
+import           Data.Word
+import           Data.Aeson
 import           Data.IORef
 import           Leela.Logger
-import           System.Random
-import qualified Data.ByteString as B
-import           Database.Zookeeper
+import           Network.HTTP
+import           Control.Monad
+import           Control.Exception
 import           Control.Concurrent
+import           Leela.Data.Excepts
+import           Control.Applicative
 import           Leela.Data.Endpoint
+import qualified Data.ByteString.Lazy.Char8 as L
 
-zkResolve :: Zookeeper -> String -> IO [(String, B.ByteString)]
-zkResolve zh path0 = go [] [[path0]]
-    where
-      go acc []                     = return $ sort acc
-      go acc ([]:backlog)           = go acc backlog
-      go acc ((path:paths):backlog) = do
-        mvalue    <- get zh path Nothing
-        mchildren <- getChildren zh path Nothing
-        case mchildren of
-          Right children -> go (consVal path mvalue acc) (map (joinPath path) children : paths : backlog)
-          Left _         -> return []
+data Service = Service { address     :: String
+                       , serviceTags :: [String]
+                       , servicePort :: Word16
+                       , status      :: [(String, String)]
+                       }
+             deriving (Show)
 
-      joinPath a b = a ++ "/" ++ b
+isPassing :: Service -> Bool
+isPassing = (== Just "passing") . lookup "leela" . status
 
-      consVal _ (Left _)             = id
-      consVal _ (Right (Nothing, _)) = id
-      consVal k (Right (Just v, _))  = ((k, v) :)
+parseService :: Service -> [(String, [Endpoint])]
+parseService srv
+  | isPassing srv = map (\tag -> (tag, [TCP (address srv) (servicePort srv) ""])) (serviceTags srv)
+  | otherwise     = []
 
-toEndpoints :: B.ByteString -> [Endpoint]
-toEndpoints s = catMaybes [ loadEndpoint e | e <- B.split 0xa s ]
+parseServices :: L.ByteString -> M.Map String [Endpoint]
+parseServices = M.fromListWith (++) . concatMap parseService . maybe [] id . decode
 
-resolve :: Zookeeper -> String -> IO [Endpoint]
-resolve zh path = fmap (concatMap (toEndpoints . snd)) (zkResolve zh path)
+fetchCatalog :: String -> String -> IO L.ByteString
+fetchCatalog url key = do
+  rsp          <- simpleHTTP (getRequest (url ++ key))
+  (code, body) <- liftM2 (,) (getResponseCode rsp) (getResponseBody rsp)
+  if (code == (2,0,0))
+  then
+    return $ L.pack body
+  else
+    throwIO SystemExcept
 
 resolver :: Endpoint -> IORef [(String, [Endpoint])] -> String -> IO ()
-resolver myself ioref endpoint = do
-  withZookeeper endpoint 5000 Nothing Nothing $ \zh -> do
-    warpdrive <- resolve zh "/naming/warpdrive"
-    cassandra <- resolve zh "/naming/cassandra"
-    blackbox  <- resolve zh "/naming/blackbox"
-    redis     <- resolve zh "/naming/redis"
-    atomicWriteIORef ioref [ ("warpdrive", addMyselfIfNull warpdrive)
-                           , ("blackbox", blackbox)
-                           , ("cassandra", cassandra)
-                           , ("redis", redis)
-                           ]
-  sleep4 <- randomRIO (5, 30)
-  linfo Types (printf "next-in: %d" sleep4)
-  threadDelay $ sleep4 * 1000 * 1000
-  resolver myself ioref endpoint
-    where
-      addMyselfIfNull [] = [myself]
-      addMyselfIfNull xs = xs
+resolver myself ioref url = do
+  linfo Global (printf "resolver: fetching from consul: %s" url)
+  services <- fmap (M.toList . parseServices) (fetchCatalog url "/v1/health/service/leela")
+  atomicWriteIORef ioref services
+  linfo Global (printf "resolver: %s" (show services))
+  threadDelay $ 1 * 1000 * 1000
+  resolver myself ioref url
+
+instance FromJSON Service where
+   parseJSON (Object v) = Service <$>
+                            ((v .: "Node") >>= (.: "Address")) <*>
+                            ((v .: "Service") >>= (.: "Tags")) <*>
+                            ((v .: "Service") >>= (.: "Port")) <*>
+                            ((v .: "Checks") >>= mapM (\i -> (,) <$> (i .: "ServiceName") <*> (i .: "Status")))
+   parseJSON _          = mzero
