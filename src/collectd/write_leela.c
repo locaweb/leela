@@ -215,24 +215,6 @@ int wl_print_time (wl_data_t *cfg, const cdtime_t cdtime)
   return(wl_print(cfg, "%ld.%ld", (long) time.tv_sec, time.tv_nsec));
 }
 
-// TODO:use something better than %g
-static
-int wl_print_value (wl_data_t *cfg, int type, const value_t *value)
-{
-  int rc = 0;
-  if (type == DS_TYPE_GAUGE)
-  { rc = wl_print(cfg, "(double %g)", value->gauge); }
-  else if (type == DS_TYPE_COUNTER)
-  { rc = wl_print(cfg, "(uint64 %llu)", value->counter); }
-  else if (type == DS_TYPE_DERIVE)
-  { rc = wl_print(cfg, "(int64 %"PRIi64")", value->derive); }
-  else if (type == DS_TYPE_ABSOLUTE)
-  { rc = wl_print(cfg, "(uint64 %"PRIu64")", value->absolute); }
-  else
-  { rc = -1; }
-  return(rc);
-}
-
 static
 int wl_flush (cdtime_t timeout, const char *identifier, user_data_t *data)
 {
@@ -263,23 +245,25 @@ static
 int wl_print_metric(const data_set_t *ds, const value_list_t *vl, wl_data_t *cfg, const gauge_t *rates, int index)
 {
   int rc = (cfg->sndbufoff == 0 ? wl_print(cfg, "using (%s) attr put %s \"", cfg->tree, cfg->guid)
-                                : wl_print(cfg, "attr put %s \"", cfg->guid))
-         | wl_print_name(cfg, vl, DS_TYPE_TO_STRING(ds->ds[index].type))
-         | wl_print(cfg, "\" [")
-         | wl_print_time(cfg, vl->time)
-         | wl_print(cfg, "] ")
-         | wl_print_value(cfg, ds->ds[index].type, &vl->values[index])
-         | wl_print(cfg, ", ");
-
-  if (rc == 0 && ds->ds[index].type != DS_TYPE_GAUGE)
+                                : wl_print(cfg, "attr put %s \"", cfg->guid));
+  
+  if (rc == 0 && ds->ds[index].type == DS_TYPE_GAUGE)
   {
-    rc = wl_print(cfg, "attr put %s \"", cfg->guid)
-         | wl_print_name(cfg, vl, "rate")
-         | wl_print(cfg, "\" [")
-         | wl_print_time(cfg, vl->time)
-         | wl_print(cfg, "] ")
-         | wl_print(cfg, "(double %g)", (double) rates[index])
-         | wl_print(cfg, ", ");
+    rc = wl_print_name(cfg, vl, "gauge")
+       | wl_print(cfg, "\" [")
+       | wl_print_time(cfg, vl->time)
+       | wl_print(cfg, "] ")
+       | wl_print(cfg, "(double %g)", vl->values[index].gauge)
+       | wl_print(cfg, ", ");
+  }
+  else if (rc == 0)
+  {
+    rc = wl_print_name(cfg, vl, "rate")
+       | wl_print(cfg, "\" [")
+       | wl_print_time(cfg, vl->time)
+       | wl_print(cfg, "] ")
+       | wl_print(cfg, "(double %g)", (double) rates[index])
+       | wl_print(cfg, ", ");
   }
 
   return(rc);
