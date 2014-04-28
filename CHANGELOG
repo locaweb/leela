@@ -2,6 +2,7 @@
 
 v4.1.0 | 2013-04-28
   * using consul instead of zookeeper | dgvncsz0f;
+  * write_leela: sending only rate or gauge | dgvncsz0f;
 
 v4.0.0 | 2014-04-27
   * stat statement: auto-discover feature | dgvncsz0f;

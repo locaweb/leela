@@ -1,7 +1,7 @@
 Name:           leela-collectd
 Group:          libs
 Version:        %(../src/scripts/read-version.sh)
-Release:        3%{?dist}
+Release:        1%{?dist}
 Summary:        Leela Collectd Plugin
 
 License:        ASL 2.0
