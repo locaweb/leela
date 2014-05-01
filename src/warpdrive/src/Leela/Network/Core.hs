@@ -165,39 +165,34 @@ navigate db queue (source, pipeline) = do
 
 evalLQL :: (KeyValue cache, GraphBackend m, AttrBackend m) => cache -> m -> CoreServer -> Device Reply -> [LQL] -> IO ()
 evalLQL _ _ _ queue []             = devwriteIO queue Last
-evalLQL cache db core queue (x:xs) =
+evalLQL cache db core queue (x:xs) = do
   case x of
-    PathStmt q        -> do
+    PathStmt q         ->
       navigate db queue q
-      evalLQL cache db core queue xs
-    TAttrListStmt g a  -> do
+    TAttrListStmt g a  ->
       enumTAttrs db (devwriteIO queue . Item . NAttrs g) g a
-      evalLQL cache db core queue xs
-    KAttrListStmt g a  -> do
+    KAttrListStmt g a  ->
       enumKAttrs db (devwriteIO queue . Item . NAttrs g) g a
-      evalLQL cache db core queue xs
-    KAttrGetStmt g a _ -> do
+    KAttrGetStmt g a _ ->
       getAttr db g a >>= devwriteIO queue . Item . KAttr g a
-      evalLQL cache db core queue xs
     TAttrGetStmt g a (Range t0 t1) _ -> do
       loadTAttr db (devwriteIO queue . either (flip Fail Nothing) (Item . TAttr g a)) g a t0 t1
       devwriteIO queue (Item $ TAttr g a [])
-      evalLQL cache db core queue xs
-    NameStmt _ g      -> do
-      (gUser, gTree, gKind, gName) <- getName db g
-      devwriteIO queue (Item $ Name gUser gTree gKind gName g)
-      evalLQL cache db core queue xs
     StatStmt          -> do
       state <- dumpStat core
       devwriteIO queue (Item $ Stat state)
-      evalLQL cache db core queue xs
     AlterStmt journal -> do
       names <- exec db journal
       mapM_ (\(u, t, k, n, g) -> devwriteIO queue (Item $ Name u t k n g)) names
-      evalLQL cache db core queue xs
-    GUIDStmt u k n -> do
-      g <- getGUID db (uUser u) (uTree u) k n
-      devwriteIO queue (Item $ Name (uUser u) (uTree u) k n g)
+    NameStmt _ guids  -> do
+      names <- getName db guids
+      forM_ names (\(u, t, k, n, g) ->
+        devwriteIO queue (Item $ Name u t k n g))
+    GUIDStmt user names  -> do
+      guids <- getGUID db [(uUser user, uTree user, k, n) | (k, n) <- names]
+      forM_ guids (\(u, t, k, n, g) ->
+        devwriteIO queue (Item $ Name u t k n g))
+  evalLQL cache db core queue xs
 
 evalFinalizer :: FH -> Device Reply -> Either SomeException () -> IO ()
 evalFinalizer chan dev (Left e)  = do

@@ -217,10 +217,10 @@ parseStmtPath :: Parser LQL
 parseStmtPath = "path " .*> liftM PathStmt parseQuery
 
 parseStmtName :: Using -> Parser LQL
-parseStmtName u = "name " .*> liftM (NameStmt u) parseGUID
+parseStmtName u = "name " .*> liftM (NameStmt u . (:[])) parseGUID
 
 parseStmtGUID :: Using -> Parser LQL
-parseStmtGUID u = "guid " .*> liftM (uncurry (GUIDStmt u)) parseNode
+parseStmtGUID u = "guid " .*> liftM (GUIDStmt u . (:[])) parseNode
 
 parseStmtStat :: Parser LQL
 parseStmtStat = "stat" .*> return StatStmt
@@ -305,7 +305,18 @@ parseStmt u = do
     _         -> fail "bad statement"
 
 parseStmts :: Using -> Parser [LQL]
-parseStmts u = parseStmt u `sepBy1` newline
+parseStmts u = fmap (group [] [] []) $ parseStmt u `sepBy1` newline
+    where
+      group acc gAcc nAcc []
+        | null gAcc && null nAcc = acc
+        | null gAcc              = NameStmt u nAcc : acc
+        | null nAcc              = GUIDStmt u gAcc : acc
+        | otherwise              = NameStmt u nAcc : GUIDStmt u gAcc : acc
+      group acc gAcc nAcc (x:xs) =
+        case x of
+          GUIDStmt _ [v] -> group acc (v : gAcc) nAcc xs
+          NameStmt _ [v] -> group acc gAcc (v : nAcc) xs
+          _              -> group (x : acc) gAcc nAcc xs
 
 parseUsing :: User -> Parser Using
 parseUsing user = do

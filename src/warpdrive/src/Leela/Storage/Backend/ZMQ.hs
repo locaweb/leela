@@ -21,12 +21,14 @@ module Leela.Storage.Backend.ZMQ
     ) where
 
 import Leela.Logger
+import Leela.Helpers
 import Data.ByteString (ByteString)
 import Leela.Data.Types
 import Control.Exception
 import Leela.HZMQ.Dealer
 import Leela.Data.Excepts
 import Leela.Storage.Graph
+import Control.Concurrent.Async
 import Leela.Storage.Backend.ZMQ.Protocol
 
 data ZMQBackend = ZMQBackend { dealer :: Dealer }
@@ -98,19 +100,25 @@ instance AttrBackend ZMQBackend where
 
 instance GraphBackend ZMQBackend where
 
-  getName m g = do
-    reply <- send (dealer m) (MsgGetName g)
-    case reply of
-      NameMsg u t k n _ -> return (u, t, k, n)
-      FailMsg 404       -> notFoundError
-      _                 -> internalError
+  getName m guids =
+    mapConcurrently work guids
+      where
+        work g = do
+          reply <- send (dealer m) (MsgGetName g)
+          case reply of
+            NameMsg u t k n _ -> return (u, t, k, n, g)
+            FailMsg 404       -> notFoundError
+            _                 -> internalError
 
-  getGUID m u t k n = do
-   reply <- send (dealer m) (MsgGetGUID u t k n)
-   case reply of
-     NameMsg _ _ _ _ g -> return g
-     FailMsg 404       -> notFoundError
-     _                 -> internalError
+  getGUID m names =
+     mapConcurrently work names
+       where
+         work (u, t, k, n) = do
+           reply <- send (dealer m) (MsgGetGUID u t k n)
+           case reply of
+             NameMsg _ _ _ _ g -> return (u, t, k, n, g)
+             FailMsg 404       -> notFoundError
+             _                 -> internalError
 
   putName m u t k n = do
     reply <- send (dealer m) (MsgPutName u t k n)

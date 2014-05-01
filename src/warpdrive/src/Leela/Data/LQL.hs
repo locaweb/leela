@@ -30,6 +30,6 @@ data LQL = StatStmt
          | TAttrGetStmt GUID Attr TimeRange [Option]
          | KAttrListStmt GUID (Mode Attr)
          | TAttrListStmt GUID (Mode Attr)
-         | NameStmt Using GUID
-         | GUIDStmt Using Kind Node
+         | NameStmt Using [GUID]
+         | GUIDStmt Using [(Kind, Node)]
          | AlterStmt [Journal]

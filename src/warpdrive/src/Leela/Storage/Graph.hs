@@ -51,9 +51,9 @@ enumTAttrs = enumAttrs listTAttr
 
 class GraphBackend m where
 
-  getName   :: m -> GUID -> IO (User, Tree, Kind, Node)
+  getName   :: m -> [GUID] -> IO [(User, Tree, Kind, Node, GUID)]
 
-  getGUID   :: m -> User -> Tree -> Kind -> Node -> IO GUID
+  getGUID   :: m -> [(User, Tree, Kind, Node)] -> IO [(User, Tree, Kind, Node, GUID)]
 
   putName   :: m -> User -> Tree -> Kind -> Node -> IO GUID
 
