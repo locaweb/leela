@@ -16,11 +16,11 @@
 
 (ns leela.version)
 
-(def major "4")
+(def major "5")
 
-(def minor "3")
+(def minor "0")
 
 (def build "0")
 
-(def version "4.3.0")
+(def version "5.0.0")
 

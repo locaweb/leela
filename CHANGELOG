@@ -1,5 +1,8 @@
 --*-- mode: text; --*--
 
+v5.0.0 | 2014-05-06
+  * collectd: no longer using hostname to create the metrics name
+
 v4.3.0 | 2014-05-06
   * libruby: Cursor.execute returns the last value returned by the block
 

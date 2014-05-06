@@ -17,10 +17,10 @@
 module Leela
 
   module Version
-    MAJOR   = 4
-    MINOR   = 3
+    MAJOR   = 5
+    MINOR   = 0
     PATCH   = 0
-    VERSION = "4.3.0"
+    VERSION = "5.0.0"
   end
 
 end
