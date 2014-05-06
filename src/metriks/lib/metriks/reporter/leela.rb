@@ -30,7 +30,7 @@ module Metriks::Reporter
       agent[1] = Thread.new do
         _, interval = sleep_r(0)
         @debug.call "leela.start: %s" % [cluster.join(",")]
-        ::Leela::Connection.open(@cluster, @user, @pass) do |ctx|
+        ::Leela::Connection.open(@cluster, :user => @user, :pass => @pass) do |ctx|
           guid = resolv ctx
           while agent[0] do
             more, interval = sleep_r interval
