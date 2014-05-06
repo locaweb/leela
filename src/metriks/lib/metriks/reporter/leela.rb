@@ -54,9 +54,9 @@ module Metriks::Reporter
     end
 
     def flush (ctx, guid)
-      @debug.call "[%s] leela.flush" % [guid]
       offset = 0
       buffer = write guid
+      @debug.call "[%s] leela.flush [%d bytes]" % [guid, buffer.size]
       while (offset < buffer.size)
         send_metrics ctx, guid, buffer.slice(offset, 512)
         offset += 512

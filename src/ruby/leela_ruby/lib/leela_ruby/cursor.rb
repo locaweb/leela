@@ -13,10 +13,10 @@ module Leela
 
     def execute(query)
       Leela::Raw.with_cursor(@conn.context, @user, @pass, @timeout) do |cursor|
-        rc = Leela::Raw.leela_lql_cursor_execute(cursor, query)
-        Leela::LeelaError.raise_from_leela_status(rc) unless rc == :leela_ok
-
+        rc     = Leela::Raw.leela_lql_cursor_execute(cursor, query)
+        ctrl   = nil
         answer = []
+        Leela::LeelaError.raise_from_leela_status(rc) unless rc == :leela_ok
 
         while (rc = Leela::Raw.leela_lql_cursor_next(cursor)) == :leela_ok
           row = fetch cursor
@@ -27,9 +27,13 @@ module Leela
             answer << row
           end
         end
-        Leela::LeelaError.raise_from_leela_status(rc) unless rc == :leela_eof
+        if ctrl == :break
+          Leela::LeelaError.raise_from_leela_status(rc) if rc != :leela_ok
+        else
+          Leela::LeelaError.raise_from_leela_status(rc) if rc != :leela_eof
+        end
 
-        answer unless block_given?
+        block_given? ? ctrl : answer
       end
     end
 
