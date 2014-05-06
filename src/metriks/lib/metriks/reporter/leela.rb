@@ -20,7 +20,7 @@ module Metriks::Reporter
       @cluster       = options[:cluster]
       @registry      = options[:registry] || Metriks::Registry.default
       @interval      = options[:interval] || 60
-      @onerror       = options[:on_error] || proc { |e| }
+      @onerror       = options[:onerror] || proc { |e| }
       @debug         = options[:debug] || proc { |m| }
       @timeout_in_ms = options[:timeout_in_ms] || 60000
     end
@@ -39,7 +39,7 @@ module Metriks::Reporter
               flush ctx, guid
             rescue => e
               @debug.call "leela.start[loop]: exception caught: %s" % e.to_s
-              on_error.call e
+              @onerror.call e
             end
           end
           flush ctx, guid
