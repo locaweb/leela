@@ -5,7 +5,7 @@ require 'leela_ruby/version'
 
 Gem::Specification.new do |spec|
   spec.name          = "leela_ruby"
-  spec.version       = Leela::VERSION
+  spec.version       = Leela::Version::VERSION
   spec.authors       = ["PotHix"]
   spec.email         = ["pothix@pothix.com"]
   spec.description   = "Leela ruby client"

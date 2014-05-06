@@ -1,6 +1,9 @@
 --*-- mode: text; --*--
 
-v4.1.0 | 2013-04-28
+v4.2.0 | 2014-05-06
+  * libruby: compatibility with ruby<2
+
+v4.1.0 | 2014-04-28
   * using consul instead of zookeeper | dgvncsz0f;
   * write_leela: sending only rate or gauge | dgvncsz0f;
 

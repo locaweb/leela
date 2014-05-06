@@ -17,7 +17,7 @@
 module Leela.Version where
 
 major   = "4"
-minor   = "1"
+minor   = "2"
 build   = "0"
-version = "4.1.0"
+version = "4.2.0"
 

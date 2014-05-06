@@ -11,6 +11,7 @@ try_leela.stderr
 /dist/
 /doc/build/
 /src/warpdrive/src/warpdrive
+/src/warpdrive/src/test-warpdrive
 /src/warpdrive/src/Leela/warpdrive
 /src/warpdrive/cabal-dev/
 /src/warpdrive/dist/
