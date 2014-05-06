@@ -44,6 +44,7 @@ typedef struct
   int                timeout;
   cdtime_t           ctime;
   char              *sndbuf;
+  char              *prefix;
   size_t             sndbufoff;
   size_t             sndbuflen;
   leela_endpoint_t **cluster;
@@ -188,15 +189,14 @@ int wl_print (wl_data_t *cfg, const char *fmt, ...)
 static
 int wl_print_name (wl_data_t *cfg, const value_list_t *vl, const char *type)
 {
-  char v_host[DATA_MAX_NAME_LEN];
   char v_plugin[DATA_MAX_NAME_LEN];
   char v_plugin_instance[DATA_MAX_NAME_LEN];
   char v_type[DATA_MAX_NAME_LEN];
   char v_type_instance[DATA_MAX_NAME_LEN];
 
   return(wl_print(cfg,
-                  "%s/%s%s%s/%s%s%s%s%s",
-                  wl_unquote(v_host, DATA_MAX_NAME_LEN, vl->host),
+                  "%s%s%s%s/%s%s%s%s%s",
+                  (cfg->prefix == NULL ? "" : cfg->prefix),
                   wl_unquote(v_plugin, DATA_MAX_NAME_LEN, vl->plugin),
                   (wl_blank(vl->plugin_instance) ? "" : "-"),
                   (wl_blank(vl->plugin_instance) ? "" : wl_unquote(v_plugin_instance, DATA_MAX_NAME_LEN, vl->plugin_instance)),
@@ -409,6 +409,7 @@ int wl_cfg (oconfig_item_t *cfg)
   leela_cfg->pass       = NULL;
   leela_cfg->tree       = NULL;
   leela_cfg->guid       = NULL;
+  leela_cfg->prefix     = NULL;
   leela_cfg->timeout    = 60000;
   leela_cfg->ctime      = cdtime();
   leela_cfg->sndbufoff  = 0;
@@ -448,6 +449,8 @@ int wl_cfg (oconfig_item_t *cfg)
     { leela_cfg->pass  = wl_strdup(item->values[0].value.string); }
     else if (strcasecmp("timeout_in_ms", item->key) == 0 && item->values[0].type == OCONFIG_TYPE_NUMBER)
     { leela_cfg->timeout = (int) item->values[0].value.number; }
+    else if (strcasecmp("prefix", item->key) == 0 && item->values[0].type == OCONFIG_TYPE_STRING)
+    { leela_cfg->prefix = wl_strdup(item->values[0].value.string); }
     else if (strcasecmp("guid", item->key) == 0 && item->values[0].type == OCONFIG_TYPE_STRING)
     { leela_cfg->guid = wl_strdup(item->values[0].value.string); }
     else
