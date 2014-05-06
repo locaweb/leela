@@ -5,7 +5,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |spec|
   spec.name          = "metriks_leela"
-  spec.version       = "0.1.0"
+  spec.version       = "0.1.0-1"
   spec.authors       = ["Diego Souza"]
   spec.email         = ["dgvncsz0f@gmail.com"]
   spec.description   = "Metriks Reporter - Leela"
@@ -19,7 +19,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_dependency "metriks"
-  spec.add_dependency "leela_ruby"
+  spec.add_dependency "leela_ruby", "~> 4.2"
 
   spec.add_development_dependency "bundler", "~> 1.3"
   spec.add_development_dependency "rake"
