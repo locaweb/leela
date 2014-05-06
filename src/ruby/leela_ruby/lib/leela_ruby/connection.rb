@@ -4,12 +4,12 @@ module Leela
 
     attr_reader :context
 
-    def initialize(endpoints, user=nil, pass=nil)
-      init_context(endpoints, user, pass)
+    def initialize(endpoints, options={})
+      init_context(endpoints, options[:user], options[:pass])
     end
 
-    def self.open(endpoints, user=nil, pass=nil)
-      conn = self.new(endpoints, user, pass)
+    def self.open(endpoints, options={})
+      conn = self.new(endpoints, options)
 
       if block_given?
         begin
@@ -22,8 +22,8 @@ module Leela
       end
     end
 
-    def execute(query, timeout: DEFAULT_TIMEOUT, user: nil, pass: nil, &block)
-      cursor = Leela::Cursor.new(self, user || @user, pass || @pass, timeout)
+    def execute(query, options={}, &block)
+      cursor = Leela::Cursor.new(self, options[:user] || @user, options[:pass] || @pass, options[:timeout] || DEFAULT_TIMEOUT)
       if block_given?
         cursor.execute(query, &block)
       else
