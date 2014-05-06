@@ -3,6 +3,7 @@
 *.swp
 *.o
 *.class
+*.gem
 try_leela.stderr
 /tmp/
 /tags

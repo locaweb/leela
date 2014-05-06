@@ -18,9 +18,9 @@
 
 (def major "4")
 
-(def minor "2")
+(def minor "3")
 
-(def build "1")
+(def build "0")
 
-(def version "4.2.1")
+(def version "4.3.0")
 
