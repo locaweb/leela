@@ -1,7 +1,10 @@
 --*-- mode: text; --*--
 
+v4.2.1 | 2014-05-06
+  * libruby: compatibility with ruby <2
+
 v4.2.0 | 2014-05-06
-  * libruby: compatibility with ruby<2
+  * libruby: compatibility with ruby <2
 
 v4.1.0 | 2014-04-28
   * using consul instead of zookeeper | dgvncsz0f;

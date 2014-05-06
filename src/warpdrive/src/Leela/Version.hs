@@ -18,6 +18,6 @@ module Leela.Version where
 
 major   = "4"
 minor   = "2"
-build   = "0"
-version = "4.2.0"
+build   = "1"
+version = "4.2.1"
 

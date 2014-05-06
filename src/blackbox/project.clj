@@ -1,4 +1,4 @@
-(defproject blackbox "4.2.0"
+(defproject blackbox "4.2.1"
   :url          "http://leela.rtfd.org"
   :aot          [leela.blackbox.blackbox]
   :main         leela.blackbox.blackbox
