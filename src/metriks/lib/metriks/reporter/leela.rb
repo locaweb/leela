@@ -145,7 +145,7 @@ module Metriks::Reporter
     end
 
     def resolv (ctx)
-      guid = ctx.execute("using (#{@tree}) guid (#{@guid});") {|row| row.last.last}
+      guid = ctx.execute("using (#{@tree}) make (#{@guid});") {|row| row.last.last}
       @debug.call "leela.resolv: %s -> %s" % [@guid, guid]
       guid
     end
