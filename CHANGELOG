@@ -1,5 +1,8 @@
 --*-- mode: text; --*--
 
+v5.1.0 | 2014-05-07
+  * metriks: using `make' instead of `guid' to revolv the name
+
 v5.0.0 | 2014-05-06
   * collectd: no longer using hostname to create the metrics name
 

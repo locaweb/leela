@@ -5,7 +5,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |spec|
   spec.name          = "metriks_leela"
-  spec.version       = "0.2.0"
+  spec.version       = "5.1.0"
   spec.authors       = ["Diego Souza"]
   spec.email         = ["dgvncsz0f@gmail.com"]
   spec.description   = "Metriks Reporter - Leela"
