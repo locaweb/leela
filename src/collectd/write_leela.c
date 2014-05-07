@@ -118,7 +118,7 @@ int wl_send (wl_data_t *cfg)
   int rc = -1;
   lql_cursor_t *cursor;
 
-  INFO("write_leela plugin: wl_send(size:%zu)", cfg->sndbufoff);
+  DEBUG("write_leela plugin: wl_send(size:%zu)", cfg->sndbufoff);
   if (cfg->sndbufoff == 0)
   { return(0); }
 
@@ -223,7 +223,7 @@ int wl_flush (cdtime_t timeout, const char *identifier, user_data_t *data)
   wl_data_t *cfg;
 
   WL_UNUSED(identifier);
-  INFO("write_leela plugin: flush(%f) = %d;", (double) timeout, rc);
+  DEBUG("write_leela plugin: flush(%f) = %d;", (double) timeout, rc);
 
   if (data == NULL)
   { return(-1); }
