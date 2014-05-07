@@ -1,6 +1,8 @@
 --*-- mode: text; --*--
 
 v5.1.0 | 2014-05-07
+  * collectd: including data_source_t->name to the metric name
+  * collectd: decreasing verbosity; using DEBUG instead of INFO
   * metriks: using `make' instead of `guid' to revolv the name
 
 v5.0.0 | 2014-05-06
