@@ -187,15 +187,16 @@ int wl_print (wl_data_t *cfg, const char *fmt, ...)
 }
 
 static
-int wl_print_name (wl_data_t *cfg, const value_list_t *vl, const char *type)
+int wl_print_name (wl_data_t *cfg, const value_list_t *vl, const data_source_t *ds)
 {
   char v_plugin[DATA_MAX_NAME_LEN];
   char v_plugin_instance[DATA_MAX_NAME_LEN];
   char v_type[DATA_MAX_NAME_LEN];
   char v_type_instance[DATA_MAX_NAME_LEN];
+  char v_dataname[DATA_MAX_NAME_LEN];
 
   return(wl_print(cfg,
-                  "%s%s%s%s/%s%s%s%s%s",
+                  "%s%s%s%s/%s%s%s/%s",
                   (cfg->prefix == NULL ? "" : cfg->prefix),
                   wl_unquote(v_plugin, DATA_MAX_NAME_LEN, vl->plugin),
                   (wl_blank(vl->plugin_instance) ? "" : "-"),
@@ -203,8 +204,7 @@ int wl_print_name (wl_data_t *cfg, const value_list_t *vl, const char *type)
                   wl_unquote(v_type, DATA_MAX_NAME_LEN, vl->type),
                   (wl_blank(vl->type_instance) ? "" : "-"),
                   (wl_blank(vl->type_instance) ? "" : wl_unquote(v_type_instance, DATA_MAX_NAME_LEN, vl->type_instance)),
-                  (type == NULL ? "" : "/"),
-                  (type == NULL ? "" : type)));
+                  (ds->name == NULL ? wl_unquote(v_dataname, DATA_MAX_NAME_LEN, DS_TYPE_TO_STRING(ds->type)) : wl_unquote(v_dataname, DATA_MAX_NAME_LEN, ds->name))));
 }
 
 static
@@ -249,7 +249,7 @@ int wl_print_metric(const data_set_t *ds, const value_list_t *vl, wl_data_t *cfg
   
   if (rc == 0 && ds->ds[index].type == DS_TYPE_GAUGE)
   {
-    rc = wl_print_name(cfg, vl, "gauge")
+    rc = wl_print_name(cfg, vl, &ds->ds[index])
        | wl_print(cfg, "\" [")
        | wl_print_time(cfg, vl->time)
        | wl_print(cfg, "] ")
@@ -258,7 +258,7 @@ int wl_print_metric(const data_set_t *ds, const value_list_t *vl, wl_data_t *cfg
   }
   else if (rc == 0)
   {
-    rc = wl_print_name(cfg, vl, "rate")
+    rc = wl_print_name(cfg, vl, &ds->ds[index])
        | wl_print(cfg, "\" [")
        | wl_print_time(cfg, vl->time)
        | wl_print(cfg, "] ")
