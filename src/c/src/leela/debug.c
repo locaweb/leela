@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <pthread.h>
-#include "leela/debug.h"
+#include "debug.h"
 
 static pthread_mutex_t debug_mutex = PTHREAD_MUTEX_INITIALIZER;
 

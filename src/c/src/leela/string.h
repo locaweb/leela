@@ -15,9 +15,9 @@
 #ifndef __leela_string_h__
 #define __leela_string_h__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "leela/base.h"
+
+LEELA_CPLUSPLUS_OPEN
 
 char *leela_strdup (const char *);
 
@@ -25,8 +25,6 @@ char *leela_strndup (const char *, size_t);
 
 char *leela_join (const char *, ...);
 
-#ifdef __cplusplus
-}
-#endif
+LEELA_CPLUSPLUS_CLOSE
 
 #endif

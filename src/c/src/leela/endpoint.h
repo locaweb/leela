@@ -17,10 +17,9 @@
 
 #include <stdlib.h>
 #include <inttypes.h>
+#include "leela/base.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+LEELA_CPLUSPLUS_OPEN
 
 typedef enum leela_protocol
 {
@@ -69,8 +68,6 @@ leela_endpoint_t *leela_endpoint_dup2 (leela_endpoint_t *dst, const leela_endpoi
  */
 void leela_endpoint_free (leela_endpoint_t *);
 
-#ifdef __cplusplus
-}
-#endif
+LEELA_CPLUSPLUS_CLOSE
 
 #endif

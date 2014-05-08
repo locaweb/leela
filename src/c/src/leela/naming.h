@@ -17,11 +17,10 @@
 
 #include <pthread.h>
 #include "leela/lql.h"
+#include "leela/base.h"
 #include "leela/endpoint.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+LEELA_CPLUSPLUS_OPEN
 
 typedef struct leela_naming_t leela_naming_t;
 
@@ -79,8 +78,6 @@ void leela_naming_cluster_free (leela_naming_cluster_t *);
  */
 void leela_naming_destroy (leela_naming_t *);
 
-#ifdef __cplusplus
-}
-#endif
+LEELA_CPLUSPLUS_CLOSE
 
 #endif
