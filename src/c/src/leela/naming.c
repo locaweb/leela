@@ -154,9 +154,12 @@ void *__naming_loop (void *data)
   {
     leela_naming_cluster_t *cluster = NULL;
     if (naming->context != NULL)
-    { cluster = __naming_discover(naming, naming->cluster); }
-    if (cluster == NULL)
-    { cluster = __naming_discover(naming, naming->cluster0); }
+    {
+      if (naming->cluster != NULL)
+      { cluster = __naming_discover(naming, naming->cluster); }
+      else
+      { cluster = __naming_discover(naming, naming->cluster0); }
+    }
 
     if (pthread_mutex_lock(&naming->mutex) == 0)
     {

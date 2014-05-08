@@ -19,11 +19,13 @@
 #include <string.h>
 #include <pthread.h>
 #include <inttypes.h>
-#include "leela/lql.h"
-#include "leela/debug.h"
-#include "leela/status.h"
-#include "leela/string.h"
-#include "leela/naming.h"
+#include "lql.h"
+#include "debug.h"
+#include "status.h"
+#include "string.h"
+#include "naming.h"
+#include "random.h"
+#include "signature.h"
 
 #define DEBUG 1
 
@@ -32,18 +34,21 @@ struct lql_context_t
   void             *zmqctx;
   leela_naming_t   *naming;
   leela_endpoint_t *endpoint;
+  pthread_mutex_t   mutex;
+  unsigned char     nonce[LEELA_SIGNATURE_NONCE_SIZE];
 };
 
 struct lql_cursor_t {
-  void        *socket;
-  char        *username;
-  char        *secret;
-  char        *channel;
-  int          feedback;
-  int          timeout;
-  uint32_t     elems[2];
-  lql_row_type row;
-  zmq_msg_t    buffer;
+  lql_context_t     *ctx;
+  void              *socket;
+  char              *username;
+  leela_signature_t *sig;
+  char              *channel;
+  int                feedback;
+  int                timeout;
+  uint32_t           elems[2];
+  lql_row_type       row;
+  zmq_msg_t          buffer;
 };
 
 void __leela_lql_value_free (lql_value_t *value)
@@ -68,14 +73,45 @@ void __leela_lql_tuple2_free_members (const lql_tuple2_t *pair)
 }
 
 static
-char *__signature (lql_cursor_t *cursor, va_list args)
+int __next_nounce (lql_cursor_t *cursor, unsigned char nonce[LEELA_SIGNATURE_NONCE_SIZE])
 {
-  (void) args;
-  int t           = (int) time(0);
-  char *fmt       = "%s:%d:0 %s";
-  size_t bufflen  = snprintf(NULL, 0, fmt, cursor->username, t, cursor->secret) + 1;
+  if (pthread_mutex_lock(&cursor->ctx->mutex) != 0)
+  {
+    LEELA_DEBUG0("__signature: error acquiring the lock, aborting");
+    return(-1);
+  }
+  leela_signature_nonce_next(nonce, cursor->ctx->nonce);
+  memcpy(cursor->ctx->nonce, nonce, LEELA_SIGNATURE_NONCE_SIZE);
+  pthread_mutex_unlock(&cursor->ctx->mutex);
+  return(0);
+}
+
+static
+char *__signature (lql_cursor_t *cursor, char *msg, size_t msglen)
+{
+  unsigned char nonce[LEELA_SIGNATURE_NONCE_SIZE];
+  unsigned char mac[LEELA_SIGNATURE_SIZE];
+  if (__next_nounce(cursor, nonce) != 0)
+  { return(NULL); }
+  char hexnonce[2 * LEELA_SIGNATURE_NONCE_SIZE + 1];
+  char hexmac[2 * LEELA_SIGNATURE_SIZE + 1];
+  char *fmt       = "%s:%d:%s%s%s";
+  int now         = (int) time(0);
+  size_t bufflen  = snprintf(NULL, 0, fmt, cursor->username, now, "", " ", "")
+                  + (2 * LEELA_SIGNATURE_NONCE_SIZE)
+                  + (2 * LEELA_SIGNATURE_SIZE)
+                  + msglen
+                  + 1;
   char *signature = (char *) malloc(bufflen+1);
-  snprintf(signature, bufflen, fmt, cursor->username, (int) time(0), cursor->secret);
+  if (signature != NULL)
+  {
+    leela_signature_hexencode(hexnonce, nonce, LEELA_SIGNATURE_NONCE_SIZE);
+    size_t offset = snprintf(signature, bufflen, fmt, cursor->username, now, hexnonce, ":", msg);
+    leela_signature_sign(cursor->sig, mac, nonce, signature, offset);
+
+    leela_signature_hexencode(hexmac, mac, LEELA_SIGNATURE_SIZE);
+    snprintf(signature, bufflen, fmt, cursor->username, now, hexnonce, " ", hexmac);
+  }
   return(signature);
 }
 
@@ -83,17 +119,36 @@ static
 int __zmq_sendmsg_str (lql_cursor_t *cursor, const char *data, ...)
 {
   int rc           = -1;
+  size_t msglen    = 0;
+  size_t offset    = 0;
+  char *sig        = NULL;
+  char *msg        = NULL;
   const char *part = NULL;
   const char *last = NULL;
   va_list args;
 
   va_start(args, data);
-  char *signature = __signature(cursor, args);
-  if (signature == NULL)
-  { goto handle_error; }
+  while ((part = va_arg(args, const char *)) != NULL)
+  { msglen += strlen(part); }
   va_end(args);
 
   va_start(args, data);
+  msg = (char *) malloc(msglen + 1);
+  if (msg == NULL)
+  { goto handle_error; }
+  while ((part = va_arg(args, const char *)) != NULL)
+  {
+    strncpy(msg + offset, part, msglen - offset);
+    offset += strlen(part);
+  }
+  msg[msglen] = '\0';
+  sig = __signature(cursor, msg, msglen);
+  va_end(args);
+
+  va_start(args, data);
+  if (sig == NULL)
+  { goto handle_error; }
+
   do
   {
     if (part != NULL)
@@ -103,7 +158,7 @@ int __zmq_sendmsg_str (lql_cursor_t *cursor, const char *data, ...)
     }
     else
     {
-      last = signature;
+      last = sig;
       part = data;
     }
 
@@ -115,7 +170,8 @@ int __zmq_sendmsg_str (lql_cursor_t *cursor, const char *data, ...)
 
 handle_error:
   va_end(args);
-  free(signature);
+  free(msg);
+  free(sig);
   return(rc);
 }
 
@@ -370,15 +426,7 @@ static
 void __init_random()
 {
   unsigned int seed = 0;
-  bool ok           = false;
-  FILE *fh = fopen("/dev/urandom", "r");
-  if (fh != NULL)
-  {
-    size_t res = fread(&seed, sizeof(seed), 1, fh);
-    ok         = res == 1;
-    fclose(fh);
-  }
-  if (! ok)
+  if (leela_random_urandom(&seed, sizeof(seed)) != 0)
   {
     seed = (unsigned int) time(NULL);
     LEELA_DEBUG0("__init_random: could not read from /dev/random, falling back to time(0)");
@@ -392,9 +440,16 @@ lql_context_t *leela_lql_context_init (const leela_endpoint_t *const *warpdrive)
   lql_context_t *ctx = (lql_context_t *) malloc(sizeof(lql_context_t));
   if (ctx != NULL)
   {
+    if (pthread_mutex_init(&ctx->mutex, NULL) != 0)
+    {
+      LEELA_DEBUG0("leela_lql_context_init: error initializing mutex");
+      free(ctx);
+      return(NULL);
+    }
     __init_random();
     ctx->zmqctx  = zmq_ctx_new();
     ctx->naming  = leela_naming_init(warpdrive, LQL_DEFAULT_TIMEOUT);
+    leela_random_urandom(ctx->nonce, LEELA_SIGNATURE_NONCE_SIZE);
     if (ctx->naming == NULL || ctx->zmqctx == NULL)
     { goto handle_error; }
 
@@ -411,24 +466,30 @@ handle_error:
 
 lql_cursor_t *leela_lql_cursor_init2 (lql_context_t *ctx, const leela_endpoint_t *endpoint, const char *username, const char *secret, int timeout_in_ms)
 {
+  size_t k;
   int linger            = 0;
   char *zmqendpoint     = NULL;
+  unsigned char seed[LEELA_SIGNATURE_SEED_SIZE];
+  size_t slen           = strlen(secret);
   lql_cursor_t *cursor  = (lql_cursor_t *) malloc(sizeof(lql_cursor_t));
   if (cursor == NULL || zmq_msg_init(&cursor->buffer) == -1)
   {
     free(cursor);
     return(NULL);
   }
+  for (k=0; k<LEELA_SIGNATURE_SEED_SIZE; k+=1)
+  { seed[k] = (k < slen ? secret[k] : '\0'); }
+  cursor->ctx      = ctx;
   cursor->socket   = NULL;
   cursor->channel  = NULL;
   cursor->username = leela_strdup(username);
-  cursor->secret   = leela_strdup(secret);
+  cursor->sig      = leela_signature_init(seed);
   cursor->elems[0] = 0;
   cursor->elems[1] = 0;
   cursor->feedback = -1;
   cursor->timeout  = (timeout_in_ms == 0 ? LQL_DEFAULT_TIMEOUT : timeout_in_ms);
 
-  if (cursor->username == NULL || cursor->secret == NULL)
+  if (cursor->username == NULL || cursor->sig == NULL)
   { goto handle_error; }
 
   zmqendpoint = (endpoint == NULL ? NULL : leela_endpoint_dump(endpoint));
@@ -453,7 +514,7 @@ handle_error:
   return(NULL);
 }
 
-lql_cursor_t *leela_lql_cursor_init(lql_context_t *ctx, const char *username, const char *secret, int timeout_in_ms)
+lql_cursor_t *leela_lql_cursor_init (lql_context_t *ctx, const char *username, const char *secret, int timeout_in_ms)
 {
   leela_endpoint_t *endpoint = leela_naming_select(ctx->naming);
   if (endpoint == NULL)
@@ -897,7 +958,7 @@ leela_status leela_lql_cursor_close (lql_cursor_t *cursor)
     }
     free(cursor->channel);
     free(cursor->username);
-    free(cursor->secret);
+    leela_signature_destroy(cursor->sig);
     zmq_msg_close(&cursor->buffer);
     if (cursor->socket != NULL)
     { zmq_close(cursor->socket); }
@@ -914,6 +975,7 @@ leela_status leela_lql_context_close (lql_context_t *ctx)
     { leela_naming_destroy(ctx->naming); }
     if (ctx->zmqctx != NULL)
     { zmq_ctx_destroy(ctx->zmqctx); }
+    pthread_mutex_destroy(&ctx->mutex);
     free(ctx);
     return(LEELA_OK);
   }

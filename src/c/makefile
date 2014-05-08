@@ -11,7 +11,7 @@ poly1305aes.a = $(srcroot)/poly1305aes-20050218/poly1305aes.a
 
 build: $(poly1305aes.a) libleela.so.$(LEELA_VERSION)
 
-clean: cleanobj1
+clean: cleanobj
 	rm -r -f `dirname $(poly1305aes.a)`
 	rm -r -f src/leela/poly1305aes
 
