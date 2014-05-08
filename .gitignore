@@ -11,6 +11,8 @@ try_leela.stderr
 /build/
 /dist/
 /doc/build/
+/src/c/poly1305aes-20050218
+/src/c/src/leela/poly1305aes
 /src/warpdrive/src/warpdrive
 /src/warpdrive/src/test-warpdrive
 /src/warpdrive/src/Leela/warpdrive
