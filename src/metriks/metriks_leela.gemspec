@@ -2,10 +2,11 @@
 
 lib = File.expand_path("../lib", __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
+require "metriks/reporter/leela/version.rb"
 
 Gem::Specification.new do |spec|
   spec.name          = "metriks_leela"
-  spec.version       = "5.1.0"
+  spec.version       = Metriks::Reporter::Leela::VERSION
   spec.authors       = ["Diego Souza"]
   spec.email         = ["dgvncsz0f@gmail.com"]
   spec.description   = "Metriks Reporter - Leela"

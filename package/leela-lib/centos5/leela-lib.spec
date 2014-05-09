@@ -1,7 +1,7 @@
 Name:           leela-lib
 Group:          libs
-Version:        %(../src/scripts/read-version.sh)
-Release:        5%{?dist}
+Version:        %(env component=.leela-lib ../src/scripts/read-version.sh)
+Release:        1%{?dist}
 Summary:        Leela Library Package
 
 License:        ASL 2.0
@@ -79,8 +79,7 @@ popd
 %files -n leela-c
 %defattr(-,root,root)
 %{_includedir}/leela
-%{_libdir}/libleela.so
-%{_libdir}/libleela.so.4.0.0
+%{_libdir}/libleela.so*
 
 %files -n leela-python
 %defattr(-,root,root)

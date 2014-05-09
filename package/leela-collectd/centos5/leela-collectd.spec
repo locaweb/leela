@@ -1,6 +1,6 @@
 Name:           leela-collectd
 Group:          libs
-Version:        %(../src/scripts/read-version.sh)
+Version:        %(env component=.leela-collectd ../src/scripts/read-version.sh)
 Release:        1%{?dist}
 Summary:        Leela Collectd Plugin
 
@@ -20,7 +20,7 @@ Requires:       zeromq3
 %setup -q -n leela-collectd-%{version}
 
 %build
-make -C src/collectd compile
+make -C src/collectd build
 
 %install
 mkdir -p $RPM_BUILD_ROOT/%{_libdir}/collectd

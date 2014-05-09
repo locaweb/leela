@@ -6,7 +6,7 @@ bin_sed=${bin_sed:-/bin/sed}
 curdir="$(cd $(dirname "$0") && pwd)"
 
 read_version () {
-  f="CHANGELOG"
+  f="CHANGELOG${component}"
   if [ -z "$major"  ]
   then
     major=$(sed -r '/^v/ba; d; :a s/v([0-9]+)\.[0-9]+\.[0-9]+.*/\1/; q' "$curdir/../../${f}")
@@ -18,10 +18,10 @@ read_version () {
   if [ -z "$patch" ]
   then
     patch=$(sed -r '/^v/ba; d; :a s/v[0-9]+\.[0-9]+\.([0-9]+).*/\1/; q' "$curdir/../../${f}")
-    build=$patch
   fi
 
   version="$major.$minor.$patch"
+  echo "reading file: $f : $version" >&2
 }
 
 check_environ () {

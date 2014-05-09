@@ -10,9 +10,10 @@ try_leela.stderr
 /TAGS
 /build/
 /dist/
+/package/dist
 /doc/build/
-/src/c/poly1305aes-20050218
-/src/c/src/leela/poly1305aes
+/lib/poly1305aes/dist
+/lib/poly1305aes/poly1305aes-20050218
 /src/warpdrive/src/warpdrive
 /src/warpdrive/src/test-warpdrive
 /src/warpdrive/src/Leela/warpdrive

@@ -1,0 +1,99 @@
+--*-- mode: text; --*--
+
+v5.2.0 | 2014-05-09
+  * MAC signature using poly1305aes
+
+v5.1.0-1 | 2014-05-09
+  * changelog split: now multiple changelogs one for each component
+
+v5.1.0 | 2014-05-07
+  * collectd: including data_source_t->name to the metric name
+  * collectd: decreasing verbosity; using DEBUG instead of INFO
+  * metriks: using `make' instead of `guid' to revolv the name
+
+v5.0.0 | 2014-05-06
+  * collectd: no longer using hostname to create the metrics name
+
+v4.3.0 | 2014-05-06
+  * libruby: Cursor.execute returns the last value returned by the block
+
+v4.2.1 | 2014-05-06
+  * libruby: compatibility with ruby <2
+
+v4.2.0 | 2014-05-06
+  * libruby: compatibility with ruby <2
+
+v4.1.0 | 2014-04-28
+  * using consul instead of zookeeper | dgvncsz0f;
+  * write_leela: sending only rate or gauge | dgvncsz0f;
+
+v4.0.0 | 2014-04-27
+  * stat statement: auto-discover feature | dgvncsz0f;
+  * kill statement | dgvncsz0f, aabaklini;
+  * name statement reply no includes the requested guid | dgvncsz0f;
+  * c client library | dgvncsz0f;
+  * python client library | dgvncsz0f;
+  * ruby client library | pothix + aabaklini;
+  * creating warpdrive [graph engine] | dgvncsz0f;
+  * leela query language: new universal input | dgvncsz0f;
+  * stream response: new universal output protocol | dgvncsz0f;
+  * 0mq library for transport | dgvncsz0f;
+
+v3.4.0 | 2013-06-01
+  * http module now flushes its queue periodically | dgvncsz0f
+  * writing to the timeline socket is no longer synchronous | dgvncsz0f
+  * adding Access-Control-Allow-Origin header | dgvncsz0f
+
+v3.3.0 | 2013-09-06
+  * udp frontend performance improvements: no longer droppping packages | dgvncsz0f
+  * udp now collects metrics about itself | dgvncsz0f 
+  * http now waits the data to be written to timeline before returning any response | dgvncsz0f
+  * adding /v1/version resource | dgvncsz0f
+  * properly handling exception and using correct http codes | dgvncsz0f
+  * /usr/libexec/leela-self-test to validate the install | dgvncsz0f
+  * validating start and finish date intervals | dgvncsz0f
+  * removing `reversed=True' form cassandra.py as columns are already reversed | dgvncsz0f
+
+v3.1.0 | 2013-29-04
+  * using one columnfamily per month | dgvncsz0f
+
+v3.0.0 | 2013-20-04
+  * adding cache-control to http responses [and removing etag] | dgvncsz0f
+  * changing configuration file sections | dgvncsz0f
+  * removing http /v1/range resource | dgvncsz0f
+  * deprecating PUT /v1/data/:key in favor of POST /v1/data/:key | dgvncsz0f
+  * POST /v1/data/:key also accepts a list of values | dgvncsz0f
+  * new POST /v1/:key allows users writing metrics using the http protocol | dgvncsz0f
+
+v2.2.2 | 2013-17-04
+  * leela-udp: no longer printing stacktrace when a parser error happens | dgvncsz0f
+
+v2.2.1 | 2013-16-04
+  * bugfix: multicast was not using all peers to load balancing | dgvncsz0f
+  * bugfix: http module was not encoding packet correctly [PUT /v1/data] | dgvncsz0f
+
+v2.2.0 | 2013-11-04
+  * adding collectd support | dgvncsz0f
+  * udp protocol now supports gauge, derive, counter and absolute | dgvncsz0f
+  * deprecating the legacy udp protocol | dgvncsz0f
+  * using a much more space efficient algorithm to implement sma | dgvncsz0f
+
+v2.1.0 | 2012-11-21
+  * http interface now removes NaN numbers unless specified otherwise | dgvncsz0f
+
+v2.0.0 | 2012-11-15
+  * allowing storing json through http interface | dgvncsz0f
+  * dmproc: adding comparison operators | dgvncsz0f
+  * dmproc: adding support for using operators in the right position | dgvncsz0f
+
+v1.0.0 | 2012-10-18
+  * complete architecture redesign | dgvncsz0f
+  * implementing 24h graphs | dgvncsz0f
+  * creating xmpp interface | dgvncsz0f
+  * making sure everything it UTC | dgvncsz0f
+  * graphs using flotr2 library | pothix
+
+v0.0.9 | 2012-06-29
+  * first architecture | ncode
+  * using gevent instead of standard python sockets | rsampaio
+  * creating javascript widget | dgvncsz0f

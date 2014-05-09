@@ -1,9 +1,7 @@
 #!/usr/bin/make -f
 # -*- makefile -*-
 
-
-version                 = $(shell ../../src/scripts/read-version.sh)
-DEB_HOST_MULTIARCH     ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 
 %:
 	dh $@

@@ -1,7 +1,7 @@
 
 srcroot   = $(shell cd $(CURDIR)/.. && pwd)
 distdir   = "/target/package/dist/$(basename $@)/$(dist).$(arch)"
-version   = $(shell $(srcroot)/src/scripts/read-version.sh)
+version   = $(shell env component=$(component) $(srcroot)/src/scripts/read-version.sh)
 maybesudo = $(shell [ "$$UID" -ne 0 ] && echo sudo)
 
 images:
@@ -12,6 +12,7 @@ images:
 
 %.debian: dist=debian7
 %.debian: arch=amd64
+%.debian: component=.$(basename $@)
 %.debian:
 	@echo $(MAKE) $(basename $@) dist=$(dist) arch=$(arch)
 	$(maybesudo) docker run \
@@ -31,6 +32,7 @@ images:
 
 %.centos: dist=centos6
 %.centos: arch=amd64
+%.centos: component=.$(basename $@)
 %.centos:
 	@echo $(MAKE) $(basename $@) dist=$(dist) arch=$(arch)
 	$(maybesudo) docker run \

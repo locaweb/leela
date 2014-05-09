@@ -1,5 +1,11 @@
 --*-- mode: text; --*--
 
+v5.2.0 | 2014-05-09
+  * MAC signature using poly1305aes
+
+v5.1.0-1 | 2014-05-09
+  * changelog split: now multiple changelogs one for each component
+
 v5.1.0 | 2014-05-07
   * collectd: including data_source_t->name to the metric name
   * collectd: decreasing verbosity; using DEBUG instead of INFO

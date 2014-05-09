@@ -15,4 +15,4 @@ override_dh_install:
 	dh_install
 
 override_dh_auto_build:
-	$(MAKE) -C ../../src/collectd compile
+	$(MAKE) -C ../../src/collectd build

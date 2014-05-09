@@ -1,8 +1,8 @@
 poly1305aes.srcroot  = $(CURDIR)/../../lib/poly1305aes
 srcroot              = $(CURDIR)
 
-LEELA_LIB_VERSION   := $(shell env component=.lib patch=0 minor=0 ../scripts/read-version.sh)
-LEELA_VERSION       := $(shell env component=.lib ../scripts/read-version.sh)
+LEELA_LIB_VERSION   := $(shell env component=.leela-lib patch=0 minor=0 ../scripts/read-version.sh)
+LEELA_VERSION       := $(shell env component=.leela-lib ../scripts/read-version.sh)
 
 SRC_FILES            = $(wildcard src/leela/*.c)
 OBJ_FILES            = $(subst .c,.o,$(SRC_FILES))

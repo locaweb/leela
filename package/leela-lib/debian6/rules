@@ -1,8 +1,6 @@
 #!/usr/bin/make -f
 # -*- makefile -*-
 
-version = $(shell ../../src/scripts/read-version.sh)
-
 %:
 	dh $@
 

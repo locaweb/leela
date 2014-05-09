@@ -19,7 +19,7 @@
 
 extern int LEELA_MAJOR;
 extern int LEELA_MINOR;
-extern int LEELA_BUILD;
+extern int LEELA_PATCH;
 
 extern const char * LEELA_VERSION;
 

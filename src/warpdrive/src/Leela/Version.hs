@@ -16,8 +16,15 @@
 
 module Leela.Version where
 
-major   = "5"
-minor   = "0"
-build   = "0"
-version = "5.0.0"
+major :: Int
+major   = 5
+
+minor :: Int
+minor   = 1
+
+patch :: Int
+patch   = 0
+
+version :: String
+version = "5.1.0"
 

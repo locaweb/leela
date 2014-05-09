@@ -1,6 +1,6 @@
 Name:           leela-lib
 Group:          libs
-Version:        %(../src/scripts/read-version.sh)
+Version:        %(env component=.leela-lib ../src/scripts/read-version.sh)
 Release:        5%{?dist}
 Summary:        Leela Library Package
 
@@ -79,8 +79,7 @@ popd
 %files -n leela-c
 %defattr(-,root,root)
 %{_includedir}/leela
-%{_libdir}/libleela.so
-%{_libdir}/libleela.so.4.0.0
+%{_libdir}/libleela.so*
 
 %files -n leela-python
 %defattr(-,root,root)
