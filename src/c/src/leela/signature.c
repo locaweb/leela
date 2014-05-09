@@ -17,7 +17,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include "signature.h"
-#include "poly1305aes/poly1305aes.h"
+#include <poly1305aes/poly1305aes.h>
 
 struct leela_signature_t
 {

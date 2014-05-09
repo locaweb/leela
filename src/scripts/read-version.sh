@@ -5,22 +5,23 @@ bin_sed=${bin_sed:-/bin/sed}
 
 curdir="$(cd $(dirname "$0") && pwd)"
 
-major=$1
-minor=$2
-build=$3
-
 read_version () {
-  if [ -z "$1" -a -z "$2" -a -z "$3" ]
+  f="CHANGELOG"
+  if [ -z "$major"  ]
   then
-    major=$(sed -r '/^v/ba; d; :a s/v([0-9]+)\.[0-9]+\.[0-9]+.*/\1/; q' "$curdir/../../CHANGELOG")
-    minor=$(sed -r '/^v/ba; d; :a s/v[0-9]+\.([0-9]+)\.[0-9]+.*/\1/; q' "$curdir/../../CHANGELOG")
-    build=$(sed -r '/^v/ba; d; :a s/v[0-9]+\.[0-9]+\.([0-9]+).*/\1/; q' "$curdir/../../CHANGELOG")
-  else
-    [ -z "$major" ] && read -p "major: " major
-    [ -z "$minor" ] && read -p "minor: " minor
-    [ -z "$build" ] && read -p "build: " build
+    major=$(sed -r '/^v/ba; d; :a s/v([0-9]+)\.[0-9]+\.[0-9]+.*/\1/; q' "$curdir/../../${f}")
   fi
-  version="$major.$minor.$build"
+  if [ -z "$minor" ]
+  then
+    minor=$(sed -r '/^v/ba; d; :a s/v[0-9]+\.([0-9]+)\.[0-9]+.*/\1/; q' "$curdir/../../${f}")
+  fi
+  if [ -z "$patch" ]
+  then
+    patch=$(sed -r '/^v/ba; d; :a s/v[0-9]+\.[0-9]+\.([0-9]+).*/\1/; q' "$curdir/../../${f}")
+    build=$patch
+  fi
+
+  version="$major.$minor.$patch"
 }
 
 check_environ () {
@@ -36,9 +37,9 @@ check_environ () {
     exit 1
   }
 
-  test -z "$build" && {
+  test -z "$patch" && {
     print_usage
-    echo "build can not be blank" >&2
+    echo "patch can not be blank" >&2
     exit 1
   }
 
