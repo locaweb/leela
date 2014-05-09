@@ -15,10 +15,10 @@
 -- limitations under the License.
 
 module Leela.Data.Signature
-       ( Nonce ()
+       ( MAC ()
+       , Nonce ()
        , Secret ()
        , Message
-       , Signature ()
        , sign
        , verify
        , genNonce
@@ -26,7 +26,7 @@ module Leela.Data.Signature
        , nextNonce
        , initNonce
        , initSecret
-       , initSignature
+       , initMAC
        ) where
 
 import           Data.Word
@@ -43,7 +43,7 @@ newtype Nonce  = Nonce B.ByteString
 
 newtype Secret = Secret B.ByteString
 
-newtype Signature = Signature B.ByteString
+newtype MAC = MAC B.ByteString
 
 type Message   = B.ByteString
 
@@ -56,19 +56,23 @@ sigSize = 16
 secretSize :: Int
 secretSize = 32
 
-initSecret :: B.ByteString -> Maybe Secret
-initSecret secret
-  | B.length secret /= secretSize = Nothing
-  | otherwise                     =
-      Just $ Secret $ unsafePerformIO $
-        B.useAsCString secret $ \secretPtr -> do
-          c_poly1305_clamp secretPtr
-          B.packCStringLen (secretPtr, secretSize)
+initSecret :: B.ByteString -> Secret
+initSecret secret =
+  Secret $ unsafePerformIO $
+    B.useAsCString sizedSecret $ \secretPtr -> do
+      c_poly1305_clamp secretPtr
+      B.packCStringLen (secretPtr, secretSize)
+    where
+      secretLen = B.length secret
 
-initSignature :: B.ByteString -> Maybe Signature
-initSignature sig
+      sizedSecret
+        | secretLen < secretSize = B.concat [secret, B.replicate (secretSize - secretLen) 0]
+        | otherwise              = secret
+
+initMAC :: B.ByteString -> Maybe MAC
+initMAC sig
   | B.length sig /= sigSize = Nothing
-  | otherwise               = Just $ Signature sig
+  | otherwise               = Just $ MAC sig
 
 initNonce :: B.ByteString -> Maybe Nonce
 initNonce nonce
@@ -98,8 +102,8 @@ nextNonce (Nonce nonce) = unsafePerformIO $
         pokeByteOff noncePtr (nonceSize `div` 2) nextNounce1
         unsafePackMallocCStringLen (castPtr noncePtr, nonceSize)
 
-verify :: Secret -> Nonce -> Message -> Signature -> Bool
-verify (Secret secret) (Nonce nonce) msg (Signature sig) = unsafePerformIO $
+verify :: Secret -> Nonce -> Message -> MAC -> Bool
+verify (Secret secret) (Nonce nonce) msg (MAC sig) = unsafePerformIO $
   B.useAsCString secret $ \secretPtr ->
     unsafeUseAsCString nonce $ \noncePtr ->
       unsafeUseAsCStringLen msg $ \(msgPtr, msgLen) ->
@@ -107,7 +111,7 @@ verify (Secret secret) (Nonce nonce) msg (Signature sig) = unsafePerformIO $
           c_poly1305_clamp secretPtr
           return (0 /= c_poly1305_verify sigPtr secretPtr noncePtr msgPtr (fromIntegral msgLen))
 
-sign :: Secret -> Nonce -> Message -> Signature
+sign :: Secret -> Nonce -> Message -> MAC
 sign (Secret secret) (Nonce nonce) msg = unsafePerformIO $
   B.useAsCString secret $ \secretPtr ->
     unsafeUseAsCString nonce $ \noncePtr ->
@@ -115,7 +119,7 @@ sign (Secret secret) (Nonce nonce) msg = unsafePerformIO $
         sigPtr <- mallocBytes nonceSize
         c_poly1305_clamp secretPtr
         c_poly1305_authenticate sigPtr secretPtr noncePtr msgPtr (fromIntegral msgLen)
-        fmap Signature $ unsafePackMallocCStringLen (sigPtr, sigSize)
+        fmap MAC $ unsafePackMallocCStringLen (sigPtr, sigSize)
 
 foreign import capi safe "poly1305aes/poly1305aes.h poly1305aes_verify"
   c_poly1305_verify :: CString -> CString -> CString -> CString -> CUInt -> CInt
