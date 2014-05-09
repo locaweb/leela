@@ -1,0 +1,3 @@
+#!/bin/sh
+
+make -C ../../lib/poly1305aes poly1305aes.build
