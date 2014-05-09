@@ -39,13 +39,16 @@ import           Foreign.Storable
 import           System.IO.Unsafe
 import           Data.ByteString.Unsafe
 
-newtype Nonce  = Nonce B.ByteString
+newtype Nonce = Nonce B.ByteString
+              deriving (Eq, Ord, Show)
 
 newtype Secret = Secret B.ByteString
+               deriving (Eq, Ord, Show)
 
 newtype MAC = MAC B.ByteString
+            deriving (Eq, Ord, Show)
 
-type Message   = B.ByteString
+type Message = B.ByteString
 
 nonceSize :: Int
 nonceSize = 16

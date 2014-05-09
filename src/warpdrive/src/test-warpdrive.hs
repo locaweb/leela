@@ -19,9 +19,11 @@ module Main where
 import Test.Tasty
 import Leela.Test.TestParser as TestParser
 import Leela.Test.TestEndpoint as TestEndpoint
+import Leela.Test.TestSignature as TestSignature
 
 main :: IO ()
 main = defaultMain $
   testGroup "Leela" [ TestParser.suite
                     , TestEndpoint.suite
+                    , TestSignature.suite
                     ]
