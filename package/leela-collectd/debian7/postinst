@@ -1,0 +1,6 @@
+#!/bin/sh
+
+[ -x /etc/init.d/collectd ] && /etc/init.d/collectd restart
+exit 0
+
+#DEBHELPER#

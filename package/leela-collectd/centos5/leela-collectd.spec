@@ -26,6 +26,9 @@ make -C src/collectd build
 mkdir -p $RPM_BUILD_ROOT/%{_libdir}/collectd
 cp -p src/collectd/write_leela.so* $RPM_BUILD_ROOT/%{_libdir}/collectd/write_leela.so
 
+%post
+[ -x /etc/init.d/collectd ] && /etc/init.d/collectd restart || exit 0
+
 %files
 %defattr(-,root,root)
 %{_libdir}/collectd/write_leela.so
