@@ -1,5 +1,8 @@
 --*-- mode: text; --*--
 
+v6.0.0 | 2014-05-09
+  * no longer using "nobody" user to discover the cluster
+
 v5.2.1 | 2014-05-09
   * bugfix: using incorrect size to compute secret
 
