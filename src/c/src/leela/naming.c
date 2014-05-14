@@ -72,10 +72,8 @@ void __naming_notify (leela_naming_t *naming)
 static
 leela_naming_cluster_t *__naming_discover2 (leela_naming_t *naming, const leela_endpoint_t *endpoint)
 {
-  const char *nobody             = (getenv("LEELA_NAMING_USER") != NULL) ? getenv("LEELA_NAMING_USER") : "nobody";
-  const char *secret             = (getenv("LEELA_NAMING_PASS") != NULL) ? getenv("LEELA_NAMING_PASS") : "";
   lql_fail_t *failmsg            = NULL;
-  lql_cursor_t *cursor           = leela_lql_cursor_init2(naming->context, endpoint, nobody, secret, 1000);
+  lql_cursor_t *cursor           = leela_lql_cursor_init2(naming->context, endpoint, NULL, NULL, 0);
   lql_stat_t *stat               = NULL;
   size_t count                   = 0;
   leela_naming_cluster_t *result = NULL;

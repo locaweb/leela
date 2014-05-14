@@ -28,21 +28,26 @@ module Metriks::Reporter
     def start
       agent    = [true, nil]
       agent[1] = Thread.new do
-        _, interval = sleep_r(0)
-        @debug.call "leela.start: %s" % [cluster.join(",")]
-        ::Leela::Connection.open(@cluster, :user => @user, :pass => @pass) do |ctx|
-          guid = resolv ctx
-          while agent[0] do
-            more, interval = sleep_r interval
-            next if more
-            begin
-              flush ctx, guid
-            rescue => e
-              @debug.call "leela.start[loop]: exception caught: %s" % e.to_s
-              @onerror.call e
+        begin
+          _, interval = sleep_r(0)
+          @debug.call "leela.start: %s" % [cluster.join(",")]
+          ::Leela::Connection.open(@cluster, :user => @user, :pass => @pass) do |ctx|
+            guid = resolv ctx
+            while agent[0] do
+              more, interval = sleep_r interval
+              next if more
+              begin
+                flush ctx, guid
+              rescue => e
+                @debug.call "leela.start[loop]: exception caught: %s" % e.to_s
+                @onerror.call e
+              end
             end
+            flush ctx, guid
           end
-          flush ctx, guid
+        rescue => e
+          @debug.call "leela.start[thread]: exception caught: %s" % e.to_s
+          @onerror.call e
         end
       end
       agent

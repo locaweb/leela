@@ -368,13 +368,16 @@ PyObject *pylql_context_init(PyTypeObject *type, PyObject *args, PyObject *kwarg
 {
   (void) kwargs;
   PyObject *pyendpoints;
+  int timeout                   = 0;
+  char *secret                  = NULL;
+  char *username                = NULL;
   leela_endpoint_t **cendpoints = NULL;
 
   pylql_context_t *self = (pylql_context_t *) type->tp_alloc(type, 0);
   if (self != NULL)
   {
     self->context = NULL;
-    if (! PyArg_ParseTuple(args, "O!", &PyList_Type, &pyendpoints))
+    if (! PyArg_ParseTuple(args, "O!ssi", &PyList_Type, &pyendpoints, &username, &secret, &timeout))
     { goto handle_error; }
 
     cendpoints = (leela_endpoint_t **) malloc((PyList_Size(pyendpoints) + 1) * sizeof(leela_endpoint_t *));
@@ -403,7 +406,7 @@ PyObject *pylql_context_init(PyTypeObject *type, PyObject *args, PyObject *kwarg
     cendpoints[PyList_Size(pyendpoints)] = NULL;
 
     Py_BEGIN_ALLOW_THREADS
-    self->context = leela_lql_context_init((const leela_endpoint_t * const *) cendpoints);
+    self->context = leela_lql_context_init((const leela_endpoint_t * const *) cendpoints, username, secret, timeout);
     Py_END_ALLOW_THREADS
     if (self->context == NULL)
     {
@@ -429,16 +432,16 @@ handle_error:
 PyObject *pylql_cursor_init(PyTypeObject *type, PyObject *args, PyObject *kwargs)
 {
   (void) kwargs;
-  int timeout;
-  const char *secret;
-  const char *username;
+  int timeout          = 0;
+  const char *secret   = NULL;
+  const char *username = NULL;
   pylql_context_t *context;
 
   pylql_cursor_t *self = (pylql_cursor_t *) type->tp_alloc(type, 0);
   if (self != NULL)
   {
     self->cursor = NULL;
-    if (! PyArg_ParseTuple(args, "O!ssi", &pylql_context_type, &context, &username, &secret, &timeout))
+    if (! PyArg_ParseTuple(args, "O!|ssi", &pylql_context_type, &context, &username, &secret, &timeout))
     {
       Py_DECREF(self);
       return(NULL);
@@ -485,14 +488,23 @@ void pylql_cursor_free(PyObject *self)
 
 PyObject *pylql_context_cursor(PyObject *self, PyObject *args)
 {
-  int timeout;
-  const char *secret;
-  const char *username;
+  int timeout          = 0;
+  const char *secret   = NULL;
+  const char *username = NULL;
+  PyObject *myargs;
 
-  if (!PyArg_ParseTuple(args, "ssi", &username, &secret, &timeout))
+  if (!PyArg_ParseTuple(args, "|ssi", &username, &secret, &timeout))
   { return(NULL); }
 
-  PyObject *myargs = Py_BuildValue("Ossi", self, username, secret, timeout);
+  if (timeout > 0)
+  { myargs = Py_BuildValue("Ossi", self, username, secret, timeout); }
+  else if (secret != NULL)
+  { myargs = Py_BuildValue("Oss", self, username, secret); }
+  else if (username != NULL)
+  { myargs = Py_BuildValue("Os", self, username); }
+  else
+  { myargs = Py_BuildValue("(O)", self); }
+
   if (myargs == NULL)
   { return(NULL); }
 

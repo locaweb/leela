@@ -122,7 +122,7 @@ int wl_send (wl_data_t *cfg)
   if (cfg->sndbufoff == 0)
   { return(0); }
 
-  cursor = leela_lql_cursor_init(cfg->ctx, cfg->user, cfg->pass, cfg->timeout);
+  cursor = leela_lql_cursor_init_default(cfg->ctx);
   if (cursor == NULL)
   {
     ERROR("write_leela plugin: error initializing cursor");
@@ -368,7 +368,7 @@ int wl_init ()
   if (wl_leela_cfg == NULL)
   { return(-1); }
 
-  wl_leela_cfg->ctx = leela_lql_context_init((const leela_endpoint_t * const *) wl_leela_cfg->cluster);
+  wl_leela_cfg->ctx = leela_lql_context_init((const leela_endpoint_t * const *) wl_leela_cfg->cluster, wl_leela_cfg->user, wl_leela_cfg->pass, wl_leela_cfg->timeout);
   if (wl_leela_cfg->ctx == NULL)
   {
     ERROR("write_leela plugin: error initializing leela context");

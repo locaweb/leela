@@ -32,7 +32,7 @@ module Leela
       :lql_double_type, 6
     ]
 
-    attach_function :leela_lql_context_init, [:pointer], :pointer
+    attach_function :leela_lql_context_init, [:pointer, :string, :string, :int], :pointer
     attach_function :leela_lql_context_close, [:pointer], :status
 
     attach_function :leela_lql_cursor_init, [:pointer, :string, :string, :int], :pointer,  :blocking => true

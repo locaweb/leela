@@ -23,7 +23,7 @@ module Leela
     end
 
     def execute(query, options={}, &block)
-      cursor = Leela::Cursor.new(self, options[:user] || @user, options[:pass] || @pass, options[:timeout] || DEFAULT_TIMEOUT)
+      cursor = Leela::Cursor.new(self, options[:user], options[:pass], options[:timeout] || 0)
       if block_given?
         cursor.execute(query, &block)
       else
@@ -38,9 +38,6 @@ module Leela
     private
 
     def init_context(endpoints, user, pass, &block)
-      @user     = user
-      @pass     = pass
-
       ends      = [endpoints].flatten
       null      = false
       mendpoint = FFI::MemoryPointer.new(:pointer, endpoints.size+1)
@@ -54,7 +51,7 @@ module Leela
       mendpoint[endpoints.size].put_pointer(0, nil)
       raise Leela::LeelaError.new("error parsing endpoint") if null
 
-      @context = Leela::Raw.leela_lql_context_init(mendpoint)
+      @context = Leela::Raw.leela_lql_context_init(mendpoint, user, pass, 30000)
       raise Leela::LeelaError.new("error connecting to leela cluster") if @context.null?
 
     ensure

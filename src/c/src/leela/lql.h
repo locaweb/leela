@@ -142,8 +142,15 @@ typedef struct
  *
  *  \return * NULL     : an error has ocurred;
  *          * otherwise: the context has been sucessfully initialized;
+ *
+ *  \param username, secret The credentials to authenticate (must not be NULL);
+ *
+ *  \param timeout_in_ms The maximum amount of time (in milliseconds)
+ *         to wait for an answer from the server. Use (-1) to wait
+ *         forever and (0) to use the default (implementation defined)
+ *         timeout;
  */
-lql_context_t *leela_lql_context_init (const leela_endpoint_t *const *warpdrive);
+lql_context_t *leela_lql_context_init (const leela_endpoint_t *const *warpdrive, const char *username, const char *secret, int timeout_in_ms);
 
 /*! Creates a new cursor.  This selects one available warpdrive
  *  instance to connect to. The actual load balancing algorithm is
@@ -154,7 +161,9 @@ lql_context_t *leela_lql_context_init (const leela_endpoint_t *const *warpdrive)
  *
  *  \param ctx The context to use;
  *
- *  \param username, secret The credentials to authenticate (must not be NULL);
+ *  \param username, secret The credentials to authenticate. These may
+ *         be NULL in which case the username/secret from the context
+ *         will be used;
  *
  *  \param timeout_in_ms The maximum amount of time (in milliseconds)
  *         to wait for an answer from the server. Use (-1) to wait
@@ -166,7 +175,18 @@ lql_context_t *leela_lql_context_init (const leela_endpoint_t *const *warpdrive)
  */
 lql_cursor_t *leela_lql_cursor_init (lql_context_t *ctx, const char *username, const char *secret, int timeout_in_ms);
 
-// TODO!
+/*! Same as leela_lql_cursor_init but uses the username, secret &
+ *  timeout provided when the context has been created.
+ *
+ *  Please refer to leela_lql_context_init.
+ */
+lql_cursor_t *leela_lql_cursor_init_default (lql_context_t *ctx);
+
+/*! Creater a new cursor for an specific backend. You should avoid
+ *  using this directly, and instead use leela_lql_context_init.
+ *
+ *  Please refer to leela_lql_context_init.
+ */
 lql_cursor_t *leela_lql_cursor_init2 (lql_context_t *ctx, const leela_endpoint_t *endpoint, const char *username, const char *secret, int timeout_in_ms);
 
 /*! Executes a query. To consume the results use leela_cursor_next
