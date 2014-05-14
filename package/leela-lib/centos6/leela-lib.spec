@@ -1,7 +1,7 @@
 Name:           leela-lib
 Group:          libs
 Version:        %(env component=.leela-lib ../src/scripts/read-version.sh)
-Release:        5%{?dist}
+Release:        1%{?dist}
 Summary:        Leela Library Package
 
 License:        ASL 2.0
