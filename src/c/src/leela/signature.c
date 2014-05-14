@@ -30,7 +30,7 @@ char __henc(unsigned char i)
 
 static inline
 unsigned char __hdec(unsigned char i)
-{ return(i > 55 ? (i - 55) : (i - 48)); }
+{ return(i >= 65 ? (i - 55) : (i - 48)); }
 
 void leela_signature_hexencode (char *dst, const unsigned char *src, size_t size)
 {
@@ -50,7 +50,7 @@ void leela_signature_hexdecode (unsigned char *dst, size_t size, const char *src
   { dst[i] = (__hdec(src[2 * i]) << 4) | __hdec(src[2 * i + 1]); }
 }
 
-leela_signature_t *leela_signature_init (unsigned char seed[LEELA_SIGNATURE_SEED_SIZE])
+leela_signature_t *leela_signature_init (const unsigned char seed[LEELA_SIGNATURE_SEED_SIZE])
 {
   leela_signature_t *sig = (leela_signature_t *) malloc(sizeof(leela_signature_t));
   if (sig != NULL)
@@ -74,11 +74,11 @@ void leela_signature_nonce_next (unsigned char dst[LEELA_SIGNATURE_NONCE_SIZE], 
 }
 
 void leela_signature_sign (leela_signature_t *sig, unsigned char mac[LEELA_SIGNATURE_SIZE], const unsigned char nonce[LEELA_SIGNATURE_SIZE], const void *msg, unsigned int msglen)
-{ poly1305aes_authenticate(mac, sig->seed, nonce, (unsigned char *) msg, msglen); }
+{ poly1305aes_authenticate(mac, sig->seed, nonce, (const unsigned char *) msg, msglen); }
 
-int leela_signature_check (leela_signature_t *s, const unsigned char sig[LEELA_SIGNATURE_SIZE], const unsigned char nonce[LEELA_SIGNATURE_SIZE], const unsigned char *msg, unsigned int msglen)
+int leela_signature_check (leela_signature_t *s, const unsigned char sig[LEELA_SIGNATURE_SIZE], const unsigned char nonce[LEELA_SIGNATURE_SIZE], const void *msg, unsigned int msglen)
 {
-  return(poly1305aes_verify(sig, s->seed, nonce, msg, msglen) != 0 ? 0 : -1);
+  return(poly1305aes_verify(sig, s->seed, nonce, (const unsigned char *) msg, msglen) != 0 ? 0 : -1);
 }
 
 void leela_signature_destroy (leela_signature_t *sig)

@@ -39,6 +39,7 @@ import           Leela.Data.Types
 import           Leela.Data.Excepts
 import           Data.ByteString.UTF8 (fromString)
 import           Leela.Data.Signature
+import qualified Data.ByteString.Base16 as B16
 import qualified Data.ByteString.Char8 as B8
 import           Data.Double.Conversion.ByteString
 
@@ -104,21 +105,21 @@ whenValidSignature secLookup u nonce sig msg =
       | otherwise                -> const $ Left $ Fail 403 $ Just "signature error"
 
 readNonce :: B.ByteString -> Either Reply Nonce
-readNonce = maybe (Left $ Fail 400 $ Just "signature error: invalid nonce") Right . initNonce
+readNonce = maybe (Left $ Fail 400 $ Just "signature error: invalid nonce") Right . initNonce . fst . B16.decode
 
 readMAC :: B.ByteString -> Either Reply MAC
-readMAC = maybe (Left $ Fail 400 (Just "signature error: invalid mac")) Right . initMAC
+readMAC = maybe (Left $ Fail 400 (Just "signature error: invalid mac")) Right . initMAC . fst . B16.decode
 
 readSignature :: (User -> Maybe Secret) -> B.ByteString -> [B.ByteString] -> Either Reply Signature
 readSignature users sig msg =
   let (base, mac) = B.break (== 0x20) sig
   in case (B.splitWith (== 0x3a) base) of
-       [user, nonce, timestr] -> do
+       [user, timestr, nonce] -> do
          let u = User user
          t <- readTime timestr
          n <- readNonce nonce
          s <- readMAC $ B.drop 1 mac
-         whenValidSignature users u n s (B.intercalate (B.singleton 0x3a) (base : msg)) (Signature u t n s)
+         whenValidSignature users u n s (B.concat (base : B.singleton 0x3a : msg)) (Signature u t n s)
        _                      ->
          Left $ Fail 400 (Just "syntax error: signature")
 

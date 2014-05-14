@@ -72,19 +72,26 @@ void __naming_notify (leela_naming_t *naming)
 static
 leela_naming_cluster_t *__naming_discover2 (leela_naming_t *naming, const leela_endpoint_t *endpoint)
 {
-  const char *nobody  = (getenv("LEELA_NAMING_USER") != NULL) ? getenv("LEELA_NAMING_USER") : "nobody";
-  const char *secret  = (getenv("LEELA_NAMING_PASS") != NULL) ? getenv("LEELA_NAMING_PASS") : "";
-  lql_cursor_t *cursor                                  = leela_lql_cursor_init2(naming->context, endpoint, nobody, secret, 1000);
-  lql_stat_t *stat                                      = NULL;
-  size_t count                                          = 0;
-  leela_naming_cluster_t *result                        = NULL;
+  const char *nobody             = (getenv("LEELA_NAMING_USER") != NULL) ? getenv("LEELA_NAMING_USER") : "nobody";
+  const char *secret             = (getenv("LEELA_NAMING_PASS") != NULL) ? getenv("LEELA_NAMING_PASS") : "";
+  lql_fail_t *failmsg            = NULL;
+  lql_cursor_t *cursor           = leela_lql_cursor_init2(naming->context, endpoint, nobody, secret, 1000);
+  lql_stat_t *stat               = NULL;
+  size_t count                   = 0;
+  leela_naming_cluster_t *result = NULL;
 
   if (cursor == NULL)
   { return(NULL); }
   if (leela_lql_cursor_execute(cursor, "using (system) stat;") != LEELA_OK)
   { goto handle_error; }
-  if (leela_lql_cursor_next(cursor) != LEELA_OK || leela_lql_fetch_type(cursor) != LQL_STAT_MSG)
+  if (leela_lql_cursor_next(cursor) != LEELA_OK)
   { goto handle_error; }
+  if (leela_lql_fetch_type(cursor) != LQL_STAT_MSG)
+  {
+    if (leela_lql_fetch_type(cursor) == LQL_FAIL_MSG)
+    { failmsg = leela_lql_fetch_fail(cursor); }
+    goto handle_error;
+  }
 
   stat = leela_lql_fetch_stat(cursor);
   if (stat == NULL || stat->size == 0)
@@ -122,6 +129,9 @@ leela_naming_cluster_t *__naming_discover2 (leela_naming_t *naming, const leela_
   return(result);
 
 handle_error:
+  if (failmsg != NULL)
+  { LEELA_DEBUG("leela_fail: [%d] %s", failmsg->code, failmsg->message); }
+  leela_lql_fail_free(failmsg);
   leela_naming_cluster_free(result);
   leela_lql_stat_free(stat);
   leela_lql_cursor_close(cursor);

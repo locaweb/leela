@@ -130,12 +130,16 @@ int __zmq_sendmsg_str (lql_cursor_t *cursor, const char *data, ...)
   va_start(args, data);
   while ((part = va_arg(args, const char *)) != NULL)
   { msglen += strlen(part); }
+  msglen += strlen(data);
   va_end(args);
 
   va_start(args, data);
   msg = (char *) malloc(msglen + 1);
   if (msg == NULL)
   { goto handle_error; }
+
+  offset += strlen(data);
+  strncpy(msg, data, msglen);
   while ((part = va_arg(args, const char *)) != NULL)
   {
     strncpy(msg + offset, part, msglen - offset);
@@ -470,13 +474,15 @@ lql_cursor_t *leela_lql_cursor_init2 (lql_context_t *ctx, const leela_endpoint_t
   char *zmqendpoint     = NULL;
   lql_cursor_t *cursor  = (lql_cursor_t *) malloc(sizeof(lql_cursor_t));
   unsigned char seed[LEELA_SIGNATURE_SEED_SIZE];
+
+  memset(seed, 0, LEELA_SIGNATURE_SEED_SIZE);
+  leela_signature_hexdecode(seed, LEELA_MIN(LEELA_SIGNATURE_SEED_SIZE, strlen(secret) / 2), secret);
+
   if (cursor == NULL || zmq_msg_init(&cursor->buffer) == -1)
   {
     free(cursor);
     return(NULL);
   }
-  memset(seed, 0, LEELA_SIGNATURE_SEED_SIZE);
-  leela_signature_hexdecode(seed, LEELA_MIN(LEELA_SIGNATURE_SEED_SIZE * 2, strlen(secret)), secret);
   cursor->ctx      = ctx;
   cursor->socket   = NULL;
   cursor->channel  = NULL;

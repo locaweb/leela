@@ -54,7 +54,7 @@ void leela_signature_hexdecode (unsigned char *dst, size_t size, const char *src
  *  \return NULL: something went wrong;
  *          _   : a valid pointer;
  */
-leela_signature_t *leela_signature_init (unsigned char seed[LEELA_SIGNATURE_SEED_SIZE]);
+leela_signature_t *leela_signature_init (const unsigned char seed[LEELA_SIGNATURE_SEED_SIZE]);
 
 /*! Generates a new nonce.
  */
@@ -91,7 +91,7 @@ void leela_signature_sign (leela_signature_t *sig, unsigned char mac[LEELA_SIGNA
  *  \return 0: Ok;
  *          x: An error has ocurred;
  */
-int leela_signature_check (leela_signature_t *s, const unsigned char sig[LEELA_SIGNATURE_SIZE], const unsigned char nonce[LEELA_SIGNATURE_NONCE_SIZE], const unsigned char *msg, unsigned int msglen);
+int leela_signature_check (leela_signature_t *s, const unsigned char sig[LEELA_SIGNATURE_SIZE], const unsigned char nonce[LEELA_SIGNATURE_NONCE_SIZE], const void *msg, unsigned int msglen);
 
 /*! Frees all memory.
  */
