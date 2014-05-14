@@ -26,15 +26,11 @@ struct leela_signature_t
 
 static inline
 char __henc(unsigned char i)
-{
-  return(i < 10 ? (i + 48) : (i+87));
-}
+{ return(i < 10 ? (i + 48) : (i+55)); }
 
 static inline
 unsigned char __hdec(unsigned char i)
-{
-  return(i > 87 ? (i - 87) : (i - 48));
-}
+{ return(i > 55 ? (i - 55) : (i - 48)); }
 
 void leela_signature_hexencode (char *dst, const unsigned char *src, size_t size)
 {

@@ -16,9 +16,7 @@
 
 module Leela.Network.Protocol
     ( FH
-    , MAC (..)
     , User (..)
-    , Nonce (..)
     , Query (..)
     , Reply (..)
     , RValue (..)
@@ -40,16 +38,13 @@ import           Control.Exception
 import           Leela.Data.Types
 import           Leela.Data.Excepts
 import           Data.ByteString.UTF8 (fromString)
+import           Leela.Data.Signature
 import qualified Data.ByteString.Char8 as B8
 import           Data.Double.Conversion.ByteString
 
 type FH = Word64
 
 type Writer a = a -> IO ()
-
-newtype MAC = MAC B.ByteString
-
-newtype Nonce = Nonce B.ByteString
 
 data Signature = Signature { sigUser  :: User
                            , sigTime  :: Time
@@ -100,25 +95,42 @@ readTime = fmap (fromSeconds . fromInt) . readDecimal
       fromInt :: Int -> Double
       fromInt = fromIntegral
 
-readSignature :: B.ByteString -> Either Reply Signature
-readSignature s =
-  let (base, mac) = B.break (== 0x20) s
+whenValidSignature :: (User -> Maybe Secret) -> User -> Nonce -> MAC -> B.ByteString -> a -> Either Reply a
+whenValidSignature secLookup u nonce sig msg =
+  case (secLookup u) of
+    Nothing                      -> const $ Left $ Fail 401 $ Just "signature error"
+    Just sec
+      | verify sec nonce msg sig -> Right
+      | otherwise                -> const $ Left $ Fail 403 $ Just "signature error"
+
+readNonce :: B.ByteString -> Either Reply Nonce
+readNonce = maybe (Left $ Fail 400 $ Just "signature error: invalid nonce") Right . initNonce
+
+readMAC :: B.ByteString -> Either Reply MAC
+readMAC = maybe (Left $ Fail 400 (Just "signature error: invalid mac")) Right . initMAC
+
+readSignature :: (User -> Maybe Secret) -> B.ByteString -> [B.ByteString] -> Either Reply Signature
+readSignature users sig msg =
+  let (base, mac) = B.break (== 0x20) sig
   in case (B.splitWith (== 0x3a) base) of
        [user, nonce, timestr] -> do
+         let u = User user
          t <- readTime timestr
-         Right $ Signature (User user) t (Nonce nonce) (MAC $ B.drop 1 mac)
+         n <- readNonce nonce
+         s <- readMAC $ B.drop 1 mac
+         whenValidSignature users u n s (B.intercalate (B.singleton 0x3a) (base : msg)) (Signature u t n s)
        _                      ->
          Left $ Fail 400 (Just "syntax error: signature")
 
 encodeShow :: (Show s) => s -> B.ByteString
 encodeShow = B8.pack . show
 
-decode :: [B.ByteString] -> Either Reply Query
-decode (sig:"begin":lql)         = fmap (flip Begin lql) (readSignature sig)
-decode [sig,"close",fh]          = liftM2 (Close False) (readSignature sig) (readDecimal fh)
-decode [sig,"close",fh,"nowait"] = liftM2 (Close True) (readSignature sig) (readDecimal fh)
-decode [sig,"fetch",fh]          = liftM2 Fetch (readSignature sig) (readDecimal fh)
-decode _                         = Left $ Fail 400 (Just "syntax error: bad frame")
+decode :: (User -> Maybe Secret) -> [B.ByteString] -> Either Reply Query
+decode users (sig:"begin":lql)         = fmap (flip Begin lql) (readSignature users sig ("begin" : lql))
+decode users [sig,"close",fh]          = liftM2 (Close False) (readSignature users sig ["close",fh]) (readDecimal fh)
+decode users [sig,"close",fh,"nowait"] = liftM2 (Close True) (readSignature users sig ["close",fh,"nowait"]) (readDecimal fh)
+decode users [sig,"fetch",fh]          = liftM2 Fetch (readSignature users sig ["fetch",fh]) (readDecimal fh)
+decode _ _                             = Left $ Fail 400 (Just "syntax error: bad frame")
 
 encodeValue :: Value -> [B.ByteString]
 encodeValue (Bool True)  = ["0", "true"]

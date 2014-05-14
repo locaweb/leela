@@ -24,15 +24,18 @@ import Leela.Network.Core
 import Leela.Data.QDevice
 import Leela.Data.Endpoint
 import Leela.Storage.Graph
+import Leela.Storage.Passwd
 import Leela.Storage.KeyValue
 import Leela.Network.Protocol
 
-worker :: (KeyValue cache, GraphBackend m, AttrBackend m) => cache -> m -> CoreServer -> Worker
-worker cache m srv = Worker f (return . encode . encodeE)
+worker :: (KeyValue cache, GraphBackend db, AttrBackend db) => cache -> db -> CoreServer -> Worker
+worker cache db core = Worker f (return . encode . encodeE)
   where
-    f msg = case (decode msg) of
+    f msg = do
+      secretdb <- readPasswd core
+      case (decode (readSecret secretdb) msg) of
               Left err -> return $ encode err
-              Right q  -> fmap encode (process cache m srv q)
+              Right q  -> fmap encode (process cache db core q)
 
 startServer :: (KeyValue cache, GraphBackend m, AttrBackend m) => CoreServer -> Endpoint -> Context -> Control -> cache -> m -> IO ()
 startServer core addr ctx ctrl cache storage = startRouter addr ctx ctrl (worker cache storage core)

@@ -23,4 +23,6 @@
 #define LEELA_CPLUSPLUS_CLOSE
 #endif
 
+#define LEELA_MIN(a, b) (a < b ? a : b)
+
 #endif

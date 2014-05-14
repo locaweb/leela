@@ -466,19 +466,17 @@ handle_error:
 
 lql_cursor_t *leela_lql_cursor_init2 (lql_context_t *ctx, const leela_endpoint_t *endpoint, const char *username, const char *secret, int timeout_in_ms)
 {
-  size_t k;
   int linger            = 0;
   char *zmqendpoint     = NULL;
-  unsigned char seed[LEELA_SIGNATURE_SEED_SIZE];
-  size_t slen           = strlen(secret);
   lql_cursor_t *cursor  = (lql_cursor_t *) malloc(sizeof(lql_cursor_t));
+  unsigned char seed[LEELA_SIGNATURE_SEED_SIZE];
   if (cursor == NULL || zmq_msg_init(&cursor->buffer) == -1)
   {
     free(cursor);
     return(NULL);
   }
-  for (k=0; k<LEELA_SIGNATURE_SEED_SIZE; k+=1)
-  { seed[k] = (k < slen ? secret[k] : '\0'); }
+  memset(seed, 0, LEELA_SIGNATURE_SEED_SIZE);
+  leela_signature_hexdecode(seed, LEELA_MIN(LEELA_SIGNATURE_SEED_SIZE * 2, strlen(secret)), secret);
   cursor->ctx      = ctx;
   cursor->socket   = NULL;
   cursor->channel  = NULL;

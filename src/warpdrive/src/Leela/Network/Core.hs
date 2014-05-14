@@ -21,6 +21,7 @@ module Leela.Network.Core
        ( CoreServer ()
        , newCore
        , process
+       , readPasswd
        ) where
 
 import qualified Data.Map as M
@@ -38,6 +39,7 @@ import           Leela.Data.QDevice
 import           Leela.Data.Endpoint
 import           Leela.Data.LQL.Comp
 import           Leela.Storage.Graph
+import qualified Leela.Storage.Passwd as P
 import           Data.ByteString.Lazy (toStrict)
 import           Data.ByteString.UTF8 (fromString)
 import           Control.Concurrent.STM
@@ -45,12 +47,16 @@ import           Leela.Network.Protocol
 import           Leela.Storage.KeyValue
 
 data CoreServer = CoreServer { stat   :: IORef [(String, [Endpoint])]
+                             , passwd :: IORef P.Passwd
                              , fdseq  :: TVar FH
                              , fdlist :: TVar (M.Map (B.ByteString, FH) (Int, Device Reply))
                              }
 
 ttl :: Int
 ttl = 300
+
+readPasswd :: CoreServer -> IO P.Passwd
+readPasswd = readIORef . passwd
 
 dumpStat :: CoreServer -> IO [(B.ByteString, B.ByteString)]
 dumpStat core = do
@@ -60,14 +66,14 @@ dumpStat core = do
       dumpEntry (k, [e])    = [(fromString $ "endpoint/" ++ k, toStrict $ dumpEndpoint e)]
       dumpEntry (k, (e:es)) = (fromString $ "endpoint/" ++ k, toStrict $ dumpEndpoint e) : dumpEntry (k, es)
 
-newCore :: IORef [(String, [Endpoint])] -> IO CoreServer
-newCore statdb = do
+newCore :: IORef [(String, [Endpoint])] -> IORef P.Passwd -> IO CoreServer
+newCore statdb secretdb = do
   state <- makeState
   _     <- forkIO (forever (sleep 1 >> rungc (fdlist state)))
   return state
     where
       makeState = atomically $
-        liftM2 (CoreServer statdb) (newTVar 0) (newTVar M.empty)
+        liftM2 (CoreServer statdb secretdb) (newTVar 0) (newTVar M.empty)
 
 rungc :: (Ord k, Show k) => TVar (M.Map k (Int, Device a)) -> IO ()
 rungc tvar = atomically kill >>= mapM_ burry
@@ -203,19 +209,11 @@ evalFinalizer chan dev (Right _)   = do
   closeIO dev
   linfo Network $ printf "[fd: %s] session terminated successfully" (show chan)
 
-checkSinature :: Signature -> [B.ByteString] -> IO Reply -> IO Reply
-checkSinature sig _ io =
-  let User user = sigUser sig
-      MAC mac   = sigMAC sig
-  in if (user == mac)
-      then io
-      else return $ Fail 403 (Just "forbidden")
-
 process :: (KeyValue cache, GraphBackend m, AttrBackend m) => cache -> m -> CoreServer -> Query -> IO Reply
 process cache storage srv (Begin sig msg) =
   case (chkloads (parseLQL $ sigUser sig) msg) of
     Left _      -> return $ Fail 400 (Just "syntax error")
-    Right stmts -> checkSinature sig msg $ do
+    Right stmts -> do
       (fh, dev) <- makeFD srv (sigUser sig)
       lnotice Network (printf "BEGIN %s... %d" (take 64 $ show msg) fh)
       _         <- forkFinally (evalLQL cache storage srv dev stmts) (evalFinalizer fh dev)

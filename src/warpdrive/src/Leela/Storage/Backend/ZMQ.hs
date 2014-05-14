@@ -21,7 +21,6 @@ module Leela.Storage.Backend.ZMQ
     ) where
 
 import Leela.Logger
-import Leela.Helpers
 import Data.ByteString (ByteString)
 import Leela.Data.Types
 import Control.Exception

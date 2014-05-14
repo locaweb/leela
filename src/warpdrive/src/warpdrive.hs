@@ -27,18 +27,20 @@ import Leela.Network.Core
 import System.Environment
 import Leela.Data.Endpoint
 import System.Posix.Signals
+import Leela.Storage.Passwd
 import System.Console.GetOpt
 import Leela.Network.ZMQServer
 import Leela.Storage.Backend.ZMQ
 import Leela.Storage.Backend.Redis
 
-data Options = Options { optEndpoint     :: Endpoint
-                       , optDebugLevel   :: Priority
-                       , optConsul       :: String
-                       , optRedisSecret  :: String
-                       , optBacklog      :: Int
-                       , optCapabilities :: Int
+data Options = Options { optConsul       :: String
+                       , optPasswd       :: String
                        , optTimeout      :: Int
+                       , optBacklog      :: Int
+                       , optEndpoint     :: Endpoint
+                       , optDebugLevel   :: Priority
+                       , optRedisSecret  :: String
+                       , optCapabilities :: Int
                        }
 
 defaultOptions :: Options
@@ -46,6 +48,7 @@ defaultOptions = Options { optEndpoint     = TCP "*" 4080 ""
                          , optDebugLevel   = NOTICE
                          , optConsul       = "http://127.0.0.1:8500"
                          , optRedisSecret  = ""
+                         , optPasswd       = "/etc/leela/passwd"
                          , optBacklog      = 64
                          , optCapabilities = 8
                          , optTimeout      = 60 * 1000
@@ -79,6 +82,9 @@ options =
   , Option [] ["timeout-in-ms"]
            (ReqArg (setReadOpt (\v opts -> opts { optTimeout = v})) "TIMEOUT-IN-MS")
            "timeout in milliseconds"
+  , Option [] ["passwd"]
+           (ReqArg (\v opts -> opts { optPasswd = v }) "PASSWD")
+           "passwd file path"
   ]
 
 readOpts :: [String] -> IO Options
@@ -90,12 +96,25 @@ readOpts argv =
 signal :: MVar () -> IO ()
 signal x = tryPutMVar x () >> return ()
 
+passwdWatcher :: FilePath -> IO (IORef Passwd)
+passwdWatcher file = do
+  shmem <- newIORef zero
+  forkSupervised_ "passwd watcher" (do
+    current <- readIORef shmem
+    passwd  <- fmap (maybe current id) (parseFile file)
+    when (passwd /= current) $ (do
+      lwarn Global "loading new passwd file"
+      writeIORef shmem passwd)
+    threadDelay $ 5 * 1000 * 1000)
+  return shmem
+
 main :: IO ()
 main = do
   opts   <- getArgs >>= readOpts
   alive  <- newEmptyMVar
   naming <- newIORef []
-  core   <- newCore naming
+  passwd <- passwdWatcher (optPasswd opts)
+  core   <- newCore naming passwd
   logsetup (optDebugLevel opts)
   void $ installHandler sigTERM (Catch $ signal alive) Nothing
   void $ installHandler sigINT (Catch $ signal alive) Nothing

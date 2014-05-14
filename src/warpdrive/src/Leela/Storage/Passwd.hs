@@ -19,6 +19,7 @@ module Leela.Storage.Passwd
     ( Passwd ()
     , can_
     , can
+    , zero
     , parse
     , parseFile
     , readSecret
@@ -36,7 +37,9 @@ import           Leela.Data.Types
 import           Control.Exception
 import           Data.Text.Encoding
 import qualified Data.HashMap.Strict as H
+import qualified Data.ByteString.Base16 as B16
 import           Control.Applicative
+import           Leela.Data.Signature
 
 data Acl = RGraph
          | WGraph
@@ -44,13 +47,16 @@ data Acl = RGraph
          | WAttrs
          deriving (Ord, Eq, Show)
 
-data UserInfo = UserInfo { secret :: B.ByteString
+data UserInfo = UserInfo { secret :: Secret
                          , acl    :: M.Map B.ByteString (S.Set Acl)
                          }
               deriving (Eq, Show)
 
 data Passwd = Passwd (M.Map User UserInfo)
             deriving (Eq, Show)
+
+zero :: Passwd
+zero = Passwd M.empty
 
 can_ :: User -> Tree -> Acl -> UserInfo -> Bool
 can_ (User u) (Tree t) perm info = let userOnly = (S.member perm) <$> (M.lookup u $ acl info)
@@ -60,7 +66,7 @@ can_ (User u) (Tree t) perm info = let userOnly = (S.member perm) <$> (M.lookup 
 can :: Passwd -> User -> User -> Tree -> Acl -> Bool
 can (Passwd db) caller user tree perm = maybe False id (can_ user tree perm <$> (M.lookup caller db))
 
-readSecret :: Passwd -> User -> Maybe B.ByteString
+readSecret :: Passwd -> User -> Maybe Secret
 readSecret (Passwd db) user = secret <$> M.lookup user db
 
 parse :: B.ByteString -> Maybe Passwd
@@ -83,9 +89,12 @@ parsePerms = go [('r', RGraph), ('w', WGraph), ('r', RAttrs), ('w', WAttrs)]
 parseAcl :: (T.Text, T.Text) -> (B.ByteString, S.Set Acl)
 parseAcl (what, perms) = (encodeUtf8 what, S.fromList $ parsePerms $ T.unpack perms)
 
+parseSecret :: B.ByteString -> Secret
+parseSecret = initSecret . fst . B16.decode
+
 instance FromJSON UserInfo where
 
-  parseJSON (Array v) = UserInfo <$> (encodeUtf8 <$> jsonSecret) <*> ((M.fromList . map parseAcl) <$> jsonAcls)
+  parseJSON (Array v) = UserInfo <$> ((parseSecret . encodeUtf8) <$> jsonSecret) <*> ((M.fromList . map parseAcl) <$> jsonAcls)
       where
         jsonSecret
           | V.length v == 2 = parseJSON $ v V.! 0

@@ -35,6 +35,14 @@ typedef struct leela_naming_cluster_t
  * warpdrive node that will be used to discover information about the
  * cluster.
  *
+ * When this module connects to leela, it uses a default username &
+ * secret. These are "nobody" and "".
+ *
+ * If you want to override this, define two environment variables:
+ *
+ *    + LEELA_NAMING_USER="username"
+ *    + LEELA_NAMING_PASS="hex-encoded-secret"
+ *
  *  \param warpdrive The endpoint to discover information about the
  *  cluster. This last element of this list must be NULL;
  *  
