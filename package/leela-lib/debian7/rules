@@ -29,8 +29,8 @@ cleela-clean:
 cleela-install:
 	mkdir -p debian/leela-c/usr/include/leela
 	mkdir -p debian/leela-c/usr/lib/$(DEB_HOST_MULTIARCH)
-	cp -p ../../src/c/src/leela/*.h debian/leela-c/usr/include/leela/
-	cp -p ../../src/c/libleela.so* debian/leela-c/usr/lib/$(DEB_HOST_MULTIARCH)/
+	cp -a ../../src/c/src/leela/*.h debian/leela-c/usr/include/leela/
+	cp -a ../../src/c/libleela.so* debian/leela-c/usr/lib/$(DEB_HOST_MULTIARCH)/
 
 override_dh_auto_clean: cleela-clean pyleela-clean
 	rm -f debian/*substvars

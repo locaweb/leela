@@ -58,10 +58,10 @@ make -C src/c build
 
 %install
 mkdir -p $RPM_BUILD_ROOT/%{_libdir}
-cp -p src/c/libleela.so* $RPM_BUILD_ROOT/%{_libdir}
+cp -a src/c/libleela.so* $RPM_BUILD_ROOT/%{_libdir}
 chmod 755 $RPM_BUILD_ROOT/%{_libdir}/libleela.so*
 mkdir -p $RPM_BUILD_ROOT/%{_includedir}/leela
-cp -p src/c/src/leela/*.h $RPM_BUILD_ROOT/%{_includedir}/leela
+cp -a src/c/src/leela/*.h $RPM_BUILD_ROOT/%{_includedir}/leela
 chmod 644 $RPM_BUILD_ROOT/%{_includedir}/leela/*.h
 pushd src/python && {
   for pyver in python2.7 python2.6

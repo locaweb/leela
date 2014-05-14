@@ -28,8 +28,8 @@ cleela_clean:
 cleela_install:
 	mkdir -p debian/leela-c/usr/include/leela
 	mkdir -p debian/leela-c/usr/lib/
-	cp -p ../../src/c/src/leela/*.h debian/leela-c/usr/include/leela/
-	cp -p ../../src/c/libleela.so* debian/leela-c/usr/lib/
+	cp -a ../../src/c/src/leela/*.h debian/leela-c/usr/include/leela/
+	cp -a ../../src/c/libleela.so* debian/leela-c/usr/lib/
 
 cleela_build:
 	$(MAKE) -C ../../src/c build
