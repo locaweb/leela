@@ -1,5 +1,9 @@
 --*-- mode: text; --*--
 
+v5.2.1 | 2014-05-14
+  * bugfix: nonce and timestamp position
+  * bugfix: nonce and mac and base16 encoded
+
 v5.2.0 | 2014-05-14
   * MAC-based signatures
 
