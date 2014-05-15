@@ -3,8 +3,6 @@ module Leela
 
     def initialize(conn, user, pass, timeout)
       raise Leela::LeelaError.new("no context") unless conn.context
-      raise Leela::LeelaError.new("no username given") unless user
-      raise Leela::LeelaError.new("no secret given") unless pass
       @conn    = conn
       @user    = user
       @pass    = pass
@@ -12,7 +10,7 @@ module Leela
     end
 
     def execute(query)
-      Leela::Raw.with_cursor(@conn.context, @user, @pass, @timeout) do |cursor|
+      Leela::Raw.with_cursor(@conn.context, @user, @pass, @timeout || 0) do |cursor|
         rc     = Leela::Raw.leela_lql_cursor_execute(cursor, query)
         ctrl   = nil
         answer = []
