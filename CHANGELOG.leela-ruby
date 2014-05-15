@@ -1,5 +1,9 @@
 --*-- mode: text; --*--
 
+v5.2.1 | 2014-05-15
+  * cursor.rb: no need to validate user & pass, as the leela-c now
+    supports NULL values
+
 v5.2.0 | 2014-05-15
   * using new leela-lib (v6.0.0)
 
