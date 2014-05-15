@@ -24,7 +24,7 @@ $(OBJ_FILES): override CFLAGS += -Isrc -std=c99 -pedantic -fPIC -pthread -I$(pol
 
 libleela.so.$(LEELA_LIB_VERSION): $(OBJ_FILES)
 	$(CC) $(LDFLAGS) -pthread -shared -Wl,-soname,$(@) -o$(@) $(OBJ_FILES) $(LDLIBS) $(poly1305aes.a) -lzmq
-	ln -s -f $(@) libleela.so.$(LEELA_VERSION)
+	[ "$(LEELA_LIB_VERSION)" = "$(LEELA_VERSION)" ] || ln -s -f $(@) libleela.so.$(LEELA_VERSION)
 	ln -s -f libleela.so.$(LEELA_VERSION) libleela.so
 
 src/driver: $(OBJ_FILES)
