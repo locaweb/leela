@@ -256,6 +256,7 @@ end
 EOF
 }
 
+unset major minor patch
 component=.leela-lib
 read_version
 check_environ
@@ -263,23 +264,27 @@ write_c_hversion $leela_root/src/c/src/leela/version.h
 write_c_cversion $leela_root/src/c/src/leela/version.c
 update_version $leela_root/src/python/setup.py
 
+unset major minor patch
 component=.leela-warpdrive
 read_version
 check_environ
 write_hsversion $leela_root/src/warpdrive/src/Leela/Version.hs
 update_version $leela_root/src/warpdrive/warpdrive.cabal
 
+unset major minor patch
 component=.leela-blackbox
 read_version
 check_environ
 write_clversion $leela_root/src/blackbox/src/leela/version.clj
 update_version $leela_root/src/blackbox/project.clj
 
+unset major minor patch
 component=.leela-ruby
 read_version
 check_environ
 write_rbversion $leela_root/src/ruby/leela_ruby/lib/leela_ruby/version.rb
 
+unset major minor patch
 component=.leela-metriks
 read_version
 check_environ
