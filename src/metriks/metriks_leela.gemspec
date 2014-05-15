@@ -6,7 +6,7 @@ require "metriks/reporter/leela/version.rb"
 
 Gem::Specification.new do |spec|
   spec.name          = "metriks_leela"
-  spec.version       = Metriks::Reporter::Leela::VERSION
+  spec.version       = Metriks::Reporter::Leela::Version::VERSION
   spec.authors       = ["Diego Souza"]
   spec.email         = ["dgvncsz0f@gmail.com"]
   spec.description   = "Metriks Reporter - Leela"
