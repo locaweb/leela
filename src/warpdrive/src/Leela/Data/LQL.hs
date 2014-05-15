@@ -15,12 +15,17 @@
 module Leela.Data.LQL
     ( Using (..)
     , LQL (..)
+    , targetUser
     ) where
 
 import Leela.Data.Types
 
-data Using = Using { uUser :: User
-                   , uTree :: Tree
+targetUser :: Using -> User
+targetUser u = maybe (uUser u) id (uAsUser u)
+
+data Using = Using { uUser   :: User
+                   , uTree   :: Tree
+                   , uAsUser :: Maybe User
                    }
            deriving (Eq)
 

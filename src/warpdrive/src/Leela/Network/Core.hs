@@ -195,7 +195,7 @@ evalLQL cache db core queue (x:xs) = do
       forM_ names (\(u, t, k, n, g) ->
         devwriteIO queue (Item $ Name u t k n g))
     GUIDStmt user names  -> do
-      guids <- getGUID db [(uUser user, uTree user, k, n) | (k, n) <- names]
+      guids <- getGUID db [(targetUser user, uTree user, k, n) | (k, n) <- names]
       forM_ guids (\(u, t, k, n, g) ->
         devwriteIO queue (Item $ Name u t k n g))
   evalLQL cache db core queue xs

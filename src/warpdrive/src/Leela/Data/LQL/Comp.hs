@@ -59,8 +59,16 @@ parseNode = do
   when (B.null name) (fail "name must not be null")
   return (Kind kind, Node name)
 
-parseTree :: Parser Tree
-parseTree = liftM Tree (qstring 512 0x28 0x29)
+parseTree :: Parser (Maybe User, Tree)
+parseTree = do
+  name <- qstring 512 0x28 0x29
+  buildResult (fmap (B.drop 2) (B.breakSubstring "::" name))
+    where
+      buildResult (left, right)
+        | 0x3a `B.elem` left  = fail "invalid character on tree"
+        | 0x3a `B.elem` right = fail "invalid character on tree"
+        | B.null right        = return (Nothing, Tree left)
+        | otherwise           = return (Just $ User left, Tree right)
 
 parseLabel :: Parser Label
 parseLabel = liftM Label (qstring 512 0x5b 0x5d)
@@ -209,7 +217,7 @@ parseStmtMake u = do
   _  <- string "make "
   at <- peekWord8
   case at of
-    Just 0x28 -> liftM (AlterStmt . return . uncurry (PutNode (uUser u) (uTree u))) parseNode
+    Just 0x28 -> liftM (AlterStmt . return . uncurry (PutNode (targetUser u) (uTree u))) parseNode
     Just _    -> liftM AlterStmt parseMakeCreate
     _         -> fail "bad make statement"
 
@@ -320,8 +328,8 @@ parseStmts u = fmap (group [] [] []) $ parseStmt u `sepBy1` newline
 
 parseUsing :: User -> Parser Using
 parseUsing user = do
-  tree <- "using " .*> parseTree
-  return (Using user tree)
+  (asUser, tree) <- "using " .*> parseTree
+  return (Using user tree asUser)
 
 parseLQL :: User -> Parser [LQL]
 parseLQL u = parseUsing u `endBy` separator >>= parseLQL1
