@@ -460,8 +460,8 @@ lql_context_t *leela_lql_context_init (const leela_endpoint_t *const *warpdrive,
     }
     __init_random();
     ctx->zmqctx   = zmq_ctx_new();
-    ctx->timeout  = timeout_in_ms == 0 ? LQL_DEFAULT_TIMEOUT : timeout_in_ms;
-    ctx->naming   = leela_naming_init(warpdrive, ctx->timeout);
+    ctx->timeout  = timeout_in_ms <= 0 ? LQL_DEFAULT_TIMEOUT : timeout_in_ms;
+    ctx->naming   = leela_naming_init(warpdrive, ctx->timeout / 1000);
     ctx->username = leela_strdup(username);
     ctx->sig      = leela_signature_init(seed);
     leela_random_urandom(ctx->nonce, LEELA_SIGNATURE_NONCE_SIZE);
