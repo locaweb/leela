@@ -1,5 +1,8 @@
 --*-- mode: text; --*--
 
+v6.0.1 | 2014-05-10
+  * bugfix: context was using milliseconds to initialize the naming module
+
 v6.0.0 | 2014-05-09
   * no longer using "nobody" user to discover the cluster
 

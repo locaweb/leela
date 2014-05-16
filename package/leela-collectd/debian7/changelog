@@ -1,3 +1,9 @@
+leela-collectd (6.0.1-0) stable; urgency=low
+
+  * bugfix release
+
+ -- Diego Souza <dsouza@c0d3.xxx>  Fri, 16 May 2014 18:00:16 -0300
+
 leela-collectd (6.0.0-1) stable; urgency=low
 
   * new feature release
