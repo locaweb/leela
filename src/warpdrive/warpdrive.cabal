@@ -19,7 +19,7 @@ source-repository head
 
 executable warpdrive
   main-is:         warpdrive.hs
-  ghc-options:     -threaded -rtsopts -W
+  ghc-options:     -threaded -rtsopts -W -fllvm
   include-dirs:    ../../lib/poly1305aes/dist
   extra-lib-dirs:  ../../lib/poly1305aes/poly1305aes-20050218
   extra-libraries: poly1305aes
