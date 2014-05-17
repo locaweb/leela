@@ -31,10 +31,12 @@ stage1_installpkg_squeeze () {
 stage1_installpkg_wheezy () {
   echo "deb http://cdn.debian.net/debian wheezy main non-free contrib" > /etc/apt/sources.list
   echo "deb http://cdn.debian.net/debian wheezy-backports main" > /etc/apt/sources.list.d/bpo.list
+  echo "deb http://llvm.org/apt/wheezy/ llvm-toolchain-wheezy main" > /etc/apt/sources.list.d/llvm.list
   apt-get update && apt-get install -q --yes --force-yes \
     libncursesw5-dev libffi-dev libzmq3-dev zlib1g-dev libzookeeper-mt-dev python2.7-dev python2.6-dev \
     wget ca-certificates debhelper devscripts coreutils collectd-dev \
-    build-essential g++ gcc autoconf automake libtool gettext
+    build-essential g++ gcc autoconf automake libtool gettext \
+    llvm clang
   adduser --system --home /home/leela --shell /bin/sh --uid 1000 leela
 }
 
