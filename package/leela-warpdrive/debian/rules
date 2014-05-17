@@ -2,7 +2,6 @@
 # -*- makefile -*-
 
 PATH        := $(PATH):/usr/local/bin
-version      = $(shell ../../src/scripts/read-version.sh)
 bin_cabal   ?= env PKG_CONFIG_PATH=/opt/zmq4/lib/pkgconfig cabal
 
 %:
