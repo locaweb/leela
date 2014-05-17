@@ -1,5 +1,8 @@
 --*-- mode: text; --*--
 
+v5.3.0 | 2014-05-17
+  * using llvm code generator
+
 v5.2.1 | 2014-05-14
   * bugfix: nonce and timestamp position
   * bugfix: nonce and mac and base16 encoded
