@@ -1,6 +1,9 @@
 --*-- mode: text; --*--
 
-v6.0.1 | 2014-05-10
+v6.1.0 | 2014-05-17
+  * reducing the startup time
+
+v6.0.1 | 2014-05-16
   * bugfix: context was using milliseconds to initialize the naming module
 
 v6.0.0 | 2014-05-09
