@@ -73,7 +73,7 @@ static
 leela_naming_cluster_t *__naming_discover2 (leela_naming_t *naming, const leela_endpoint_t *endpoint)
 {
   lql_fail_t *failmsg            = NULL;
-  lql_cursor_t *cursor           = leela_lql_cursor_init2(naming->context, endpoint, NULL, NULL, 0);
+  lql_cursor_t *cursor           = leela_lql_cursor_init2(naming->context, endpoint, NULL, NULL, 5000);
   lql_stat_t *stat               = NULL;
   size_t count                   = 0;
   leela_naming_cluster_t *result = NULL;
@@ -262,7 +262,7 @@ leela_naming_t *leela_naming_init (const leela_endpoint_t *const *warpdrive, int
   leela_naming_t *naming = (leela_naming_t *) malloc(sizeof(leela_naming_t));
   if (naming == NULL)
   { return(NULL); }
-  naming->maxdelay = maxdelay > 5 && maxdelay <= 60 ? maxdelay : 30;
+  naming->maxdelay = maxdelay > 5 && maxdelay <= 60 ? maxdelay : 60;
   naming->cancel   = false;
   naming->cluster  = NULL;
   naming->cluster0 = NULL;
