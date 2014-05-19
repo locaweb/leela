@@ -295,7 +295,7 @@ int wl_write (const data_set_t *ds, const value_list_t *vl, user_data_t *data)
     return(-1);
   }
 
-  for (k=0; k<vl->values_len; k+=1)
+  for (k=0; k<ds->ds_num; k+=1)
   {
     state = cfg->sndbufoff;
     rc    = wl_print_metric(ds, vl, cfg, rates, k);
