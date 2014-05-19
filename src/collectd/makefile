@@ -4,7 +4,7 @@ CFLAGS               = -Wall
 
 build: poly1305aes.build compile
 
-compile: override CPPFLAGS += -D_POSIX_SOURCE=200112 -D__USE_XOPEN -D_XOPEN_SOURCE
+compile: override CPPFLAGS += -D_POSIX_C_SOURCE=200112 -D__USE_XOPEN -D_XOPEN_SOURCE
 compile: override CFLAGS += -Isrc -std=c99 -pedantic -fPIC -pthread -I$(poly1305aes.h)
 
 compile:
