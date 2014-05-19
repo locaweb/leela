@@ -29,6 +29,19 @@ leela_grantaccess () {
   chown $USER $RUNDIR
 }
 
+leela_wait4 () {
+  for _ in $(seq 0 10)
+  do
+    if pgrep -u $USER -x $1 >/dev/null
+    then
+      sleep 1
+    else
+      return 0
+    fi
+  done
+  return 1
+}
+
 leela_watchdog_start () {
   leela_grantaccess
   [ ! -r /etc/consul/conf.d/warpdrive.json ] && {
@@ -59,6 +72,7 @@ leela_daemon_start () {
 leela_daemon_stop () {
   leela_grantaccess
   daemon --stop -P $RUNDIR -n daemon
+  leela_wait4 warpdrive || pkill -u $USER -KILL warpdrive
 }
 
 case "$1" in
@@ -77,7 +91,6 @@ case "$1" in
     echo "waiting 120 seconds to allow clients to disconnect ..."; sleep 120
     leela_daemon_stop
     leela_watchdog_start
-    sleep 1
     leela_daemon_start
     ;;
 
