@@ -21,8 +21,8 @@ module Metriks
       module Version
         MAJOR   = 5
         MINOR   = 2
-        PATCH   = 0
-        VERSION = "5.2.0"
+        PATCH   = 1
+        VERSION = "5.2.1"
       end
      
     end
