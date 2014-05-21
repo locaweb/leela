@@ -41,6 +41,19 @@ stage1_installpkg_wheezy () {
 }
 
 stage1_installpkg_centos6 () {
+  cat <<EOF >/etc/yum.repos.d/Locaweb.repo
+[loca-core]
+name=Locaweb Core Packages
+baseurl=http://repo.linux.locaweb.com.br/el6/\$basearch
+enabled=1
+gpgcheck=0
+
+[loca-core-noarch]
+name=Locaweb Core Packages (noarch)
+baseurl=http://repo.linux.locaweb.com.br/el6/noarch
+enabled=1
+gpgcheck=0
+EOF
   yum install -y --nogpgcheck \
     ncurses-devel libffi-devel zlib-devel python-devel uuid-devel \
     wget ca-certificates rpmdevtools tar gcc gcc-c++ git make || true
