@@ -3,6 +3,7 @@
 v5.2.1 | 2014-05-21
 
   * bumping version of leela-ruby (v5.2.1)
+  * dealing with Thread.abort_on_exception=true
 
 v5.2.0 | 2014-05-15
 
