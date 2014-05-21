@@ -45,7 +45,7 @@ module Metriks::Reporter
             end
             flush ctx, guid
           end
-        rescue => e
+        rescue Exception => e
           @debug.call "leela.start[thread]: exception caught: %s" % e.to_s
           @onerror.call e
         end
