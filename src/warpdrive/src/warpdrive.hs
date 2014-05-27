@@ -126,6 +126,7 @@ main = do
             (show $ optEndpoint opts))
   forkSupervised_ "resolver" $ resolver (optEndpoint opts) naming (optConsul opts)
   withContext $ \ctx -> do
+    setMaxSockets 64000 ctx
     withControl $ \ctrl -> do
       let cfg = DealerConf (optTimeout opts)
                            (optBacklog opts)
