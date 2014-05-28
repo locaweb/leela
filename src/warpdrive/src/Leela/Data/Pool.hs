@@ -45,8 +45,8 @@ updatePool pool lcluster = do
     current <- fmap M.keysSet (readTVarIO (state pool))
     let cluster = S.fromList lcluster
     return (S.toList $ current `S.difference` cluster, S.toList $ cluster `S.difference` current)
-  mapM_ (kill pool) dead
   mapM_ (open pool) new
+  mapM_ (kill pool) dead
 
 deletePool :: Pool a b -> IO ()
 deletePool pool = do
