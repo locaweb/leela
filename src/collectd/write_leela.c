@@ -125,6 +125,7 @@ int wl_send (wl_data_t *cfg)
   cursor = leela_lql_cursor_init_default(cfg->ctx);
   if (cursor == NULL)
   {
+    wl_reset_buffer(cfg);
     ERROR("write_leela plugin: error initializing cursor");
     return(-1);
   }
@@ -134,12 +135,11 @@ int wl_send (wl_data_t *cfg)
   if (leela_lql_cursor_execute(cursor, cfg->sndbuf) == LEELA_OK
       && leela_lql_cursor_next(cursor) == LEELA_EOF)
   { rc = 0; }
+  wl_reset_buffer(cfg);
   leela_lql_cursor_close(cursor);
 
   if (rc != 0)
   { ERROR("write_leela plugin: error sending data to leela"); }
-  else
-  { wl_reset_buffer(cfg); }
   return(rc);
 }
 
@@ -151,7 +151,6 @@ void wl_data_free (void *ptr)
   {
     if (pthread_mutex_lock(&data->mutex) == 0)
     {
-      wl_send(data);
       wl_cluster_free(data->cluster);
       leela_lql_context_close(data->ctx);
       sfree(data->user);
@@ -310,6 +309,9 @@ int wl_write (const data_set_t *ds, const value_list_t *vl, user_data_t *data)
     { break; }
   }
 
+  if (rc == 0)
+  { rc = wl_send(cfg); }
+
   pthread_mutex_unlock(&cfg->mutex);
   sfree(rates);
   return(rc != 0 ? -1 : 0);
@@ -331,9 +333,9 @@ int wl_check_guid(wl_data_t *cfg)
     { rc = 0; }
   }
 
+  wl_reset_buffer(cfg);
   if (cursor != NULL)
   { leela_lql_cursor_close(cursor); }
-  wl_reset_buffer(cfg);
 
   return(rc);
 }
@@ -414,7 +416,7 @@ int wl_cfg (oconfig_item_t *cfg)
   leela_cfg->ctime      = cdtime();
   leela_cfg->sndbufoff  = 0;
   leela_cfg->cluster    = NULL;
-  leela_cfg->sndbuflen  = 32 * 1024;
+  leela_cfg->sndbuflen  = 8 * 1024;
   leela_cfg->sndbuf     = NULL;
   if (pthread_mutex_init(&leela_cfg->mutex, NULL) != 0)
   {
