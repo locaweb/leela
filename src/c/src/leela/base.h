@@ -24,5 +24,6 @@
 #endif
 
 #define LEELA_MIN(a, b) (a < b ? a : b)
+#define LEELA_MAX(a, b) (a < b ? b : a)
 
 #endif
