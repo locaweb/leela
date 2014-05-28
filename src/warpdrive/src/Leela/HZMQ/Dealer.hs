@@ -118,13 +118,13 @@ create cfg ctx ctrl = do
         liftM2 (&&) (isEmptyTMVar ctl) (notClosed ctrl)
 
       destroyWorker addr ctl = do
-        lnotice HZMQ $
+        lwarn HZMQ $
           printf "dropping zmq.dealer/worker: endpoint=%s" (show addr)
         void $ atomically $ tryPutTMVar ctl ()
 
       createWorker queue addr = do
         ctl <- newEmptyTMVarIO
-        lnotice HZMQ $
+        lwarn HZMQ $
           printf "creating zmq.dealer/worker: endpoint=%s, capabilities=%d, timeout=%d" (show addr) (capabilities cfg) (timeout cfg)
         replicateM_ (capabilities cfg) $
           forkSupervised
