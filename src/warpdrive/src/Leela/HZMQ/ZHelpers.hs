@@ -31,5 +31,9 @@ ms = (* 1000)
 configure :: Socket a -> IO ()
 configure fh = do
   setLinger (restrict (ms 0)) fh
-  setReconnectInterval (restrict (ms 1)) fh
-  setMaxMessageSize (restrict (1024*1024 :: Int)) fh
+  setReconnectInterval (restrict (ms 250)) fh
+  setTcpKeepAlive On fh
+  setTcpKeepAliveIdle (restrict (ms 60)) fh
+  setSendTimeout (restrict (ms 60)) fh
+  setReceiveTimeout (restrict (ms 60)) fh
+  setMaxMessageSize (restrict (1024 * 1024 :: Int)) fh
