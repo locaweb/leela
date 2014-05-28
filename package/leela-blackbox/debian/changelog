@@ -1,3 +1,9 @@
+leela-blackbox (4.1.0-2) stable; urgency=low
+
+  * fixing Multi-Arch header
+
+ -- Diego Souza <dsouza@c0d3.xxx>  Wed, 28 May 2014 20:41:23 -0300
+
 leela-blackbox (4.1.0-1) stable; urgency=low
 
   * new release

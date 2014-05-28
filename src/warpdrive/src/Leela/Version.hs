@@ -20,11 +20,11 @@ major :: Int
 major   = 5
 
 minor :: Int
-minor   = 3
+minor   = 4
 
 patch :: Int
 patch   = 0
 
 version :: String
-version = "5.3.0"
+version = "5.4.0"
 

@@ -1,5 +1,9 @@
 --*-- mode: text; --*--
 
+v6.2.0 | 2014-05-28
+  * bugfix: naming.c: SIGSEGV when there is no cluster
+  * naming.c: using exponential backoff for timeouts
+
 v6.1.0 | 2014-05-17
   * reducing the startup time
 

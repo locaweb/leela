@@ -1,5 +1,10 @@
 --*-- mode: text; --*--
 
+v5.4.0 | 2014-05-17
+  * using zmq RR when connecting to blackbox
+  * tuning tcp timeouts (snd & rcv)
+  * increasing zmq max sockets
+
 v5.3.0 | 2014-05-17
   * using llvm code generator
 
