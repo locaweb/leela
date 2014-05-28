@@ -30,6 +30,6 @@ libleela.so.$(LEELA_LIB_VERSION): $(OBJ_FILES)
 src/driver: $(OBJ_FILES)
 src/driver: override CPPFLAGS += -D_POSIX_SOURCE=200112 -D_XOPEN_SOURCE
 src/driver: override CFLAGS += -Wall -g -Isrc -std=c99 -pedantic -fPIC -pthread -I$(poly1305aes.h)
-src/driver: override LDLIBS += -lpthread -lzmq
+src/driver: override LDLIBS += -lpthread -lzmq -lm
 
 include $(poly1305aes.srcroot)/makefile

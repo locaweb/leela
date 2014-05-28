@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <math.h>
 #include <time.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -28,6 +29,7 @@
 struct leela_naming_t
 {
   int                     maxdelay;
+  int                     attempt;
   bool                    cancel;
   pthread_t               thread;
   pthread_cond_t         *notify;
@@ -73,7 +75,7 @@ static
 leela_naming_cluster_t *__naming_discover2 (leela_naming_t *naming, const leela_endpoint_t *endpoint)
 {
   lql_fail_t *failmsg            = NULL;
-  lql_cursor_t *cursor           = leela_lql_cursor_init2(naming->context, endpoint, NULL, NULL, 5000);
+  lql_cursor_t *cursor           = leela_lql_cursor_init2(naming->context, endpoint, NULL, NULL, 1000 * powl(2, naming->attempt));
   lql_stat_t *stat               = NULL;
   size_t count                   = 0;
   leela_naming_cluster_t *result = NULL;
@@ -122,11 +124,13 @@ leela_naming_cluster_t *__naming_discover2 (leela_naming_t *naming, const leela_
   if (count == 0)
   { goto handle_error; }
 
+  naming->attempt = LEELA_MAX(1, naming->attempt - 1);
   leela_lql_stat_free(stat);
   leela_lql_cursor_close(cursor);
   return(result);
 
 handle_error:
+  naming->attempt = LEELA_MIN(naming->attempt + 1, 8);
   if (failmsg != NULL)
   { LEELA_DEBUG("leela_fail: [%d] %s", failmsg->code, failmsg->message); }
   leela_lql_fail_free(failmsg);
@@ -184,7 +188,7 @@ void *__naming_loop (void *data)
     if (naming->context == NULL || naming->cluster == NULL)
     {
       w_sec  = 0;
-      w_usec = 250000;
+      w_usec = 100000;
     }
     else
     {
@@ -262,8 +266,9 @@ leela_naming_t *leela_naming_init (const leela_endpoint_t *const *warpdrive, int
   leela_naming_t *naming = (leela_naming_t *) malloc(sizeof(leela_naming_t));
   if (naming == NULL)
   { return(NULL); }
-  naming->maxdelay = maxdelay > 5 && maxdelay <= 60 ? maxdelay : 60;
+  naming->maxdelay = LEELA_MIN(60, LEELA_MAX(5, maxdelay));
   naming->cancel   = false;
+  naming->attempt  = 1;
   naming->cluster  = NULL;
   naming->cluster0 = NULL;
   naming->context  = NULL;
