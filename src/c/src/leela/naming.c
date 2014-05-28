@@ -251,7 +251,7 @@ leela_endpoint_t *leela_naming_select (leela_naming_t *naming)
   leela_endpoint_t *endpoint = NULL;
   if (pthread_mutex_lock(&naming->mutex) == 0)
   {
-    if (naming->cluster->size > 0)
+    if (naming->cluster != NULL && naming->cluster->size > 0)
     {
       unsigned int at = lrand48() % naming->cluster->size;
       endpoint        = leela_endpoint_dup(naming->cluster->endpoint[at]);
