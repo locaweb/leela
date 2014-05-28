@@ -20,6 +20,7 @@ module Leela.HZMQ.Dealer
        , destroy
        ) where
 
+import           Data.List (sort)
 import           Data.Maybe
 import           System.ZMQ4 hiding (Dealer, backlog)
 import           Leela.Logger
@@ -48,7 +49,7 @@ data DealerConf a = DealerConf { timeout      :: Int
                                , capabilities :: Int
                                }
 
-newtype Dealer = Dealer (Device Job, Pool Endpoint (TMVar ()))
+newtype Dealer = Dealer (Device Job, Pool [Endpoint] (TMVar ()))
 
 enqueue :: Device Job -> [B.ByteString] -> IO (TMVar (Maybe [B.ByteString]))
 enqueue queue a = do
@@ -72,9 +73,9 @@ logresult job me = do
       failOrSucc Nothing  = "DEALER.ok"
       failOrSucc (Just e) = printf "DEALER.fail[%s]" (show e)
 
-execWorker :: DealerConf a -> Context -> IO (Maybe Job) -> Endpoint -> IO ()
+execWorker :: DealerConf a -> Context -> IO (Maybe Job) -> [Endpoint] -> IO ()
 execWorker cfg ctx dequeue addr = withSocket ctx Req $ \fh -> do
-  connect fh (dumpEndpointStr addr)
+  mapM_ (connect fh . dumpEndpointStr) addr
   configure fh
   workLoop fh
     where
@@ -103,7 +104,7 @@ create cfg ctx ctrl = do
   pool  <- createPool (createWorker queue) destroyWorker
   _     <- forkSupervised (notClosedIO ctrl) "dealer/watcher" $ do
     let (db, readFunc) = endpoint cfg
-    updatePool pool =<< readFunc db
+    updatePool pool =<< fmap ((:[]) . sort) (readFunc db)
     threadDelay 1000000
   return (Dealer (queue, pool))
     where
@@ -134,3 +135,4 @@ create cfg ctx ctrl = do
 
 destroy :: Dealer -> IO ()
 destroy (Dealer (_, pool)) = deletePool pool
+
