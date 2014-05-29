@@ -23,8 +23,8 @@ minor :: Int
 minor   = 4
 
 patch :: Int
-patch   = 0
+patch   = 1
 
 version :: String
-version = "5.4.0"
+version = "5.4.1"
 
