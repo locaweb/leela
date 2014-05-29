@@ -66,22 +66,22 @@ setupLog :: Facility -> (Logger -> Logger) -> IO ()
 setupLog sys = updateGlobalLogger (facility sys)
 
 ldebug :: Facility -> String -> IO ()
-ldebug sys = debugM (facility sys)
+ldebug sys _ = return () -- debugM (facility sys)
 
 linfo :: Facility -> String -> IO ()
-linfo sys = infoM (facility sys)
+linfo sys _ = return () -- infoM (facility sys)
 
 lnotice :: Facility -> String -> IO ()
-lnotice sys = noticeM (facility sys)
+lnotice sys _ = return () -- noticeM (facility sys)
 
 lwarn :: Facility -> String -> IO ()
-lwarn sys = warningM (facility sys) . fmt
+lwarn sys _ = return () -- warningM (facility sys) . fmt
 
 lerror :: Facility -> String -> IO ()
-lerror sys = errorM (facility sys)
+lerror sys _ = return () -- errorM (facility sys)
 
 lcritical :: Facility -> String -> IO ()
-lcritical sys = criticalM (facility sys) . fmt
+lcritical sys _ = return () -- criticalM (facility sys) . fmt
 
 instance ToString ByteString where
 
