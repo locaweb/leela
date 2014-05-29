@@ -78,10 +78,10 @@ newCore statdb secretdb = do
 rungc :: (Ord k, Show k) => TVar (M.Map k (Int, Device a)) -> IO ()
 rungc tvar = atomically kill >>= mapM_ burry
     where
-      partition acc []       = acc
+      partition acc [] = acc
       partition (a, b) ((k, (tick, dev)):xs)
-        | tick == 0 = partition ((k, dev) : a, b) xs
-        | otherwise = partition (a, (k, (tick - 1, dev)) : b) xs
+        | tick == 0    = partition ((k, dev) : a, b) xs
+        | otherwise    = partition (a, (k, (tick - 1, dev)) : b) xs
 
       kill = do
         (dead, alive) <- fmap (partition ([], []) . M.toList) (readTVar tvar)

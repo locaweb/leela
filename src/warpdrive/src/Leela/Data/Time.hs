@@ -20,6 +20,7 @@ module Leela.Data.Time
        , add
        , now
        , diff
+       , elapsed
        , seconds
        , dateTime
        , dateToInt
@@ -29,6 +30,8 @@ module Leela.Data.Time
 
 import Data.Bits
 import Data.Time
+import Data.Word
+import System.Clock
 import Data.Time.Clock.POSIX
 
 newtype Time = Time { unTime :: UTCTime }
@@ -69,6 +72,13 @@ toDate day = let (year, month, dayOfMonth) = toGregorian day
 
 now :: IO Time
 now = fmap Time getCurrentTime
+
+elapsed :: IO a -> IO (a, Word64)
+elapsed io = do
+  t0 <- getTime Monotonic
+  a  <- t0 `seq` io
+  t1 <- getTime Monotonic
+  return $ t1 `seq` (a, (fromIntegral $ sec t1 - sec t0) * 10 ^ 9 + abs (fromIntegral $ nsec t1 - nsec t0))
 
 instance Enum Date where
 

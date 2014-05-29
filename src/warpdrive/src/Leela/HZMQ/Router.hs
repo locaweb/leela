@@ -108,6 +108,10 @@ startRouter endpoint ctx ctrl action = do
 
       routingLoop :: Socket Router -> Socket Pull -> IO ()
       routingLoop ifh ofh = do
-        [eifh, eofh] <- poll 1000 [Sock ifh [In] Nothing, Sock ofh [In] Nothing]
-        unless (null eifh) (procRequest ifh)
-        unless (null eofh) (fmap fromList (receiveMulti ofh) >>= sendMulti ifh)
+        [ev0, ev1, ev2] <- poll (-1) [ Sock ifh [In] Nothing
+                                     , Sock ifh [Out] Nothing
+                                     , Sock ofh [In] Nothing
+                                     ]
+        unless (null ev0) (procRequest ifh)
+        unless (null ev1 || null ev2) (fmap fromList (receiveMulti ofh) >>= sendMulti ifh)
+
