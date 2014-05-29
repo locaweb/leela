@@ -20,12 +20,15 @@ lib:
 	$(MAKE) leela-lib.debian dist=debian7
 	$(MAKE) leela-lib.debian dist=debian6
 	$(MAKE) leela-lib.centos dist=centos5
+	$(MAKE) leela-lib.centos dist=centos5 arch=i386
 	$(MAKE) leela-lib.centos dist=centos6
 
 collectd:
 	$(MAKE) leela-collectd.debian dist=debian7
 	$(MAKE) leela-collectd.debian dist=debian6
+	$(MAKE) leela-collectd.centos dist=centos6
 	$(MAKE) leela-collectd.centos dist=centos5
+	$(MAKE) leela-collectd.centos dist=centos5 arch=i386
 
 %.debian: dist=debian7
 %.debian: arch=amd64
