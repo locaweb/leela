@@ -29,7 +29,6 @@ module Leela.Network.Protocol
     , makeList
     ) where
 
-import           Data.Maybe
 import           Data.List (foldl')
 import           Data.Word
 import           Control.Monad

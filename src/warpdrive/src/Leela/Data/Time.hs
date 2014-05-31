@@ -29,8 +29,6 @@ module Leela.Data.Time
 
 import Data.Bits
 import Data.Time
-import Data.Word
-import System.Clock
 import Data.Time.Clock.POSIX
 
 newtype Time = Time { unTime :: UTCTime }
@@ -71,11 +69,6 @@ toDate day = let (year, month, dayOfMonth) = toGregorian day
 
 now :: IO Time
 now = fmap Time getCurrentTime
-
-diff2 :: (Num a) => TimeSpec -> TimeSpec -> a
-diff2 t1 t0
-  | t1 >= t0  = (fromIntegral $ sec t1 - sec t0) * 10 ^ 9 + abs (fromIntegral $ nsec t1 - nsec t0)
-  | otherwise = diff2 t0 t1
 
 instance Enum Date where
 
