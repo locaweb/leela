@@ -38,4 +38,4 @@ worker cache db core = Worker f (return . encode . encodeE)
               Right q  -> fmap encode (process cache db core q)
 
 startServer :: (KeyValue cache, GraphBackend m, AttrBackend m) => CoreServer -> Endpoint -> Context -> Control -> cache -> m -> IO ()
-startServer core addr ctx ctrl cache storage = startRouter addr ctx ctrl (worker cache storage core)
+startServer core addr ctx ctrl cache storage = startRouter (logger core) addr ctx ctrl (worker cache storage core)

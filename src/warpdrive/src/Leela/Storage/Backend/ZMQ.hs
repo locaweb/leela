@@ -20,7 +20,6 @@ module Leela.Storage.Backend.ZMQ
     , zmqbackend
     ) where
 
-import Leela.Logger
 import Data.ByteString (ByteString)
 import Leela.Data.Types
 import Control.Exception
@@ -45,7 +44,6 @@ notFoundError = do
 
 internalError :: IO a
 internalError = do
-  lerror Storage "error communicating with the storage backend"
   throwIO SystemExcept
 
 send :: Dealer -> Query -> IO Reply

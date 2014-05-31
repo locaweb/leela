@@ -13,79 +13,79 @@
 -- limitations under the License.
 
 module Leela.Logger
-       ( Facility (..)
+       ( Logger ()
        , Priority (..)
        , fmt
-       , linfo
-       , lwarn
-       , ldebug
-       , lerror
+       , info
+       , level
+       , debug
+       , fatal
        , printf
-       , lnotice
-       , logsetup
-       , setupLog
-       , lcritical
+       , notice
+       , warning
+       , newLogger
        ) where
 
-import System.IO
+import Data.Time
+import Data.Monoid
 import Text.Printf
+import System.Locale
 import Data.ByteString (ByteString)
-import System.Log.Logger
-import System.Log.Handler (setFormatter)
-import System.Log.Formatter
-import System.Log.Handler.Simple
+import System.Log.FastLogger
 import Data.ByteString.Lazy.UTF8 (toString)
 import Data.ByteString.Lazy.Builder
 
-data Facility = HZMQ
-              | Global
-              | Types
-              | Network
-              | Storage
+data Logger = Logger Priority LoggerSet
+
+data Priority = DEBUG
+              | INFO
+              | NOTICE
+              | WARNING
+              | FATAL
+              deriving (Eq, Ord, Show, Read)
 
 class ToString a where
     fmt :: a -> String
 
-myfmt :: LogFormatter a
-myfmt = simpleLogFormatter "[$utcTime] [$prio/$loggername.$pid] $msg"
+newLogger :: Priority -> IO Logger
+newLogger p = fmap (Logger p) (newStdoutLoggerSet defaultBufSize)
 
-logsetup :: Priority -> IO ()
-logsetup prio = do
-  h <- fmap (flip setFormatter myfmt) (streamHandler stderr prio)
-  updateGlobalLogger rootLoggerName (setHandlers [h])
-  mapM_ (flip setupLog (setLevel prio)) [HZMQ, Global, Types, Network, Storage]
+level :: Logger -> Priority
+level (Logger p _) = p
 
-facility :: Facility -> String
-facility HZMQ    = "leela.hzmq"
-facility Global  = "leela"
-facility Types  = "leela.naming"
-facility Network = "leela.network"
-facility Storage = "leela.storage"
+format :: Priority -> String -> IO LogStr
+format prio s = do
+  time <- fmap (formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S %Z") getCurrentTime
+  return (toLogStr time <> toLogStr " - " <> toLogStr (show prio) <> toLogStr " " <> toLogStr s <> toLogStr "\n")
 
-setupLog :: Facility -> (Logger -> Logger) -> IO ()
-setupLog sys = updateGlobalLogger (facility sys)
+debug :: Logger -> String -> IO ()
+debug (Logger p logger) s
+  | DEBUG >= p = pushLogStr logger =<< format DEBUG s
+  | otherwise  = return ()
 
-ldebug :: Facility -> String -> IO ()
-ldebug sys _ = return () -- debugM (facility sys)
+info :: Logger -> String -> IO ()
+info (Logger p logger) s
+  | INFO >= p = pushLogStr logger =<< format INFO s
+  | otherwise = return ()
 
-linfo :: Facility -> String -> IO ()
-linfo sys _ = return () -- infoM (facility sys)
+notice :: Logger -> String -> IO ()
+notice (Logger p logger) s
+  | NOTICE >= p = pushLogStr logger =<< format NOTICE s
+  | otherwise   = return ()
 
-lnotice :: Facility -> String -> IO ()
-lnotice sys _ = return () -- noticeM (facility sys)
+warning :: Logger -> String -> IO ()
+warning (Logger p logger) s
+  | WARNING >= p = pushLogStr logger =<< format WARNING s
+  | otherwise    = return ()
 
-lwarn :: Facility -> String -> IO ()
-lwarn sys _ = return () -- warningM (facility sys) . fmt
-
-lerror :: Facility -> String -> IO ()
-lerror sys _ = return () -- errorM (facility sys)
-
-lcritical :: Facility -> String -> IO ()
-lcritical sys _ = return () -- criticalM (facility sys) . fmt
+fatal :: Logger -> String -> IO ()
+fatal (Logger p logger) s
+  | FATAL >= p = pushLogStr logger =<< format FATAL s
+  | otherwise  = return ()
 
 instance ToString ByteString where
 
-  fmt = fmt . toString . toLazyByteString . byteString
+  fmt = toString . toLazyByteString . byteString
 
 instance ToString Double where
 
@@ -99,10 +99,6 @@ instance ToString Char where
 
   fmt '\n' = "[\\n]"
   fmt c    = [c]
-
-instance (ToString a) => ToString [a] where
-
-  fmt = foldr (\a acc -> fmt a ++ acc) ""
 
 instance (ToString a) => ToString (Maybe a) where
 

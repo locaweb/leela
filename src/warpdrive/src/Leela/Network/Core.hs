@@ -18,7 +18,7 @@
 -- limitations under the License.
 
 module Leela.Network.Core
-       ( CoreServer ()
+       ( CoreServer (logger)
        , newCore
        , process
        , readPasswd
@@ -46,7 +46,8 @@ import           Control.Concurrent.STM
 import           Leela.Network.Protocol
 import           Leela.Storage.KeyValue
 
-data CoreServer = CoreServer { stat   :: IORef [(String, [Endpoint])]
+data CoreServer = CoreServer { logger :: Logger
+                             , stat   :: IORef [(String, [Endpoint])]
                              , passwd :: IORef P.Passwd
                              , fdseq  :: TVar FH
                              , fdlist :: TVar (M.Map (B.ByteString, FH) (Int, Device Reply))
@@ -66,17 +67,17 @@ dumpStat core = do
       dumpEntry (k, [e])    = [(fromString $ "endpoint/" ++ k, toStrict $ dumpEndpoint e)]
       dumpEntry (k, (e:es)) = (fromString $ "endpoint/" ++ k, toStrict $ dumpEndpoint e) : dumpEntry (k, es)
 
-newCore :: IORef [(String, [Endpoint])] -> IORef P.Passwd -> IO CoreServer
-newCore statdb secretdb = do
+newCore :: Logger -> IORef [(String, [Endpoint])] -> IORef P.Passwd -> IO CoreServer
+newCore syslog statdb secretdb = do
   state <- makeState
-  _     <- forkIO (forever (sleep 1 >> rungc (fdlist state)))
+  _     <- forkIO (forever (sleep 1 >> rungc syslog (fdlist state)))
   return state
     where
       makeState = atomically $
-        liftM2 (CoreServer statdb secretdb) (newTVar 0) (newTVar M.empty)
+        liftM2 (CoreServer syslog statdb secretdb) (newTVar 0) (newTVar M.empty)
 
-rungc :: (Ord k, Show k) => TVar (M.Map k (Int, Device a)) -> IO ()
-rungc tvar = atomically kill >>= mapM_ burry
+rungc :: (Ord k, Show k) => Logger -> TVar (M.Map k (Int, Device a)) -> IO ()
+rungc syslog tvar = atomically kill >>= mapM_ burry
     where
       partition acc [] = acc
       partition (a, b) ((k, (tick, dev)):xs)
@@ -89,7 +90,7 @@ rungc tvar = atomically kill >>= mapM_ burry
         return dead
 
       burry (k, dev) = do
-        lwarn Network $ printf "closing/purging unused channel: %s" (show k)
+        warning syslog $ printf "closing/purging unused channel: %s" (show k)
         atomically $ close dev
 
 nextfd :: CoreServer -> STM FH
@@ -115,7 +116,7 @@ selectFD srv ((User u), fh) = atomically $ do
 
 closeFD :: CoreServer -> Bool -> (User, FH) -> IO ()
 closeFD srv nowait ((User u), fh) = do
-  ldebug Network (printf "closing fd %s" (show k))
+  debug (logger srv) (printf "closing fd %s" (show k))
   atomically $ do
     db   <- readTVar (fdlist srv)
     case (M.lookup k db) of
@@ -200,14 +201,14 @@ evalLQL cache db core queue (x:xs) = do
         devwriteIO queue (Item $ Name u t k n g))
   evalLQL cache db core queue xs
 
-evalFinalizer :: FH -> Device Reply -> Either SomeException () -> IO ()
-evalFinalizer chan dev (Left e)  = do
+evalFinalizer :: Logger -> FH -> Device Reply -> Either SomeException () -> IO ()
+evalFinalizer syslog chan dev (Left e)  = do
   devwriteIO dev (encodeE e) `catch` ignore
   closeIO dev
-  linfo Network $ printf "[fd: %s] session terminated with failure: %s" (show chan) (show e)
-evalFinalizer chan dev (Right _)   = do
+  notice syslog $ printf "[fd: %s] session terminated with failure: %s" (show chan) (show e)
+evalFinalizer syslog chan dev (Right _)   = do
   closeIO dev
-  linfo Network $ printf "[fd: %s] session terminated successfully" (show chan)
+  info syslog $ printf "[fd: %s] session terminated successfully" (show chan)
 
 process :: (KeyValue cache, GraphBackend m, AttrBackend m) => cache -> m -> CoreServer -> Query -> IO Reply
 process cache storage srv (Begin sig msg) =
@@ -215,12 +216,14 @@ process cache storage srv (Begin sig msg) =
     Left _      -> return $ Fail 400 (Just "syntax error")
     Right stmts -> do
       (fh, dev) <- makeFD srv (sigUser sig)
-      lnotice Network (printf "BEGIN %s... %d" (take 64 $ show msg) fh)
-      _         <- forkFinally (evalLQL cache storage srv dev stmts) (evalFinalizer fh dev)
+      if (level (logger srv) >= NOTICE)
+        then notice (logger srv) (printf "BEGIN ... %d" fh)
+        else info (logger srv) (printf "BEGIN %s %d" (show msg) fh)
+      _         <- forkFinally (evalLQL cache storage srv dev stmts) (evalFinalizer (logger srv) fh dev)
       return $ Done fh
 process _ _ srv (Fetch sig fh) = do
   let channel = (sigUser sig, fh)
-  ldebug Network (printf "FETCH %d" fh)
+  notice (logger srv) (printf "FETCH %d" fh)
   mdev <- selectFD srv channel
   case mdev of
     Nothing  -> return $ Fail 404 $ Just "no such channel"
@@ -230,6 +233,6 @@ process _ _ srv (Fetch sig fh) = do
         Nothing  -> closeIO dev >> return Last
         Just msg -> return msg
 process _ _ srv (Close nowait sig fh) = do
-  lnotice Network (printf "CLOSE %d" fh)
+  notice (logger srv) (printf "CLOSE %d" fh)
   closeFD srv nowait (sigUser sig, fh)
   return Last

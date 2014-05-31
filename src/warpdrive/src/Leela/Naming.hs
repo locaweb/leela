@@ -37,7 +37,7 @@ data Service = Service { address     :: String
                        , servicePort :: Word16
                        , status      :: [(String, String)]
                        }
-             deriving (Show)
+             deriving (Eq, Show)
 
 isPassing :: Service -> Bool
 isPassing = (== Just "passing") . lookup "leela" . status
@@ -60,14 +60,15 @@ fetchCatalog url key = do
   else
     throwIO SystemExcept
 
-resolver :: Endpoint -> IORef [(String, [Endpoint])] -> String -> IO ()
-resolver myself ioref url = do
-  linfo Global (printf "resolver: fetching from consul: %s" url)
-  services <- fmap (M.toList . parseServices) (fetchCatalog url "/v1/health/service/leela")
-  atomicWriteIORef ioref services
-  linfo Global (printf "resolver: %s" (show services))
+resolver :: Logger -> Endpoint -> IORef [(String, [Endpoint])] -> String -> IO ()
+resolver syslog myself ioref url = do
+  info syslog (printf "resolver: fetching from consul: %s" url)
+  oldServices <- readIORef ioref
+  newServices <- fmap (M.toList . parseServices) (fetchCatalog url "/v1/health/service/leela")
+  atomicWriteIORef ioref newServices
+  when (oldServices /= newServices) $ notice syslog (printf "resolver: %s" (show newServices))
   threadDelay $ 1 * 1000 * 1000
-  resolver myself ioref url
+  resolver syslog myself ioref url
 
 instance FromJSON Service where
    parseJSON (Object v) = Service <$>

@@ -48,10 +48,10 @@ readPeer (Request _ val _) = val
 reqTime :: Request -> Time
 reqTime (Request val _ _) = val
 
-logresult :: Request -> Maybe SomeException -> IO ()
-logresult job me = do
+logresult :: Logger -> Request -> Maybe SomeException -> IO ()
+logresult syslog job me = do
   elapsed <- fmap (`diff` (reqTime job)) now
-  linfo HZMQ $ printf "%s (%.4fms)" (failOrSucc me) (1000 * elapsed)
+  debug syslog $ printf "%s (%.4fms)" (failOrSucc me) (1000 * elapsed)
     where
       failOrSucc :: Maybe SomeException -> String
       failOrSucc Nothing  = "ROUTER.ok"
@@ -60,24 +60,24 @@ logresult job me = do
 reply :: Request -> Socket Push -> [B.ByteString] -> IO ()
 reply job fh msg = sendMulti fh (fromList $ readPeer job : "" : msg)
 
-worker :: Request -> Socket Push -> Worker -> IO ()
-worker job fh action = do
+worker :: Logger -> Request -> Socket Push -> Worker -> IO ()
+worker syslog job fh action = do
   mmsg <- try (onJob action (readMsg job))
   case mmsg of
     Left e    -> do
-      logresult job (Just e)
+      logresult syslog job (Just e)
       msg <- onErr action e
       reply job fh msg
     Right msg -> do
-      logresult job Nothing
+      logresult syslog job Nothing
       reply job fh msg
 
-forkWorker :: Context -> String -> Request -> Worker -> IO ()
-forkWorker ctx addr job action = void (forkIO $
+forkWorker :: Logger -> Context -> String -> Request -> Worker -> IO ()
+forkWorker syslog ctx addr job action = void (forkIO $
   withSocket ctx Push $ \fh -> do
     connect fh addr
     configure fh
-    void $ worker job fh action)
+    void $ worker syslog job fh action)
 
 recvRequest :: Receiver a => Socket a -> IO (Maybe Request)
 recvRequest fh = do
@@ -87,24 +87,22 @@ recvRequest fh = do
     (peer:"":msg) -> return $ Just (Request time peer msg)
     _             -> return Nothing
 
-startRouter :: Endpoint -> Context -> Control -> Worker -> IO ()
-startRouter endpoint ctx ctrl action = do
-  lnotice HZMQ $
-    printf "starting zmq.router: %s"
-           (dumpEndpointStr endpoint)
+startRouter :: Logger -> Endpoint -> Context -> Control -> Worker -> IO ()
+startRouter syslog endpoint ctx ctrl action = do
+  notice syslog (printf "starting zmq.router: %s" (dumpEndpointStr endpoint))
   withSocket ctx Router $ \ifh ->
     withSocket ctx Pull $ \ofh -> do
       bind ofh oaddr
       bind ifh (dumpEndpointStr endpoint)
       configure ifh
       configure ofh
-      superviseWith (notClosedIO ctrl) (show endpoint) (routingLoop ifh ofh)
+      superviseWith syslog (notClosedIO ctrl) ("hzqm.router:" ++ show endpoint) (routingLoop ifh ofh)
     where
       oaddr = printf "inproc://hzmq.router%s" (show endpoint)
 
       procRequest fh = do
         mreq <- recvRequest fh
-        when (isJust mreq) (forkWorker ctx oaddr (fromJust mreq) action)
+        when (isJust mreq) (forkWorker syslog ctx oaddr (fromJust mreq) action)
 
       routingLoop :: Socket Router -> Socket Pull -> IO ()
       routingLoop ifh ofh = do

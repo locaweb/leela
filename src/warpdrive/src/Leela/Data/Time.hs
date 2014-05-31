@@ -20,7 +20,6 @@ module Leela.Data.Time
        , add
        , now
        , diff
-       , elapsed
        , seconds
        , dateTime
        , dateToInt
@@ -73,12 +72,10 @@ toDate day = let (year, month, dayOfMonth) = toGregorian day
 now :: IO Time
 now = fmap Time getCurrentTime
 
-elapsed :: IO a -> IO (a, Word64)
-elapsed io = do
-  t0 <- getTime Monotonic
-  a  <- t0 `seq` io
-  t1 <- getTime Monotonic
-  return $ t1 `seq` (a, (fromIntegral $ sec t1 - sec t0) * 10 ^ 9 + abs (fromIntegral $ nsec t1 - nsec t0))
+diff2 :: (Num a) => TimeSpec -> TimeSpec -> a
+diff2 t1 t0
+  | t1 >= t0  = (fromIntegral $ sec t1 - sec t0) * 10 ^ 9 + abs (fromIntegral $ nsec t1 - nsec t0)
+  | otherwise = diff2 t0 t1
 
 instance Enum Date where
 

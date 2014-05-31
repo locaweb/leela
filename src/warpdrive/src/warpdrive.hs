@@ -14,6 +14,7 @@
 
 module Main (main) where
 
+import System.IO
 import Data.IORef
 import System.ZMQ4
 import Leela.Logger
@@ -96,35 +97,37 @@ readOpts argv =
 signal :: MVar () -> IO ()
 signal x = tryPutMVar x () >> return ()
 
-passwdWatcher :: FilePath -> IO (IORef Passwd)
-passwdWatcher file = do
+passwdWatcher :: Logger -> FilePath -> IO (IORef Passwd)
+passwdWatcher syslog file = do
   shmem <- newIORef zero
-  forkSupervised_ "passwd watcher" (do
+  forkSupervised_ syslog "passwd watcher" (do
     current <- readIORef shmem
     passwd  <- fmap (maybe current id) (parseFile file)
-    when (passwd /= current) $ (do
-      lwarn Global "loading new passwd file"
+    when (passwd /= current) (do
+      warning syslog "loading new passwd file"
       writeIORef shmem passwd)
     threadDelay $ 5 * 1000 * 1000)
   return shmem
 
 main :: IO ()
 main = do
+  hSetBuffering stdout NoBuffering
+  hSetBuffering stderr NoBuffering
   opts   <- getArgs >>= readOpts
   alive  <- newEmptyMVar
   naming <- newIORef []
-  passwd <- passwdWatcher (optPasswd opts)
-  core   <- newCore naming passwd
-  logsetup (optDebugLevel opts)
+  syslog <- newLogger (optDebugLevel opts)
+  passwd <- passwdWatcher syslog (optPasswd opts)
+  core   <- newCore syslog naming passwd
   void $ installHandler sigTERM (Catch $ signal alive) Nothing
   void $ installHandler sigINT (Catch $ signal alive) Nothing
-  lwarn Global
+  warning syslog
     (printf "warpdrive: starting; timeout=%d, backlog=%d caps=%d endpoint=%s"
             (optTimeout opts)
             (optBacklog opts)
             (optCapabilities opts)
             (show $ optEndpoint opts))
-  forkSupervised_ "resolver" $ resolver (optEndpoint opts) naming (optConsul opts)
+  forkSupervised_ syslog "resolver" $ resolver syslog (optEndpoint opts) naming (optConsul opts)
   withContext $ \ctx -> do
     setMaxSockets 64000 ctx
     withControl $ \ctrl -> do
@@ -132,10 +135,10 @@ main = do
                            (optBacklog opts)
                            (naming, fmap (maybe [] id . lookup "blackbox") . readIORef)
                            (optCapabilities opts)
-      cache   <- redisOpen (naming, fmap (maybe [] id . lookup "redis") . readIORef) (optRedisSecret opts)
-      storage <- fmap zmqbackend $ create cfg ctx ctrl
+      cache   <- redisOpen syslog (naming, fmap (maybe [] id . lookup "redis") . readIORef) (optRedisSecret opts)
+      storage <- fmap zmqbackend $ create syslog cfg ctx ctrl
       void $ forkFinally (startServer core (optEndpoint opts) ctx ctrl cache storage) $ \e -> do
-        lwarn Global (printf "warpdrive has died: %s" (show e))
+        warning syslog (printf "warpdrive has died: %s" (show e))
         signal alive
       takeMVar alive
-  lwarn Global "warpdrive: bye!"
+  warning syslog "warpdrive: bye!"

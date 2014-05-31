@@ -42,16 +42,16 @@ data Answer a = Value a
 
 newtype AnswerT m a = AnswerT { runAnswerT :: m (Answer a) }
 
-data RedisBackend = RedisBackend (MVar ()) (Pool Endpoint Connection)
+data RedisBackend = RedisBackend Logger (MVar ()) (Pool Endpoint Connection)
 
-redisOpen :: (a, a -> IO [Endpoint]) -> Password -> IO RedisBackend
-redisOpen (a, f) password = do
+redisOpen :: Logger -> (a, a -> IO [Endpoint]) -> Password -> IO RedisBackend
+redisOpen syslog (a, f) password = do
   ctrl <- newEmptyMVar
   pool <- createPool onBegin onClose
-  _    <- forkSupervised (isEmptyMVar ctrl) "redisCluster" (do
+  _    <- forkSupervised syslog (isEmptyMVar ctrl) "redisCluster" (do
             f a >>= updatePool pool
             threadDelay (5 * 1000 * 1000))
-  return $ RedisBackend ctrl pool
+  return $ RedisBackend syslog ctrl pool
     where
       onClose _ conn = void (runRedis conn quit)
 
@@ -66,15 +66,15 @@ redisOpen (a, f) password = do
       onBegin _                 = throwIO SystemExcept
 
 redisClose :: RedisBackend -> IO ()
-redisClose (RedisBackend ctrl pool) = do
+redisClose (RedisBackend _ ctrl pool) = do
   putMVar ctrl ()
   deletePool pool
 
 hashSelector :: B.ByteString -> [Endpoint] -> Endpoint
 hashSelector s e = e !! (hash s `mod` length e)
 
-runRedisIO :: AnswerT Redis a -> Connection -> IO a
-runRedisIO action conn = go (1 :: Int)
+runRedisIO :: Logger -> AnswerT Redis a -> Connection -> IO a
+runRedisIO syslog action conn = go (1 :: Int)
     where
       go n
         | n >= 5    = throwIO SystemExcept
@@ -84,7 +84,7 @@ runRedisIO action conn = go (1 :: Int)
             Value a -> return a
             Failure -> throwIO SystemExcept
             TxAbort -> do
-              lwarn Storage (printf "retrying redis transaction: %d/5" n)
+              warning syslog (printf "retrying redis transaction: %d/5" n)
               threadDelay (n * 10 * 1000)
               go (n + 1)
 
@@ -101,9 +101,9 @@ liftTxRedis m = AnswerT $ do
 
 instance KeyValue RedisBackend where
 
-  select (RedisBackend _ pool) k = use pool (hashSelector k) (runRedisIO $ liftRedis (get k))
+  select (RedisBackend syslog _ pool) k   = use pool (hashSelector k) (runRedisIO syslog $ liftRedis (get k))
 
-  update (RedisBackend _ pool) k f = use pool (hashSelector k) (runRedisIO transaction)
+  update (RedisBackend syslog _ pool) k f = use pool (hashSelector k) (runRedisIO syslog transaction)
       where
         transaction = do
           _  <- liftRedis $ watch [k]

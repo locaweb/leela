@@ -19,21 +19,21 @@ import Control.Monad
 import Control.Exception
 import Control.Concurrent
 
-forkSupervised :: IO Bool -> String -> IO () -> IO ()
-forkSupervised check name io =
-  void $ forkIO (superviseWith check name io)
+forkSupervised :: Logger -> IO Bool -> String -> IO () -> IO ()
+forkSupervised syslog check name io =
+  void $ forkIO (superviseWith syslog check name io)
 
-forkSupervised_ :: String -> IO () -> IO ()
-forkSupervised_ = forkSupervised (return True)
+forkSupervised_ :: Logger -> String -> IO () -> IO ()
+forkSupervised_ syslog = forkSupervised syslog (return True)
 
-superviseWith :: IO Bool -> String -> IO () -> IO ()
-superviseWith check name io =
+superviseWith :: Logger -> IO Bool -> String -> IO () -> IO ()
+superviseWith syslog check name io =
   (foreverWith check io) `catch` restart
     where
       restart (SomeException e)= do
         threadDelay 500000
-        linfo Global (printf "supervised thread [%s] has died: %s" name (show e))
-        superviseWith check name io
+        warning syslog (printf "supervised thread [%s] has died: %s" name (show e))
+        superviseWith syslog check name io
 
 ignore :: SomeException -> IO ()
 ignore _ = return ()
