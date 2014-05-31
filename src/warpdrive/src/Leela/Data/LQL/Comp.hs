@@ -313,18 +313,7 @@ parseStmt u = do
     _         -> fail "bad statement"
 
 parseStmts :: Using -> Parser [LQL]
-parseStmts u = fmap (group [] [] []) $ parseStmt u `sepBy1` newline
-    where
-      group acc gAcc nAcc []
-        | null gAcc && null nAcc = acc
-        | null gAcc              = NameStmt u nAcc : acc
-        | null nAcc              = GUIDStmt u gAcc : acc
-        | otherwise              = NameStmt u nAcc : GUIDStmt u gAcc : acc
-      group acc gAcc nAcc (x:xs) =
-        case x of
-          GUIDStmt _ [v] -> group acc (v : gAcc) nAcc xs
-          NameStmt _ [v] -> group acc gAcc (v : nAcc) xs
-          _              -> group (x : acc) gAcc nAcc xs
+parseStmts u = fmap groupLQL $ parseStmt u `sepBy1` newline
 
 parseUsing :: User -> Parser Using
 parseUsing user = do

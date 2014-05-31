@@ -134,12 +134,12 @@ loadTAttr db flush guid name t0 t1 = do
 
 exec :: (GraphBackend db, AttrBackend db) => db -> [Journal] -> IO [(User, Tree, Kind, Node, GUID)]
 exec db rt = do
-  batch [ mkio (intoChunks 2048 $ getPutLink rt) (mapM_ $ putLink db)
-        , mkio (intoChunks 2048 $ getPutLabel rt) (mapM_ $ putLabel db)
-        , mkio (intoChunks 2048 $ getDelLink rt) (mapM_ $ unlink db)
-        , mkio (intoChunks 2048 $ getPutKAttr rt) (mapM_ $ putAttr db)
-        , mkio (intoChunks 2048 $ getDelKAttr rt) (mapM_ $ delAttr db)
-        , mkio (intoChunks 2048 $ getPutTAttr rt) (mapM_ $ putTAttr db)
+  batch [ mkio (intoChunks 512 $ getPutLink rt) (mapM_ $ putLink db)
+        , mkio (intoChunks 512 $ getPutLabel rt) (mapM_ $ putLabel db)
+        , mkio (intoChunks 512 $ getDelLink rt) (mapM_ $ unlink db)
+        , mkio (intoChunks 512 $ getPutKAttr rt) (mapM_ $ putAttr db)
+        , mkio (intoChunks 512 $ getDelKAttr rt) (mapM_ $ delAttr db)
+        , mkio (intoChunks 512 $ getPutTAttr rt) (mapM_ $ putTAttr db)
         ]
   mapConcurrently register (getPutNode rt)
     where

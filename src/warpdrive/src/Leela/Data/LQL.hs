@@ -16,8 +16,10 @@ module Leela.Data.LQL
     ( Using (..)
     , LQL (..)
     , targetUser
+    , groupLQL
     ) where
 
+import Data.List (sortBy)
 import Leela.Data.Types
 
 targetUser :: Using -> User
@@ -38,3 +40,30 @@ data LQL = StatStmt
          | NameStmt Using [GUID]
          | GUIDStmt Using [(Kind, Node)]
          | AlterStmt [Journal]
+
+lqlCmp :: LQL -> LQL -> Ordering
+lqlCmp a b = numof a `compare` numof b
+    where
+      numof StatStmt               = 0
+      numof (PathStmt _)           = 1
+      numof (KAttrGetStmt _ _ _)   = 2
+      numof (TAttrGetStmt _ _ _ _) = 3
+      numof (KAttrListStmt _ _)    = 4
+      numof (TAttrListStmt _ _)    = 5
+      numof (NameStmt _ _)         = 6
+      numof (GUIDStmt _ _)         = 7
+      numof (AlterStmt _)          = 8
+
+lqlMerge :: LQL -> LQL -> Either LQL (LQL, LQL)
+lqlMerge (NameStmt u xs) (NameStmt _ ys) = Left (NameStmt u (xs ++ ys))
+lqlMerge (GUIDStmt u xs) (GUIDStmt _ ys) = Left (GUIDStmt u (xs ++ ys))
+lqlMerge (AlterStmt xs) (AlterStmt ys)   = Left (AlterStmt (xs ++ ys))
+lqlMerge a b                             = Right (a, b)
+
+groupLQL :: [LQL] -> [LQL]
+groupLQL = go . sortBy lqlCmp
+    where
+      go (a : b : xs) = case (lqlMerge a b) of
+                          Left a       -> go (a : xs)
+                          Right (a, b) -> a : go (b : xs)
+      go xs           = xs
