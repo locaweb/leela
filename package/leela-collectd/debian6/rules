@@ -11,7 +11,9 @@ override_dh_auto_clean:
 
 override_dh_install:
 	mkdir -p debian/leela-collectd/usr/lib/collectd
+	mkdir -p debian/leela-collectd/usr/bin
 	cp -a ../../src/collectd/write_leela.so debian/leela-collectd/usr/lib/collectd/
+	cp -a ../../src/collectd/wl_cpu-scale.sh debian/leela-collectd/usr/bin/wl_cpu-scale
 	dh_install
 
 override_dh_auto_build:

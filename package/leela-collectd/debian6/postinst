@@ -1,6 +1,11 @@
 #!/bin/sh
 
-[ -x /etc/init.d/collectd ] && /etc/init.d/collectd restart
-exit 0
+wl_cpu_scale=/etc/collectd/collectd.conf.d/wl_cpu-scale.conf
+
+mkdir -p $(dirname $wl_cpu_scale)
+rm -f $wl_cpu_scale
+wl_cpu-scale >$wl_cpu_scale || rm -f $wl_cpu_scale
+
+test -x /etc/init.d/collectd && /etc/init.d/collectd restart || exit 0
 
 #DEBHELPER#
