@@ -17,11 +17,14 @@
 module Leela.Data.Time
        ( Time
        , Date (..)
+       , TimeSpec (..)
        , add
        , now
        , diff
+       , elapsed
        , seconds
        , dateTime
+       , snapshot
        , dateToInt
        , fromSeconds
        , fromDateTime
@@ -29,6 +32,7 @@ module Leela.Data.Time
 
 import Data.Bits
 import Data.Time
+import System.Clock
 import Data.Time.Clock.POSIX
 
 newtype Time = Time { unTime :: UTCTime }
@@ -53,6 +57,14 @@ dateToInt (Date (y, m, d)) = (y `shiftL` 9) .|. (m `shiftL` 5) .|. d
 
 diff :: Time -> Time -> Double
 diff (Time a) (Time b) = realToFrac $ a `diffUTCTime` b
+
+elapsed :: (Num a) => TimeSpec -> TimeSpec -> a
+elapsed t1 t0
+  | t1 >= t0  = (fromIntegral $ sec t1 - sec t0) * 10 ^ 9 + abs (fromIntegral $ nsec t1 - nsec t0)
+  | otherwise = elapsed t0 t1
+
+snapshot :: IO TimeSpec
+snapshot = getTime Monotonic
 
 fromSeconds :: Double -> Time
 fromSeconds = Time . posixSecondsToUTCTime . realToFrac

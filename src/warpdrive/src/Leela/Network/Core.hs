@@ -31,6 +31,7 @@ import           Leela.Helpers
 import           Control.Monad
 import           Leela.Data.LQL
 import qualified Data.ByteString as B
+import           Leela.Data.Time
 import           Leela.Data.Graph
 import           Leela.Data.Types
 import           Control.Exception
@@ -49,12 +50,13 @@ import           Leela.Storage.KeyValue
 data CoreServer = CoreServer { logger :: Logger
                              , stat   :: IORef [(String, [Endpoint])]
                              , passwd :: IORef P.Passwd
-                             , fdseq  :: TVar FH
-                             , fdlist :: TVar (M.Map (B.ByteString, FH) (Int, Device Reply))
+                             , tick   :: IORef Tick
+                             , fdseq  :: IORef FH
+                             , fdlist :: IORef (M.Map (B.ByteString, FH) (IORef (Tick, TimeSpec, Device Reply)))
                              }
 
-ttl :: Int
-ttl = 300
+ttl :: Tick
+ttl = 60
 
 readPasswd :: CoreServer -> IO P.Passwd
 readPasswd = readIORef . passwd
@@ -70,62 +72,79 @@ dumpStat core = do
 newCore :: Logger -> IORef [(String, [Endpoint])] -> IORef P.Passwd -> IO CoreServer
 newCore syslog statdb secretdb = do
   state <- makeState
-  _     <- forkIO (forever (sleep 1 >> rungc syslog (fdlist state)))
+  _     <- forkSupervised_ syslog "rungc" (sleep 1 >> rungc syslog state)
   return state
     where
-      makeState = atomically $
-        liftM2 (CoreServer syslog statdb secretdb) (newTVar 0) (newTVar M.empty)
+      makeState =
+        liftM3 (CoreServer syslog statdb secretdb) (newIORef 1) (newIORef 1) (newIORef M.empty)
 
-rungc :: (Ord k, Show k) => Logger -> TVar (M.Map k (Int, Device a)) -> IO ()
-rungc syslog tvar = atomically kill >>= mapM_ burry
+rungc :: Logger -> CoreServer -> IO ()
+rungc syslog srv = do
+  at <- atomicModifyIORef' (tick srv) (\a -> let b = max 1 (a+1) in (b, b))
+  kill at >>= mapM_ burry
     where
-      partition acc [] = acc
-      partition (a, b) ((k, (tick, dev)):xs)
-        | tick == 0    = partition ((k, dev) : a, b) xs
-        | otherwise    = partition (a, (k, (tick - 1, dev)) : b) xs
+      partition _ acc []                   = return acc
+      partition curr acc ((k, shmem) : xs) = do
+        (at, _, _) <- readIORef shmem
+        case at of
+          0                                     -> partition curr acc xs
+          _
+            | (max at curr - min at curr) > ttl -> partition curr (k : acc) xs
+            | otherwise                         -> partition curr acc xs
 
-      kill = do
-        (dead, alive) <- fmap (partition ([], []) . M.toList) (readTVar tvar)
-        writeTVar tvar (M.fromList alive)
+      kill at = do
+        dead <- readIORef (fdlist srv) >>= partition at [] . M.toList
         return dead
 
-      burry (k, dev) = do
-        warning syslog $ printf "closing/purging unused channel: %s" (show k)
-        atomically $ close dev
+      burry (u, fh) = do
+        let k = (User u, fh)
+        warning syslog $ printf "PURGE %s" (show k)
+        void $ closeFD srv k
 
-nextfd :: CoreServer -> STM FH
+nextfd :: CoreServer -> IO FH
 nextfd srv = do
-  curr <- readTVar $ fdseq srv
-  writeTVar (fdseq srv) (curr + 1)
+  curr <- atomicModifyIORef (fdseq srv) (\a -> (a+1, a+1))
   return curr
 
+tickAt :: CoreServer -> IO Tick
+tickAt srv = readIORef (tick srv)
+
 makeFD :: CoreServer -> User -> IO (FH, Device Reply)
-makeFD srv (User u) = atomically $ do
-  ctrl <- control
+makeFD srv (User u) = do
+  dev  <- atomically $ do
+    ctrl <- control
+    open ctrl 512
+  time <- snapshot
   fd   <- nextfd srv
-  dev  <- open ctrl 512
-  modifyTVar (fdlist srv) (M.insert (u, fd) (ttl, dev))
-  return (fd, dev)
+  at   <- tickAt srv
+  val  <- newIORef (at, time, dev)
+  atomicModifyIORef (fdlist srv) (\m -> (time `seq` M.insert (u, fd) val m, (fd, dev)))
 
-selectFD :: CoreServer -> (User, FH) -> IO (Maybe (Device Reply))
-selectFD srv ((User u), fh) = atomically $ do
-  let resetTTL _ (_, dev) = Just (ttl, dev)
-  (mdev, newv) <- fmap (M.updateLookupWithKey resetTTL (u, fh)) (readTVar (fdlist srv))
-  writeTVar (fdlist srv) newv
-  return (fmap snd mdev)
-
-closeFD :: CoreServer -> Bool -> (User, FH) -> IO ()
-closeFD srv nowait ((User u), fh) = do
-  debug (logger srv) (printf "closing fd %s" (show k))
-  atomically $ do
-    db   <- readTVar (fdlist srv)
-    case (M.lookup k db) of
-      Nothing       -> return ()
-      Just (_, dev) -> do unless nowait (linger dev)
-                          writeTVar (fdlist srv) (M.delete k db)
-                          close dev
+withFD :: CoreServer -> (User, FH) -> (Maybe (Device Reply) -> IO b) -> IO b
+withFD srv ((User u), fh) action = do
+  mvalue <- fmap (M.lookup (u, fh)) (readIORef (fdlist srv))
+  case mvalue of
+    Nothing    -> action Nothing
+    Just value -> mask $ \restore -> do
+      dev <- setTick value (Just 0)
+      res <- restore (action $ Just dev) `onException` (void $ setTick value Nothing)
+      void $ setTick value Nothing
+      return res
     where
-      k = (u, fh)
+      setTick shmem mvalue = do
+        at <- fmap (\v -> maybe v id mvalue) (tickAt srv)
+        atomicModifyIORef shmem (\(_, time, dev) -> ((at, time, dev), dev))
+
+closeFD :: CoreServer -> (User, FH) -> IO Double
+closeFD srv ((User u), fh) = do
+  mvalue <- atomicModifyIORef (fdlist srv) (\m -> (M.delete (u, fh) m, M.lookup (u, fh) m))
+  case mvalue of
+    Nothing    -> return 0
+    Just value -> do
+      (_, t0, dev) <- readIORef value
+      t1           <- snapshot
+      closeIO dev
+      return (elapsed t1 t0)
 
 data Stream a = Chunk a
               | Error SomeException
@@ -217,22 +236,22 @@ process cache storage srv (Begin sig msg) =
     Right stmts -> do
       (fh, dev) <- makeFD srv (sigUser sig)
       if (level (logger srv) >= NOTICE)
-        then notice (logger srv) (printf "BEGIN ... %d" fh)
+        then notice (logger srv) (printf "BEGIN %s %d" (lqlDescr stmts) fh)
         else info (logger srv) (printf "BEGIN %s %d" (show msg) fh)
       _         <- forkFinally (evalLQL cache storage srv dev stmts) (evalFinalizer (logger srv) fh dev)
       return $ Done fh
 process _ _ srv (Fetch sig fh) = do
   let channel = (sigUser sig, fh)
   notice (logger srv) (printf "FETCH %d" fh)
-  mdev <- selectFD srv channel
-  case mdev of
-    Nothing  -> return $ Fail 404 $ Just "no such channel"
-    Just dev -> do
-      mmsg <- devreadIO dev
-      case mmsg of
-        Nothing  -> closeIO dev >> return Last
-        Just msg -> return msg
-process _ _ srv (Close nowait sig fh) = do
-  notice (logger srv) (printf "CLOSE %d" fh)
-  closeFD srv nowait (sigUser sig, fh)
+  withFD srv channel $ \mdev -> do
+    case mdev of
+      Nothing  -> return $ Fail 404 $ Just "no such channel"
+      Just dev -> do
+        mmsg <- devreadIO dev
+        case mmsg of
+          Nothing  -> return Last
+          Just msg -> return msg
+process _ _ srv (Close _ sig fh) = do
+  t <- closeFD srv (sigUser sig, fh)
+  notice (logger srv) (printf "CLOSE %d [%f ms]" fh (t / 10000000))
   return Last

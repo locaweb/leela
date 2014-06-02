@@ -16,6 +16,7 @@
 
 module Leela.Network.Protocol
     ( FH
+    , Tick
     , User (..)
     , Query (..)
     , Reply (..)
@@ -44,6 +45,8 @@ import qualified Data.ByteString.Char8 as B8
 import           Data.Double.Conversion.ByteString
 
 type FH = Word64
+
+type Tick = Word64
 
 type Writer a = a -> IO ()
 
