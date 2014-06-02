@@ -29,12 +29,12 @@ wl_cpu_scale () {
     echo "**********************************************"
     echo "WARNING: could not read CLK_TCK [assuming 100]"
     echo "**********************************************"
-    return 0
+    return 2
   fi
 
   if [ "$tick" -eq 100 ]
   then
-    return 0
+    return 2
   fi
 
   scale=$(echo "scale=6; 100 / $tick" | bc)
