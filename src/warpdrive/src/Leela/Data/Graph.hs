@@ -141,7 +141,7 @@ exec db rt = do
         , mkio (intoChunks 512 $ getDelKAttr rt) (mapM_ $ delAttr db)
         , mkio (intoChunks 512 $ getPutTAttr rt) (mapM_ $ putTAttr db)
         ]
-  mapConcurrently register (getPutNode rt)
+  fmap concat (mapM (mapConcurrently register) (intoChunks 4 $ getPutNode rt))
     where
       register (u, t, k, n) = do
         g <- putName db u t k n
