@@ -1,5 +1,8 @@
 --*-- mode: text; --*--
 
+v6.3.0 | 2014-06-02
+  * configuring collectd so that cpu plugin reports cpu %
+
 v6.2.0 | 2014-06-02
   * increasing internal buffer (4k ~ 32k)
 
