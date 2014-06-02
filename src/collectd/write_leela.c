@@ -34,7 +34,7 @@
 
 #define WL_UNUSED(x) (void) x
 #ifndef WL_BUFFSZ
-# define WL_BUFFSZ 4096
+# define WL_BUFFSZ 32768
 #endif
 
 typedef struct
