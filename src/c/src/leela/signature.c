@@ -67,7 +67,7 @@ void leela_signature_nonce_next (unsigned char dst[LEELA_SIGNATURE_NONCE_SIZE], 
   memcpy(nonce, src, LEELA_SIGNATURE_NONCE_SIZE);
 
   nonce[0] += 1;
-  if (nonce[0] < 1)
+  if (nonce[0] == 0)
   { nonce[1] += 1; }
 
   memcpy(dst, nonce, LEELA_SIGNATURE_NONCE_SIZE);
@@ -76,8 +76,8 @@ void leela_signature_nonce_next (unsigned char dst[LEELA_SIGNATURE_NONCE_SIZE], 
 void leela_signature_sign (leela_signature_t *sig, unsigned char mac[LEELA_SIGNATURE_SIZE], const unsigned char nonce[LEELA_SIGNATURE_SIZE], const void *msg, unsigned int msglen)
 { poly1305aes_authenticate(mac, sig->seed, nonce, (const unsigned char *) msg, msglen); }
 
-int leela_signature_check (leela_signature_t *s, const unsigned char sig[LEELA_SIGNATURE_SIZE], const unsigned char nonce[LEELA_SIGNATURE_SIZE], const void *msg, unsigned int msglen)
-{ return(poly1305aes_verify(sig, s->seed, nonce, (const unsigned char *) msg, msglen) != 0 ? 0 : -1); }
+int leela_signature_check (leela_signature_t *s, const unsigned char mac[LEELA_SIGNATURE_SIZE], const unsigned char nonce[LEELA_SIGNATURE_SIZE], const void *msg, unsigned int msglen)
+{ return(poly1305aes_verify(mac, s->seed, nonce, (const unsigned char *) msg, msglen) != 0 ? 0 : -1); }
 
 void leela_signature_destroy (leela_signature_t *sig)
 { free(sig); }

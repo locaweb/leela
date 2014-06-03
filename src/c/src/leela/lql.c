@@ -90,7 +90,7 @@ int __next_nounce (lql_cursor_t *cursor, unsigned char nonce[LEELA_SIGNATURE_NON
 }
 
 static
-char *__signature (lql_cursor_t *cursor, char *msg, size_t msglen)
+char *__signature (lql_cursor_t *cursor, char *msg)
 {
   unsigned char nonce[LEELA_SIGNATURE_NONCE_SIZE];
   unsigned char mac[LEELA_SIGNATURE_SIZE];
@@ -98,6 +98,7 @@ char *__signature (lql_cursor_t *cursor, char *msg, size_t msglen)
   { return(NULL); }
   char hexnonce[2 * LEELA_SIGNATURE_NONCE_SIZE + 1];
   char hexmac[2 * LEELA_SIGNATURE_SIZE + 1];
+  size_t msglen   = strlen(msg);
   char *user      = cursor->username == NULL ? cursor->ctx->username : cursor->username;
   char *fmt       = "%s:%d:%s%s%s";
   int now         = (int) time(0);
@@ -112,7 +113,6 @@ char *__signature (lql_cursor_t *cursor, char *msg, size_t msglen)
     leela_signature_hexencode(hexnonce, nonce, LEELA_SIGNATURE_NONCE_SIZE);
     size_t offset = snprintf(signature, bufflen, fmt, user, now, hexnonce, ":", msg);
     leela_signature_sign(cursor->sig != NULL ? cursor->sig : cursor->ctx->sig, mac, nonce, signature, offset);
-
     leela_signature_hexencode(hexmac, mac, LEELA_SIGNATURE_SIZE);
     snprintf(signature, bufflen, fmt, user, now, hexnonce, " ", hexmac);
   }
@@ -150,7 +150,7 @@ int __zmq_sendmsg_str (lql_cursor_t *cursor, const char *data, ...)
     offset += strlen(part);
   }
   msg[msglen] = '\0';
-  sig = __signature(cursor, msg, msglen);
+  sig = __signature(cursor, msg);
   va_end(args);
 
   va_start(args, data);
