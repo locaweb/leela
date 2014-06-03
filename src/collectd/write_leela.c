@@ -116,16 +116,14 @@ char *wl_unquote (char *dst, size_t maxlen, const char *src)
 static
 int wl_send (wl_data_t *cfg, wl_buffer_t *buff)
 {
-  int rc        = -1;
-  size_t offset = buff->sndbufoff;
-  int t0        = time(0);
-  lql_cursor_t *cursor;
+  int rc          = -1;
+  size_t offset   = buff->sndbufoff;
+  int t0          = time(0);
 
-  buff->sndbufoff = 0;
-  if (offset == 0)
+  if (offset < 2)
   { return(0); }
 
-  cursor = leela_lql_cursor_init_default(cfg->ctx);
+  lql_cursor_t *cursor = leela_lql_cursor_init_default(cfg->ctx);
   if (cursor == NULL)
   {
     ERROR("write_leela plugin: error initializing cursor");
@@ -140,9 +138,12 @@ int wl_send (wl_data_t *cfg, wl_buffer_t *buff)
   leela_lql_cursor_close(cursor);
 
   if (rc != 0)
-  { ERROR("write_leela plugin: error sending data to leela"); }
+  { ERROR("write_leela plugin: wl_send() != 0 [size:%zu, timing:%ds]", offset, (int) (time(0) - t0)); }
   else
-  { INFO("write_leela plugin: wl_send() = 0 [size:%zu, timing:%ds]", offset, (int) (time(0) - t0)); }
+  {
+    buff->sndbufoff = 0;
+    INFO("write_leela plugin: wl_send() = 0 [size:%zu, timing:%ds]", offset, (int) (time(0) - t0));
+  }
   return(rc);
 }
 
@@ -213,8 +214,9 @@ int wl_print (wl_buffer_t *buff, const char *fmt, ...)
   va_list ap;
   va_start(ap, fmt);
 
-  size_t avail = buff->sndbuflen - buff->sndbufoff;
-  int rc       = vsnprintf(buff->sndbuf + buff->sndbufoff, avail, fmt, ap);
+  size_t avail  = (buff->sndbuflen > buff->sndbufoff) ? (buff->sndbuflen - buff->sndbufoff) : 0;
+  size_t offset = (buff->sndbuflen > buff->sndbufoff) ? buff->sndbufoff : 0;
+  int rc        = vsnprintf(buff->sndbuf + offset, avail, fmt, ap);
   if (rc > 0 && ((size_t) rc) < avail)
   {
     buff->sndbufoff += rc;
