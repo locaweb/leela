@@ -77,9 +77,9 @@ suite = testGroup "Parser"
     ]
   , testGroup "many"
     [ testCase "using ," $
-      (count "using (leela) path 00000000-0000-0000-0000-000000000000, make (a::a), make (b::b);" @?= 3)
+      (count "using (leela) path 00000000-0000-0000-0000-000000000000, make (a::a);" @?= 2)
     , testCase "using \\n" $
-      (count "using (leela) path 00000000-0000-0000-0000-000000000001\nmake (a::a)\nmake (b::b);" @?= 3)
+      (count "using (leela) path 00000000-0000-0000-0000-000000000001\nmake (a::a);" @?= 2)
     ]
   , testGroup "attr [k|t]ls"
     [ testCase "attr kls" $
