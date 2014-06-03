@@ -1,5 +1,8 @@
 --*-- mode: text; --*--
 
+v6.4.0 | 2014-06-03
+  * no longer discarding the buffer when wl_send fails
+
 v6.3.0 | 2014-06-02
   * configuring collectd so that cpu plugin reports cpu %
 
