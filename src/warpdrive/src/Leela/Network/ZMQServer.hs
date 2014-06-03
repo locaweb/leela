@@ -21,7 +21,6 @@ module Leela.Network.ZMQServer
 import System.ZMQ4
 import Leela.HZMQ.Router
 import Leela.Network.Core
-import Leela.Data.QDevice
 import Leela.Data.Endpoint
 import Leela.Storage.Graph
 import Leela.Storage.Passwd
@@ -37,5 +36,5 @@ worker cache db core = Worker f (return . encode . encodeE)
               Left err -> return $ encode err
               Right q  -> fmap encode (process cache db core q)
 
-startServer :: (KeyValue cache, GraphBackend m, AttrBackend m) => CoreServer -> Endpoint -> Context -> Control -> cache -> m -> IO ()
-startServer core addr ctx ctrl cache storage = startRouter (logger core) addr ctx ctrl (worker cache storage core)
+startServer :: (KeyValue cache, GraphBackend m, AttrBackend m) => CoreServer -> Endpoint -> Context -> cache -> m -> IO ()
+startServer core addr ctx cache storage = startRouter (logger core) addr ctx (worker cache storage core)

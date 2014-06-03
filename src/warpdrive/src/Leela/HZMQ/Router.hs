@@ -87,8 +87,8 @@ recvRequest fh = do
     (peer:"":msg) -> return $ Just (Request time peer msg)
     _             -> return Nothing
 
-startRouter :: Logger -> Endpoint -> Context -> Control -> Worker -> IO ()
-startRouter syslog endpoint ctx ctrl action = do
+startRouter :: Logger -> Endpoint -> Context -> Worker -> IO ()
+startRouter syslog endpoint ctx action = do
   notice syslog (printf "starting zmq.router: %s" (dumpEndpointStr endpoint))
   withSocket ctx Router $ \ifh ->
     withSocket ctx Pull $ \ofh -> do
@@ -96,7 +96,7 @@ startRouter syslog endpoint ctx ctrl action = do
       bind ifh (dumpEndpointStr endpoint)
       configure ifh
       configure ofh
-      superviseWith syslog (notClosedIO ctrl) ("hzqm.router:" ++ show endpoint) (routingLoop ifh ofh)
+      forever $ routingLoop ifh ofh
     where
       oaddr = printf "inproc://hzmq.router%s" (show endpoint)
 
@@ -106,10 +106,9 @@ startRouter syslog endpoint ctx ctrl action = do
 
       routingLoop :: Socket Router -> Socket Pull -> IO ()
       routingLoop ifh ofh = do
-        [ev0, ev1, ev2] <- poll (-1) [ Sock ifh [In] Nothing
-                                     , Sock ifh [Out] Nothing
-                                     , Sock ofh [In] Nothing
-                                     ]
+        [ev0, ev1] <- poll (-1) [ Sock ifh [In] Nothing
+                                , Sock ofh [In] Nothing
+                                ]
         unless (null ev0) (procRequest ifh)
-        unless (null ev1 || null ev2) (fmap fromList (receiveMulti ofh) >>= sendMulti ifh)
+        unless (null ev1) (fmap fromList (receiveMulti ofh) >>= sendMulti ifh)
 

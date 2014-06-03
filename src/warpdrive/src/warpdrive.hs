@@ -23,7 +23,6 @@ import Control.Monad
 import Leela.Helpers
 import Leela.HZMQ.Dealer
 import Control.Concurrent
-import Leela.Data.QDevice
 import Leela.Network.Core
 import System.Environment
 import Leela.Data.Endpoint
@@ -130,15 +129,14 @@ main = do
   forkSupervised_ syslog "resolver" $ resolver syslog (optEndpoint opts) naming (optConsul opts)
   withContext $ \ctx -> do
     setMaxSockets 64000 ctx
-    withControl $ \ctrl -> do
-      let cfg = DealerConf (optTimeout opts)
-                           (optBacklog opts)
-                           (naming, fmap (maybe [] id . lookup "blackbox") . readIORef)
-                           (optCapabilities opts)
-      cache   <- redisOpen syslog (naming, fmap (maybe [] id . lookup "redis") . readIORef) (optRedisSecret opts)
-      storage <- fmap zmqbackend $ create syslog cfg ctx ctrl
-      void $ forkFinally (startServer core (optEndpoint opts) ctx ctrl cache storage) $ \e -> do
-        warning syslog (printf "warpdrive has died: %s" (show e))
-        signal alive
-      takeMVar alive
+    let cfg = DealerConf (optTimeout opts)
+                         (optBacklog opts)
+                         (naming, fmap (maybe [] id . lookup "blackbox") . readIORef)
+                         (optCapabilities opts)
+    cache   <- redisOpen syslog (naming, fmap (maybe [] id . lookup "redis") . readIORef) (optRedisSecret opts)
+    storage <- fmap zmqbackend $ create syslog cfg ctx
+    void $ forkFinally (startServer core (optEndpoint opts) ctx cache storage) $ \e -> do
+      warning syslog (printf "warpdrive has died: %s" (show e))
+      signal alive
+    takeMVar alive
   warning syslog "warpdrive: bye!"
