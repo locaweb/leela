@@ -103,7 +103,7 @@ rungc syslog srv = do
 
 nextfd :: CoreServer -> IO FH
 nextfd srv = do
-  curr <- atomicModifyIORef (fdseq srv) (\a -> (a+1, a+1))
+  curr <- atomicModifyIORef' (fdseq srv) (\a -> let b = a+1 in (b, b))
   return curr
 
 tickAt :: CoreServer -> IO Tick
