@@ -67,7 +67,7 @@ resolver syslog myself ioref url = do
   newServices <- fmap (M.toList . parseServices) (fetchCatalog url "/v1/health/service/leela")
   atomicWriteIORef ioref newServices
   when (oldServices /= newServices) $ notice syslog (printf "resolver: %s" (show newServices))
-  threadDelay $ 1 * 1000 * 1000
+  threadDelay $ 5 * 1000 * 1000
   resolver syslog myself ioref url
 
 instance FromJSON Service where
