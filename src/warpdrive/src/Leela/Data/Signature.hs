@@ -110,8 +110,8 @@ verify (Secret secret) (Nonce nonce) msg (MAC sig) = unsafePerformIO $
   unsafeUseAsCString secret $ \secretPtr ->
     unsafeUseAsCString nonce $ \noncePtr ->
       unsafeUseAsCStringLen msg $ \(msgPtr, msgLen) ->
-        unsafeUseAsCString sig $ \sigPtr -> do
-          return (0 /= c_poly1305_verify sigPtr secretPtr noncePtr msgPtr (fromIntegral msgLen))
+        unsafeUseAsCString sig $ \sigPtr ->
+          fmap (0 /=) (c_poly1305_verify sigPtr secretPtr noncePtr msgPtr (fromIntegral msgLen))
 
 sign :: Secret -> Nonce -> Message -> MAC
 sign (Secret secret) (Nonce nonce) msg = unsafePerformIO $
@@ -122,11 +122,11 @@ sign (Secret secret) (Nonce nonce) msg = unsafePerformIO $
         c_poly1305_authenticate sigPtr secretPtr noncePtr msgPtr (fromIntegral msgLen)
         fmap MAC $ unsafePackMallocCStringLen (sigPtr, sigSize)
 
-foreign import capi safe "poly1305aes/poly1305aes.h poly1305aes_verify"
-  c_poly1305_verify :: CString -> CString -> CString -> CString -> CUInt -> CInt
+foreign import capi unsafe "poly1305aes/poly1305aes.h poly1305aes_verify"
+  c_poly1305_verify :: CString -> CString -> CString -> CString -> CUInt -> IO CInt
 
-foreign import capi safe "poly1305aes/poly1305aes.h poly1305aes_clamp"
+foreign import capi unsafe "poly1305aes/poly1305aes.h poly1305aes_clamp"
   c_poly1305_clamp :: CString -> IO ()
 
-foreign import capi safe "poly1305aes/poly1305aes.h poly1305aes_authenticate"
+foreign import capi unsafe "poly1305aes/poly1305aes.h poly1305aes_authenticate"
   c_poly1305_authenticate :: CString -> CString -> CString -> CString -> CUInt -> IO ()
