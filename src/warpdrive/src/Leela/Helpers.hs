@@ -24,7 +24,8 @@ forkSupervised syslog check name io =
   void $ forkIO (superviseWith syslog check name io)
 
 forkSupervised_ :: Logger -> String -> IO () -> IO ()
-forkSupervised_ syslog = forkSupervised syslog (return True)
+forkSupervised_ syslog name io =
+  void $ forkIO (supervise syslog name io)
 
 superviseWith :: Logger -> IO Bool -> String -> IO () -> IO ()
 superviseWith syslog check name io =
@@ -34,6 +35,15 @@ superviseWith syslog check name io =
         threadDelay 500000
         warning syslog (printf "supervised thread [%s] has died: %s" name (show e))
         superviseWith syslog check name io
+
+supervise :: Logger -> String -> IO () -> IO ()
+supervise syslog name io = do
+  (forever io) `catch` restart
+    where
+      restart (SomeException e)= do
+        threadDelay 500000
+        warning syslog (printf "supervised thread [%s] has died: %s" name (show e))
+        supervise syslog name io
 
 ignore :: SomeException -> IO ()
 ignore _ = return ()
