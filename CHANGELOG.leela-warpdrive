@@ -1,5 +1,12 @@
 --*-- mode: text; --*--
 
+v5.5.0 | 2014-06-02
+  * bugfix: poly1305aes is not thread-safe
+  * removing global lock
+  * using ioref instead of stm
+  * grouping AlterStmt correctly
+  * replacing hslogger by fast-logger
+
 v5.4.1 | 2014-05-29
   * removing logger for now (performance improvente)
   * checking if socket is will not block before writing
