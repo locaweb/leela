@@ -224,10 +224,10 @@ evalFinalizer :: Logger -> FH -> Device Reply -> Either SomeException () -> IO (
 evalFinalizer syslog chan dev (Left e)  = do
   devwriteIO dev (encodeE e) `catch` ignore
   closeIO dev
-  notice syslog $ printf "[fd: %s] session terminated with failure: %s" (show chan) (show e)
+  notice syslog $ printf "FAILURE: %s %s" (show chan) (show e)
 evalFinalizer syslog chan dev (Right _)   = do
   closeIO dev
-  info syslog $ printf "[fd: %s] session terminated successfully" (show chan)
+  notice syslog $ printf "SUCCESS: %s" (show chan)
 
 process :: (KeyValue cache, GraphBackend m, AttrBackend m) => cache -> m -> CoreServer -> Query -> IO Reply
 process cache storage srv (Begin sig msg) =
