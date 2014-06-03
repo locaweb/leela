@@ -107,20 +107,18 @@ nextNonce (Nonce nonce) = unsafePerformIO $
 
 verify :: Secret -> Nonce -> Message -> MAC -> Bool
 verify (Secret secret) (Nonce nonce) msg (MAC sig) = unsafePerformIO $
-  B.useAsCString secret $ \secretPtr ->
+  unsafeUseAsCString secret $ \secretPtr ->
     unsafeUseAsCString nonce $ \noncePtr ->
       unsafeUseAsCStringLen msg $ \(msgPtr, msgLen) ->
         unsafeUseAsCString sig $ \sigPtr -> do
-          c_poly1305_clamp secretPtr
           return (0 /= c_poly1305_verify sigPtr secretPtr noncePtr msgPtr (fromIntegral msgLen))
 
 sign :: Secret -> Nonce -> Message -> MAC
 sign (Secret secret) (Nonce nonce) msg = unsafePerformIO $
-  B.useAsCString secret $ \secretPtr ->
+  unsafeUseAsCString secret $ \secretPtr ->
     unsafeUseAsCString nonce $ \noncePtr ->
       unsafeUseAsCStringLen msg $ \(msgPtr, msgLen) -> do
         sigPtr <- mallocBytes nonceSize
-        c_poly1305_clamp secretPtr
         c_poly1305_authenticate sigPtr secretPtr noncePtr msgPtr (fromIntegral msgLen)
         fmap MAC $ unsafePackMallocCStringLen (sigPtr, sigSize)
 
