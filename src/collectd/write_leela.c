@@ -30,6 +30,7 @@
 #include <collectd/plugin.h>
 
 #include <leela/lql.h>
+#include <leela/string.h>
 #include <leela/endpoint.h>
 
 #define WL_UNUSED(x) (void) x
@@ -51,7 +52,6 @@ typedef struct
   char              *user;
   char              *pass;
   char              *tree;
-  char              *guid;
   char              *prefix;
   int                timeout;
   cdtime_t           ctime;
@@ -159,7 +159,6 @@ void wl_data_free (void *ptr)
     sfree(data->user);
     sfree(data->pass);
     sfree(data->tree);
-    sfree(data->guid);
     sfree(data);
   }
 }
@@ -259,8 +258,14 @@ int wl_print_time (wl_buffer_t *buff, const cdtime_t cdtime)
 static
 int wl_print_metric(const data_set_t *ds, const value_list_t *vl, wl_data_t *cfg, wl_buffer_t *buff, const gauge_t *rates, int index)
 {
-  int rc = (buff->sndbufoff == 0 ? wl_print(buff, "using (%s) attr put %s \"", cfg->tree, cfg->guid)
-                                 : wl_print(buff, "attr put %s \"", cfg->guid));
+  if (leela_check_guid(vl->host) != 0)
+  {
+    ERROR("invalid hostname, guid was expected; ignoring metric from plugin/type: %s/%s", vl->plugin, vl->type);
+    return(0);
+  }
+
+  int rc = (buff->sndbufoff == 0 ? wl_print(buff, "using (%s) attr put %s \"", cfg->tree, vl->host)
+                                 : wl_print(buff, "attr put %s \"", vl->host));
   
   if (rc == 0 && ds->ds[index].type == DS_TYPE_GAUGE)
   {
@@ -329,33 +334,6 @@ int wl_write (const data_set_t *ds, const value_list_t *vl, user_data_t *data)
 }
 
 static
-int wl_check_guid(wl_data_t *cfg)
-{
-  int rc               = -1;
-  lql_cursor_t *cursor = NULL;
-  wl_buffer_t *buff    = wl_buffer_alloc(cfg);
-
-  if (buff == NULL)
-  { return(-1); }
-
-  cursor = leela_lql_cursor_init(cfg->ctx, cfg->user, cfg->pass, cfg->timeout);
-  if (cursor != NULL && wl_print(buff, "using (%s) name %s;", cfg->tree, cfg->guid) == 0)
-  {
-    if (leela_lql_cursor_execute(cursor, buff->sndbuf) == LEELA_OK
-        && leela_lql_cursor_next(cursor) == LEELA_OK
-        && leela_lql_fetch_type(cursor) == LQL_NAME_MSG
-        && leela_lql_cursor_next(cursor) == LEELA_EOF)
-    { rc = 0; }
-  }
-
-  if (cursor != NULL)
-  { leela_lql_cursor_close(cursor); }
-  wl_buffer_free(buff);
-
-  return(rc);
-}
-
-static
 leela_endpoint_t **wl_parse_cluster (oconfig_item_t *item)
 {
   int k;
@@ -393,13 +371,6 @@ int wl_init ()
     return(-1);
   }
 
-  if (wl_check_guid(wl_leela_cfg) != 0)
-  {
-    ERROR("write_leela plugin: error initializing, unknow guid: %s", wl_leela_cfg->guid);
-    wl_data_free(wl_leela_cfg);
-    return(-1);
-  }
-
   data.data      = wl_leela_cfg;
   data.free_func = wl_data_free;
   plugin_register_write("write_leela", wl_write, &data);
@@ -422,7 +393,6 @@ int wl_cfg (oconfig_item_t *cfg)
   leela_cfg->user       = NULL;
   leela_cfg->pass       = NULL;
   leela_cfg->tree       = NULL;
-  leela_cfg->guid       = NULL;
   leela_cfg->prefix     = NULL;
   leela_cfg->timeout    = 60000;
   leela_cfg->ctime      = cdtime();
@@ -462,9 +432,7 @@ int wl_cfg (oconfig_item_t *cfg)
     { leela_cfg->timeout = (int) item->values[0].value.number; }
     else if (strcasecmp("prefix", item->key) == 0 && item->values[0].type == OCONFIG_TYPE_STRING)
     { leela_cfg->prefix = wl_strdup(item->values[0].value.string); }
-    else if (strcasecmp("guid", item->key) == 0 && item->values[0].type == OCONFIG_TYPE_STRING)
-    { leela_cfg->guid = wl_strdup(item->values[0].value.string); }
-    else
+    else if (strcasecmp("guid", item->key) != 0) // ignoring obsolete guid parameter
     {
       ERROR("write_leela plugin: invalid config: %s", item->key);
       wl_data_free(leela_cfg);
@@ -474,10 +442,9 @@ int wl_cfg (oconfig_item_t *cfg)
 
   if (leela_cfg->user == NULL
       || leela_cfg->pass == NULL
-      || leela_cfg->tree == NULL
-      || leela_cfg->guid == NULL)
+      || leela_cfg->tree == NULL)
   {
-    ERROR("write_leela plugin: missing required option (user|pass|tree|guid)");
+    ERROR("write_leela plugin: missing required option (user|pass|tree)");
     wl_data_free(leela_cfg);
     return(-1);
   }
