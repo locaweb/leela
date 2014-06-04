@@ -1,5 +1,8 @@
 --*-- mode: text; --*--
 
+v5.6.0 | 2014-06-04
+  * bugfix: using zmq_setsockopt before connect/binding
+
 v5.5.0 | 2014-06-02
   * bugfix: poly1305aes is not thread-safe
   * removing global lock
