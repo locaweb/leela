@@ -25,6 +25,13 @@ char *leela_strndup (const char *, size_t);
 
 char *leela_join (const char *, ...);
 
+/*! Check if the string is a valid guid.
+ *
+ * \return 0 Ok;
+ * \return x String is not a guid;
+ */
+int leela_check_guid(const char *);
+
 LEELA_CPLUSPLUS_CLOSE
 
 #endif

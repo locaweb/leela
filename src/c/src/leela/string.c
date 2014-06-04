@@ -60,3 +60,22 @@ char *leela_join (const char *base, ...)
 
   return(str);
 }
+
+int leela_check_guid(const char *s)
+{
+  int k;
+  if (strlen(s) != 36)
+  { return(-1); }
+
+  if (s[8] != '-' || s[13] != '-' || s[18] != '-' || s[23] != '-')
+  { return(-1); }
+
+  for (k=0; k<36; k+=1)
+  {
+    if ((s[k] < 0x30 || s[k] > 0x39)
+        && (s[k] < 0x61 || s[k] > 0x66)
+        && s[k] != '-')
+    { return(-1); }
+  }
+  return(0);
+}
