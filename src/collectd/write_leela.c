@@ -260,7 +260,7 @@ int wl_print_metric(const data_set_t *ds, const value_list_t *vl, wl_data_t *cfg
 {
   if (leela_check_guid(vl->host) != 0)
   {
-    ERROR("invalid hostname, guid was expected; ignoring metric from plugin/type: %s/%s", vl->plugin, vl->type);
+    ERROR("invalid hostname [= guid]; ignoring metrics from plugin/type: %s/%s", vl->plugin, vl->type);
     return(0);
   }
 
