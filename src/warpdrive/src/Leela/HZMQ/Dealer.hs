@@ -63,6 +63,7 @@ notify mvar mmsg = putMVar mvar mmsg
 execWorker :: Logger -> DealerConf a -> Context -> IO (Maybe Job) -> [Endpoint] -> IO ()
 execWorker syslog cfg ctx dequeue addr = withSocket ctx Req $ \fh -> do
   mapM_ (connect fh . dumpEndpointStr) addr
+  setLinger (restrict (ms 0)) fh
   configure fh
   workLoop fh
     where

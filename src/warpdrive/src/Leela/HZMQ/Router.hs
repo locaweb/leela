@@ -75,6 +75,7 @@ worker syslog job fh action = do
 forkWorker :: Logger -> Context -> String -> Request -> Worker -> IO ()
 forkWorker syslog ctx addr job action = void (forkIO $
   withSocket ctx Push $ \fh -> do
+    setLinger (restrict (ms 0)) fh
     connect fh addr
     configure fh
     void $ worker syslog job fh action)
@@ -92,6 +93,8 @@ startRouter syslog endpoint ctx action = do
   notice syslog (printf "starting zmq.router: %s" (dumpEndpointStr endpoint))
   withSocket ctx Router $ \ifh ->
     withSocket ctx Pull $ \ofh -> do
+      setLinger (restrict (ms 0)) ifh
+      setLinger (restrict (ms 0)) ofh
       bind ofh oaddr
       bind ifh (dumpEndpointStr endpoint)
       configure ifh
