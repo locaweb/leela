@@ -1,5 +1,8 @@
 --*-- mode: text; --*--
 
+v6.3.0 | 2014-06-04
+  * leela_check_guid function
+
 v6.2.0 | 2014-05-28
   * bugfix: naming.c: SIGSEGV when there is no cluster
   * naming.c: using exponential backoff for timeouts

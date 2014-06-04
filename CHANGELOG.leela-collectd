@@ -1,5 +1,8 @@
 --*-- mode: text; --*--
 
+v6.5.0 | 2014-06-04
+  * using hostname as the guid name
+
 v6.4.0 | 2014-06-03
   * no longer discarding the buffer when wl_send fails
 
