@@ -23,13 +23,11 @@ import           Data.Maybe
 import           System.ZMQ4
 import           Leela.Logger
 import           Control.Monad
-import           Leela.Helpers
 import           Leela.Data.Time
 import qualified Data.ByteString as B
 import           Control.Exception
 import           Control.Concurrent
 import           Data.List.NonEmpty (fromList)
-import           Leela.Data.QDevice
 import           Leela.Data.Endpoint
 import           Leela.HZMQ.ZHelpers
 
@@ -75,9 +73,7 @@ worker syslog job fh action = do
 forkWorker :: Logger -> Context -> String -> Request -> Worker -> IO ()
 forkWorker syslog ctx addr job action = void (forkIO $
   withSocket ctx Push $ \fh -> do
-    setLinger (restrict (ms 0)) fh
-    connect fh addr
-    configure fh
+    configAndConnect fh addr
     void $ worker syslog job fh action)
 
 recvRequest :: Receiver a => Socket a -> IO (Maybe Request)
@@ -93,12 +89,8 @@ startRouter syslog endpoint ctx action = do
   notice syslog (printf "starting zmq.router: %s" (dumpEndpointStr endpoint))
   withSocket ctx Router $ \ifh ->
     withSocket ctx Pull $ \ofh -> do
-      setLinger (restrict (ms 0)) ifh
-      setLinger (restrict (ms 0)) ofh
-      bind ofh oaddr
-      bind ifh (dumpEndpointStr endpoint)
-      configure ifh
-      configure ofh
+      configAndBind ofh oaddr
+      configAndBind ifh (dumpEndpointStr endpoint)
       forever $ routingLoop ifh ofh
     where
       oaddr = printf "inproc://hzmq.router%s" (show endpoint)

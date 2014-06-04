@@ -28,11 +28,24 @@ recvTimeout t s = do
 ms :: Int -> Int
 ms = (* 1000)
 
-configure :: Socket a -> IO ()
-configure fh = do
-  setReconnectInterval (restrict (ms 250)) fh
-  setTcpKeepAlive On fh
-  setTcpKeepAliveIdle (restrict (ms 60)) fh
+configAndConnect :: Socket a -> String -> IO ()
+configAndConnect fh addr = do
+  setLinger (restrict 0) fh
   setSendTimeout (restrict (ms 60)) fh
+  setTcpKeepAlive On fh
   setReceiveTimeout (restrict (ms 60)) fh
   setMaxMessageSize (restrict (1024 * 1024 :: Int)) fh
+  setTcpKeepAliveIdle (restrict 30) fh
+  setReconnectInterval (restrict (ms 250)) fh
+  connect fh addr
+
+configAndBind :: Socket a -> String -> IO ()
+configAndBind fh addr = do
+  setLinger (restrict 0) fh
+  setSendTimeout (restrict (ms 120)) fh
+  setTcpKeepAlive On fh
+  setReceiveTimeout (restrict (ms 120)) fh
+  setMaxMessageSize (restrict (1024 * 1024 :: Int)) fh
+  setTcpKeepAliveIdle (restrict 30) fh
+  setReconnectInterval (restrict (ms 250)) fh
+  bind fh addr
