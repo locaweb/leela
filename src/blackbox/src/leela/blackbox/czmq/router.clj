@@ -24,7 +24,7 @@
   (java.util.concurrent.LinkedBlockingQueue. size))
 
 (defn enqueue [fh queue]
-  (let [[peer blank & msg] (z/recvmulti fh)]
+  (let [[peer [blank & msg]] (split-with #(not (empty? %)) (z/recvmulti fh))]
     (when (empty? blank)
       (.put queue [peer msg]))))
 
@@ -39,11 +39,11 @@
   (try
     (let [reply ((:onjob worker) msg)]
       (debug (format "REQUEST/DONE: %s ~> %s" (pr-str (map f/bytes-to-str-unsafe msg)) (pr-str reply)))
-      (cons peer (cons "" reply)))
+      (concat peer (cons "" reply)))
     (catch Exception e
       (let [reply (:onerr worker)]
         (error e (format "REQUEST/FAIL: %s ~> %s" (pr-str (map f/bytes-to-str-unsafe msg)) (pr-str reply)))
-        (cons peer (cons "" reply))))))
+        (concat peer (cons "" reply))))))
 
 (defn run-worker [ctx endpoint queue worker]
   (with-open [fh (.socket ctx ZMQ/PUSH)]
