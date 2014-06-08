@@ -483,7 +483,7 @@ handle_error:
   return(NULL);
 }
 
-lql_cursor_t *leela_lql_cursor_init2 (lql_context_t *ctx, const leela_endpoint_t *endpoint, const char *username, const char *secret, int timeout_in_ms)
+lql_cursor_t *leela_lql_cursor_init_on (lql_context_t *ctx, const leela_endpoint_t *endpoint, const char *username, const char *secret, int timeout_in_ms)
 {
   int linger            = 0;
   char *zmqendpoint     = NULL;
@@ -547,7 +547,7 @@ lql_cursor_t *leela_lql_cursor_init (lql_context_t *ctx, const char *username, c
     return(NULL);
   }
 
-  lql_cursor_t *cursor = leela_lql_cursor_init2(ctx, endpoint, username, secret, timeout_in_ms);
+  lql_cursor_t *cursor = leela_lql_cursor_init_on(ctx, endpoint, username, secret, timeout_in_ms);
   leela_endpoint_free(endpoint);
   return(cursor);
 }

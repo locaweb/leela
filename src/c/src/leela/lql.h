@@ -187,7 +187,7 @@ lql_cursor_t *leela_lql_cursor_init_default (lql_context_t *ctx);
  *
  *  Please refer to leela_lql_context_init.
  */
-lql_cursor_t *leela_lql_cursor_init2 (lql_context_t *ctx, const leela_endpoint_t *endpoint, const char *username, const char *secret, int timeout_in_ms);
+lql_cursor_t *leela_lql_cursor_init_on (lql_context_t *ctx, const leela_endpoint_t *endpoint, const char *username, const char *secret, int timeout_in_ms);
 
 /*! Executes a query. To consume the results use leela_cursor_next
  *
