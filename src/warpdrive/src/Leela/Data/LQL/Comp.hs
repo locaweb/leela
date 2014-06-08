@@ -28,14 +28,13 @@ import           Data.Word
 import           Control.Monad
 import           Leela.Data.LQL
 import           Leela.Data.Time
-import           Data.Attoparsec.Char8 (decimal, double, signed)
 import qualified Data.ByteString as B
 import           Leela.Data.Types
 import           Control.Applicative
 import qualified Data.ByteString.UTF8 as U
 import qualified Data.ByteString.Lazy as L
-import           Data.Attoparsec.Char8 ((.*>))
 import           Data.Attoparsec.ByteString as A
+import           Data.Attoparsec.ByteString.Char8 (decimal, signed, double)
 
 data Direction a = L a
                  | R a
@@ -80,7 +79,7 @@ parseGUID :: Parser GUID
 parseGUID = liftM GUID (A.take 36)
 
 parseMaybeGUID :: Parser (Maybe GUID)
-parseMaybeGUID = ("()" .*> return Nothing) <|> (liftM Just parseGUID)
+parseMaybeGUID = ("()" *> return Nothing) <|> (liftM Just parseGUID)
 
 qstring :: Int -> Word8 -> Word8 -> Parser B.ByteString
 qstring limit l r = word8 l >> anyWord8 >>= loop limit []
@@ -169,9 +168,9 @@ parseQuery1 acc = do
 
 parseDouble :: Parser Double
 parseDouble = do
-  "nan" .*> return nan
-  <|> "inf" .*> return inf
-  <|> "-inf" .*> (return $ negate inf)
+  "nan" *> return nan
+  <|> "inf" *> return inf
+  <|> "-inf" *> (return $ negate inf)
   <|> signed double
     where
       nan = 0/0
@@ -182,13 +181,13 @@ parseValue = do
   mw <- peekWord8
   case mw of
     Just 0x22 -> liftM Text $ qstring (64 * 1024) 0x22 0x22
-    Just 0x28 -> liftM Int32 ("(int32 " .*> (signed decimal `endBy` word8 0x29))
-                 <|> liftM Int64 ("(int64 " .*> (signed decimal `endBy` word8 0x29))
-                 <|> liftM UInt32 ("(uint32 " .*> (decimal `endBy` word8 0x29))
-                 <|> liftM UInt64 ("(uint64 " .*> (decimal `endBy` word8 0x29))
-                 <|> liftM Double ("(double " .*> (parseDouble `endBy` word8 0x29))
-                 <|> ("(bool true)" .*> return (Bool True))
-                 <|> ("(bool false)" .*> return (Bool False))
+    Just 0x28 -> liftM Int32 ("(int32 " *> (signed decimal `endBy` word8 0x29))
+                 <|> liftM Int64 ("(int64 " *> (signed decimal `endBy` word8 0x29))
+                 <|> liftM UInt32 ("(uint32 " *> (decimal `endBy` word8 0x29))
+                 <|> liftM UInt64 ("(uint64 " *> (decimal `endBy` word8 0x29))
+                 <|> liftM Double ("(double " *> (parseDouble `endBy` word8 0x29))
+                 <|> ("(bool true)" *> return (Bool True))
+                 <|> ("(bool false)" *> return (Bool False))
     _         -> fail "bad value"
 
 parseTimePoint :: Parser Time
@@ -208,9 +207,9 @@ parseTimeRange = do
   return (Range t0 t1)
 
 parseWithStmt :: Parser [Option]
-parseWithStmt = "with " .*> (parseOption `sepBy` (string ", "))
+parseWithStmt = "with " *> (parseOption `sepBy` (string ", "))
     where
-      parseOption = "ttl:" .*> liftM TTL decimal
+      parseOption = "ttl:" *> liftM TTL decimal
 
 parseStmtMake :: Using -> Parser LQL
 parseStmtMake u = do
@@ -222,19 +221,19 @@ parseStmtMake u = do
     _         -> fail "bad make statement"
 
 parseStmtPath :: Parser LQL
-parseStmtPath = "path " .*> liftM PathStmt parseQuery
+parseStmtPath = "path " *> liftM PathStmt parseQuery
 
 parseStmtName :: Using -> Parser LQL
-parseStmtName u = "name " .*> liftM (NameStmt u . (:[])) parseGUID
+parseStmtName u = "name " *> liftM (NameStmt u . (:[])) parseGUID
 
 parseStmtGUID :: Using -> Parser LQL
-parseStmtGUID u = "guid " .*> liftM (GUIDStmt u . (:[])) parseNode
+parseStmtGUID u = "guid " *> liftM (GUIDStmt u . (:[])) parseNode
 
 parseStmtStat :: Parser LQL
-parseStmtStat = "stat" .*> return StatStmt
+parseStmtStat = "stat" *> return StatStmt
 
 parseStmtKill :: Parser LQL
-parseStmtKill = "kill " .*> doParse
+parseStmtKill = "kill " *> doParse
     where
       doParse = do
         ma <- parseMaybeGUID
@@ -251,11 +250,11 @@ parseStmtKill = "kill " .*> doParse
           _                      -> fail "invalid kill command"
 
 parseStmtAttr :: Parser LQL
-parseStmtAttr = "attr put " .*> parsePutAttr
-                <|> "attr get " .*> parseGetAttr
-                <|> "attr del " .*> parseDelAttr
-                <|> "attr kls " .*> parseListAttr KAttrListStmt
-                <|> "attr tls " .*> parseListAttr TAttrListStmt
+parseStmtAttr = "attr put " *> parsePutAttr
+                <|> "attr get " *> parseGetAttr
+                <|> "attr del " *> parseDelAttr
+                <|> "attr kls " *> parseListAttr KAttrListStmt
+                <|> "attr tls " *> parseListAttr TAttrListStmt
     where
       parsePutAttr = do
         g <- parseGUID
@@ -317,7 +316,7 @@ parseStmts u = fmap groupLQL $ parseStmt u `sepBy1` newline
 
 parseUsing :: User -> Parser Using
 parseUsing user = do
-  (asUser, tree) <- "using " .*> parseTree
+  (asUser, tree) <- "using " *> parseTree
   return (Using user tree asUser)
 
 parseLQL :: User -> Parser [LQL]

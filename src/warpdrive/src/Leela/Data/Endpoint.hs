@@ -16,6 +16,7 @@
 
 module Leela.Data.Endpoint
        ( Endpoint (..)
+       , StrEndpoint
        , isTCP
        , isUDP
        , loadEndpoint
@@ -27,18 +28,20 @@ module Leela.Data.Endpoint
 
 import           Data.Word
 import           Data.Monoid
-import           Data.Attoparsec as A
 import qualified Data.ByteString as B
 import           Control.Applicative
 import qualified Data.ByteString.Lazy as L
-import           Data.Attoparsec.Char8 ((.*>), decimal)
 import qualified Data.ByteString.Char8 as B8
+import           Data.Attoparsec.ByteString as A
 import qualified Data.ByteString.Lazy.Char8 as L8
 import           Data.ByteString.Lazy.Builder
+import           Data.Attoparsec.ByteString.Char8 (decimal)
 
 data Endpoint = TCP String Word16 String
               | UDP String Word16 String
               deriving (Eq, Ord)
+
+type StrEndpoint = String
 
 isTCP :: Endpoint -> Bool
 isTCP (TCP _ _ _) = True
@@ -58,8 +61,8 @@ parseURL f = do
 
 parseEndpoint :: Parser Endpoint
 parseEndpoint =
-  "tcp://" .*> parseURL TCP
-  <|> "udp://" .*> parseURL UDP
+  "tcp://" *> parseURL TCP
+  <|> "udp://" *> parseURL UDP
 
 loadEndpointStr :: String -> Maybe Endpoint
 loadEndpointStr = loadEndpoint . B8.pack
