@@ -78,6 +78,7 @@ leela_daemon_stop () {
   leela_grantaccess
   daemon --stop -P $RUNDIR -n daemon
   leela_wait4 java || pkill -u $USER --signal KILL java
+  leela_wait4 daemon
 }
 
 case "$1" in

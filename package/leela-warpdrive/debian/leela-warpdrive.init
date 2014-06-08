@@ -73,6 +73,7 @@ leela_daemon_stop () {
   leela_grantaccess
   daemon --stop -P $RUNDIR -n daemon
   leela_wait4 warpdrive || pkill -u $USER --signal KILL warpdrive
+  leela_wait4 daemon
 }
 
 case "$1" in
