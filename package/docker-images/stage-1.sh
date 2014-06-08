@@ -117,11 +117,11 @@ stage1_installghc () {
 
   wget -O - http://www.haskell.org/cabal/release/cabal-install-1.18.0.3/cabal-install-1.18.0.3.tar.gz | tar -x -z -C /opt
   cd /opt/cabal-install-1.18.0.3
-  env EXTRA_CONFIGURE_OPTS=--enable-library-profiling ./bootstrap.sh --global
+  ./bootstrap.sh --global
 
   cabal update
-  cabal install happy --symlink-bindir=/usr/bin --enable-library-profiling
-  cabal install alex --symlink-bindir=/usr/bin --enable-library-profiling
+  cabal install happy --symlink-bindir=/usr/bin
+  cabal install alex --symlink-bindir=/usr/bin
 }
 
 stage1_installclj () {
