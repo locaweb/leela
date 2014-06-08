@@ -25,9 +25,7 @@ import Leela.Helpers
 import Control.Monad
 import Leela.Data.Time
 import Leela.Data.Types
-import Control.Concurrent
 import Leela.Storage.Graph
-import Control.Concurrent.STM
 import Control.Concurrent.Async
 
 query :: (GraphBackend db) => db -> ([(GUID, Label, GUID)] -> IO ()) -> Matcher -> IO ()
@@ -87,50 +85,29 @@ getDelKAttr = map (\(DelKAttr a t) -> (a, t)) . filter isDelKAttr
 getPutTAttr :: [Journal] -> [(GUID, Attr, Time, Value, [Option])]
 getPutTAttr = map (\(PutTAttr g a t v o) -> (g, a, t, v, o)) . filter isPutTAttr
 
-buildQueue :: Time -> Time -> IO (TVar [(Time, Limit)])
+buildQueue :: Time -> Time -> [(Time, Limit)]
 buildQueue t0 t1 =
   let (d0, s0) = dateTime t0
       (d1, s1) = dateTime t1
       whithin  = map ((, 24) . flip fromDateTime 0) [(succ d0)..(pred d1)]
-  in newTVarIO $ if (d0 == d1)
-                   then (t0, max 1 (ceiling $ (s1 - s0) / 3600))
-                        : whithin
-                   else (t0, 24)
-                        : (fromDateTime d1 0, max 1 (ceiling $ s1 / 3600))
-                        : whithin
-
-deque :: TVar [a] -> IO (Maybe a)
-deque shmem = atomically $ do
-  q <- readTVar shmem
-  case q of
-    []     -> return Nothing
-    (x:xs) -> writeTVar shmem xs >> return (Just x)
+  in if (d0 == d1)
+       then (t0, max 1 (ceiling $ (s1 - s0) / 3600))
+            : whithin
+       else (t0, 24)
+            : (fromDateTime d1 0, max 1 (ceiling $ s1 / 3600))
+            : whithin
 
 loadTAttr :: (AttrBackend db) => db -> (Either Int [(Time, Value)] -> IO ()) -> GUID -> Attr -> Time -> Time -> IO ()
 loadTAttr db flush guid name t0 t1 = do
-  q <- buildQueue t0 t1
-  t <- replicateM 4 $ do
-    signal <- newEmptyMVar
-    void $ forkFinally (doSomeWork q) $ (\me -> do
-      putMVar signal ()
-      case me of
-        Left _ -> flush (Left 599)
-        _      -> return ())
-    return signal
-  mapM_ takeMVar t
+  mapM_ (mapConcurrently procData) (intoChunks 64 $ buildQueue t0 t1)
     where
       safeFlush (Right []) = return ()
       safeFlush (Right xs) = let ys = filter (\(t,_) -> t>=t0 && t<=t1) xs
                              in when (not $ null ys) (flush $ Right ys)
       safeFlush info       = flush info
 
-      doSomeWork q = do
-        work <- deque q
-        case work of
-          Nothing     -> return ()
-          Just (t, l) -> do
-            safeFlush =<< liftM Right (getTAttr db guid name t l)
-            doSomeWork q
+      procData (t, l) =
+        safeFlush =<< liftM Right (getTAttr db guid name t l)
 
 exec :: (GraphBackend db, AttrBackend db) => db -> [Journal] -> IO [(User, Tree, Kind, Node, GUID)]
 exec db rt = do
