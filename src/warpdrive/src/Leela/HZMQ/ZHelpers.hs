@@ -17,6 +17,7 @@ module Leela.HZMQ.ZHelpers where
 import Data.Int
 import System.ZMQ4
 import Data.ByteString (ByteString)
+import Data.List.NonEmpty (fromList)
 
 recvTimeout :: (Receiver a) => Int64 -> Socket a -> IO (Maybe [ByteString])
 recvTimeout t s = do
@@ -24,6 +25,13 @@ recvTimeout t s = do
   case ready of
     [[]] -> return Nothing
     _    -> fmap Just (receiveMulti s)
+
+sndTimeout :: (Sender a) => Int64 -> Socket a -> [ByteString] -> IO Bool
+sndTimeout t s m = do
+  ready <- poll t [Sock s [Out] Nothing]
+  case ready of
+    [[]] -> return False
+    _    -> sendMulti s (fromList m) >> return True
 
 ms :: Int -> Int
 ms = (* 1000)
