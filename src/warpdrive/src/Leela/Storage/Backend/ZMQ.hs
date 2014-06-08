@@ -29,9 +29,9 @@ import Leela.Storage.Graph
 import Control.Concurrent.Async
 import Leela.Storage.Backend.ZMQ.Protocol
 
-data ZMQBackend = ZMQBackend { dealer :: Dealer }
+data ZMQBackend = ZMQBackend { dealer :: Client }
 
-zmqbackend :: Dealer -> ZMQBackend
+zmqbackend :: Client -> ZMQBackend
 zmqbackend = ZMQBackend
 
 recv :: Maybe [ByteString] -> Reply
@@ -46,10 +46,10 @@ internalError :: IO a
 internalError = do
   throwIO SystemExcept
 
-send :: Dealer -> Query -> IO Reply
-send pool req = fmap recv (request pool (encode req))
+send :: Client -> Query -> IO Reply
+send pool req = fmap recv (request 60000 pool (encode req))
 
-send_ :: Dealer -> Query -> IO ()
+send_ :: Client -> Query -> IO ()
 send_ pool req = do
   reply <- send pool req
   case reply of
