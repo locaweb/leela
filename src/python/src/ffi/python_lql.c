@@ -49,6 +49,9 @@ static
 PyObject *pylql_cursor_init(PyTypeObject *, PyObject *, PyObject *);
 
 static
+PyObject *pylql_cursor_init_on(PyTypeObject *, PyObject *, PyObject *);
+
+static
 PyObject *pylql_cursor_close(PyObject *, PyObject *);
 
 static
@@ -435,21 +438,31 @@ PyObject *pylql_cursor_init(PyTypeObject *type, PyObject *args, PyObject *kwargs
   int timeout          = 0;
   const char *secret   = NULL;
   const char *username = NULL;
+  const char *endpoint = NULL;
+  leela_endpoint_t *e  = NULL;
   pylql_context_t *context;
 
   pylql_cursor_t *self = (pylql_cursor_t *) type->tp_alloc(type, 0);
   if (self != NULL)
   {
     self->cursor = NULL;
-    if (! PyArg_ParseTuple(args, "O!|ssi", &pylql_context_type, &context, &username, &secret, &timeout))
+    if (! PyArg_ParseTuple(args, "O!|ssis", &pylql_context_type, &context, &username, &secret, &timeout, &endpoint))
     {
       Py_DECREF(self);
       return(NULL);
     }
 
+    if (endpoint != NULL)
+    { e = leela_endpoint_load(endpoint); }
+
     Py_BEGIN_ALLOW_THREADS
-    self->cursor = leela_lql_cursor_init(context->context, username, secret, timeout);
+    if (e != NULL)
+    { self->cursor = leela_lql_cursor_init_on(context->context, e, username, secret, timeout); }
+    else
+    { self->cursor = leela_lql_cursor_init(context->context, username, secret, timeout); }
     Py_END_ALLOW_THREADS
+
+    leela_endpoint_free(e);
     if (self->cursor == NULL)
     {
       Py_DECREF(self);
