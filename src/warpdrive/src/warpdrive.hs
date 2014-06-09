@@ -129,13 +129,12 @@ main = do
   forkSupervised_ syslog "resolver" $ resolver syslog (optEndpoint opts) naming (optConsul opts)
   withContext $ \ctx -> do
     setMaxSockets 64000 ctx
-    let cfg = DealerConf (optTimeout opts)
-                         (optBacklog opts)
+    let cfg = ClientConf (optBacklog opts)
                          (naming, fmap (maybe [] id . lookup "blackbox") . readIORef)
                          (optCapabilities opts)
-    cache   <- redisOpen syslog (naming, fmap (maybe [] id . lookup "redis") . readIORef) (optRedisSecret opts)
-    storage <- fmap zmqbackend $ create syslog cfg ctx
-    void $ forkFinally (startServer core (optEndpoint opts) ctx cache storage) $ \e -> do
+    cache       <- redisOpen syslog (naming, fmap (maybe [] id . lookup "redis") . readIORef) (optRedisSecret opts)
+    (client, _) <- create syslog cfg ctx
+    void $ forkFinally (startServer core (optEndpoint opts) ctx cache (zmqbackend client)) $ \e -> do
       warning syslog (printf "warpdrive has died: %s" (show e))
       signal alive
     takeMVar alive

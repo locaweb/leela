@@ -24,7 +24,6 @@ module Leela.Network.Core
        , readPasswd
        ) where
 
-import qualified Data.Map as M
 import           Data.IORef
 import           Leela.Logger
 import           Leela.Helpers
@@ -34,8 +33,10 @@ import qualified Data.ByteString as B
 import           Leela.Data.Time
 import           Leela.Data.Graph
 import           Leela.Data.Types
+import qualified Leela.Data.L2Map as M
 import           Control.Exception
 import           Control.Concurrent
+import           Leela.Data.Counter
 import           Leela.Data.QDevice
 import           Leela.Data.Endpoint
 import           Leela.Data.LQL.Comp
@@ -50,9 +51,9 @@ import           Leela.Storage.KeyValue
 data CoreServer = CoreServer { logger :: Logger
                              , stat   :: IORef [(String, [Endpoint])]
                              , passwd :: IORef P.Passwd
-                             , tick   :: IORef Tick
-                             , fdseq  :: IORef FH
-                             , fdlist :: IORef (M.Map (B.ByteString, FH) (IORef (Tick, TimeSpec, Device Reply)))
+                             , tick   :: Counter Tick
+                             , fdseq  :: Counter FH
+                             , fdlist :: M.L2Map B.ByteString FH (TVar (Tick, TimeSpec, Device Reply))
                              }
 
 ttl :: Tick
@@ -76,24 +77,24 @@ newCore syslog statdb secretdb = do
   return state
     where
       makeState =
-        liftM3 (CoreServer syslog statdb secretdb) (newIORef 1) (newIORef 1) (newIORef M.empty)
+        liftM3 (CoreServer syslog statdb secretdb) newCounter newCounter M.empty
 
 rungc :: Logger -> CoreServer -> IO ()
 rungc syslog srv = do
-  at <- atomicModifyIORef' (tick srv) (\a -> let b = max 1 (a+1) in (b, b))
+  at <- next (tick srv)
   kill at >>= mapM_ burry
     where
-      partition _ acc []                   = return acc
-      partition curr acc ((k, shmem) : xs) = do
-        (at, _, _) <- readIORef shmem
+      partition _ [] acc               = return acc
+      partition curr ((k, v) : xs) acc = do
+        (at, _, _) <- atomically $ readTVar v
         case at of
-          0                                     -> partition curr acc xs
+          0                                     -> partition curr xs acc
           _
-            | (max at curr - min at curr) > ttl -> partition curr (k : acc) xs
-            | otherwise                         -> partition curr acc xs
+            | (max at curr - min at curr) > ttl -> partition curr xs (k : acc)
+            | otherwise                         -> partition curr xs acc
 
       kill at = do
-        dead <- readIORef (fdlist srv) >>= partition at [] . M.toList
+        dead <- M.toList (fdlist srv) (partition at) []
         return dead
 
       burry (u, fh) = do
@@ -101,47 +102,43 @@ rungc syslog srv = do
         warning syslog $ printf "PURGE %s" (show k)
         void $ closeFD srv k
 
-nextfd :: CoreServer -> IO FH
-nextfd srv = do
-  curr <- atomicModifyIORef' (fdseq srv) (\a -> let b = a+1 in (b, b))
-  return curr
-
-tickAt :: CoreServer -> IO Tick
-tickAt srv = readIORef (tick srv)
-
 makeFD :: CoreServer -> User -> IO (FH, Device Reply)
 makeFD srv (User u) = do
   dev  <- atomically $ do
     ctrl <- control
     open ctrl 512
   time <- snapshot
-  fd   <- nextfd srv
-  at   <- tickAt srv
-  val  <- newIORef (at, time, dev)
-  atomicModifyIORef (fdlist srv) (\m -> (time `seq` M.insert (u, fd) val m, (fd, dev)))
+  fd   <- next (fdseq srv)
+  at   <- peek (tick srv)
+  val  <- time `seq` newTVarIO (at, time, dev)
+  M.insert u fd val (fdlist srv)
+  return (fd, dev)
 
 withFD :: CoreServer -> (User, FH) -> (Maybe (Device Reply) -> IO b) -> IO b
 withFD srv ((User u), fh) action = do
-  mvalue <- fmap (M.lookup (u, fh)) (readIORef (fdlist srv))
+  mvalue <- M.lookup u fh (fdlist srv)
   case mvalue of
     Nothing    -> action Nothing
     Just value -> mask $ \restore -> do
       dev <- setTick value (Just 0)
       res <- restore (action $ Just dev) `onException` (void $ setTick value Nothing)
-      void $ setTick value Nothing
+      _   <- setTick value Nothing
       return res
     where
       setTick shmem mvalue = do
-        at <- fmap (\v -> maybe v id mvalue) (tickAt srv)
-        atomicModifyIORef shmem (\(_, time, dev) -> ((at, time, dev), dev))
+        at <- fmap (\v -> maybe v id mvalue) (peek (tick srv))
+        atomically $ do
+          (_, time, dev) <- readTVar shmem
+          writeTVar shmem (at, time, dev)
+          return dev
 
 closeFD :: CoreServer -> (User, FH) -> IO Double
 closeFD srv ((User u), fh) = do
-  mvalue <- atomicModifyIORef (fdlist srv) (\m -> (M.delete (u, fh) m, M.lookup (u, fh) m))
+  mvalue <- M.delete u fh (fdlist srv)
   case mvalue of
     Nothing    -> return 0
     Just value -> do
-      (_, t0, dev) <- readIORef value
+      (_, t0, dev) <- atomically $ readTVar value
       t1           <- snapshot
       closeIO dev
       return (elapsed t1 t0)
