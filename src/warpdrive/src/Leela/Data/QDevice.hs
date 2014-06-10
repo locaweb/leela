@@ -23,17 +23,14 @@ module Leela.Data.QDevice
        , open
        , copy
        , close
-       , linger
        , openIO
        , closed
        , control
        , devnull
        , devread
-       , blkread
        , closeIO
        , closedIO
        , devwrite
-       , lingerIO
        , blkreadIO
        , devreadIO
        , notClosed
@@ -102,14 +99,6 @@ close :: HasControl ctrl => ctrl -> STM ()
 close ctrl = let Control tvar = ctrlof ctrl
              in writeTVar tvar True
 
-linger :: HasControl ctrl => ctrl -> STM ()
-linger ctrl = let Control tvar = ctrlof ctrl
-              in do isClosed <- readTVar tvar
-                    unless isClosed retry
-
-lingerIO :: HasControl ctrl => ctrl -> IO ()
-lingerIO = atomically . linger
-
 closeIO :: HasControl ctrl => ctrl -> IO ()
 closeIO = atomically . close
 
@@ -128,6 +117,9 @@ devwriteIO dev = atomically . devwrite dev
 trydevread :: Device a -> STM (Maybe a)
 trydevread dev = fmap snd (select dev) >>= tryReadTBQueue
 
+trydevreadIO :: Device a -> IO (Maybe a)
+trydevreadIO = atomically . trydevread
+
 devread :: Device a -> STM (Maybe a)
 devread dev = do
   (notok, q) <- select dev
@@ -138,22 +130,18 @@ devread dev = do
 devreadIO :: Device a -> IO (Maybe a)
 devreadIO = atomically . devread
 
-blkreadIO :: Limit -> Device a -> IO [a]
-blkreadIO limit = atomically . blkread limit
-
-blkread :: Limit -> Device a -> STM [a]
-blkread limit dev = blkread_ (max 1 limit) []
+blkreadIO :: Device a -> IO [a]
+blkreadIO dev = do
+  ma <- devreadIO dev
+  case ma of
+    Nothing -> return []
+    Just a  -> go [a]
     where
-      blkread_ 0 acc = return (reverse acc)
-      blkread_ l acc = do
-        mmsg <- readfunc l
-        case mmsg of
-          Just msg -> blkread_ (l - 1) (msg : acc)
-          Nothing  -> return (reverse acc)
-
-      readfunc l
-          | l == limit = devread dev
-          | otherwise  = trydevread dev
+      go acc = do
+        ma <- trydevreadIO dev
+        case ma of
+          Nothing -> return (reverse acc)
+          Just a  -> go (a : acc)
 
 instance HasControl Control where
 

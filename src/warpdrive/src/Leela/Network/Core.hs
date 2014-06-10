@@ -244,10 +244,7 @@ process _ _ srv (Fetch sig fh) = do
     case mdev of
       Nothing  -> return $ Fail 404 $ Just "no such channel"
       Just dev -> do
-        mmsg <- devreadIO dev
-        case mmsg of
-          Nothing  -> return Last
-          Just msg -> return msg
+        fmap makeList $ blkreadIO dev
 process _ _ srv (Close _ sig fh) = do
   t <- closeFD srv (sigUser sig, fh)
   notice (logger srv) (printf "CLOSE %d [%f ms]" fh (t / 10000000))
