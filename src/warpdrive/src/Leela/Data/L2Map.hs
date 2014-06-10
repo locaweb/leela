@@ -22,49 +22,49 @@ module Leela.Data.L2Map
        ) where
 
 import           Prelude hiding (lookup)
-import           Control.Monad
+import           Data.Hashable
 import qualified Data.Map.Lazy as M
+import qualified Data.HashMap.Lazy as H
 import           Control.Concurrent.STM
 
-newtype L2Map k1 k2 v = L2Map (TVar (M.Map k1 (TVar (M.Map k2 v))))
+newtype L2Map k1 k2 v = L2Map (TVar (M.Map k1 (TVar (H.HashMap k2 v))))
 
 empty :: IO (L2Map k1 k2 v)
 empty = fmap L2Map (newTVarIO M.empty)
 
-insert :: (Ord k1, Ord k2) => k1 -> k2 -> v -> L2Map k1 k2 v -> IO ()
+insert :: (Ord k1, Eq k2, Hashable k2) => k1 -> k2 -> v -> L2Map k1 k2 v -> IO ()
 insert k1 k2 value (L2Map tm0) = do
   tm1 <- atomically $ do
     m <- readTVar tm0
-    v <- newTVar M.empty
+    v <- newTVar H.empty
     case (M.insertLookupWithKey (\_ -> flip const) k1 v m) of
       (Nothing, m1) -> writeTVar tm0 m1 >> return v
       (Just v1, _)  -> return v1
   atomically $ do
     m <- readTVar tm1
-    writeTVar tm1 (M.insert k2 value m)
+    writeTVar tm1 (H.insert k2 value m)
 
-lookup :: (Ord k1, Ord k2) => k1 -> k2 -> L2Map k1 k2 v -> IO (Maybe v)
+lookup :: (Ord k1, Eq k2, Hashable k2) => k1 -> k2 -> L2Map k1 k2 v -> IO (Maybe v)
 lookup k1 k2 (L2Map tm0) = do
   mtm1 <- fmap (M.lookup k1) (atomically $ readTVar tm0)
   case mtm1 of
     Nothing  -> return Nothing
-    Just tm1 -> fmap (M.lookup k2) (atomically $ readTVar tm1)
+    Just tm1 -> fmap (H.lookup k2) (atomically $ readTVar tm1)
 
-delete :: (Ord k1, Ord k2) => k1 -> k2 -> L2Map k1 k2 v -> IO (Maybe v)
+delete :: (Ord k1, Eq k2, Hashable k2) => k1 -> k2 -> L2Map k1 k2 v -> IO (Maybe v)
 delete k1 k2 (L2Map tm0) = atomically $ do
   m0 <- readTVar tm0
   case (M.lookup k1 m0) of
     Nothing  -> return Nothing
     Just tm1 -> do
-      (a, m1) <- fmap (\m -> (M.lookup k2 m, M.delete k2 m)) (readTVar tm1)
+      (a, m1) <- fmap (\m -> (H.lookup k2 m, H.delete k2 m)) (readTVar tm1)
       writeTVar tm1 m1
-      when (M.null m1) (writeTVar tm0 (M.delete k1 m0))
       return a
 
 toList :: L2Map k1 k2 v -> ([((k1, k2), v)] -> b -> IO b) -> b -> IO b
 toList (L2Map tm0) action b = atomically (readTVar tm0) >>= go b . M.toList
   where go acc []            = return acc
         go acc ((k, v) : xs) = do
-          vs <- fmap (map (\(k1, v1) -> ((k, k1), v1)) . M.toList) (atomically $ readTVar v)
+          vs <- fmap (map (\(k1, v1) -> ((k, k1), v1)) . H.toList) (atomically $ readTVar v)
           flip go xs =<< action vs acc
           
