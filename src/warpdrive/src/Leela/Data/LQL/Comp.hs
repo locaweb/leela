@@ -25,7 +25,9 @@ module Leela.Data.LQL.Comp
     ) where
 
 import           Data.Word
+import           Data.Monoid (mconcat)
 import           Control.Monad
+import qualified Data.Sequence as S
 import           Leela.Data.LQL
 import           Leela.Data.Time
 import qualified Data.ByteString as B
@@ -54,20 +56,24 @@ parseNode :: Parser (Kind, Node)
 parseNode = do
   (Kind kind) <- liftM Kind $ qstring 64 0x28 0x3a
   (Node name) <- liftM Node $ qstring 512 0x3a 0x29
-  when (B.null kind) (fail "kind must not be null")
-  when (B.null name) (fail "name must not be null")
+  when (L.null kind) (fail "kind must not be null")
+  when (L.null name) (fail "name must not be null")
   return (Kind kind, Node name)
 
 parseTree :: Parser (Maybe User, Tree)
 parseTree = do
   name <- qstring 512 0x28 0x29
-  buildResult (fmap (B.drop 2) (B.breakSubstring "::" name))
+  buildResult (L.break (== 0x3a) name)
     where
       buildResult (left, right)
-        | 0x3a `B.elem` left  = fail "invalid character on tree"
-        | 0x3a `B.elem` right = fail "invalid character on tree"
-        | B.null right        = return (Nothing, Tree left)
-        | otherwise           = return (Just $ User left, Tree right)
+        | L.null right        = return (Nothing, Tree left)
+        | otherwise           = case (L.take 2 right) of
+                                  "::" -> liftM2 (,) (fmap (Just . User) (validate left)) (fmap Tree (validate $ L.drop 2 right))
+                                  _    -> fail "parseTree: syntax error"
+
+      validate s
+        | 0x3a `L.elem` s = fail "parseTree: syntax error"
+        | otherwise       = return s
 
 parseLabel :: Parser Label
 parseLabel = liftM Label (qstring 512 0x5b 0x5d)
@@ -76,16 +82,16 @@ parseAttr :: Parser Attr
 parseAttr = liftM Attr (qstring 512 0x22 0x22)
 
 parseGUID :: Parser GUID
-parseGUID = liftM GUID (A.take 36)
+parseGUID = liftM guidFromBS (A.take 36)
 
 parseMaybeGUID :: Parser (Maybe GUID)
 parseMaybeGUID = ("()" *> return Nothing) <|> (liftM Just parseGUID)
 
-qstring :: Int -> Word8 -> Word8 -> Parser B.ByteString
-qstring limit l r = word8 l >> anyWord8 >>= loop limit []
+qstring :: Int -> Word8 -> Word8 -> Parser L.ByteString
+qstring limit l r = word8 l >> anyWord8 >>= loop (limit - 1) []
     where
       loop lim acc x
-        | x == r    = return (B.pack (reverse acc))
+        | x == r    = return (L.pack $ reverse acc)
         | lim < 0   = fail "name is too long"
         | x == 0x5c = do
             c <- anyWord8
@@ -104,7 +110,7 @@ semicolon = void $ word8 0x3b
 parseLink :: Parser (Direction Label)
 parseLink = do
   mdir <- word8 0x2d <|> word8 0x3c
-  l    <- option (Label B.empty) parseLabel
+  l    <- option (Label L.empty) parseLabel
   f    <- case mdir of
            0x2d -> (liftM (const B) (word8 0x2d)) <|> (liftM (const R) (word8 0x3e))
            0x3c -> liftM (const L) (word8 0x2d)
@@ -118,7 +124,7 @@ parseRLink = do
     R l -> return l
     _   -> fail "parseRLink: wrong direction"
 
-parseMakeCreate :: Parser [Journal]
+parseMakeCreate :: Parser (S.Seq Journal)
 parseMakeCreate = do
   k <- parseGUID
   peekWord8 >>= go k []
@@ -127,7 +133,7 @@ parseMakeCreate = do
         l <- hardspace >> parseLink
         b <- hardspace >> parseGUID
         peekWord8 >>= go b (asLink g a b l)
-      go _ g _           = return (concatMap (\(a, l, b) -> [PutLabel a l, PutLink a l b]) g)
+      go _ g _           = return (mconcat $ map (\(a, l, b) -> (S.fromList [PutLabel a l, PutLink a l b])) g)
 
       asLink acc a b (L l) = (b, l, a) : acc
       asLink acc a b (R l) = (a, l, b) : acc
@@ -166,15 +172,18 @@ parseQuery1 acc = do
     else
       return (reverse acc)
 
+nan :: Double
+nan = 0/0
+
+inf :: Double
+inf = 1/0
+
 parseDouble :: Parser Double
 parseDouble = do
   "nan" *> return nan
   <|> "inf" *> return inf
   <|> "-inf" *> (return $ negate inf)
   <|> signed double
-    where
-      nan = 0/0
-      inf = 1/0
 
 parseValue :: Parser Value
 parseValue = do
@@ -216,7 +225,7 @@ parseStmtMake u = do
   _  <- string "make "
   at <- peekWord8
   case at of
-    Just 0x28 -> liftM (AlterStmt . return . uncurry (PutNode (targetUser u) (uTree u))) parseNode
+    Just 0x28 -> liftM (AlterStmt . S.singleton . uncurry (PutNode (targetUser u) (uTree u))) parseNode
     Just _    -> liftM AlterStmt parseMakeCreate
     _         -> fail "bad make statement"
 
@@ -224,10 +233,10 @@ parseStmtPath :: Parser LQL
 parseStmtPath = "path " *> liftM PathStmt parseQuery
 
 parseStmtName :: Using -> Parser LQL
-parseStmtName u = "name " *> liftM (NameStmt u . (:[])) parseGUID
+parseStmtName u = "name " *> liftM (NameStmt u . S.singleton) parseGUID
 
 parseStmtGUID :: Using -> Parser LQL
-parseStmtGUID u = "guid " *> liftM (GUIDStmt u . (:[])) parseNode
+parseStmtGUID u = "guid " *> liftM (GUIDStmt u . S.singleton) parseNode
 
 parseStmtStat :: Parser LQL
 parseStmtStat = "stat" *> return StatStmt
@@ -242,11 +251,11 @@ parseStmtKill = "kill " *> doParse
         hardspace
         mb <- parseMaybeGUID
         case (ma, mb, dl) of
-          (Just a, Nothing, R l) -> return $ AlterStmt [DelLink a l Nothing]
-          (Just a, Just b, R l)  -> return $ AlterStmt [DelLink a l (Just b)]
-          (Nothing, Just b, L l) -> return $ AlterStmt [DelLink b l Nothing]
-          (Just a, Just b, L l)  -> return $ AlterStmt [DelLink b l (Just a)]
-          (Just a, Just b, B l)  -> return $ AlterStmt [DelLink a l (Just b), DelLink b l (Just a)]
+          (Just a, Nothing, R l) -> return $ AlterStmt (S.singleton $ DelLink a l Nothing)
+          (Just a, Just b, R l)  -> return $ AlterStmt (S.singleton $ DelLink a l (Just b))
+          (Nothing, Just b, L l) -> return $ AlterStmt (S.singleton $ DelLink b l Nothing)
+          (Just a, Just b, L l)  -> return $ AlterStmt (S.singleton $ DelLink b l (Just a))
+          (Just a, Just b, B l)  -> return $ AlterStmt (S.fromList [DelLink a l (Just b), DelLink b l (Just a)])
           _                      -> fail "invalid kill command"
 
 parseStmtAttr :: Parser LQL
@@ -269,14 +278,14 @@ parseStmtAttr = "attr put " *> parsePutAttr
       parsePutKAttr g k = do
         v <- parseValue
         w <- option [] (hardspace >> parseWithStmt)
-        return (AlterStmt [PutKAttr g k v w])
+        return (AlterStmt (S.singleton $ PutKAttr g k v w))
 
       parsePutTAttr g k = do
         t <- parseTimePoint
         hardspace
         v <- parseValue
         w <- option [] (hardspace >> parseWithStmt)
-        return (AlterStmt [PutTAttr g k t v w])
+        return (AlterStmt (S.singleton $ PutTAttr g k t v w))
 
       parseGetAttr = do
         g  <- parseGUID
@@ -295,8 +304,8 @@ parseStmtAttr = "attr put " *> parsePutAttr
         g  <- parseGUID
         hardspace
         k  <- parseAttr
-        liftM (AlterStmt . (:[])) ((liftM (DelTAttr g k) (hardspace >> parseTimeRange))
-                                   <|> return (DelKAttr g k))
+        liftM (AlterStmt . S.singleton) ((liftM (DelTAttr g k) (hardspace >> parseTimeRange))
+                                          <|> return (DelKAttr g k))
 
 parseStmt :: Using -> Parser LQL
 parseStmt u = do

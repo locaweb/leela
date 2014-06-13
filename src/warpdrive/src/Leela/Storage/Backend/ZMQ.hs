@@ -20,21 +20,22 @@ module Leela.Storage.Backend.ZMQ
     , zmqbackend
     ) where
 
-import Data.ByteString (ByteString)
-import Leela.Data.Types
-import Control.Exception
-import Leela.HZMQ.Dealer
-import Leela.Data.Excepts
-import Leela.Storage.Graph
-import Control.Concurrent.Async
-import Leela.Storage.Backend.ZMQ.Protocol
+import           Leela.Data.Types
+import           Control.Exception
+import           Leela.HZMQ.Dealer
+import           Leela.Data.Excepts
+import           Leela.Storage.Graph
+import qualified Data.ByteString as B
+import           Control.Concurrent.Async
+import           Control.Parallel.Strategies
+import           Leela.Storage.Backend.ZMQ.Protocol
 
-data ZMQBackend = ZMQBackend { dealer :: Client }
+data ZMQBackend = ZMQBackend { dealer :: ClientFH }
 
-zmqbackend :: Client -> ZMQBackend
+zmqbackend :: ClientFH -> ZMQBackend
 zmqbackend = ZMQBackend
 
-recv :: Maybe [ByteString] -> Reply
+recv :: Maybe [B.ByteString] -> Reply
 recv Nothing    = FailMsg 500
 recv (Just msg) = decode msg
 
@@ -46,10 +47,11 @@ internalError :: IO a
 internalError = do
   throwIO SystemExcept
 
-send :: Client -> Query -> IO Reply
-send pool req = fmap recv (request 60000 pool (encode req))
+send :: ClientFH -> Query -> IO Reply
+send pool req = let msg = (encode req) `using` (evalList rdeepseq)
+                in request 60000 pool msg >>= evaluate . recv
 
-send_ :: Client -> Query -> IO ()
+send_ :: ClientFH -> Query -> IO ()
 send_ pool req = do
   reply <- send pool req
   case reply of

@@ -102,9 +102,9 @@ passwdWatcher syslog file = do
   forkSupervised_ syslog "passwd watcher" (do
     current <- readIORef shmem
     passwd  <- fmap (maybe current id) (parseFile file)
-    when (passwd /= current) (do
+    when (passwd /= current) $ do
       warning syslog "loading new passwd file"
-      writeIORef shmem passwd)
+      writeIORef shmem passwd
     threadDelay $ 5 * 1000 * 1000)
   return shmem
 
@@ -132,10 +132,10 @@ main = do
     let cfg = ClientConf (optBacklog opts)
                          (naming, fmap (maybe [] id . lookup "blackbox") . readIORef)
                          (optCapabilities opts)
-    cache       <- redisOpen syslog (naming, fmap (maybe [] id . lookup "redis") . readIORef) (optRedisSecret opts)
-    (client, _) <- create syslog cfg ctx
-    void $ forkFinally (startServer core (optEndpoint opts) ctx cache (zmqbackend client)) $ \e -> do
-      warning syslog (printf "warpdrive has died: %s" (show e))
-      signal alive
+    cache  <- redisOpen syslog (naming, fmap (maybe [] id . lookup "redis") . readIORef) (optRedisSecret opts)
+    client <- create syslog cfg ctx
+    router <- startServer core (optEndpoint opts) ctx cache (zmqbackend client)
     takeMVar alive
+    stopRouter router
+    destroy client
   warning syslog "warpdrive: bye!"

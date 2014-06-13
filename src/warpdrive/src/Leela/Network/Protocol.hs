@@ -28,20 +28,23 @@ module Leela.Network.Protocol
     , encode
     , encodeE
     , makeList
+    , mapToLazyBS
     ) where
 
 import           Data.List (foldl')
 import           Data.Word
+import           Leela.Helpers
 import           Control.Monad
 import qualified Data.ByteString as B
 import           Leela.Data.Time
 import           Control.Exception
 import           Leela.Data.Types
 import           Leela.Data.Excepts
-import           Data.ByteString.UTF8 (fromString)
 import           Leela.Data.Signature
-import qualified Data.ByteString.Base16 as B16
+import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Base16 as B16
+import           Data.ByteString.Builder
 import           Data.Double.Conversion.ByteString
 
 type FH = Word64
@@ -66,7 +69,7 @@ data Reply = Last
            | Fail Int (Maybe String)
 
 data RValue = Path [(GUID, Label)]
-            | Stat [(B.ByteString, B.ByteString)]
+            | Stat [(L.ByteString, L.ByteString)]
             | List [RValue]
             | KAttr GUID Attr (Maybe Value)
             | TAttr GUID Attr [(Time, Value)]
@@ -129,16 +132,13 @@ readSignature users sig msg =
   let (base, mac) = B.break (== 0x20) sig
   in case (B.splitWith (== 0x3a) base) of
        [user, timestr, nonce] -> do
-         let u = User user
+         let u = userFromBS user
          t <- readTime timestr
          n <- readNonce nonce
          s <- readMAC $ B.drop 1 mac
          whenValidSignature users u n s (B.concat (base : B.singleton 0x3a : msg)) (Signature u t n s)
        _                      ->
          Left $ Fail 400 (Just "syntax error: signature")
-
-encodeShow :: (Show s) => s -> B.ByteString
-encodeShow = B8.pack . show
 
 decode :: (User -> Maybe Secret) -> [B.ByteString] -> Either Reply Query
 decode users (sig:"begin":lql)         = fmap (flip Begin lql) (readSignature users sig ("begin" : lql))
@@ -147,38 +147,76 @@ decode users [sig,"close",fh,"nowait"] = liftM2 (Close True) (readSignature user
 decode users [sig,"fetch",fh]          = liftM2 Fetch (readSignature users sig ["fetch",fh]) (readDecimal fh)
 decode _ _                             = Left $ Fail 400 (Just "syntax error: bad frame")
 
-encodeValue :: Value -> [B.ByteString]
+encodeDouble :: Double -> L.ByteString
+encodeDouble = L.fromStrict . toShortest
+
+encodeValue :: Value -> [L.ByteString]
 encodeValue (Bool True)  = ["0", "true"]
 encodeValue (Bool False) = ["0", "false"]
 encodeValue (Text v)     = ["1", v]
-encodeValue (Int32 v)    = ["2", encodeShow v]
-encodeValue (Int64 v)    = ["3", encodeShow v]
-encodeValue (UInt32 v)   = ["4", encodeShow v]
-encodeValue (UInt64 v)   = ["5", encodeShow v]
-encodeValue (Double v)   = ["6", toShortest v]
+encodeValue (Int32 v)    = ["2", toLazyBS 32 $ int32Dec v]
+encodeValue (Int64 v)    = ["3", toLazyBS 32 $ int64Dec v]
+encodeValue (UInt32 v)   = ["4", toLazyBS 32 $ word32Dec v]
+encodeValue (UInt64 v)   = ["5", toLazyBS 32 $ word64Dec v]
+encodeValue (Double v)   = ["6", encodeDouble v]
 
-encodeTimeSeries :: [(Time, Value)] -> [B.ByteString]
-encodeTimeSeries = concatMap (\(t, v) -> toShortest (seconds t) : encodeValue v)
+encodeTimeSeries :: [(Time, Value)] -> [L.ByteString]
+encodeTimeSeries = sConcatMap (\(t, v) -> (encodeDouble (seconds t)) : encodeValue v)
 
-encodeRValue :: RValue -> [B.ByteString]
-encodeRValue (Name u t k n g)     = ["name", toByteString u, toByteString t, toByteString k, toByteString n, toByteString g]
-encodeRValue (Path p)             = let f acc (g, l) = toByteString l : toByteString g : acc
-                                    in "path" : encodeShow (length p) : foldl' f [] p
-encodeRValue (List v)             = "list" : encodeShow (length v) : concatMap encodeRValue v
-encodeRValue (Stat prop)          = "stat" : encodeShow (length prop) : concatMap (\(a, b) -> [a, b]) prop
-encodeRValue (TAttr g a v)        = "t-attr" : (encodeShow $ length v) : toByteString g : toByteString a : encodeTimeSeries v
-encodeRValue (KAttr g a Nothing)  = ["k-attr", toByteString g, toByteString a, "-1", ""]
-encodeRValue (KAttr g a (Just v)) = "k-attr" : toByteString g : toByteString a : encodeValue v
-encodeRValue (NAttrs g names)     = "n-attr" : encodeShow (length names) : toByteString g : map toByteString names
+encodeRValue :: RValue -> [L.ByteString]
+encodeRValue (Name u t k n g)     = [ "name"
+                                    , asLazyByteString u
+                                    , asLazyByteString t
+                                    , asLazyByteString k
+                                    , asLazyByteString n
+                                    , asLazyByteString g
+                                    ]
+encodeRValue (Path p)             =   "path"
+                                    : toLazyBS 32 (intDec (length p))
+                                    : (foldl' (\acc (g, l) -> asLazyByteString l : asLazyByteString g : acc) [] p)
+encodeRValue (List v)             =   "list"
+                                    : toLazyBS 32 (intDec (length v))
+                                    : sConcatMap encodeRValue v
+encodeRValue (Stat prop)          =   "stat"
+                                    : toLazyBS 32 (intDec (length prop))
+                                    : sConcatMap (\(a, b) -> [a, b]) prop
+encodeRValue (TAttr g a v)        =   "t-attr"
+                                    : toLazyBS 32 (intDec (length v))
+                                    : asLazyByteString g
+                                    : asLazyByteString a
+                                    : encodeTimeSeries v
+encodeRValue (KAttr g a Nothing)  = [ "k-attr"
+                                    , asLazyByteString g
+                                    , asLazyByteString a
+                                    , "-1"
+                                    , L.empty
+                                    ]
+encodeRValue (KAttr g a (Just v)) =   "k-attr"
+                                    : asLazyByteString g
+                                    : asLazyByteString a
+                                    : encodeValue v
+encodeRValue (NAttrs g names)     =   "n-attr"
+                                    : toLazyBS 32 (intDec (length names))
+                                    : asLazyByteString g
+                                    : (map asLazyByteString names)
 
-encode :: Reply -> [B.ByteString]
-encode (Done fh)              = ["done", encodeShow fh]
-encode Last                   = ["done"]
-encode (Fail code Nothing)    = ["fail", encodeShow code, defaultMessage code]
-encode (Fail code (Just msg)) = ["fail", encodeShow code, fromString msg]
-encode (Item v)               = "item" : encodeRValue v
+encode :: Reply -> [L.ByteString]
+encode (Done fh)              = [ "done"
+                                , toLazyBS 32 $ word64Dec fh
+                                ]
+encode Last                   = [ "done" ]
+encode (Fail code Nothing)    = [ "fail"
+                                , toLazyBS 32 $ intDec code
+                                , defaultMessage code
+                                ]
+encode (Fail code (Just msg)) = [ "fail"
+                                , toLazyBS 32 $ intDec code
+                                , toLazyBS 512 $ string7 msg
+                                ]
+encode (Item v)               =   "item"
+                                : encodeRValue v
 
-defaultMessage :: Int -> B.ByteString
+defaultMessage :: Int -> L.ByteString
 defaultMessage 404  = "not found"
 defaultMessage 403  = "forbidden"
 defaultMessage 400  = "bad request"

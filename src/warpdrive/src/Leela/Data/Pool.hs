@@ -50,17 +50,11 @@ updatePool pool lcluster = do
 
 deletePool :: Pool a b -> IO ()
 deletePool pool = do
-  mvalue <- atomically $ do
+  items <- atomically $ do
     m <- readTVar (state pool)
-    if (M.null m)
-      then let (value, newState) = M.deleteFindMin m
-           in writeTVar (state pool) newState >> return (Just value)
-      else return Nothing
-  case mvalue of
-    Nothing     -> return ()
-    Just (k, b) -> do
-      delete pool k b
-      deletePool pool
+    writeTVar (state pool) M.empty
+    return (M.toList m)
+  mapM_ (uncurry $ delete pool) items
 
 kill :: (Ord a) => Pool a b -> a -> IO ()
 kill pool k = do

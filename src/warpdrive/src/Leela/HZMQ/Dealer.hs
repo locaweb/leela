@@ -15,13 +15,13 @@
 -- limitations under the License.
 
 module Leela.HZMQ.Dealer
-       ( Client
+       ( ClientFH ()
        , ClientConf (..)
        , create
+       , destroy
        , request
        ) where
 
-import qualified Data.Map as M
 import           Data.List (sort)
 import           Data.Word
 import           Data.Maybe
@@ -35,13 +35,15 @@ import qualified System.Timeout as T
 import qualified Data.ByteString as B
 import           Leela.Data.Pool
 import           Control.Exception
+import qualified Data.HashMap.Lazy as H
 import           Control.Concurrent
 import           Leela.Data.Counter
 import           Leela.Data.Endpoint
 import           Leela.HZMQ.ZHelpers
+import qualified Data.ByteString.Lazy as L
 import           Control.Concurrent.STM
 
-data Job = Job { jmsg  :: [B.ByteString]
+data Job = Job { jmsg  :: [L.ByteString]
                , slot  :: MVar (Maybe [B.ByteString])
                }
 
@@ -51,38 +53,41 @@ data ClientConf a = ClientConf { backlog      :: Int
                                }
 
 data Client = Client { logger  :: Logger
-                     , queue   :: MVar B.ByteString
-                     , state   :: TVar (M.Map B.ByteString Job)
+                     , queue   :: MVar L.ByteString
+                     , state   :: TVar (H.HashMap L.ByteString Job)
                      , counter :: Counter Word64
                      }
 
-request :: Int -> Client -> [B.ByteString] -> IO (Maybe [B.ByteString])
-request timeout dealer a = mask $ \restore -> do
-  shmem  <- newEmptyMVar
-  tick   <- fmap encode $ next (counter dealer)
+newtype ClientFH = ClientFH (Client, Pool [Endpoint] (TVar Bool, Int, QSem), TVar Bool)
+
+request :: Int -> ClientFH -> [L.ByteString] -> IO (Maybe [B.ByteString])
+request timeout (ClientFH (dealer, _, _)) a = mask $ \restore -> do
+  shmem <- newEmptyMVar
+  tick  <- fmap encodeLazy $ next (counter dealer)
   createFH shmem tick
   putMVar (queue dealer) tick
-  mvalue <- fmap join (restore (T.timeout (timeout * 1000) (takeMVar shmem)) `onException` dropFH tick)
-  dropFH tick
-  return mvalue
+  fmap join (restore (T.timeout (timeout * 1000) (takeMVar shmem)) `finally` (dropFH tick))
     where
       createFH shmem tick = atomically $ do
         m <- readTVar (state dealer)
-        writeTVar (state dealer) (M.insert tick (Job a shmem) m)
+        writeTVar (state dealer) (H.insert tick (Job a shmem) m)
 
       dropFH tick = atomically $ do
         m <- readTVar (state dealer)
-        writeTVar (state dealer) (M.delete tick m)
+        writeTVar (state dealer) (H.delete tick m)
 
-readJob :: Client -> B.ByteString -> IO (Maybe Job)
-readJob dealer tick = atomically $ fmap (M.lookup tick) (readTVar (state dealer))
+readJob :: Client -> L.ByteString -> IO (Maybe Job)
+readJob dealer tick = atomically $ fmap (H.lookup tick) (readTVar (state dealer))
+
+reply :: Job -> Maybe [B.ByteString] -> IO ()
+reply job ans = putMVar (slot job) ans
 
 dealerLoop :: Context -> Client -> IO Bool -> StrEndpoint -> [Endpoint] -> IO ()
 dealerLoop ctx dealer cont iaddr oaddr = do
   withSocket ctx Dealer $ \ofh -> do
-    mapM_ (configAndConnect ofh . dumpEndpointStr) oaddr
+    mapM_ (configAndConnect (1000, 10000) ofh . dumpEndpointStr) oaddr
     withSocket ctx Pull $ \ifh -> do
-      configAndConnect ifh iaddr
+      configAndConnect (10000, 1000) ifh iaddr
       foreverWith cont $ go ifh ofh
         where
           go ifh ofh = do
@@ -90,47 +95,66 @@ dealerLoop ctx dealer cont iaddr oaddr = do
                                     , Sock ofh [In] Nothing
                                     ]
             unless (null ev0) $ do
-              key  <- receive ifh
+              key  <- fmap L.fromStrict (receive ifh)
               mjob <- readJob dealer key
               when (isJust mjob) $ do
-                ok <- sndTimeout 10 ofh (key : B.empty : (jmsg $ fromJust mjob))
-                unless ok (putMVar (slot $ fromJust mjob) Nothing)
-
+                ok <- sndTimeout' 0 ofh (key : L.empty : (jmsg $ fromJust mjob))
+                unless ok $ do
+                  warning (logger dealer) "dealer: could not send message"
+                  reply (fromJust mjob) Nothing
             unless (null ev1) $ do
-              (key, (_:reply)) <- fmap (break B.null) (receiveMulti ofh)
-              mmsg             <- readJob dealer (last key)
-              when (isJust mmsg) (putMVar (slot $ fromJust mmsg) (Just reply))
+              (key, (_:ans)) <- fmap (break B.null) (receiveMulti ofh)
+              mmsg           <- readJob dealer (L.fromStrict $ last key)
+              when (isJust mmsg) (reply (fromJust mmsg) (Just ans))
 
-create :: Logger -> ClientConf a -> Context -> IO (Client, Pool [Endpoint] (TVar Bool))
+create :: Logger -> ClientConf a -> Context -> IO ClientFH
 create syslog cfg ctx = do
   notice syslog (printf "creating zmq.dealer [capabilities %d]" (capabilities cfg))
+  ctrl   <- newTVarIO True
   iaddr  <- fmap (printf "inproc://%s" . show) nextRandom :: IO String
   queue  <- newEmptyMVar
-  dealer <- liftM2 (Client syslog queue) (newTVarIO M.empty) newCounter
-  pool   <- createPool (createWorker dealer iaddr) destroyWorker
-  forkSupervised_ syslog "dealer/pool" $ do
+  dealer <- liftM2 (Client syslog queue) (newTVarIO H.empty) newCounter
+  pool   <- createPool (createWorker ctrl dealer iaddr) destroyWorker
+  _      <- flip forkFinally (\_ -> atomically $ writeTVar ctrl True) $
+    withSocket ctx Push $ \fh -> do
+      configAndBind (1000, 1000) fh iaddr
+      foreverWith (atomically $ readTVar ctrl) $ do
+        key <- takeMVar queue
+        unless (L.null key) $ do
+          ok <- sndTimeout' 0 fh [key]
+          unless ok $ do
+            warning syslog $ "dealer: can't schedule, dropping msg"
+            mjob <- readJob dealer key
+            unless (isJust mjob) $ reply (fromJust mjob) Nothing
+  forkSupervised syslog (atomically $ readTVar ctrl) "dealer/pool" $ do
     let (db, readFunc) = endpoint cfg
     updatePool pool =<< fmap ((:[]) . sort) (readFunc db)
     sleep 1
-  forkSupervised_ syslog "dealor/router" $ withSocket ctx Push $ \fh -> do
-    configAndBind fh iaddr
-    forever $ do
-      msg <- takeMVar queue
-      send fh [] msg
-  return (dealer, pool)
+  return $ ClientFH (dealer, pool, ctrl)
     where
-      aliveCheck ctrl = atomically $ readTVar ctrl
+      aliveCheck ctrl0 ctrl1 = atomically $ liftM2 (&&) (readTVar ctrl0) (readTVar ctrl1)
 
-      destroyWorker _ ctrl = do
+      destroyWorker _ (ctrl, caps, sem) = do
         warning syslog $
           printf "dropping zmq.dealer/worker"
         atomically $ writeTVar ctrl False
+        replicateM_ caps (waitQSem sem)
 
-      createWorker dealer iaddr oaddr = do
+      createWorker ctrl0 dealer iaddr oaddr = do
         warning syslog $
           printf "creating zmq.dealer/worker"
         ctrl <- newTVarIO True
-        unless (null oaddr) $
-          replicateM_ (capabilities cfg) $
-            forkIO (dealerLoop ctx dealer (aliveCheck ctrl) iaddr oaddr)
-        return ctrl
+        sem  <- newQSem 0
+        if (null oaddr)
+          then return (ctrl, 0, sem)
+          else do
+            replicateM_ (capabilities cfg) $
+              forkFinally (dealerLoop ctx dealer (aliveCheck ctrl0 ctrl) iaddr oaddr) (\_ -> signalQSem sem)
+            return (ctrl, capabilities cfg, sem)
+
+destroy :: ClientFH -> IO ()
+destroy (ClientFH (dealer, pool, ctrl)) = do
+  deletePool pool
+  atomically $ writeTVar ctrl False
+  putMVar (queue dealer) L.empty
+  atomically $ readTVar ctrl >>= flip unless retry

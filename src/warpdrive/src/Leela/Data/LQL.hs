@@ -21,7 +21,8 @@ module Leela.Data.LQL
     ) where
 
 import qualified Data.Map as M
-import           Data.List (sortBy)
+import qualified Data.Sequence as S
+import           Data.Foldable (toList)
 import           Leela.Data.Types
 
 targetUser :: Using -> User
@@ -39,22 +40,9 @@ data LQL = StatStmt
          | TAttrGetStmt GUID Attr TimeRange [Option]
          | KAttrListStmt GUID (Mode Attr)
          | TAttrListStmt GUID (Mode Attr)
-         | NameStmt Using [GUID]
-         | GUIDStmt Using [(Kind, Node)]
-         | AlterStmt [Journal]
-
-lqlCmp :: LQL -> LQL -> Ordering
-lqlCmp a b = numof a `compare` numof b
-    where
-      numof StatStmt               = 0
-      numof (PathStmt _)           = 1
-      numof (KAttrGetStmt _ _ _)   = 2
-      numof (TAttrGetStmt _ _ _ _) = 3
-      numof (KAttrListStmt _ _)    = 4
-      numof (TAttrListStmt _ _)    = 5
-      numof (NameStmt _ _)         = 6
-      numof (GUIDStmt _ _)         = 7
-      numof (AlterStmt _)          = 8
+         | NameStmt Using (S.Seq GUID)
+         | GUIDStmt Using (S.Seq (Kind, Node))
+         | AlterStmt (S.Seq Journal)
 
 lqlDescr :: [LQL] -> String
 lqlDescr = show . go M.empty
@@ -68,7 +56,7 @@ lqlDescr = show . go M.empty
       go acc (TAttrGetStmt _ _ _ _ : xs) = go (M.insertWith (+) "attr get(t)" 1 acc) xs
       go acc (NameStmt _ _ : xs)         = go (M.insertWith (+) "name" 1 acc) xs
       go acc (GUIDStmt _ _ : xs)         = go (M.insertWith (+) "guid" 1 acc) xs
-      go acc (AlterStmt j : xs)          = go (jDescr acc j) xs
+      go acc (AlterStmt j : xs)          = go (jDescr acc (toList j)) xs
 
       jDescr acc []                   = acc
       jDescr acc (PutLink _ _ _ : xs)     = jDescr (M.insertWith (+) "make(l)" 1 acc) xs
@@ -82,13 +70,13 @@ lqlDescr = show . go M.empty
       jDescr acc (PutTAttr _ _ _ _ _ : xs) = jDescr (M.insertWith (+) "attr put(t)" 1 acc) xs
 
 lqlMerge :: LQL -> LQL -> Either LQL (LQL, LQL)
-lqlMerge (NameStmt u xs) (NameStmt _ ys) = Left (NameStmt u (xs ++ ys))
-lqlMerge (GUIDStmt u xs) (GUIDStmt _ ys) = Left (GUIDStmt u (xs ++ ys))
-lqlMerge (AlterStmt xs) (AlterStmt ys)   = Left (AlterStmt (xs ++ ys))
+lqlMerge (NameStmt u xs) (NameStmt _ ys) = Left (NameStmt u (xs S.>< ys))
+lqlMerge (GUIDStmt u xs) (GUIDStmt _ ys) = Left (GUIDStmt u (xs S.>< ys))
+lqlMerge (AlterStmt xs) (AlterStmt ys)   = Left (AlterStmt (xs S.>< ys))
 lqlMerge a b                             = Right (a, b)
 
 groupLQL :: [LQL] -> [LQL]
-groupLQL = go . sortBy lqlCmp
+groupLQL = go
     where
       go (a : b : xs) = case (lqlMerge a b) of
                           Left a       -> go (a : xs)

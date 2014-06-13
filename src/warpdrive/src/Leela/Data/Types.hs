@@ -28,7 +28,7 @@ module Leela.Data.Types
        , Journal (..)
        , Matcher (..)
        , TimeRange (..)
-       , AsByteString (..)
+       , AsLazyByteString (..)
        , glob
        , nextPage
        , setOpt
@@ -39,18 +39,47 @@ module Leela.Data.Types
        , isPutLabel
        , isPutKAttr
        , isDelKAttr
+       , attrFromBS
+       , guidFromBS
+       , kindFromBS
+       , nodeFromBS
+       , treeFromBS
+       , userFromBS
+       , labelFromBS
        ) where
 
 import           Data.Int
 import           Data.Word
 import           Data.Serialize
-import           Leela.Data.Time
 import qualified Data.ByteString as B
+import           Leela.Data.Time
 import           Control.Exception
 import           Leela.Data.Excepts
+import qualified Data.ByteString.Lazy as L
+
+newtype GUID = GUID L.ByteString
+        deriving (Eq, Ord, Show)
+
+newtype Label = Label L.ByteString
+        deriving (Eq, Ord, Show)
+
+newtype Node = Node L.ByteString
+        deriving (Eq, Ord, Show)
+
+newtype User = User L.ByteString
+        deriving (Eq, Ord, Show)
+
+newtype Tree = Tree L.ByteString
+        deriving (Eq, Ord, Show)
+
+newtype Kind = Kind L.ByteString
+        deriving (Eq, Ord, Show)
+
+newtype Attr = Attr L.ByteString
+        deriving (Eq, Ord, Show)
 
 data Value = Bool Bool
-           | Text B.ByteString
+           | Text L.ByteString
            | Int32 Int32
            | Int64 Int64
            | Double Double
@@ -85,6 +114,29 @@ data Mode a = All (Maybe a)
             | Prefix a a
             | Precise a
 
+class AsLazyByteString a where
+
+  asLazyByteString :: a -> L.ByteString
+
+guidFromBS :: B.ByteString -> GUID
+guidFromBS = GUID . L.fromStrict
+
+kindFromBS :: B.ByteString -> Kind
+kindFromBS = Kind . L.fromStrict
+
+treeFromBS :: B.ByteString -> Tree
+treeFromBS = Tree . L.fromStrict
+
+labelFromBS :: B.ByteString -> Label
+labelFromBS = Label . L.fromStrict
+
+nodeFromBS :: B.ByteString -> Node
+nodeFromBS = Node . L.fromStrict
+
+userFromBS :: B.ByteString -> User
+userFromBS = User . L.fromStrict
+
+attrFromBS = Attr . L.fromStrict
 
 isDelKAttr :: Journal -> Bool
 isDelKAttr (DelKAttr _ _) = True
@@ -125,71 +177,18 @@ setOpt o1 (o : xs)
       same Indexing Indexing = True
       same _ _               = False
 
-glob :: B.ByteString -> Mode B.ByteString
+glob :: L.ByteString -> Mode L.ByteString
 glob s
   | "*" == s           = All Nothing
-  | B.isSuffixOf "*" s = uncurry Prefix (range $ B.init s)
+  | L.isSuffixOf "*" s = uncurry Prefix (range $ L.init s)
   | otherwise          = Precise s
     where
-      range str = (str, B.init str `B.snoc` (B.last str + 1))
+      range str = (str, L.init str `L.snoc` (L.last str + 1))
 
 nextPage :: Mode a -> a -> Mode a
 nextPage (All _) l      = All (Just l)
 nextPage (Prefix _ b) l = Prefix l b
 nextPage _ _            = error "precise has no pagination"
-
-newtype GUID = GUID B.ByteString
-        deriving (Eq, Ord, Show)
-
-newtype Label = Label B.ByteString
-        deriving (Eq, Ord, Show)
-
-newtype Node = Node B.ByteString
-        deriving (Eq, Ord, Show)
-
-newtype User = User B.ByteString
-        deriving (Eq, Ord, Show)
-
-newtype Tree = Tree B.ByteString
-        deriving (Eq, Ord, Show)
-
-newtype Kind = Kind B.ByteString
-        deriving (Eq, Ord, Show)
-
-newtype Attr = Attr B.ByteString
-        deriving (Eq, Ord, Show)
-
-class AsByteString a where
-
-  toByteString :: a -> B.ByteString
-
-instance AsByteString GUID where
-
-  toByteString (GUID g) = g
-
-instance AsByteString Label where
-
-  toByteString (Label l) = l
-
-instance AsByteString Kind where
-
-  toByteString (Kind l) = l
-
-instance AsByteString Node where
-
-  toByteString (Node n) = n
-
-instance AsByteString User where
-
-  toByteString (User u) = u
-
-instance AsByteString Attr where
-
-  toByteString (Attr a) = a
-
-instance AsByteString Tree where
-
-  toByteString (Tree t) = t
 
 instance Serialize Value where
 
@@ -198,8 +197,8 @@ instance Serialize Value where
     putWord8 (fromIntegral $ fromEnum v)
   put (Text v)   = do
     putWord8 1
-    putWord16be (fromIntegral $ B.length v)
-    putByteString v
+    putWord16be (fromIntegral $ L.length v)
+    putLazyByteString v
   put (Int32 v)  = do
     putWord8 2
     putWord32be (fromIntegral v)
@@ -220,7 +219,7 @@ instance Serialize Value where
     magic <- getWord8
     case magic of
       0 -> fmap (Bool . toEnum . fromIntegral) getWord8
-      1 -> fmap Text (getWord16be >>= getByteString . fromIntegral)
+      1 -> fmap Text (getWord16be >>= getLazyByteString . fromIntegral)
       2 -> fmap (Int32 . fromIntegral) getWord32be
       3 -> fmap UInt32 getWord32be
       4 -> fmap (Int64 . fromIntegral) getWord64be
@@ -233,3 +232,31 @@ instance Functor Mode where
   fmap f (All ma)     = All (fmap f ma)
   fmap f (Prefix a b) = Prefix (f a) (f b)
   fmap f (Precise a)  = Precise (f a)
+
+instance AsLazyByteString User where
+
+  asLazyByteString (User u) = u
+
+instance AsLazyByteString Tree where
+
+  asLazyByteString (Tree t) = t
+
+instance AsLazyByteString GUID where
+
+  asLazyByteString (GUID g) = g
+
+instance AsLazyByteString Label where
+
+  asLazyByteString (Label l) = l
+
+instance AsLazyByteString Kind where
+
+  asLazyByteString (Kind k) = k
+
+instance AsLazyByteString Node where
+
+  asLazyByteString (Node n) = n
+
+instance AsLazyByteString Attr where
+
+  asLazyByteString (Attr a) = a

@@ -19,15 +19,21 @@ module Leela.Storage.Backend.ZMQ.Protocol
     , Reply (..)
     , encode
     , decode
+    , mapToLazyBS
     ) where
 
+import           Data.Monoid ((<>), mconcat)
+import           Data.List (intersperse)
 import           Control.Monad
-import qualified Data.Serialize as S
+import           Leela.Helpers
+import qualified Data.Serialize as E
 import qualified Data.ByteString as B
 import           Leela.Data.Time
 import           Leela.Data.Types
 import           Leela.Storage.Graph (Limit)
+import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Char8 as B8
+import           Data.ByteString.Builder
 
 data Query = MsgGetName GUID
            | MsgGetGUID User Tree Kind Node
@@ -68,63 +74,159 @@ decodeValues :: [B.ByteString] -> Either Int [(Time, Value)]
 decodeValues = go []
     where
       go acc (t:v:rest) =
-        case (liftM2 (,) (decodeInt t) (either (const Nothing) Just $ S.decode v)) of
+        case (liftM2 (,) (decodeInt t) (either (const Nothing) Just $ E.decode v)) of
           Just (t1, v1) -> go ((fromSeconds $ fromIntegral t1, v1) : acc) rest
           Nothing       -> Left 599
       go acc []         = Right acc
       go _ _            = Left 599
 
-encodeShow :: (Show s) => s -> B.ByteString
-encodeShow = B8.pack . show
+encodeMode :: (AsLazyByteString s) => Limit -> GUID -> Mode s -> [L.ByteString]
+encodeMode lim g (All Nothing)  = [ "all"
+                                  , asLazyByteString g
+                                  , L.empty
+                                  , toLazyBS 32 $ intDec lim
+                                  ]
+encodeMode lim g (All (Just l)) = [ "all"
+                                  , asLazyByteString g
+                                  , asLazyByteString l
+                                  , toLazyBS 32 $ intDec lim
+                                  ]
+encodeMode lim g (Prefix a b)   = [ "pre"
+                                  , asLazyByteString g
+                                  , asLazyByteString a
+                                  , asLazyByteString b
+                                  , toLazyBS 32 $ intDec lim
+                                  ]
+encodeMode _ g (Precise l)      = [ "ext"
+                                  , asLazyByteString g
+                                  , asLazyByteString l
+                                  ]
 
-encodeMode :: (AsByteString s) => Limit -> GUID -> Mode s -> [B.ByteString]
-encodeMode lim g (All Nothing)  = ["all", toByteString g, "", encodeShow lim]
-encodeMode lim g (All (Just l)) = ["all", toByteString g, toByteString l, encodeShow lim]
-encodeMode lim g (Prefix a b)   = ["pre", toByteString g, toByteString a, toByteString b, encodeShow lim]
-encodeMode _ g (Precise l)      = ["ext", toByteString g, toByteString l]
-
-encodeOptions :: [Option] -> B.ByteString
-encodeOptions = B.intercalate ", " . map encodeOption
+encodeOptions :: [Option] -> L.ByteString
+encodeOptions = toLazyBS 512 . mconcat . intersperse (string7 ", ") . map encodeOption
     where
-      encodeOption (TTL v)    = "ttl:" `B.append` (encodeShow v)
-      encodeOption (Indexing) = "index:true"
+      encodeOption (TTL v)    = string7 "ttl:" <> (intDec v)
+      encodeOption (Indexing) = string7 "index:true"
 
-encode :: Query -> [B.ByteString]
-encode (MsgGetName g)                  = ["get", "name", toByteString g]
-encode (MsgGetGUID u t k n)            = ["get", "guid", toByteString u, toByteString t, toByteString k, toByteString n]
-encode (MsgHasLink a l b)              = ["get", "link", toByteString a, toByteString l , toByteString b, "1"]
-encode (MsgGetLink g l Nothing lim)    = ["get", "link", toByteString g, toByteString l, "", encodeShow lim]
-encode (MsgGetLink g l (Just p) lim)   = ["get", "link", toByteString g, toByteString l, toByteString p, encodeShow lim]
-encode (MsgGetLabel g m lim)           = "get" : "label" : encodeMode lim g m
-encode (MsgPutName u t k n)            = ["put", "name", toByteString u, toByteString t, toByteString k, toByteString n]
-encode (MsgPutLink links)              = "put" : "link" : concatMap (\(a, l, b) -> [toByteString a, toByteString l, toByteString b]) links
-encode (MsgPutLabel labels)            = "put" : "label" : concatMap (\(a, l) -> [toByteString a, toByteString l]) labels
-encode (MsgUnlink links)               = "del" : "link" : concatMap (\(a, l, mb) -> [toByteString a, toByteString l, maybe B.empty toByteString mb]) links
-encode (MsgPutAttr attrs)              = "put" : "k-attr" : concatMap (\(g, a, v, o) -> [ toByteString g
-                                                                                        , toByteString a
-                                                                                        , S.encode v
-                                                                                        , encodeOptions o
-                                                                                        ]) attrs
-encode (MsgPutTAttr attrs)           = "put" : "t-attr" : concatMap (\(g, a, t, v, o) -> [ toByteString g
-                                                                                         , toByteString a
-                                                                                         , encodeShow (truncateInt $ seconds t)
-                                                                                         , S.encode v
-                                                                                         , encodeOptions o
-                                                                                         ]) attrs
-encode (MsgDelAttr attrs)            = "del" : "k-attr" : concatMap (\(g, a) -> [toByteString g, toByteString a]) attrs
-encode (MsgGetAttr g a)              = ["get", "k-attr", toByteString g, toByteString a]
-encode (MsgGetTAttr g a t l)         = ["get", "t-attr", toByteString g, toByteString a, encodeShow (truncateInt $ seconds t), encodeShow l]
-encode (MsgListAttr g mode limit)    = "get" : "attr" : "k-attr" : encodeMode limit g mode
-encode (MsgListTAttr g mode limit)   = "get" : "attr" : "t-attr" : encodeMode limit g mode
-encode (MsgDelete a)                 = ["del", "node", toByteString a]
+encode :: Query -> [L.ByteString]
+encode (MsgGetName g)                  = [ "get"
+                                         , "name"
+                                         , asLazyByteString g
+                                         ]
+encode (MsgGetGUID u t k n)            = [ "get"
+                                         , "guid"
+                                         , asLazyByteString u
+                                         , asLazyByteString t
+                                         , asLazyByteString k
+                                         , asLazyByteString n
+                                         ]
+encode (MsgHasLink a l b)              = [ "get"
+                                         , "link"
+                                         , asLazyByteString a
+                                         , asLazyByteString l
+                                         , asLazyByteString b
+                                         , "1"
+                                         ]
+encode (MsgGetLink g l Nothing lim)    = [ "get"
+                                         , "link"
+                                         , asLazyByteString g
+                                         , asLazyByteString l
+                                         , L.empty
+                                         , toLazyBS 32 $ intDec lim
+                                         ]
+encode (MsgGetLink g l (Just p) lim)   = [ "get"
+                                         , "link"
+                                         , asLazyByteString g
+                                         , asLazyByteString l
+                                         , asLazyByteString p
+                                         , toLazyBS 32 $ intDec lim
+                                         ]
+encode (MsgGetLabel g m lim)           =   "get"
+                                         : "label"
+                                         : encodeMode lim g m
+encode (MsgPutName u t k n)            = [ "put"
+                                         , "name"
+                                         , asLazyByteString u
+                                         , asLazyByteString t
+                                         , asLazyByteString k
+                                         , asLazyByteString n
+                                         ]
+encode (MsgPutLink links)              =   "put"
+                                         : "link"
+                                         : (sConcatMap
+                                              (\(a, l, b) -> [ asLazyByteString a
+                                                             , asLazyByteString l
+                                                             , asLazyByteString b
+                                                             ]) links)
+encode (MsgPutLabel labels)            =   "put"
+                                         : "label"
+                                         : (sConcatMap
+                                              (\(a, l) -> [ asLazyByteString a
+                                                          , asLazyByteString l
+                                                          ]) labels)
+encode (MsgUnlink links)               =   "del"
+                                         : "link"
+                                         : (sConcatMap
+                                              (\(a, l, mb) -> [ asLazyByteString a
+                                                              , asLazyByteString l
+                                                              , maybe L.empty asLazyByteString mb
+                                                              ]) links)
+encode (MsgPutAttr attrs)              =   "put"
+                                         : "k-attr"
+                                         : (sConcatMap
+                                              (\(g, a, v, o) -> [ asLazyByteString g
+                                                                , asLazyByteString a
+                                                                , E.encodeLazy v
+                                                                , encodeOptions o
+                                                                ]) attrs)
+
+encode (MsgPutTAttr attrs)           =   "put"
+                                       : "t-attr"
+                                       : (sConcatMap
+                                           (\(g, a, t, v, o) -> [ asLazyByteString g
+                                                                , asLazyByteString a
+                                                                , toLazyBS 32 $ intDec (truncateInt $ seconds t)
+                                                                , E.encodeLazy v
+                                                                , encodeOptions o
+                                                                ]) attrs)
+encode (MsgDelAttr attrs)            =   "del"
+                                       : "k-attr"
+                                       : (sConcatMap
+                                            (\(g, a) -> [ asLazyByteString g
+                                                        , asLazyByteString a
+                                                        ]) attrs)
+encode (MsgGetAttr g a)              = [ "get"
+                                       , "k-attr"
+                                       , asLazyByteString g
+                                       , asLazyByteString a
+                                       ]
+encode (MsgGetTAttr g a t l)         = [ "get"
+                                       , "t-attr"
+                                       , asLazyByteString g
+                                       , asLazyByteString a
+                                       , toLazyBS 32 $ intDec (truncateInt $ seconds t)
+                                       , toLazyBS 32 $ intDec l
+                                       ]
+encode (MsgListAttr g mode limit)    =   "get"
+                                       : "attr"
+                                       : "k-attr"
+                                       : encodeMode limit g mode
+encode (MsgListTAttr g mode limit)   =   "get"
+                                       : "attr"
+                                       : "t-attr"
+                                       : encodeMode limit g mode
+encode (MsgDelete a)                 = [ "del"
+                                       , "node"
+                                       , asLazyByteString a
+                                       ]
 
 decode :: [B.ByteString] -> Reply
 decode ["done"]                = DoneMsg
-decode ["name", u, t, k, n, g] = NameMsg (User u) (Tree t) (Kind k) (Node n) (GUID g)
-decode ("link":guids)          = LinkMsg (map GUID guids)
-decode ("label":labels)        = LabelMsg (map Label labels)
-decode ("n-attr":names)        = NAttrMsg (map Attr names)
-decode ["k-attr", value]       = either (const $ FailMsg 599) KAttrMsg (S.decode value)
+decode ["name", u, t, k, n, g] = NameMsg (userFromBS u) (treeFromBS t) (kindFromBS k) (nodeFromBS n) (guidFromBS g)
+decode ("link":guids)          = LinkMsg (map guidFromBS guids)
+decode ("label":labels)        = LabelMsg (map labelFromBS labels)
+decode ("n-attr":names)        = NAttrMsg (map attrFromBS names)
+decode ["k-attr", value]       = either (const $ FailMsg 599) KAttrMsg (E.decode value)
 decode ("t-attr":values)       = either FailMsg TAttrMsg $ decodeValues values
 decode ["fail", code]          = maybe (FailMsg 599) id (fmap FailMsg (decodeInt code))
 decode _                       = FailMsg 599

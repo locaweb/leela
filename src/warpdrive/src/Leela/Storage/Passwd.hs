@@ -36,10 +36,12 @@ import qualified Data.ByteString as B
 import           Leela.Data.Types
 import           Control.Exception
 import           Data.Text.Encoding
-import qualified Data.HashMap.Strict as H
-import qualified Data.ByteString.Base16 as B16
 import           Control.Applicative
+import qualified Data.HashMap.Strict as H
+import qualified Data.ByteString.Lazy as L
 import           Leela.Data.Signature
+import qualified Data.ByteString.Base16 as B16
+import           Data.ByteString.Builder
 
 data Acl = RGraph
          | WGraph
@@ -48,7 +50,7 @@ data Acl = RGraph
          deriving (Ord, Eq, Show)
 
 data UserInfo = UserInfo { secret :: Secret
-                         , acl    :: M.Map B.ByteString (S.Set Acl)
+                         , acl    :: M.Map L.ByteString (S.Set Acl)
                          }
               deriving (Eq, Show)
 
@@ -60,7 +62,7 @@ zero = Passwd M.empty
 
 can_ :: User -> Tree -> Acl -> UserInfo -> Bool
 can_ (User u) (Tree t) perm info = let userOnly = (S.member perm) <$> (M.lookup u $ acl info)
-                                       userTree = (S.member perm) <$> (M.lookup (B.intercalate "::" [u, t]) $ acl info)
+                                       userTree = (S.member perm) <$> (M.lookup (L.intercalate "::" [u, t]) $ acl info)
                                    in maybe (maybe False id userOnly) id userTree
 
 can :: Passwd -> User -> User -> Tree -> Acl -> Bool
@@ -86,8 +88,8 @@ parsePerms = go [('r', RGraph), ('w', WGraph), ('r', RAttrs), ('w', WAttrs)]
         | bit == flag = perm : go perms bits
         | otherwise   = go perms bits
 
-parseAcl :: (T.Text, T.Text) -> (B.ByteString, S.Set Acl)
-parseAcl (what, perms) = (encodeUtf8 what, S.fromList $ parsePerms $ T.unpack perms)
+parseAcl :: (T.Text, T.Text) -> (L.ByteString, S.Set Acl)
+parseAcl (what, perms) = (toLazyByteString $ encodeUtf8Builder what, S.fromList $ parsePerms $ T.unpack perms)
 
 parseSecret :: B.ByteString -> Secret
 parseSecret = initSecret . fst . B16.decode
@@ -108,5 +110,5 @@ instance FromJSON Passwd where
 
   parseJSON (Object o) = (Passwd . M.fromList) <$> mapM parseEntry (H.toList o)
       where
-        parseEntry (k0, v0) = (User $ encodeUtf8 k0,) <$> parseJSON v0
+        parseEntry (k0, v0) = (User $ toLazyByteString $ encodeUtf8Builder k0,) <$> parseJSON v0
   parseJSON _         = mzero

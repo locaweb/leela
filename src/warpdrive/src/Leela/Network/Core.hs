@@ -25,11 +25,12 @@ module Leela.Network.Core
        ) where
 
 import           Data.IORef
+import           Data.Monoid ((<>))
 import           Leela.Logger
+import           Data.Foldable (toList)
 import           Leela.Helpers
 import           Control.Monad
 import           Leela.Data.LQL
-import qualified Data.ByteString as B
 import           Leela.Data.Time
 import           Leela.Data.Graph
 import           Leela.Data.Types
@@ -42,18 +43,18 @@ import           Leela.Data.Endpoint
 import           Leela.Data.LQL.Comp
 import           Leela.Storage.Graph
 import qualified Leela.Storage.Passwd as P
-import           Data.ByteString.Lazy (toStrict)
-import           Data.ByteString.UTF8 (fromString)
+import qualified Data.ByteString.Lazy as L
 import           Control.Concurrent.STM
 import           Leela.Network.Protocol
 import           Leela.Storage.KeyValue
+import           Data.ByteString.Builder
 
 data CoreServer = CoreServer { logger :: Logger
                              , stat   :: IORef [(String, [Endpoint])]
                              , passwd :: IORef P.Passwd
                              , tick   :: Counter Tick
                              , fdseq  :: Counter FH
-                             , fdlist :: M.L2Map B.ByteString FH (TVar (Tick, TimeSpec, Device Reply))
+                             , fdlist :: M.L2Map L.ByteString FH (TVar (Tick, Time, Device Reply))
                              }
 
 ttl :: Tick
@@ -62,13 +63,15 @@ ttl = 60
 readPasswd :: CoreServer -> IO P.Passwd
 readPasswd = readIORef . passwd
 
-dumpStat :: CoreServer -> IO [(B.ByteString, B.ByteString)]
+dumpStat :: CoreServer -> IO [(L.ByteString, L.ByteString)]
 dumpStat core = do
   liftM (concatMap dumpEntry) $ readIORef (stat core)
     where
-      dumpEntry (k, [])     = [(fromString $ "endpoint/" ++ k, "")]
-      dumpEntry (k, [e])    = [(fromString $ "endpoint/" ++ k, toStrict $ dumpEndpoint e)]
-      dumpEntry (k, (e:es)) = (fromString $ "endpoint/" ++ k, toStrict $ dumpEndpoint e) : dumpEntry (k, es)
+      dumpEntry (k, [])     = [(showEndpoint k, "")]
+      dumpEntry (k, [e])    = [(showEndpoint k, dumpEndpoint e)]
+      dumpEntry (k, (e:es)) = (showEndpoint k, dumpEndpoint e) : dumpEntry (k, es)
+
+      showEndpoint k = toLazyByteString $ string7 "endpoint/" <> string7 k
 
 newCore :: Logger -> IORef [(String, [Endpoint])] -> IORef P.Passwd -> IO CoreServer
 newCore syslog statdb secretdb = do
@@ -110,7 +113,7 @@ makeFD srv (User u) = do
   time <- snapshot
   fd   <- next (fdseq srv)
   at   <- peek (tick srv)
-  val  <- time `seq` newTVarIO (at, time, dev)
+  val  <- newTVarIO (at, time, dev)
   M.insert u fd val (fdlist srv)
   return (fd, dev)
 
@@ -141,7 +144,7 @@ closeFD srv ((User u), fh) = do
       (_, t0, dev) <- atomically $ readTVar value
       t1           <- snapshot
       closeIO dev
-      return (elapsed t1 t0)
+      return (milliseconds $ diff t1 t0)
 
 data Stream a = Chunk a
               | Error SomeException
@@ -205,14 +208,14 @@ evalLQL cache db core queue (x:xs) = do
       state <- dumpStat core
       devwriteIO queue (Item $ Stat state)
     AlterStmt journal -> do
-      names <- exec db journal
+      names <- exec db (toList journal)
       mapM_ (\(u, t, k, n, g) -> devwriteIO queue (Item $ Name u t k n g)) names
     NameStmt _ guids  -> do
-      names <- getName db guids
+      names <- getName db (toList guids)
       forM_ names (\(u, t, k, n, g) ->
         devwriteIO queue (Item $ Name u t k n g))
     GUIDStmt user names  -> do
-      guids <- getGUID db [(targetUser user, uTree user, k, n) | (k, n) <- names]
+      guids <- getGUID db [(targetUser user, uTree user, k, n) | (k, n) <- toList names]
       forM_ guids (\(u, t, k, n, g) ->
         devwriteIO queue (Item $ Name u t k n g))
   evalLQL cache db core queue xs
@@ -247,5 +250,5 @@ process _ _ srv (Fetch sig fh) = do
         fmap makeList $ blkreadIO dev
 process _ _ srv (Close _ sig fh) = do
   t <- closeFD srv (sigUser sig, fh)
-  notice (logger srv) (printf "CLOSE %d [%f ms]" fh (t / 10000000))
+  notice (logger srv) (printf "CLOSE %d [%s ms]" fh (showDouble t))
   return Last

@@ -14,10 +14,18 @@
 
 module Leela.Helpers where
 
+import Data.Monoid
 import Leela.Logger
+import Data.Foldable (toList)
+import Data.Sequence (fromList)
 import Control.Monad
 import Control.Exception
 import Control.Concurrent
+import Data.ByteString.Lazy (ByteString, empty)
+import Data.ByteString.Char8 (unpack)
+import Data.ByteString.Builder
+import Data.ByteString.Builder.Extra
+import Data.Double.Conversion.ByteString
 
 forkSupervised :: Logger -> IO Bool -> String -> IO () -> IO ()
 forkSupervised syslog check name io =
@@ -35,6 +43,15 @@ superviseWith syslog check name io =
         threadDelay 500000
         warning syslog (printf "supervised thread [%s] has died: %s" name (show e))
         superviseWith syslog check name io
+
+mapToLazyBS :: Int -> [Builder] -> [ByteString]
+mapToLazyBS lim = map (toLazyBS lim)
+
+toLazyBS :: Int -> Builder -> ByteString
+toLazyBS lim = toLazyByteStringWith (untrimmedStrategy lim smallChunkSize) empty
+
+sConcatMap :: (a -> [b]) -> [a] -> [b]
+sConcatMap f = toList . mconcat . map (fromList . f)
 
 supervise :: Logger -> String -> IO () -> IO ()
 supervise syslog name io = do
@@ -55,6 +72,9 @@ foreverWith check io = do
 
 sleep :: Int -> IO ()
 sleep s = threadDelay (s * 1000000)
+
+showDouble :: Double -> String
+showDouble = unpack . toShortest
 
 intoChunks :: Int -> [a] -> [[a]]
 intoChunks _ [] = []

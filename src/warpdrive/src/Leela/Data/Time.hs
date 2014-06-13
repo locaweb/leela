@@ -21,56 +21,47 @@ module Leela.Data.Time
        , add
        , now
        , diff
-       , elapsed
        , seconds
        , dateTime
        , snapshot
-       , dateToInt
        , fromSeconds
        , fromDateTime
+       , milliseconds
        ) where
 
-import Data.Bits
 import Data.Time
 import System.Clock
 import Data.Time.Clock.POSIX
 
-newtype Time = Time { unTime :: UTCTime }
+newtype Time = Time { unTime :: Double }
              deriving (Show, Eq, Ord)
 
 newtype Date = Date (Int, Int, Int)
              deriving (Show, Eq, Ord)
 
 add :: NominalDiffTime -> Time -> Time
-add increment (Time t) = Time (addUTCTime increment t)
+add increment (Time t) = Time (t + realToFrac increment)
 
 seconds :: Time -> Double
-seconds = realToFrac . utcTimeToPOSIXSeconds . unTime
+seconds = unTime
+
+milliseconds :: Time -> Double
+milliseconds = (* 1000) . unTime
 
 dateTime :: Time -> (Date, Double)
-dateTime (Time u) = let time                      = realToFrac $ utctDayTime u
+dateTime (Time s) = let u                         = posixSecondsToUTCTime (realToFrac s)
+                        time                      = realToFrac $ utctDayTime u
                         (year, month, dayOfMonth) = toGregorian $ utctDay u
                     in (Date (fromIntegral $ year, month, dayOfMonth), time)
 
-dateToInt :: Date -> Int
-dateToInt (Date (y, m, d)) = (y `shiftL` 9) .|. (m `shiftL` 5) .|. d
-
-diff :: Time -> Time -> Double
-diff (Time a) (Time b) = realToFrac $ a `diffUTCTime` b
-
-elapsed :: (Num a) => TimeSpec -> TimeSpec -> a
-elapsed t1 t0
-  | t1 >= t0  = (fromIntegral $ sec t1 - sec t0) * 10 ^ 9 + abs (fromIntegral $ nsec t1 - nsec t0)
-  | otherwise = elapsed t0 t1
-
-snapshot :: IO TimeSpec
-snapshot = getTime Monotonic
+diff :: Time -> Time -> Time
+diff (Time a) (Time b) = Time (a - b)
 
 fromSeconds :: Double -> Time
-fromSeconds = Time . posixSecondsToUTCTime . realToFrac
+fromSeconds = Time
 
 fromDateTime :: Date -> Double -> Time
-fromDateTime date time = Time $ UTCTime (fromDate date) (realToFrac time)
+fromDateTime date time = fromSeconds $ realToFrac $ utcTimeToPOSIXSeconds $ UTCTime (fromDate date) (realToFrac time)
 
 fromDate :: Date -> Day
 fromDate (Date (y, m, d)) = fromGregorian (fromIntegral y) m d
@@ -79,8 +70,16 @@ toDate :: Day -> Date
 toDate day = let (year, month, dayOfMonth) = toGregorian day
              in Date (fromIntegral year, month, dayOfMonth)
 
+fromTimeSpec :: TimeSpec -> Time
+fromTimeSpec t = let a = fromIntegral $ sec t
+                     b = (fromIntegral $ nsec t) / 10e9
+                 in Time (a + b)
+
+snapshot :: IO Time
+snapshot = fmap fromTimeSpec $ getTime Monotonic
+
 now :: IO Time
-now = fmap Time getCurrentTime
+now = fmap fromTimeSpec (getTime Realtime)
 
 instance Enum Date where
 

@@ -14,45 +14,70 @@
 
 module Leela.HZMQ.ZHelpers where
 
-import Data.Int
-import System.ZMQ4
-import Data.ByteString (ByteString)
-import Data.List.NonEmpty (fromList)
+import           Data.Int
+import           System.ZMQ4
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as L
 
-recvTimeout :: (Receiver a) => Int64 -> Socket a -> IO (Maybe [ByteString])
+recvTimeout :: (Receiver a) => Int64 -> Socket a -> IO (Maybe [B.ByteString])
 recvTimeout t s = do
   ready <- poll t [Sock s [In] Nothing]
   case ready of
     [[]] -> return Nothing
     _    -> fmap Just (receiveMulti s)
 
-sndTimeout :: (Sender a) => Int64 -> Socket a -> [ByteString] -> IO Bool
-sndTimeout t s m = do
-  ready <- poll t [Sock s [Out] Nothing]
+sndTimeout' :: (Sender a) => Int64 -> Socket a -> [L.ByteString] -> IO Bool
+sndTimeout' t fh m = do
+  ready <- poll t [Sock fh [Out] Nothing]
   case ready of
     [[]] -> return False
-    _    -> sendMulti s (fromList m) >> return True
+    _    -> sendAll' fh m >> return True
+
+sndTimeout :: (Sender a) => Int64 -> Socket a -> [B.ByteString] -> IO Bool
+sndTimeout t fh m = do
+  ready <- poll t [Sock fh [Out] Nothing]
+  case ready of
+    [[]] -> return False
+    _    -> sendAll fh m >> return True
+
+sendAll' :: (Sender a) => Socket a -> [L.ByteString] -> IO ()
+sendAll' _ []         = return ()
+sendAll' fh [chk]     = send' fh [] chk
+sendAll' fh (chk:msg) = do
+  send' fh [SendMore] chk
+  sendAll' fh msg
+
+sendAll :: (Sender a) => Socket a -> [B.ByteString] -> IO ()
+sendAll _ []         = return ()
+sendAll fh [chk]     = send fh [] chk
+sendAll fh (chk:msg) = do
+  send fh [SendMore] chk
+  sendAll fh msg
 
 ms :: Int -> Int
 ms = (* 1000)
 
-configAndConnect :: Socket a -> String -> IO ()
-configAndConnect fh addr = do
+configAndConnect :: (Int, Int) -> Socket a -> String -> IO ()
+configAndConnect (rcvQueue, sndQueue) fh addr = do
   setLinger (restrict 0) fh
+  setSendHighWM (restrict sndQueue) fh
   setSendTimeout (restrict (ms 60)) fh
   setTcpKeepAlive On fh
+  setReceiveHighWM (restrict rcvQueue) fh
   setReceiveTimeout (restrict (ms 60)) fh
   setMaxMessageSize (restrict (1024 * 1024 :: Int)) fh
   setTcpKeepAliveIdle (restrict 30) fh
   setReconnectInterval (restrict (ms 250)) fh
   connect fh addr
 
-configAndBind :: Socket a -> String -> IO ()
-configAndBind fh addr = do
+configAndBind :: (Int, Int) -> Socket a -> String -> IO ()
+configAndBind (rcvQueue, sndQueue) fh addr = do
   setLinger (restrict 0) fh
-  setSendTimeout (restrict (ms 120)) fh
+  setSendHighWM (restrict sndQueue) fh
+  setSendTimeout (restrict (ms 60)) fh
   setTcpKeepAlive On fh
-  setReceiveTimeout (restrict (ms 120)) fh
+  setReceiveHighWM (restrict rcvQueue) fh
+  setReceiveTimeout (restrict (ms 60)) fh
   setMaxMessageSize (restrict (1024 * 1024 :: Int)) fh
   setTcpKeepAliveIdle (restrict 30) fh
   setReconnectInterval (restrict (ms 250)) fh
