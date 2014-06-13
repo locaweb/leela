@@ -57,26 +57,27 @@ sendAll fh (chk:msg) = do
 ms :: Int -> Int
 ms = (* 1000)
 
-configAndConnect :: (Int, Int) -> Socket a -> String -> IO ()
-configAndConnect (rcvQueue, sndQueue) fh addr = do
-  setLinger (restrict 0) fh
+setHWM :: (Int, Int) -> Socket a -> IO ()
+setHWM (rcvQueue, sndQueue) fh = do
+  setReceiveHighWM (restrict rcvQueue) fh
   setSendHighWM (restrict sndQueue) fh
+
+configAndConnect :: Socket a -> String -> IO ()
+configAndConnect fh addr = do
+  setLinger (restrict 0) fh
   setSendTimeout (restrict (ms 60)) fh
   setTcpKeepAlive On fh
-  setReceiveHighWM (restrict rcvQueue) fh
   setReceiveTimeout (restrict (ms 60)) fh
   setMaxMessageSize (restrict (1024 * 1024 :: Int)) fh
   setTcpKeepAliveIdle (restrict 30) fh
   setReconnectInterval (restrict (ms 250)) fh
   connect fh addr
 
-configAndBind :: (Int, Int) -> Socket a -> String -> IO ()
-configAndBind (rcvQueue, sndQueue) fh addr = do
+configAndBind :: Socket a -> String -> IO ()
+configAndBind fh addr = do
   setLinger (restrict 0) fh
-  setSendHighWM (restrict sndQueue) fh
   setSendTimeout (restrict (ms 60)) fh
   setTcpKeepAlive On fh
-  setReceiveHighWM (restrict rcvQueue) fh
   setReceiveTimeout (restrict (ms 60)) fh
   setMaxMessageSize (restrict (1024 * 1024 :: Int)) fh
   setTcpKeepAliveIdle (restrict 30) fh

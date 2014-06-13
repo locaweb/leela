@@ -48,9 +48,9 @@ redisOpen :: Logger -> (a, a -> IO [Endpoint]) -> Password -> IO RedisBackend
 redisOpen syslog (a, f) password = do
   ctrl <- newEmptyMVar
   pool <- createPool onBegin onClose
-  _    <- forkSupervised syslog (isEmptyMVar ctrl) "redisCluster" (do
-            f a >>= updatePool pool
-            threadDelay (5 * 1000 * 1000))
+  -- _    <- forkIO (do
+  --           f a >>= updatePool pool
+  --           sleep 1)
   return $ RedisBackend syslog ctrl pool
     where
       onClose _ conn = void (runRedis conn quit)

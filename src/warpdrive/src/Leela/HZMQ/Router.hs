@@ -83,7 +83,7 @@ worker syslog job fh action = do
 forkWorker :: Logger -> Context -> String -> Request -> Worker -> IO ()
 forkWorker syslog ctx addr job action = void (forkIO $
   withSocket ctx Push $ \fh -> do
-    configAndConnect (1000, 1000) fh addr
+    configAndConnect fh addr
     void $ worker syslog job fh action)
 
 recvRequest :: Receiver a => Socket a -> IO (Maybe Request)
@@ -103,13 +103,15 @@ stopRouter (RouterFH ctrl) = do
 startRouter :: Logger -> Endpoint -> Context -> Worker -> IO RouterFH
 startRouter syslog endpoint ctx action = do
   notice syslog (printf "starting zmq.router: %s" (dumpEndpointStr endpoint))
-  oaddr <- fmap (printf "inproc://%s" . show) nextRandom :: IO String
+  oaddr <- fmap (printf "inproc://router-%s" . show) nextRandom :: IO String
   ctrl  <- newTVarIO True
   void $ flip forkFinally (\_ -> atomically $ writeTVar ctrl True) $ do
     withSocket ctx Router $ \ifh ->
       withSocket ctx Pull $ \ofh -> do
-        configAndBind (10000, 1000) ofh oaddr
-        configAndBind (1000, 10000) ifh (dumpEndpointStr endpoint)
+        setHWM (10000, 1000) ofh
+        setHWM (1000, 10000) ifh
+        configAndBind ofh oaddr
+        configAndBind ifh (dumpEndpointStr endpoint)
         foreverWith (atomically $ readTVar ctrl) $ routingLoop ifh ofh oaddr
   return (RouterFH ctrl)
     where

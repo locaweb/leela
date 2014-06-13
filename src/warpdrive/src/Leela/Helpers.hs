@@ -27,40 +27,22 @@ import Data.ByteString.Builder
 import Data.ByteString.Builder.Extra
 import Data.Double.Conversion.ByteString
 
-forkSupervised :: Logger -> IO Bool -> String -> IO () -> IO ()
-forkSupervised syslog check name io =
-  void $ forkIO (superviseWith syslog check name io)
-
-forkSupervised_ :: Logger -> String -> IO () -> IO ()
-forkSupervised_ syslog name io =
-  void $ forkIO (supervise syslog name io)
-
-superviseWith :: Logger -> IO Bool -> String -> IO () -> IO ()
-superviseWith syslog check name io =
-  (foreverWith check io) `catch` restart
-    where
-      restart (SomeException e)= do
-        threadDelay 500000
-        warning syslog (printf "supervised thread [%s] has died: %s" name (show e))
-        superviseWith syslog check name io
-
 mapToLazyBS :: Int -> [Builder] -> [ByteString]
 mapToLazyBS lim = map (toLazyBS lim)
 
 toLazyBS :: Int -> Builder -> ByteString
 toLazyBS lim = toLazyByteStringWith (untrimmedStrategy lim smallChunkSize) empty
 
-sConcatMap :: (a -> [b]) -> [a] -> [b]
-sConcatMap f = toList . mconcat . map (fromList . f)
-
 supervise :: Logger -> String -> IO () -> IO ()
 supervise syslog name io = do
   (forever io) `catch` restart
     where
-      restart (SomeException e)= do
-        threadDelay 500000
-        warning syslog (printf "supervised thread [%s] has died: %s" name (show e))
-        supervise syslog name io
+      restart (SomeException e) = do
+        warning syslog (printf "supervised thread [%s] has died, restarting: %s" name (show e))
+        sleep 1
+
+sConcatMap :: (a -> [b]) -> [a] -> [b]
+sConcatMap f = toList . mconcat . map (fromList . f)
 
 ignore :: SomeException -> IO ()
 ignore _ = return ()

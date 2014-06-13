@@ -99,13 +99,13 @@ signal x = tryPutMVar x () >> return ()
 passwdWatcher :: Logger -> FilePath -> IO (IORef Passwd)
 passwdWatcher syslog file = do
   shmem <- newIORef zero
-  forkSupervised_ syslog "passwd watcher" (do
+  _     <- forkIO $ supervise syslog "main/passwd" $ do
     current <- readIORef shmem
     passwd  <- fmap (maybe current id) (parseFile file)
     when (passwd /= current) $ do
       warning syslog "loading new passwd file"
       writeIORef shmem passwd
-    threadDelay $ 5 * 1000 * 1000)
+    sleep 1
   return shmem
 
 main :: IO ()
@@ -118,6 +118,7 @@ main = do
   syslog <- newLogger (optDebugLevel opts)
   passwd <- passwdWatcher syslog (optPasswd opts)
   core   <- newCore syslog naming passwd
+  _      <- forkIO (supervise syslog "main/resolver" $ resolver syslog (optEndpoint opts) naming (optConsul opts))
   void $ installHandler sigTERM (Catch $ signal alive) Nothing
   void $ installHandler sigINT (Catch $ signal alive) Nothing
   warning syslog
@@ -126,7 +127,6 @@ main = do
             (optBacklog opts)
             (optCapabilities opts)
             (show $ optEndpoint opts))
-  forkSupervised_ syslog "resolver" $ resolver syslog (optEndpoint opts) naming (optConsul opts)
   withContext $ \ctx -> do
     setMaxSockets 64000 ctx
     let cfg = ClientConf (optBacklog opts)
@@ -138,4 +138,5 @@ main = do
     takeMVar alive
     stopRouter router
     destroy client
+  closeLogger syslog
   warning syslog "warpdrive: bye!"

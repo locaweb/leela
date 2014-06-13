@@ -24,6 +24,7 @@ module Leela.Logger
        , notice
        , warning
        , newLogger
+       , closeLogger
        ) where
 
 import Data.Time
@@ -82,6 +83,9 @@ fatal :: Logger -> String -> IO ()
 fatal (Logger p logger) s
   | FATAL >= p = pushLogStr logger =<< format FATAL s
   | otherwise  = return ()
+
+closeLogger :: Logger -> IO ()
+closeLogger (Logger _ logger) = rmLoggerSet logger
 
 instance ToString ByteString where
 

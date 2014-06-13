@@ -82,14 +82,24 @@ readJob dealer tick = atomically $ fmap (H.lookup tick) (readTVar (state dealer)
 reply :: Job -> Maybe [B.ByteString] -> IO ()
 reply job ans = putMVar (slot job) ans
 
-dealerLoop :: Context -> Client -> IO Bool -> StrEndpoint -> [Endpoint] -> IO ()
-dealerLoop ctx dealer cont iaddr oaddr = do
+dealerLoop :: Context -> Client -> TVar Bool -> StrEndpoint -> [Endpoint] -> IO ()
+dealerLoop ctx dealer ctrl iaddr oaddr = do
   withSocket ctx Dealer $ \ofh -> do
-    mapM_ (configAndConnect (1000, 10000) ofh . dumpEndpointStr) oaddr
+    setHWM (1000, 10000) ofh
+    mapM_ (configAndConnect ofh . dumpEndpointStr) oaddr
     withSocket ctx Pull $ \ifh -> do
-      configAndConnect (10000, 1000) ifh iaddr
-      foreverWith cont $ go ifh ofh
+      setHWM (10000, 1000) ifh
+      configAndConnect ifh iaddr
+      warning (logger dealer) (printf "%s: creating dealer/dealer" iaddr)
+      foreverWith (atomically $ readTVar ctrl) (go ifh ofh)
+      warning (logger dealer) (printf "%s: draining dealer/dealer" iaddr)
+      drain ifh ofh
+      warning (logger dealer) (printf "%s: dealer/dealer has quit" iaddr)
         where
+          drain ifh ofh = do
+            [ev0] <- poll 5000 [ Sock ifh [In] Nothing ]
+            unless (null ev0) (go ifh ofh >> drain ifh ofh)
+
           go ifh ofh = do
             [ev0, ev1] <- poll 1000 [ Sock ifh [In] Nothing
                                     , Sock ofh [In] Nothing
@@ -106,55 +116,61 @@ dealerLoop ctx dealer cont iaddr oaddr = do
               (key, (_:ans)) <- fmap (break B.null) (receiveMulti ofh)
               mmsg           <- readJob dealer (L.fromStrict $ last key)
               when (isJust mmsg) (reply (fromJust mmsg) (Just ans))
+            unless (null ev0 && null ev1) (go ifh ofh)
+
+routerLoop :: Context -> Client -> TVar Bool  -> StrEndpoint -> IO ()
+routerLoop ctx dealer ctrl addr = do
+  withSocket ctx Push $ \fh -> do
+    setHWM (1000, 1000) fh
+    configAndBind fh addr
+    warning (logger dealer) (printf "%s: creating dealer/router" addr)
+    foreverWith (atomically $ readTVar ctrl) (loop fh)
+    warning (logger dealer) (printf "%s: dealer/router has quit" addr)
+    where
+      loop fh = do
+        key <- takeMVar (queue dealer)
+        unless (L.null key) $ do
+          ok <- sndTimeout' 0 fh [key]
+          unless ok $ do
+            warning (logger dealer) "dealer: can't schedule, dropping msg"
+            mjob <- readJob dealer key
+            unless (isJust mjob) $ reply (fromJust mjob) Nothing
+          loop fh
 
 create :: Logger -> ClientConf a -> Context -> IO ClientFH
 create syslog cfg ctx = do
   notice syslog (printf "creating zmq.dealer [capabilities %d]" (capabilities cfg))
   ctrl   <- newTVarIO True
-  iaddr  <- fmap (printf "inproc://%s" . show) nextRandom :: IO String
   queue  <- newEmptyMVar
   dealer <- liftM2 (Client syslog queue) (newTVarIO H.empty) newCounter
-  pool   <- createPool (createWorker ctrl dealer iaddr) destroyWorker
-  _      <- flip forkFinally (\_ -> atomically $ writeTVar ctrl True) $
-    withSocket ctx Push $ \fh -> do
-      configAndBind (1000, 1000) fh iaddr
-      foreverWith (atomically $ readTVar ctrl) $ do
-        key <- takeMVar queue
-        unless (L.null key) $ do
-          ok <- sndTimeout' 0 fh [key]
-          unless ok $ do
-            warning syslog $ "dealer: can't schedule, dropping msg"
-            mjob <- readJob dealer key
-            unless (isJust mjob) $ reply (fromJust mjob) Nothing
-  forkSupervised syslog (atomically $ readTVar ctrl) "dealer/pool" $ do
+  pool   <- createPool (createWorker dealer) destroyWorker
+  _      <- forkFinally (foreverWith (atomically $ readTVar ctrl) $ do
     let (db, readFunc) = endpoint cfg
     updatePool pool =<< fmap ((:[]) . sort) (readFunc db)
-    sleep 1
+    sleep 1) (\_ -> atomically $ writeTVar ctrl True)
   return $ ClientFH (dealer, pool, ctrl)
     where
-      aliveCheck ctrl0 ctrl1 = atomically $ liftM2 (&&) (readTVar ctrl0) (readTVar ctrl1)
-
       destroyWorker _ (ctrl, caps, sem) = do
-        warning syslog $
-          printf "dropping zmq.dealer/worker"
         atomically $ writeTVar ctrl False
         replicateM_ caps (waitQSem sem)
+        warning syslog "dropping zmq.dealer/worker"
 
-      createWorker ctrl0 dealer iaddr oaddr = do
-        warning syslog $
-          printf "creating zmq.dealer/worker"
-        ctrl <- newTVarIO True
+      createWorker dealer oaddr = do
+        warning syslog "creating zmq.dealer/worker"
         sem  <- newQSem 0
+        ctrl <- newTVarIO True
         if (null oaddr)
           then return (ctrl, 0, sem)
           else do
+            iaddr <- fmap (printf "inproc://dealer-%s" . show) nextRandom :: IO String
+            forkFinally (routerLoop ctx dealer ctrl iaddr) (\_ -> signalQSem sem)
             replicateM_ (capabilities cfg) $
-              forkFinally (dealerLoop ctx dealer (aliveCheck ctrl0 ctrl) iaddr oaddr) (\_ -> signalQSem sem)
-            return (ctrl, capabilities cfg, sem)
+              forkFinally (dealerLoop ctx dealer ctrl iaddr oaddr) (\_ -> signalQSem sem)
+            return (ctrl, capabilities cfg + 1, sem)
 
 destroy :: ClientFH -> IO ()
 destroy (ClientFH (dealer, pool, ctrl)) = do
-  deletePool pool
   atomically $ writeTVar ctrl False
-  putMVar (queue dealer) L.empty
   atomically $ readTVar ctrl >>= flip unless retry
+  putMVar (queue dealer) L.empty
+  deletePool pool
