@@ -105,7 +105,7 @@ rungc syslog srv = do
         warning syslog $ printf "PURGE %s" (show k)
         void $ closeFD srv k
 
-makeFD :: CoreServer -> User -> IO (FH, Device Reply)
+makeFD :: CoreServer -> User -> IO (Time, FH, Device Reply)
 makeFD srv (User u) = do
   dev  <- atomically $ do
     ctrl <- control
@@ -115,7 +115,7 @@ makeFD srv (User u) = do
   at   <- peek (tick srv)
   val  <- newTVarIO (at, time, dev)
   M.insert u fd val (fdlist srv)
-  return (fd, dev)
+  return (time, fd, dev)
 
 withFD :: CoreServer -> (User, FH) -> (Maybe (Device Reply) -> IO b) -> IO b
 withFD srv ((User u), fh) action = do
@@ -220,25 +220,27 @@ evalLQL cache db core queue (x:xs) = do
         devwriteIO queue (Item $ Name u t k n g))
   evalLQL cache db core queue xs
 
-evalFinalizer :: Logger -> FH -> Device Reply -> Either SomeException () -> IO ()
-evalFinalizer syslog chan dev (Left e)  = do
+evalFinalizer :: Logger -> Time -> FH -> Device Reply -> Either SomeException () -> IO ()
+evalFinalizer syslog t0 chan dev (Left e)  = do
+  t <- fmap (`diff` t0) snapshot
   devwriteIO dev (encodeE e) `catch` ignore
   closeIO dev
-  notice syslog $ printf "FAILURE: %s %s" (show chan) (show e)
-evalFinalizer syslog chan dev (Right _)   = do
+  notice syslog $ printf "FAILURE: %s %s [%s ms]" (show chan) (show e) (showDouble $ milliseconds t)
+evalFinalizer syslog t0 chan dev (Right _)   = do
+  t <- fmap (`diff` t0) snapshot
   closeIO dev
-  notice syslog $ printf "SUCCESS: %s" (show chan)
+  notice syslog $ printf "SUCCESS: %s [%s ms]" (show chan) (showDouble $ milliseconds t)
 
 process :: (KeyValue cache, GraphBackend m, AttrBackend m) => cache -> m -> CoreServer -> Query -> IO Reply
 process cache storage srv (Begin sig msg) =
   case (chkloads (parseLQL $ sigUser sig) msg) of
     Left _      -> return $ Fail 400 (Just "syntax error")
     Right stmts -> do
-      (fh, dev) <- makeFD srv (sigUser sig)
+      (time, fh, dev) <- makeFD srv (sigUser sig)
       if (level (logger srv) >= NOTICE)
         then notice (logger srv) (printf "BEGIN %s %d" (lqlDescr stmts) fh)
         else info (logger srv) (printf "BEGIN %s %d" (show msg) fh)
-      _         <- forkFinally (evalLQL cache storage srv dev stmts) (evalFinalizer (logger srv) fh dev)
+      _         <- forkFinally (evalLQL cache storage srv dev stmts) (evalFinalizer (logger srv) time fh dev)
       return $ Done fh
 process _ _ srv (Fetch sig fh) = do
   let channel = (sigUser sig, fh)
