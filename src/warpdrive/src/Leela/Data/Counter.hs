@@ -36,4 +36,4 @@ next (Counter shmem) = atomically $ do
   return a
 
 peek :: Counter a -> IO a
-peek (Counter shmem) = atomically $ readTVar shmem
+peek (Counter shmem) = readTVarIO shmem

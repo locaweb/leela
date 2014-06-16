@@ -46,10 +46,10 @@ insert k1 k2 value (L2Map tm0) = do
 
 lookup :: (Ord k1, Eq k2, Hashable k2) => k1 -> k2 -> L2Map k1 k2 v -> IO (Maybe v)
 lookup k1 k2 (L2Map tm0) = do
-  mtm1 <- fmap (M.lookup k1) (atomically $ readTVar tm0)
+  mtm1 <- fmap (M.lookup k1) (readTVarIO tm0)
   case mtm1 of
     Nothing  -> return Nothing
-    Just tm1 -> fmap (H.lookup k2) (atomically $ readTVar tm1)
+    Just tm1 -> fmap (H.lookup k2) (readTVarIO tm1)
 
 delete :: (Ord k1, Eq k2, Hashable k2) => k1 -> k2 -> L2Map k1 k2 v -> IO (Maybe v)
 delete k1 k2 (L2Map tm0) = atomically $ do
@@ -62,9 +62,9 @@ delete k1 k2 (L2Map tm0) = atomically $ do
       return a
 
 toList :: L2Map k1 k2 v -> ([((k1, k2), v)] -> b -> IO b) -> b -> IO b
-toList (L2Map tm0) action b = atomically (readTVar tm0) >>= go b . M.toList
+toList (L2Map tm0) action b = readTVarIO tm0 >>= go b . M.toList
   where go acc []            = return acc
         go acc ((k, v) : xs) = do
-          vs <- fmap (map (\(k1, v1) -> ((k, k1), v1)) . H.toList) (atomically $ readTVar v)
+          vs <- fmap (map (\(k1, v1) -> ((k, k1), v1)) . H.toList) (readTVarIO v)
           flip go xs =<< action vs acc
           

@@ -112,14 +112,13 @@ startRouter syslog endpoint ctx action = do
         setHWM (1000, 10000) ifh
         configAndBind ofh oaddr
         configAndBind ifh (dumpEndpointStr endpoint)
-        foreverWith (atomically $ readTVar ctrl) $ routingLoop ifh ofh oaddr
+        foreverWith (readTVarIO ctrl) $ routingLoop ifh ofh oaddr
   return (RouterFH ctrl)
     where
       procRequest fh oaddr = do
         mreq <- recvRequest fh
         when (isJust mreq) (forkWorker syslog ctx oaddr (fromJust mreq) action)
 
-      routingLoop :: Socket Router -> Socket Pull -> String -> IO ()
       routingLoop ifh ofh oaddr = do
         [ev0, ev1] <- poll 1000 [ Sock ifh [In] Nothing
                                 , Sock ofh [In] Nothing
