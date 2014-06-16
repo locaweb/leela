@@ -49,7 +49,7 @@ internalError = do
 
 send :: ClientFH -> Query -> IO Reply
 send pool req = let msg = (encode req) `using` (evalList rdeepseq)
-                in request 60000 pool msg >>= evaluate . recv
+                in request 2500 pool msg >>= evaluate . recv
 
 send_ :: ClientFH -> Query -> IO ()
 send_ pool req = do
