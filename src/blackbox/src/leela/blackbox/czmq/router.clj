@@ -23,26 +23,30 @@
 (defn make-queue [size]
   (java.util.concurrent.LinkedBlockingQueue. size))
 
-(defn enqueue [fh queue]
-  (let [[peer [blank & msg]] (split-with #(not (empty? %)) (z/recvmulti fh))]
+(defn enqueue [fh queue worker]
+  (let [[peer [blank & msg]] (split-with #(not (empty? %)) (z/recvmulti fh))
+        time                 (System/currentTimeMillis)]
     (when (empty? blank)
-      (.put queue [peer msg]))))
+      (when-not (.offer queue [time peer msg])
+        (do
+          (warn "queue full, dropping request")
+          (z/sendmulti fh (concat peer (cons "" (:onerr worker)))))))))
 
-(defn routing-loop [ifh ofh queue]
+(defn routing-loop [ifh ofh queue worker]
   (let [[ifh-info ofh-info] (z/poll -1 [ifh [ZMQ$Poller/POLLIN] ofh [ZMQ$Poller/POLLIN]])]
     (when (.isReadable ifh-info)
-      (enqueue ifh queue))
+      (enqueue ifh queue worker))
     (when (.isReadable ofh-info)
       (z/sendmulti ifh (z/recvmulti ofh)))))
 
-(defn evaluate [worker [peer msg]]
+(defn evaluate [worker [time peer msg]]
   (try
     (let [reply ((:onjob worker) msg)]
-      (debug (format "REQUEST/DONE: %s ~> %s" (pr-str (map f/bytes-to-str-unsafe msg)) (pr-str reply)))
+      (info (format "DONE %s [%d ms]" (pr-str (map f/bytes-to-str-unsafe (take 2 msg))) (- (System/currentTimeMillis) time)))
       (concat peer (cons "" reply)))
     (catch Exception e
       (let [reply (:onerr worker)]
-        (error e (format "REQUEST/FAIL: %s ~> %s" (pr-str (map f/bytes-to-str-unsafe msg)) (pr-str reply)))
+        (error e (format "FAIL %s" (pr-str (map f/bytes-to-str-unsafe (take 2 msg)))))
         (concat peer (cons "" reply))))))
 
 (defn run-worker [ctx endpoint queue worker]
@@ -50,7 +54,7 @@
     (trace (format "ENTER:run-worker %s" endpoint))
     (.connect (z/setup-socket fh) endpoint)
     (f/forever
-     (let [item (.poll queue 1 s)]
+     (let [item (.take queue)]
        (when item (z/sendmulti fh (evaluate worker item)))))))
 
 (defn fork-worker [ctx endpoint queue worker]
@@ -66,7 +70,7 @@
       (.bind (z/setup-socket ofh) ipcendpoint)
       (.bind (z/setup-socket ifh) (:endpoint cfg))
       (dotimes [_ (:capabilities cfg)] (fork-worker ctx ipcendpoint queue worker))
-      (f/supervise (routing-loop ifh ofh queue))))
+      (f/supervise (routing-loop ifh ofh queue worker))))
   (trace "EXIT:router-start1"))
 
 (defmacro router-start [ctx worker cfg]
