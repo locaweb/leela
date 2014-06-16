@@ -28,12 +28,11 @@
 (defn decode-time [time-in-sec]
   (let [time (from-long (* 1000 time-in-sec))
         bucket (quot (to-long (date-time (year time) (month time) (day time))) 1000)
-        hitime (quot (- time-in-sec bucket) 3600)
-        lotime (rem (- time-in-sec bucket) 3600)]
-    [bucket hitime lotime]))
+        slot (- time-in-sec bucket)]
+    [bucket slot]))
 
-(defn encode-time [bucket hitime lotime]
-  (+ bucket (* 3600 hitime) lotime))
+(defn encode-time [bucket slot]
+  (+ bucket slot))
 
 (defn check-schema [cluster keyspace]
   (when-not (describe-keyspace cluster keyspace)
@@ -71,7 +70,7 @@
     (create-table
      cluster :t_attr
      (if-not-exists)
-     (column-definitions {:key :uuid :name :varchar :bucket :bigint :hitime :int :data (map-type :int :blob) :primary-key [[:key :name :bucket] :hitime]})
+     (column-definitions {:key :uuid :name :varchar :bucket :bigint :slot :int :data :blob :primary-key [[:key :name :bucket] :slot]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
   (when-not (describe-table cluster keyspace :k_attr)
     (warn "creating table k_attr")
@@ -162,27 +161,25 @@
 
 (defn fmt-put-tattr [[data opts0]]
   (let [opts (flatten (seq (dissoc opts0 :index)))
-        [bucket hitime lotime] (decode-time (:time data))
+        [bucket slot] (decode-time (:time data))
         idx (if (:index opts0)
               [(fmt-put-index-opts :t_index
                                    {:key (:key data)
                                     :name (:name data)} opts)]
               [])]
     (if (empty? opts)
-      (cons (update-query :t_attr
-                          {:data [+ {lotime (:value data)}]}
-                          (where
+      (cons (insert-query :t_attr
+                          {:data (:value data)
                            :key (:key data)
                            :name (:name data)
                            :bucket bucket
-                           :hitime hitime)) idx)
-      (cons (update-query :t_attr
-                          {:data [+ {lotime (:value data)}]}
-                          (where
+                           :slot slot}) idx)
+      (cons (insert-query :t_attr
+                          {:data (:value data)
                            :key (:key data)
                            :name (:name data)
                            :bucket bucket
-                           :hitime hitime)
+                           :slot slot}
                            (apply using opts)) idx))))
 
 (defn fmt-del-kattr [data]
@@ -192,14 +189,13 @@
 
 (defn fmt-del-tattr [data]
   (if (contains? data :time)
-    (let [[bucket hitime lotime] (decode-time (:time data))]
+    (let [[bucket slot] (decode-time (:time data))]
       [(delete-query
         :t_attr
-        (columns {:data lotime})
         (where :key (:key data)
                :name (:name data)
                :bucket bucket
-               :hitime hitime))])
+               :slot slot))])
     (fmt-del-index :t_index {:key (:key data)
                              :name (:name data)})))
 
@@ -291,17 +287,14 @@
     (client/execute cluster (client/render-query query))))
 
 (defn get-tattr [cluster k name time]
-  (let [[bucket hitime] (take 2 (decode-time time))]
-    (mapcat
+  (let [[bucket slot] (decode-time time)]
+    (map
      (fn [row]
-       (map
-        (fn [[lotime value]]
-          [(encode-time bucket (:hitime row) lotime) (f/binary-to-bytes value)])
-        (:data row)))
+       [(encode-time bucket (:slot row)) (f/binary-to-bytes (:data row))])
      (select cluster
              :t_attr
-             (columns :hitime :data)
-             (where :key k :name name :bucket bucket :hitime [:>= hitime])))))
+             (columns :slot :data)
+             (where :key k :name name :bucket bucket :slot [:>= slot])))))
 
 (defn del-tattr [cluster attrs]
   (let [query (->> attrs
