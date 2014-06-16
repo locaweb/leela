@@ -36,7 +36,6 @@ import Leela.Storage.Backend.Redis
 data Options = Options { optConsul       :: String
                        , optPasswd       :: String
                        , optTimeout      :: Int
-                       , optBacklog      :: Int
                        , optEndpoint     :: Endpoint
                        , optDebugLevel   :: Priority
                        , optRedisSecret  :: String
@@ -49,7 +48,6 @@ defaultOptions = Options { optEndpoint     = TCP "*" 4080 ""
                          , optConsul       = "http://127.0.0.1:8500"
                          , optRedisSecret  = ""
                          , optPasswd       = "/etc/leela/passwd"
-                         , optBacklog      = 64
                          , optCapabilities = 8
                          , optTimeout      = 60 * 1000
                          }
@@ -73,9 +71,6 @@ options =
   , Option []    ["redis-secret"]
            (ReqArg (\v opts -> opts { optRedisSecret = v }) "REDISSECRET")
            "redis authentication string"
-  , Option [] ["backlog"]
-           (ReqArg (setReadOpt (\v opts -> opts { optBacklog = v })) "BACKLOG")
-           "storage queue size"
   , Option [] ["capabilities"]
            (ReqArg (setReadOpt (\v opts -> opts { optCapabilities = v })) "CAPABILITIES")
            "number of threads per storage connection"
@@ -122,15 +117,13 @@ main = do
   void $ installHandler sigTERM (Catch $ signal alive) Nothing
   void $ installHandler sigINT (Catch $ signal alive) Nothing
   warning syslog
-    (printf "warpdrive: starting; timeout=%d, backlog=%d caps=%d endpoint=%s"
+    (printf "warpdrive: yo!yo!; timeout=%d, caps=%d endpoint=%s"
             (optTimeout opts)
-            (optBacklog opts)
             (optCapabilities opts)
             (show $ optEndpoint opts))
   withContext $ \ctx -> do
     setMaxSockets 64000 ctx
-    let cfg = ClientConf (optBacklog opts)
-                         (naming, fmap (maybe [] id . lookup "blackbox") . readIORef)
+    let cfg = ClientConf (naming, fmap (maybe [] id . lookup "blackbox") . readIORef)
                          (optCapabilities opts)
     cache  <- redisOpen syslog (naming, fmap (maybe [] id . lookup "redis") . readIORef) (optRedisSecret opts)
     client <- create syslog cfg ctx
@@ -138,5 +131,5 @@ main = do
     takeMVar alive
     stopRouter router
     destroy client
+  warning syslog "warpdrive: see ya!"
   closeLogger syslog
-  warning syslog "warpdrive: bye!"
