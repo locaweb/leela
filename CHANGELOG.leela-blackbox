@@ -1,5 +1,9 @@
 --*-- mode: text; --*--
 
+v6.0.0-1 | 2014-06-16
+  * logging request elapsed time
+  * changing the schema of t_attr
+
 v5.1.0-1 | 2014-05-09
   * changelog split: now multiple changelogs one for each component
 

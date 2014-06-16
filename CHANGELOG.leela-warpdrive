@@ -1,5 +1,11 @@
 --*-- mode: text; --*--
 
+v5.7.0 | 2014-06-16
+  * using the new t_attr table on blackbox
+  * dealer now user zmq.DEALER instead of zmq.REQ
+  * many performance upgrades (see commits)
+  * properly disconnecting from blackbox instances without disrupting the service
+
 v5.6.0 | 2014-06-04
   * bugfix: using zmq_setsockopt before connect/binding
 
