@@ -56,7 +56,7 @@ batch = go []
     where
       go acc []           = mapM_ wait acc
       go acc (Nothing:xs) = go acc xs
-      go acc (Just io:xs)  = do
+      go acc (Just io:xs) = do
         a <- async io
         go (a : acc) xs
 
@@ -87,14 +87,14 @@ getPutTAttr = map (\(PutTAttr g a t v o) -> (g, a, t, v, o)) . filter isPutTAttr
 
 buildQueue :: Time -> Time -> [(Time, Limit)]
 buildQueue t0 t1 =
-  let (d0, s0) = dateTime t0
+  let dlimit   = 86401
+      (d0, _)  = dateTime t0
       (d1, s1) = dateTime t1
-      whithin  = map ((, 24) . flip fromDateTime 0) [(succ d0)..(pred d1)]
+      whithin  = map ((, dlimit) . flip fromDateTime 0) [(succ d0)..(pred d1)]
   in if (d0 == d1)
-       then (t0, max 1 (ceiling $ (s1 - s0) / 3600))
-            : whithin
-       else (t0, 24)
-            : (fromDateTime d1 0, max 1 (ceiling $ s1 / 3600))
+       then [(t0, dlimit)]
+       else (t0, dlimit)
+            : (fromDateTime d1 0, max 1 (ceiling s1))
             : whithin
 
 loadTAttr :: (AttrBackend db) => db -> (Either Int [(Time, Value)] -> IO ()) -> GUID -> Attr -> Time -> Time -> IO ()
@@ -102,8 +102,6 @@ loadTAttr db flush guid name t0 t1 = do
   mapM_ (mapConcurrently procData) (intoChunks 64 $ buildQueue t0 t1)
     where
       safeFlush (Right []) = return ()
-      safeFlush (Right xs) = let ys = filter (\(t,_) -> t>=t0 && t<=t1) xs
-                             in when (not $ null ys) (flush $ Right ys)
       safeFlush info       = flush info
 
       procData (t, l) =
@@ -123,3 +121,4 @@ exec db rt = do
       register (u, t, k, n) = do
         g <- putName db u t k n
         return (u, t, k, n, g)
+
