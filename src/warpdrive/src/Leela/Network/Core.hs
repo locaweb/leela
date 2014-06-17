@@ -57,6 +57,10 @@ data CoreServer = CoreServer { logger :: Logger
                              , fdlist :: M.L2Map L.ByteString FH (TVar (Tick, Time, Device Reply))
                              }
 
+data Stream a = Chunk a
+              | Error SomeException
+              | EOF
+
 ttl :: Tick
 ttl = 60
 
@@ -124,9 +128,7 @@ withFD srv ((User u), fh) action = do
     Nothing    -> action Nothing
     Just value -> mask $ \restore -> do
       dev <- setTick value (Just 0)
-      res <- restore (action $ Just dev) `onException` (void $ setTick value Nothing)
-      _   <- setTick value Nothing
-      return res
+      restore (action $ Just dev) `finally` (setTick value Nothing)
     where
       setTick shmem mvalue = do
         at <- fmap (\v -> maybe v id mvalue) (peek (tick srv))
@@ -146,10 +148,6 @@ closeFD srv ((User u), fh) = do
       closeIO dev
       return (milliseconds $ diff t1 t0)
 
-data Stream a = Chunk a
-              | Error SomeException
-              | EOF
-
 navigate :: (GraphBackend m) => m -> Device Reply -> (Matcher, [(GUID -> Matcher)]) -> IO ()
 navigate db queue (source, pipeline) = do
   srcpipe <- openIO queue 16
@@ -167,6 +165,7 @@ navigate db queue (source, pipeline) = do
         mg <- devreadIO srcpipe
         case mg of
           Nothing                   -> return ()
+          Just EOF                  -> return ()
           Just (Chunk (feed, path)) -> do
             forM_ feed (\(_, b, c) ->
               query db (devwriteIO dstpipe . Chunk . (, (c, b) : path)) (f $ c))
@@ -248,8 +247,10 @@ process _ _ srv (Fetch sig fh) = do
   withFD srv channel $ \mdev -> do
     case mdev of
       Nothing  -> return $ Fail 404 $ Just "no such channel"
-      Just dev -> do
-        fmap makeList $ blkreadIO dev
+      Just dev -> devreadIO dev >>= \mreply ->
+        case mreply of
+          Just reply -> return reply
+          Nothing    -> return Last
 process _ _ srv (Close _ sig fh) = do
   t <- closeFD srv (sigUser sig, fh)
   notice (logger srv) (printf "CLOSE %d [%s ms]" fh (showDouble t))

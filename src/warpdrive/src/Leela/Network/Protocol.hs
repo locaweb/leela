@@ -27,7 +27,6 @@ module Leela.Network.Protocol
     , decode
     , encode
     , encodeE
-    , makeList
     , mapToLazyBS
     ) where
 
@@ -86,21 +85,6 @@ isLast _    = False
 isFail :: Reply -> Bool
 isFail (Fail _ _) = True
 isFail _          = False
-
-makeList :: [Reply] -> Reply
-makeList [] = Last
-makeList xs = go [] xs
-    where
-      go acc []             = compact [] acc
-      go acc (Last : _)     = go acc []
-      go acc (Item v : ys)  = go (v : acc) ys
-      go _ (x : _)          = x
-
-      compact [] []              = Last
-      compact [acc] []           = Item acc
-      compact acc []             = Item $ List acc
-      compact acc (List vs : xs) = compact (vs ++ acc) xs
-      compact acc (x : xs)       = compact (x : acc) xs
 
 readDecimal :: (Integral n) => B.ByteString -> Either Reply n
 readDecimal s = case (B8.readInteger s) of
