@@ -34,11 +34,10 @@ Everything is done by using the connection class of leela ruby:
           "tcp://leela2.locaweb.com.br:4080"
         ]
 
-        conn = Leela::Connection.new(endpoints, "user", "password")
+        conn = Leela::Connection.new(endpoints, {:user => "user", :pass => "password"})
 
 
-Using the the open connection the execute method will be available to execute
-queries on leela:
+Using the open connection the execute method will be available to execute queries on leela:
 
         result = conn.execute("using (namespace) stat")
 
@@ -57,7 +56,7 @@ at the end the connection should be closed:
 
 Also there is an `open` method that works just like `File.open` and closes at the end:
 
-        Leela::Connection.open(endpoints, "user", "password") do |conn|
+        Leela::Connection.open(endpoints, {:user => "user", :pass => "password"}) do |conn|
           puts conn.execute("using (namespace) stat")
         end
 
