@@ -55,7 +55,8 @@
 
     (let [cassandra-args {:credentials {:username (maybe-getenv (:username options))
                                         :password (maybe-getenv (:password options))}
-                          :connections (:capabilities options)}
+                          :max-connections 64
+                          :connections 1}
           endpoint       (:endpoint options)]
       (f/supervise
        (storage/with-session [cluster (:cassandra options) (:keyspace options) cassandra-args]

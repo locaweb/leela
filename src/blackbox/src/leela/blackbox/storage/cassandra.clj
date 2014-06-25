@@ -18,9 +18,10 @@
             [clj-time.coerce]
             [clojure.tools.logging :only [info warn]]
             [clojurewerkz.cassaforte.query]
-            [clojurewerkz.cassaforte.multi.cql])
+            [clojurewerkz.cassaforte.cql])
   (:require [clojure.string :as s]
             [leela.blackbox.f :as f]
+            [clojurewerkz.cassaforte.policies :as policies]
             [clojurewerkz.cassaforte.client :as client]))
 
 (def +limit+ 32)
@@ -102,10 +103,13 @@
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}}))))
 
 (defmacro with-connection [[conn endpoint options] & body]
-  `(let [~conn (client/connect (client/build-cluster {:contact-points ~endpoint
-                                                      :credentials (:credentials ~options)
-                                                      :load-balancing-policy (client/token-aware-policy (client/round-robin-policy))
-                                                      :max-connections-per-host (:connections ~options)}))]
+  `(let [~conn (.connect (client/build-cluster {:hosts ~endpoint
+                                                :retry-policy (policies/logging-retry-policy (policies/retry-policy :fallthrough))
+                                                :credentials (:credentials ~options)
+                                                :load-balancing-policy (policies/token-aware-policy (policies/round-robin-policy))
+                                                :connections-per-host (:connections ~options)
+                                                :max-connections-per-host (:max-connections ~options)}))]
+     (info (format "cassandra/with-connection %s" (dissoc ~options :credentials)))
      (try
        ~@body
        (finally (.shutdown ~conn)))))
@@ -116,8 +120,8 @@
      ~@body))
 
 (defmacro with-consistency [tag & body]
-  `(client/with-consistency-level
-     (client/consistency-level ~tag) ~@body))
+  `(policies/with-consistency-level
+     (policies/consistency-level ~tag) ~@body))
 
 (defmacro with-limit [lim & body]
   `(with-redefs [+limit+ (or ~lim +limit+)]

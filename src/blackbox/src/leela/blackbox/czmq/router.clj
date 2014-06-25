@@ -39,26 +39,26 @@
     (when (.isReadable ofh-info)
       (z/sendmulti ifh (z/recvmulti ofh)))))
 
-(defn evaluate [worker [time peer msg]]
+(defn evaluate [worker msg]
   (try
-    (let [reply ((:onjob worker) msg)]
-      (info (format "DONE %s [%d ms]" (pr-str (map f/bytes-to-str-unsafe (take 2 msg))) (- (System/currentTimeMillis) time)))
-      (concat peer (cons "" reply)))
+    ((:onjob worker) msg)
     (catch Exception e
-      (let [reply (:onerr worker)]
-        (error e (format "FAIL %s" (pr-str (map f/bytes-to-str-unsafe (take 2 msg)))))
-        (concat peer (cons "" reply))))))
+      (:onerr worker))))
 
-(defn run-worker [ctx endpoint queue worker]
+(defn run-worker [ctx myid endpoint queue worker]
   (with-open [fh (.socket ctx ZMQ/PUSH)]
     (trace (format "ENTER:run-worker %s" endpoint))
     (.connect (z/setup-socket fh) endpoint)
     (f/forever
-     (let [item (.take queue)]
-       (when item (z/sendmulti fh (evaluate worker item)))))))
+     (let [[time peer msg] (.take queue)
+           reply           (evaluate worker msg)
+           req-id          (pr-str (map f/bytes-to-str-unsafe (take 2 msg)))
+           rep-id          (pr-str (take 1 reply))]
+       (z/sendmulti fh (concat peer (cons "" reply)))
+       (info (format "WORKER[%04d] %s ~ %s [%d ms]" myid req-id rep-id (- (System/currentTimeMillis) time)))))))
 
-(defn fork-worker [ctx endpoint queue worker]
-  (.start (Thread. #(f/supervise (run-worker ctx endpoint queue worker)))))
+(defn fork-worker [ctx myid endpoint queue worker]
+  (.start (Thread. #(f/supervise (run-worker ctx myid endpoint queue worker)))))
 
 (defn router-start1 [ctx worker cfg]
   (trace "ENTER:router-start1")
@@ -69,7 +69,7 @@
       (info (format "router-start1; config=%s" cfg))
       (.bind (z/setup-socket ofh) ipcendpoint)
       (.bind (z/setup-socket ifh) (:endpoint cfg))
-      (dotimes [_ (:capabilities cfg)] (fork-worker ctx ipcendpoint queue worker))
+      (dotimes [myid (:capabilities cfg)] (fork-worker ctx myid ipcendpoint queue worker))
       (f/supervise (routing-loop ifh ofh queue worker))))
   (trace "EXIT:router-start1"))
 

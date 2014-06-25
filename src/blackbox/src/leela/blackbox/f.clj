@@ -65,6 +65,7 @@
      ~s))
 
 (def byte-array-type (class (byte-array 0)))
+
 (defn bytes-to-str [bytes]
   (if (instance? byte-array-type bytes)
     (apply str (map char bytes))
