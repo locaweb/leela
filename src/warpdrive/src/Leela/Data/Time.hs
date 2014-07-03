@@ -21,6 +21,7 @@ module Leela.Data.Time
        , add
        , now
        , diff
+       , sleep
        , seconds
        , dateTime
        , snapshot
@@ -31,7 +32,10 @@ module Leela.Data.Time
 
 import Data.Time
 import System.Clock
+import Control.Concurrent
 import Data.Time.Clock.POSIX
+
+import Control.Monad
 
 newtype Time = Time { unTime :: Double }
              deriving (Show, Eq, Ord)
@@ -44,6 +48,9 @@ add increment (Time t) = Time (t + realToFrac increment)
 
 seconds :: Time -> Double
 seconds = unTime
+
+sleep :: Int -> IO ()
+sleep s = threadDelay (s * 1000000)
 
 milliseconds :: Time -> Double
 milliseconds = (* 1000) . unTime

@@ -39,7 +39,7 @@ supervise syslog name io = do
     where
       restart (SomeException e) = do
         warning syslog (printf "supervised thread [%s] has died, restarting: %s" name (show e))
-        sleep 1
+        threadDelay (1 * 1000000)
 
 sConcatMap :: (a -> [b]) -> [a] -> [b]
 sConcatMap f = toList . mconcat . map (fromList . f)
@@ -51,9 +51,6 @@ foreverWith :: IO Bool -> IO () -> IO ()
 foreverWith check io = do
   ok <- check
   when ok (io >> foreverWith check io)
-
-sleep :: Int -> IO ()
-sleep s = threadDelay (s * 1000000)
 
 showDouble :: Double -> String
 showDouble = unpack . toShortest
