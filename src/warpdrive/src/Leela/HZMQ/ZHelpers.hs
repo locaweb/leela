@@ -14,31 +14,18 @@
 
 module Leela.HZMQ.ZHelpers where
 
-import           Data.Int
 import           System.ZMQ4
+import           Control.Monad
+import           Leela.Data.Time
 import qualified Data.ByteString as B
+import           Control.Concurrent
 import qualified Data.ByteString.Lazy as L
+import           Control.Concurrent.STM
 
-recvTimeout :: (Receiver a) => Int64 -> Socket a -> IO (Maybe [B.ByteString])
-recvTimeout t s = do
-  ready <- poll t [Sock s [In] Nothing]
-  case ready of
-    [[]] -> return Nothing
-    _    -> fmap Just (receiveMulti s)
-
-sndTimeout' :: (Sender a) => Int64 -> Socket a -> [L.ByteString] -> IO Bool
-sndTimeout' t fh m = do
-  ready <- poll t [Sock fh [Out] Nothing]
-  case ready of
-    [[]] -> return False
-    _    -> sendAll' fh m >> return True
-
-sndTimeout :: (Sender a) => Int64 -> Socket a -> [B.ByteString] -> IO Bool
-sndTimeout t fh m = do
-  ready <- poll t [Sock fh [Out] Nothing]
-  case ready of
-    [[]] -> return False
-    _    -> sendAll fh m >> return True
+retryUnless :: TVar Bool -> a -> STM a
+retryUnless tvar a = do
+  expired <- readTVar tvar
+  if expired then retry else return a
 
 sendAll' :: (Sender a) => Socket a -> [L.ByteString] -> IO ()
 sendAll' _ []         = return ()
@@ -62,24 +49,19 @@ setHWM (rcvQueue, sndQueue) fh = do
   setReceiveHighWM (restrict rcvQueue) fh
   setSendHighWM (restrict sndQueue) fh
 
+config :: Socket a -> IO ()
+config fh = do
+  setHWM (0, 0) fh
+  setLinger (restrict 0) fh
+  setTcpKeepAlive On fh
+--  setImmediate True fh
+
 configAndConnect :: Socket a -> String -> IO ()
 configAndConnect fh addr = do
-  setLinger (restrict 0) fh
-  setSendTimeout (restrict (ms 60)) fh
-  setTcpKeepAlive On fh
-  setReceiveTimeout (restrict (ms 60)) fh
-  setMaxMessageSize (restrict (1024 * 1024 :: Int)) fh
-  setTcpKeepAliveIdle (restrict 30) fh
-  setReconnectInterval (restrict (ms 250)) fh
+  config fh
   connect fh addr
 
 configAndBind :: Socket a -> String -> IO ()
 configAndBind fh addr = do
-  setLinger (restrict 0) fh
-  setSendTimeout (restrict (ms 60)) fh
-  setTcpKeepAlive On fh
-  setReceiveTimeout (restrict (ms 60)) fh
-  setMaxMessageSize (restrict (1024 * 1024 :: Int)) fh
-  setTcpKeepAliveIdle (restrict 30) fh
-  setReconnectInterval (restrict (ms 250)) fh
+  config fh
   bind fh addr

@@ -26,7 +26,6 @@ import           Leela.Logger
 import           Network.HTTP
 import           Control.Monad
 import           Control.Exception
-import           Control.Concurrent
 import           Leela.Data.Excepts
 import           Control.Applicative
 import           Leela.Data.Endpoint
@@ -60,15 +59,13 @@ fetchCatalog url key = do
   else
     throwIO SystemExcept
 
-resolver :: Logger -> Endpoint -> IORef [(String, [Endpoint])] -> String -> IO ()
-resolver syslog myself ioref url = do
+resolver :: Logger -> IORef [(String, [Endpoint])] -> String -> IO ()
+resolver syslog ioref url = do
   info syslog (printf "resolver: fetching from consul: %s" url)
   oldServices <- readIORef ioref
   newServices <- fmap (M.toList . parseServices) (fetchCatalog url "/v1/health/service/leela")
   atomicWriteIORef ioref newServices
   when (oldServices /= newServices) $ notice syslog (printf "resolver: %s" (show newServices))
-  threadDelay $ 5 * 1000 * 1000
-  resolver syslog myself ioref url
 
 instance FromJSON Service where
    parseJSON (Object v) = Service <$>

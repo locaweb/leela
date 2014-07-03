@@ -21,6 +21,7 @@ import Leela.Logger
 import Leela.Naming
 import Control.Monad
 import Leela.Helpers
+import Leela.Data.Time
 import Leela.HZMQ.Dealer
 import Control.Concurrent
 import Leela.Network.Core
@@ -113,23 +114,22 @@ main = do
   syslog <- newLogger (optDebugLevel opts)
   passwd <- passwdWatcher syslog (optPasswd opts)
   core   <- newCore syslog naming passwd
-  _      <- forkIO (supervise syslog "main/resolver" $ resolver syslog (optEndpoint opts) naming (optConsul opts))
+  resolver syslog naming (optConsul opts)
+  _      <- forkIO (supervise syslog "main/resolver" $ sleep 5 >> resolver syslog naming (optConsul opts))
   void $ installHandler sigTERM (Catch $ signal alive) Nothing
   void $ installHandler sigINT (Catch $ signal alive) Nothing
   warning syslog
-    (printf "warpdrive: yo!yo!; timeout=%d, caps=%d endpoint=%s"
+    (printf "warpdrive: yo!yo!; timeout=%d, endpoint=%s"
             (optTimeout opts)
-            (optCapabilities opts)
             (show $ optEndpoint opts))
   withContext $ \ctx -> do
-    setMaxSockets 64000 ctx
     let cfg = ClientConf (naming, fmap (maybe [] id . lookup "blackbox") . readIORef)
-                         (optCapabilities opts)
     cache  <- redisOpen syslog (naming, fmap (maybe [] id . lookup "redis") . readIORef) (optRedisSecret opts)
     client <- create syslog cfg ctx
     router <- startServer core (optEndpoint opts) ctx cache (zmqbackend client)
     takeMVar alive
+    flushLogger syslog
+    stopDealer client
     stopRouter router
-    destroy client
   warning syslog "warpdrive: see ya!"
   closeLogger syslog
