@@ -25,6 +25,7 @@ module Leela.Logger
        , warning
        , newLogger
        , closeLogger
+       , flushLogger
        ) where
 
 import Data.Time
@@ -49,7 +50,7 @@ class ToString a where
     fmt :: a -> String
 
 newLogger :: Priority -> IO Logger
-newLogger p = fmap (Logger p) (newStdoutLoggerSet defaultBufSize)
+newLogger p = fmap (Logger p) (newStdoutLoggerSet 1024)
 
 level :: Logger -> Priority
 level (Logger p _) = p
@@ -86,6 +87,9 @@ fatal (Logger p logger) s
 
 closeLogger :: Logger -> IO ()
 closeLogger (Logger _ logger) = rmLoggerSet logger
+
+flushLogger :: Logger -> IO ()
+flushLogger (Logger _ logger) = flushLogStr logger
 
 instance ToString ByteString where
 
