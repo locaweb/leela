@@ -75,7 +75,7 @@
   (try
     (bytes-to-str bytes)
     (catch Exception e
-      "<<binary>>")))
+      (str (vec bytes)))))
 
 (defn maybe-bytes-to-str [bytes]
   (when bytes (bytes-to-str bytes)))
