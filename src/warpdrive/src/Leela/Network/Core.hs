@@ -224,7 +224,7 @@ evalFinalizer syslog t0 chan dev (Left e)  = do
   t <- fmap (`diff` t0) snapshot
   devwriteIO dev (encodeE e) `catch` ignore
   closeIO dev
-  notice syslog $ printf "FAILURE: %s %s [%s ms]" (show chan) (show e) (showDouble $ milliseconds t)
+  warning syslog $ printf "FAILURE: %s %s [%s ms]" (show chan) (show e) (showDouble $ milliseconds t)
 evalFinalizer syslog t0 chan dev (Right _)   = do
   t <- fmap (`diff` t0) snapshot
   closeIO dev
