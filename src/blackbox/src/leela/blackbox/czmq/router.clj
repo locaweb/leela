@@ -20,17 +20,19 @@
 
 (def s java.util.concurrent.TimeUnit/SECONDS)
 
+(def nilarr (byte-array 0))
+
 (defn make-queue [size]
   (java.util.concurrent.LinkedBlockingQueue. size))
 
 (defn enqueue [fh queue worker]
   (let [[peer [blank & msg]] (split-with #(not (empty? %)) (z/recvmulti fh))
         time                 (System/currentTimeMillis)]
-    (when (empty? blank)
+    (when (and (empty? blank) (not (empty? msg)))
       (when-not (.offer queue [time peer msg])
         (do
           (warn "queue full, dropping request")
-          (z/sendmulti fh (concat peer (cons "" (:onerr worker)))))))))
+          (z/sendmulti fh (concat peer (cons nilarr (:onerr worker)))))))))
 
 (defn routing-loop [ifh ofh queue worker]
   (let [[ifh-info ofh-info] (z/poll -1 [ifh [ZMQ$Poller/POLLIN] ofh [ZMQ$Poller/POLLIN]])]
@@ -54,7 +56,7 @@
            reply           (evaluate worker msg)
            req-id          (pr-str (map f/bytes-to-str-unsafe (take 2 msg)))
            rep-id          (pr-str (take 1 reply))]
-       (z/sendmulti fh (concat peer (cons "" reply)))
+       (z/sendmulti fh (concat peer (cons nilarr reply)))
        (info (format "WORKER[%04d] %s ~ %s [%d ms]" myid req-id rep-id (- (System/currentTimeMillis) time)))))))
 
 (defn fork-worker [ctx myid endpoint queue worker]
@@ -65,8 +67,12 @@
   (with-open [ifh (.socket ctx ZMQ/ROUTER)
               ofh (.socket ctx ZMQ/PULL)]
     (let [queue       (make-queue (:queue-size cfg))
-          ipcendpoint "inproc://blackbox.router"]
+          ipcendpoint (format "inproc://blackbox-router-%s" (f/uuid-1))]
       (info (format "router-start1; config=%s" cfg))
+      (.setSndHWM ofh 0)
+      (.setSndHWM ifh 0)
+      (.setRcvHWM ofh 0)
+      (.setRcvHWM ifh 0)
       (.bind (z/setup-socket ofh) ipcendpoint)
       (.bind (z/setup-socket ifh) (:endpoint cfg))
       (dotimes [myid (:capabilities cfg)] (fork-worker ctx myid ipcendpoint queue worker))
