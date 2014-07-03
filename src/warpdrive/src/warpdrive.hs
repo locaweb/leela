@@ -40,7 +40,6 @@ data Options = Options { optConsul       :: String
                        , optEndpoint     :: Endpoint
                        , optDebugLevel   :: Priority
                        , optRedisSecret  :: String
-                       , optCapabilities :: Int
                        }
 
 defaultOptions :: Options
@@ -49,7 +48,6 @@ defaultOptions = Options { optEndpoint     = TCP "*" 4080 ""
                          , optConsul       = "http://127.0.0.1:8500"
                          , optRedisSecret  = ""
                          , optPasswd       = "/etc/leela/passwd"
-                         , optCapabilities = 8
                          , optTimeout      = 60 * 1000
                          }
 
@@ -72,9 +70,6 @@ options =
   , Option []    ["redis-secret"]
            (ReqArg (\v opts -> opts { optRedisSecret = v }) "REDISSECRET")
            "redis authentication string"
-  , Option [] ["capabilities"]
-           (ReqArg (setReadOpt (\v opts -> opts { optCapabilities = v })) "CAPABILITIES")
-           "number of threads per storage connection"
   , Option [] ["timeout-in-ms"]
            (ReqArg (setReadOpt (\v opts -> opts { optTimeout = v})) "TIMEOUT-IN-MS")
            "timeout in milliseconds"
