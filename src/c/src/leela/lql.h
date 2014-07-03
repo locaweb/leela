@@ -21,7 +21,7 @@
 #include "leela/status.h"
 #include "leela/endpoint.h"
 
-#define LQL_DEFAULT_TIMEOUT 60
+#define LQL_DEFAULT_TIMEOUT 60000
 
 LEELA_CPLUSPLUS_OPEN
 
