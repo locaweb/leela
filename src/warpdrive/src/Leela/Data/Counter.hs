@@ -19,21 +19,15 @@ module Leela.Data.Counter
        , newCounter
        ) where
 
-import Data.Word
-import Control.Concurrent.STM
+import Data.IORef
 
-data Counter a = Counter (TVar a)
+data Counter a = Counter (IORef a)
 
 newCounter :: (Integral a) => IO (Counter a)
-newCounter = fmap Counter (newTVarIO 1)
+newCounter = fmap Counter (newIORef 1)
 
-{-# SPECIALIZE next :: Counter Int    -> IO Int    #-}
-{-# SPECIALIZE next :: Counter Word64 -> IO Word64 #-}
 next :: (Integral a) => Counter a -> IO a
-next (Counter shmem) = atomically $ do
-  a <- readTVar shmem
-  writeTVar shmem (a + 1)
-  return a
+next (Counter ioref) = atomicModifyIORef' ioref (\a -> (a+1, a))
 
 peek :: Counter a -> IO a
-peek (Counter shmem) = readTVarIO shmem
+peek (Counter ioref) = readIORef ioref
