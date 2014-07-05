@@ -35,8 +35,6 @@ import System.Clock
 import Control.Concurrent
 import Data.Time.Clock.POSIX
 
-import Control.Monad
-
 newtype Time = Time { unTime :: Double }
              deriving (Show, Eq, Ord)
 
