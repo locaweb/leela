@@ -46,9 +46,9 @@ import qualified Data.ByteString.Base16 as B16
 import           Data.ByteString.Builder
 import           Data.Double.Conversion.ByteString
 
-type FH = Word64
+type FH = Word32
 
-type Tick = Word64
+type Tick = Word32
 
 type Writer a = a -> IO ()
 
@@ -186,7 +186,7 @@ encodeRValue (NAttrs g names)     =   "n-attr"
 
 encode :: Reply -> [L.ByteString]
 encode (Done fh)              = [ "done"
-                                , toLazyBS 32 $ word64Dec fh
+                                , toLazyBS 32 $ word32Dec fh
                                 ]
 encode Last                   = [ "done" ]
 encode (Fail code Nothing)    = [ "fail"
