@@ -15,10 +15,7 @@
 module Leela.HZMQ.ZHelpers where
 
 import           System.ZMQ4
-import           Control.Monad
-import           Leela.Data.Time
 import qualified Data.ByteString as B
-import           Control.Concurrent
 import qualified Data.ByteString.Lazy as L
 import           Control.Concurrent.STM
 
@@ -54,7 +51,7 @@ config fh = do
   setHWM (0, 0) fh
   setLinger (restrict 0) fh
   setTcpKeepAlive On fh
---  setImmediate True fh
+  setImmediate True fh
 
 configAndConnect :: Socket a -> String -> IO ()
 configAndConnect fh addr = do
