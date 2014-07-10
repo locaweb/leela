@@ -77,7 +77,7 @@ toDate day = let (year, month, dayOfMonth) = toGregorian day
 
 fromTimeSpec :: TimeSpec -> Time
 fromTimeSpec t = let a = fromIntegral $ sec t
-                     b = (fromIntegral $ nsec t) / 10e9
+                     b = (fromIntegral $ nsec t) / 1e9
                  in Time (a + b)
 
 snapshot :: IO Time
