@@ -54,6 +54,7 @@ superviseWith syslog name check io = do
       restart (SomeException e) = do
         warning syslog (printf "%s: supervised function has died, restarting: %s" name (show e))
         threadDelay (1 * 1000000)
+        superviseWith syslog name check io
 
 showDouble :: Double -> String
 showDouble = unpack . toShortest
