@@ -50,7 +50,7 @@ class ToString a where
     fmt :: a -> String
 
 newLogger :: Priority -> IO Logger
-newLogger p = fmap (Logger p) (newStdoutLoggerSet 1024)
+newLogger p = fmap (Logger p) (newStdoutLoggerSet defaultBufSize)
 
 level :: Logger -> Priority
 level (Logger p _) = p
