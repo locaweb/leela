@@ -24,6 +24,7 @@ module Leela.Logger
        , notice
        , warning
        , newLogger
+       , nullLogger
        , closeLogger
        , flushLogger
        ) where
@@ -38,6 +39,7 @@ import Data.ByteString.Lazy.UTF8 (toString)
 import Data.ByteString.Lazy.Builder
 
 data Logger = Logger Priority LoggerSet
+            | NullLogger
 
 data Priority = DEBUG
               | INFO
@@ -52,7 +54,11 @@ class ToString a where
 newLogger :: Priority -> IO Logger
 newLogger p = fmap (Logger p) (newStdoutLoggerSet defaultBufSize)
 
+nullLogger :: Logger
+nullLogger = NullLogger
+
 level :: Logger -> Priority
+level NullLogger   = DEBUG
 level (Logger p _) = p
 
 format :: Priority -> String -> IO LogStr
@@ -61,34 +67,41 @@ format prio s = do
   return (toLogStr time <> toLogStr " - " <> toLogStr (show prio) <> toLogStr " " <> toLogStr s <> toLogStr "\n")
 
 debug :: Logger -> String -> IO ()
+debug NullLogger _ = return ()
 debug (Logger p logger) s
-  | DEBUG >= p = pushLogStr logger =<< format DEBUG s
-  | otherwise  = return ()
+  | DEBUG >= p     = pushLogStr logger =<< format DEBUG s
+  | otherwise      = return ()
 
 info :: Logger -> String -> IO ()
+info NullLogger _ = return ()
 info (Logger p logger) s
-  | INFO >= p = pushLogStr logger =<< format INFO s
-  | otherwise = return ()
+  | INFO >= p     = pushLogStr logger =<< format INFO s
+  | otherwise     = return ()
 
 notice :: Logger -> String -> IO ()
+notice NullLogger _ = return ()
 notice (Logger p logger) s
-  | NOTICE >= p = pushLogStr logger =<< format NOTICE s
-  | otherwise   = return ()
+  | NOTICE >= p     = pushLogStr logger =<< format NOTICE s
+  | otherwise       = return ()
 
 warning :: Logger -> String -> IO ()
+warning NullLogger _ = return ()
 warning (Logger p logger) s
   | WARNING >= p = pushLogStr logger =<< format WARNING s
   | otherwise    = return ()
 
 fatal :: Logger -> String -> IO ()
+fatal NullLogger _ = return ()
 fatal (Logger p logger) s
-  | FATAL >= p = pushLogStr logger =<< format FATAL s
-  | otherwise  = return ()
+  | FATAL >= p     = pushLogStr logger =<< format FATAL s
+  | otherwise      = return ()
 
 closeLogger :: Logger -> IO ()
+closeLogger NullLogger        = return ()
 closeLogger (Logger _ logger) = rmLoggerSet logger
 
 flushLogger :: Logger -> IO ()
+flushLogger NullLogger       = return ()
 flushLogger (Logger _ logger) = flushLogStr logger
 
 instance ToString ByteString where
