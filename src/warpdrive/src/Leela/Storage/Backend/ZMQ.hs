@@ -100,7 +100,7 @@ instance AttrBackend ZMQBackend where
 instance GraphBackend ZMQBackend where
 
   getName m guids =
-    mapConcurrently work guids
+    mapM work guids
       where
         work g = do
           reply <- send (dealer m) (MsgGetName g)
@@ -110,7 +110,7 @@ instance GraphBackend ZMQBackend where
             _                 -> internalError
 
   getGUID m names =
-     mapConcurrently work names
+     mapM work names
        where
          work (u, t, k, n) = do
            reply <- send (dealer m) (MsgGetGUID u t k n)
