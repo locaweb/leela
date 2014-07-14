@@ -32,6 +32,7 @@ module Leela.Data.Time
 
 import Data.Time
 import System.Clock
+import Control.DeepSeq
 import Control.Concurrent
 import Data.Time.Clock.POSIX
 
@@ -93,3 +94,7 @@ instance Enum Date where
 
   toEnum   = toDate . toEnum
   fromEnum = fromEnum . fromDate
+
+instance NFData Time where
+
+  rnf (Time v) = rnf v
