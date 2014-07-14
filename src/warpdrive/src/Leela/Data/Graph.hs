@@ -99,7 +99,7 @@ buildQueue t0 t1 =
 
 loadTAttr :: (AttrBackend db) => db -> (Either Int [(Time, Value)] -> IO ()) -> GUID -> Attr -> Time -> Time -> IO ()
 loadTAttr db flush guid name t0 t1 = do
-  mapM_ (mapConcurrently procData) (intoChunks 64 $ buildQueue t0 t1)
+  mapM_ (mapConcurrently procData) (intoChunks 16 $ buildQueue t0 t1)
     where
       safeFlush (Right []) = return ()
       safeFlush info       = flush info
