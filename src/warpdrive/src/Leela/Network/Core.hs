@@ -80,7 +80,7 @@ dumpStat core = do
 newCore :: Logger -> IORef [(String, [Endpoint])] -> IORef P.Passwd -> IO CoreServer
 newCore syslog statdb secretdb = do
   state <- makeState
-  _     <- forkIO (supervise syslog "Core/gc" $ sleep 1 >> rungc syslog state)
+  _     <- forkIO (supervise syslog "Core/gc" $ forever $ sleep 1 >> rungc syslog state)
   return state
     where
       makeState =

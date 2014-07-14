@@ -26,7 +26,9 @@ module Leela.HZMQ.IOLoop
        ) where
 
 import           System.ZMQ4
+import           Leela.Logger
 import           Control.Monad
+import           Leela.Helpers
 import qualified Data.ByteString as B
 import           Control.Exception
 import           Control.Concurrent
@@ -85,11 +87,11 @@ pollLoop p@(Poller (_, _, _, ctrl)) = do
   fd               <- useSocket p fileDescriptor
   (waitW, cancelW) <- waitFor (threadWaitWrite fd)
   (waitR, cancelR) <- waitFor (threadWaitRead fd)
-  go waitR waitW Nothing `finally` (cancelR >> cancelW)
+  supervise nullLogger "ioloop" (go waitR waitW Nothing) `finally` (cancelR >> cancelW)
     where
       waitFor waitFunc = do
         v <- newEmptyTMVarIO
-        t <- forkIO $ forever $ do
+        t <- forkIO $ supervise nullLogger "ioloop/waitFor" $ forever $ do
           waitFunc
           atomically $ putTMVar v ()
         return (takeTMVar v, killThread t)

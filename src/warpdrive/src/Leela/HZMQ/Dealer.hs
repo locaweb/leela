@@ -135,7 +135,7 @@ create syslog cfg ctx = do
   pool   <- createPool (createWorker dealer) (destroyWorker dealer)
   poolUpdate cfg pool
   _      <- forkFinally
-              (superviseWith syslog "poolUpdate" (alive (head $ poller dealer)) (poolUpdate cfg pool >> sleep 1))
+              (supervise syslog "poolUpdate" $ foreverWith (alive (head $ poller dealer)) (poolUpdate cfg pool >> sleep 1))
               (const $ signalQSem qsem)
   _      <- forkFinally (dealerLoop dealer) (const $ signalQSem qsem)
   return $ ClientFH (dealer, replicateM_ 2 (waitQSem qsem) >> mapM_ close fhs)

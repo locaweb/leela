@@ -90,7 +90,7 @@ signal x = tryPutMVar x () >> return ()
 passwdWatcher :: Logger -> FilePath -> IO (IORef Passwd)
 passwdWatcher syslog file = do
   shmem <- newIORef zero
-  _     <- forkIO $ supervise syslog "main/passwd" $ do
+  _     <- forkIO $ supervise syslog "main/passwd" $ forever $ do
     current <- readIORef shmem
     passwd  <- fmap (maybe current id) (parseFile file)
     when (passwd /= current) $ do
@@ -110,7 +110,7 @@ main = do
   passwd <- passwdWatcher syslog (optPasswd opts)
   core   <- newCore syslog naming passwd
   resolver syslog naming (optConsul opts)
-  _      <- forkIO (supervise syslog "main/resolver" $ sleep 5 >> resolver syslog naming (optConsul opts))
+  _      <- forkIO (supervise syslog "main/resolver" $ forever $ sleep 5 >> resolver syslog naming (optConsul opts))
   void $ installHandler sigTERM (Catch $ signal alive) Nothing
   void $ installHandler sigINT (Catch $ signal alive) Nothing
   warning syslog
