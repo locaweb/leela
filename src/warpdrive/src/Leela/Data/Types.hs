@@ -108,6 +108,7 @@ data Journal = PutLink GUID Label GUID
 
 data Option = TTL Int
             | Indexing
+            | MaxDataPoints Int
             deriving (Eq)
 
 data Mode a = All (Maybe a)
@@ -136,6 +137,7 @@ nodeFromBS = Node . L.fromStrict
 userFromBS :: B.ByteString -> User
 userFromBS = User . L.fromStrict
 
+attrFromBS :: B.ByteString -> Attr
 attrFromBS = Attr . L.fromStrict
 
 isDelKAttr :: Journal -> Bool
@@ -173,9 +175,10 @@ setOpt o1 (o : xs)
   | otherwise      = o : setOpt o1 xs
 
     where
-      same (TTL _) (TTL _)   = True
-      same Indexing Indexing = True
-      same _ _               = False
+      same (TTL _) (TTL _)                     = True
+      same (MaxDataPoints _) (MaxDataPoints _) = True
+      same Indexing Indexing                   = True
+      same _ _                                 = False
 
 glob :: L.ByteString -> Mode L.ByteString
 glob s
