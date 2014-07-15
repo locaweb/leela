@@ -44,6 +44,7 @@ import           Leela.Data.LQL.Comp
 import           Leela.Storage.Graph
 import qualified Leela.Storage.Passwd as P
 import qualified Data.ByteString.Lazy as L
+import           Leela.Data.TimeSeries
 import           Control.Concurrent.STM
 import           Leela.Network.Protocol
 import           Leela.Storage.KeyValue
@@ -200,9 +201,12 @@ evalLQL cache db core queue (x:xs) = do
       enumKAttrs db (devwriteIO queue . Item . NAttrs g) g a
     KAttrGetStmt g a _ ->
       getAttr db g a >>= devwriteIO queue . Item . KAttr g a
-    TAttrGetStmt g a (Range t0 t1) _ -> do
-      loadTAttr db (devwriteIO queue . either (flip Fail Nothing) (Item . TAttr g a)) g a t0 t1
-      devwriteIO queue (Item $ TAttr g a [])
+    TAttrGetStmt g a (Range t0 t1) opts ->
+      case (getMaxDataPoints opts) of
+        Just n  -> loadTAttr db (devwriteIO queue . (Item . TAttr g a . maxDataPoints n)) g a t0 t1
+        Nothing -> do
+          loadTAttr db (devwriteIO queue . (Item . TAttr g a)) g a t0 t1
+          devwriteIO queue (Item $ TAttr g a [])
     StatStmt          -> do
       state <- dumpStat core
       devwriteIO queue (Item $ Stat state)
