@@ -63,7 +63,7 @@ redisOpen syslog (a, f) password = do
                           , connectMaxConnections = 64
                           , connectMaxIdleTime    = 600
                           })
-      onBegin _                 = throwIO SystemExcept
+      onBegin e                 = throwIO (SystemExcept (Just $ "Redis/redisOpen: invalid redis endpoint: " ++ (dumpEndpointStr e)))
 
 redisClose :: RedisBackend -> IO ()
 redisClose (RedisBackend _ ctrl pool) = do
@@ -77,12 +77,12 @@ runRedisIO :: Logger -> AnswerT Redis a -> Connection -> IO a
 runRedisIO syslog action conn = go (1 :: Int)
     where
       go n
-        | n >= 5    = throwIO SystemExcept
+        | n >= 5    = throwIO (SystemExcept (Just "Redis/runRedisIO: error executing transaction"))
         | otherwise = do
           value <- runRedis conn (runAnswerT action)
           case value of
             Value a -> return a
-            Failure -> throwIO SystemExcept
+            Failure -> throwIO (SystemExcept (Just "Redis/runRedisIO: error executing transaction"))
             TxAbort -> do
               warning syslog (printf "retrying redis transaction: %d/5" n)
               threadDelay (n * 10 * 1000)

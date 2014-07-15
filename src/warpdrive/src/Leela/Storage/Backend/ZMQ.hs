@@ -26,7 +26,6 @@ import           Leela.HZMQ.Dealer
 import           Leela.Data.Excepts
 import           Leela.Storage.Graph
 import qualified Data.ByteString as B
-import           Control.Concurrent.Async
 import           Control.Parallel.Strategies
 import           Leela.Storage.Backend.ZMQ.Protocol
 
@@ -39,13 +38,13 @@ recv :: Maybe [B.ByteString] -> Reply
 recv Nothing    = FailMsg 500
 recv (Just msg) = decode msg
 
-notFoundError :: IO a
-notFoundError = do
-  throwIO NotFoundExcept
+notFoundError :: String -> IO a
+notFoundError m = do
+  throwIO (NotFoundExcept (Just m))
 
-internalError :: IO a
-internalError = do
-  throwIO SystemExcept
+internalError :: String -> IO a
+internalError m = do
+  throwIO (SystemExcept (Just m))
 
 send :: ClientFH -> Query -> IO Reply
 send pool req = let msg = (encode req) `using` (evalList rdeepseq)
@@ -56,7 +55,7 @@ send_ pool req = do
   reply <- send pool req
   case reply of
     DoneMsg -> return ()
-    _       -> internalError
+    _       -> internalError "ZMQ/send_: error sending request"
 
 instance AttrBackend ZMQBackend where
 
@@ -73,26 +72,26 @@ instance AttrBackend ZMQBackend where
     case reply of
       KAttrMsg v  -> return (Just v)
       FailMsg 404 -> return Nothing
-      _           -> internalError
+      _           -> internalError "ZMQ/getAttr: backend error"
 
   getTAttr m g a time limit = do
     reply <- send (dealer m) (MsgGetTAttr g a time limit)
     case reply of
       TAttrMsg v  -> return v
       FailMsg 404 -> return []
-      _           -> internalError
+      _           -> internalError "ZMQ/getTAttr: backend error"
 
   listAttr m g page limit = do
     reply <- send (dealer m) (MsgListAttr g page limit)
     case reply of
       NAttrMsg xs -> return xs
-      _           -> internalError
+      _           -> internalError "ZMQ/listAttr: backend error"
 
   listTAttr m g page limit = do
     reply <- send (dealer m) (MsgListTAttr g page limit)
     case reply of
       NAttrMsg xs -> return xs
-      _           -> internalError
+      _           -> internalError "ZMQ/listTAttr: backend error"
 
   delAttr _ []    = return ()
   delAttr m attrs = send_ (dealer m) (MsgDelAttr attrs)
@@ -106,8 +105,8 @@ instance GraphBackend ZMQBackend where
           reply <- send (dealer m) (MsgGetName g)
           case reply of
             NameMsg u t k n _ -> return (u, t, k, n, g)
-            FailMsg 404       -> notFoundError
-            _                 -> internalError
+            FailMsg 404       -> notFoundError "ZMQ/getName: name not found"
+            _                 -> internalError "ZMQ/getName: backend error"
 
   getGUID m names =
      mapM work names
@@ -116,20 +115,20 @@ instance GraphBackend ZMQBackend where
            reply <- send (dealer m) (MsgGetGUID u t k n)
            case reply of
              NameMsg _ _ _ _ g -> return (u, t, k, n, g)
-             FailMsg 404       -> notFoundError
-             _                 -> internalError
+             FailMsg 404       -> notFoundError "ZMQ/getGUID: guid not found "
+             _                 -> internalError "ZMQ/getGUID: backend error"
 
   putName m u t k n = do
     reply <- send (dealer m) (MsgPutName u t k n)
     case reply of
       NameMsg _ _ _ _ g -> return g
-      _                 -> internalError
+      _                 -> internalError "ZMQ/putName: backend error"
 
   getLabel m g page limit = do
     reply <- send (dealer m) (MsgGetLabel g page limit)
     case reply of
       LabelMsg xs -> return xs
-      _           -> internalError
+      _           -> internalError "ZMQ/getLabel: backend error"
 
   putLabel _ []     = return ()
   putLabel m labels = send_ (dealer m) (MsgPutLabel labels)
@@ -139,13 +138,13 @@ instance GraphBackend ZMQBackend where
     case reply of
       LinkMsg [] -> return False
       LinkMsg _  -> return True
-      _          -> internalError
+      _          -> internalError "ZMQ/hasLink: backend error"
 
   getLink m a l page limit = do
     reply <- send (dealer m) (MsgGetLink a l page limit)
     case reply of
       LinkMsg xs -> return xs
-      _          -> internalError
+      _          -> internalError "ZMQ/getLink: backend error"
 
   putLink _ []    = return ()
   putLink m links = send_ (dealer m) (MsgPutLink links)

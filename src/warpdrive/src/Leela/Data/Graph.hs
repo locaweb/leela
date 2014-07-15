@@ -97,15 +97,15 @@ buildQueue t0 t1 =
             : (fromDateTime d1 0, max 1 (ceiling s1))
             : whithin
 
-loadTAttr :: (AttrBackend db) => db -> (Either Int [(Time, Value)] -> IO ()) -> GUID -> Attr -> Time -> Time -> IO ()
+loadTAttr :: (AttrBackend db) => db -> ([(Time, Value)] -> IO ()) -> GUID -> Attr -> Time -> Time -> IO ()
 loadTAttr db flush guid name t0 t1 = do
   mapM_ (mapConcurrently procData) (intoChunks 16 $ buildQueue t0 t1)
     where
-      safeFlush (Right []) = return ()
-      safeFlush info       = flush info
+      safeFlush [] = return ()
+      safeFlush xs = flush xs
 
       procData (t, l) =
-        safeFlush =<< liftM Right (getTAttr db guid name t l)
+        safeFlush =<< getTAttr db guid name t l
 
 exec :: (GraphBackend db, AttrBackend db) => db -> [Journal] -> IO [(User, Tree, Kind, Node, GUID)]
 exec db rt = do

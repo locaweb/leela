@@ -22,8 +22,9 @@ module Leela.Storage.Backend.ZMQ.Protocol
     , mapToLazyBS
     ) where
 
-import           Data.Monoid ((<>), mconcat)
 import           Data.List (intersperse)
+import           Data.Maybe
+import           Data.Monoid ((<>), mconcat)
 import           Control.Monad
 import           Leela.Helpers
 import qualified Data.Serialize as E
@@ -103,10 +104,11 @@ encodeMode _ g (Precise l)      = [ "ext"
                                   ]
 
 encodeOptions :: [Option] -> L.ByteString
-encodeOptions = toLazyBS 512 . mconcat . intersperse (string7 ", ") . map encodeOption
+encodeOptions = toLazyBS 512 . mconcat . intersperse (string7 ", ") . mapMaybe encodeOption
     where
-      encodeOption (TTL v)    = string7 "ttl:" <> (intDec v)
-      encodeOption (Indexing) = string7 "index:true"
+      encodeOption (TTL v)           = Just $ string7 "ttl:" <> (intDec v)
+      encodeOption (Indexing)        = Just $ string7 "index:true"
+      encodeOption (MaxDataPoints _) = Nothing
 
 encode :: Query -> [L.ByteString]
 encode (MsgGetName g)                  = [ "get"

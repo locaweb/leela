@@ -212,8 +212,8 @@ defaultMessage code
 encodeE :: SomeException -> Reply
 encodeE e =
   case (fromException e) of
-    Just BadDeviceExcept -> Fail 599 Nothing
-    Just NotFoundExcept  -> Fail 404 Nothing
-    Just TimeoutExcept   -> Fail 589 Nothing
-    Just UserExcept      -> Fail 400 Nothing
-    _                    -> Fail 500 Nothing
+    Just (BadDeviceExcept m) -> Fail 599 m
+    Just (NotFoundExcept m)  -> Fail 404 m
+    Just (TimeoutExcept m)   -> Fail 589 m
+    Just (UserExcept m)      -> Fail 400 m
+    _                        -> Fail 500 Nothing

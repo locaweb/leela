@@ -46,11 +46,13 @@ module Leela.Data.Types
        , treeFromBS
        , userFromBS
        , labelFromBS
+       , getMaxDataPoints
        ) where
 
 import           Data.Int
 import           Data.Word
 import           Data.Serialize
+import           Control.DeepSeq
 import qualified Data.ByteString as B
 import           Leela.Data.Time
 import           Control.Exception
@@ -168,6 +170,11 @@ isPutTAttr :: Journal -> Bool
 isPutTAttr (PutTAttr _ _ _ _ _) = True
 isPutTAttr _                    = False
 
+getMaxDataPoints :: [Option] -> Maybe Int
+getMaxDataPoints []                  = Nothing
+getMaxDataPoints (MaxDataPoints n:_) = Just n
+getMaxDataPoints (_:xs)              = getMaxDataPoints xs
+
 setOpt :: Option -> [Option] -> [Option]
 setOpt o1 []       = [o1]
 setOpt o1 (o : xs)
@@ -228,7 +235,7 @@ instance Serialize Value where
       4 -> fmap (Int64 . fromIntegral) getWord64be
       5 -> fmap UInt64 getWord64be
       6 -> fmap Double getFloat64be
-      _ -> throw SystemExcept
+      _ -> throw (SystemExcept (Just "Types/get: error decoding Value type"))
 
 instance Functor Mode where
 
@@ -263,3 +270,13 @@ instance AsLazyByteString Node where
 instance AsLazyByteString Attr where
 
   asLazyByteString (Attr a) = a
+
+instance NFData Value where
+
+  rnf (Bool v)   = rnf v
+  rnf (Text v)   = rnf v
+  rnf (Double v) = rnf v
+  rnf (Int32 v)  = rnf v
+  rnf (Int64 v)  = rnf v
+  rnf (UInt32 v) = rnf v
+  rnf (UInt64 v) = rnf v

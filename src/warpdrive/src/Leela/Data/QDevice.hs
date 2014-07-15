@@ -108,7 +108,7 @@ select (Device ctrl q) = fmap (, q) (readTVar ctrl)
 devwrite :: Device a -> a -> STM ()
 devwrite dev v = do
   (notok, q) <- select dev
-  when notok (throwSTM BadDeviceExcept)
+  when notok (throwSTM (BadDeviceExcept (Just "QDevice/devwrite: device is closed")))
   writeTBQueue q v
 
 devwriteIO :: Device a -> a -> IO ()

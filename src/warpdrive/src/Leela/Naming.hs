@@ -57,7 +57,7 @@ fetchCatalog url key = do
   then
     return $ L.pack body
   else
-    throwIO SystemExcept
+    throwIO (SystemExcept (Just $ "Naming/fetchCatalog: error fetching catalog: " ++ (show code)))
 
 resolver :: Logger -> IORef [(String, [Endpoint])] -> String -> IO ()
 resolver syslog ioref url = do

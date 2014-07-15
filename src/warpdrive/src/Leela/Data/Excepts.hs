@@ -17,19 +17,24 @@
 module Leela.Data.Excepts
     ( Excepts (..)
     , isNotFoundExcept
+    , isNotFoundExcept'
     ) where
 
 import Data.Typeable
 import Control.Exception
 
-data Excepts = BadDeviceExcept
-             | NotFoundExcept
-             | TimeoutExcept
-             | SystemExcept
-             | UserExcept
+data Excepts = BadDeviceExcept (Maybe String)
+             | NotFoundExcept (Maybe String)
+             | TimeoutExcept (Maybe String)
+             | SystemExcept (Maybe String)
+             | UserExcept (Maybe String)
              deriving (Show, Typeable, Eq)
 
 instance Exception Excepts
 
-isNotFoundExcept :: SomeException -> Bool
-isNotFoundExcept = (== Just NotFoundExcept) . fromException
+isNotFoundExcept :: Excepts -> Bool
+isNotFoundExcept (NotFoundExcept _) = True
+isNotFoundExcept _                  = False
+
+isNotFoundExcept' :: SomeException -> Bool
+isNotFoundExcept' = maybe False id . fmap isNotFoundExcept . fromException

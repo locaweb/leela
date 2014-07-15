@@ -83,7 +83,7 @@ use pool select apply = bracket acquire release (apply . snd)
         modifyTVar' (using pool) (M.insertWith (+) a 1)
         case (M.lookup a m) of
           Just b -> return (a, b)
-          _      -> throwSTM SystemExcept
+          _      -> throwSTM (SystemExcept (Just "Pool/use: can't find pool entry"))
 
       release (a, _) = atomically $
         modifyTVar' (using pool) (M.insertWith (+) a (-1))
