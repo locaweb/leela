@@ -22,6 +22,7 @@ module Leela.Data.Time
        , now
        , diff
        , sleep
+       , expired
        , seconds
        , dateTime
        , snapshot
@@ -83,6 +84,15 @@ fromTimeSpec t = let a = fromIntegral $ sec t
 
 snapshot :: IO Time
 snapshot = fmap fromTimeSpec $ getTime Monotonic
+
+expired :: Time -> NominalDiffTime -> IO Bool
+expired t0 limit = do
+  t1 <- now
+  return (t1 < tMin || t1 > tMax)
+    where
+      pLim = abs limit
+      tMax = pLim `add` t0
+      tMin = (negate pLim) `add` t0
 
 now :: IO Time
 now = fmap fromTimeSpec (getTime Realtime)
