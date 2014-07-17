@@ -163,8 +163,8 @@ leela_naming_cluster_t *__naming_discover (leela_naming_t *naming, const leela_n
 static
 void *__naming_loop (void *data)
 {
-  LEELA_DEBUG0("ENTER:naming loop");
   leela_naming_t *naming = (leela_naming_t *) data;
+  LEELA_DEBUG0(naming->context, "ENTER:naming loop");
   do
   {
     leela_naming_cluster_t *cluster = NULL;
@@ -205,7 +205,7 @@ void *__naming_loop (void *data)
       w_usec     = 0;
     }
   } while (! naming->cancel);
-  LEELA_DEBUG0("EXIT:naming loop");
+  LEELA_DEBUG0(naming->context, "EXIT:naming loop");
   return(NULL);
 }
 
@@ -232,7 +232,7 @@ bool leela_naming_start (leela_naming_t *naming, lql_context_t *context)
     pthread_mutex_unlock(&mutex);
   }
   else
-  { LEELA_DEBUG0("could not acquire exclusive lock!"); }
+  { LEELA_DEBUG0(naming->context, "could not acquire exclusive lock!"); }
 
   if (pthread_mutex_lock(&naming->mutex) == 0)
   {
@@ -328,7 +328,7 @@ leela_naming_cluster_t *leela_naming_discover (leela_naming_t *naming)
 {
   if (pthread_mutex_lock(&naming->mutex) != 0)
   {
-    LEELA_DEBUG0("could not acquire exclusive lock!");
+    LEELA_DEBUG0(naming->context, "could not acquire exclusive lock!");
     return(NULL);
   }
 

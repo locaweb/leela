@@ -25,6 +25,7 @@
 
 LEELA_CPLUSPLUS_OPEN
 
+typedef void (*log_function_f)(const char*, va_list);
 typedef struct lql_cursor_t lql_cursor_t;
 typedef struct lql_context_t lql_context_t;
 
@@ -277,6 +278,10 @@ leela_status leela_lql_cursor_close (lql_cursor_t *cursor);
  */
 leela_status leela_lql_context_close (lql_context_t *ctx);
 
+/*! Invokes the registered logging function */
+void lql_log (lql_context_t *ctx, const char *logmsg, ...);
+
 LEELA_CPLUSPLUS_CLOSE
+
 
 #endif

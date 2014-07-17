@@ -14,19 +14,18 @@
 
 #ifndef __leela_debug_h__
 #define __leela_debug_h__
+#include "lql.h"
 
-#define LEELA_DEBUG0(fmt) leela_debug("%s:%d: " #fmt , __FILE__, __LINE__)
+#define LEELA_DEBUG0(ctx, fmt) lql_log(ctx, "%s:%d: " #fmt , __FILE__, __LINE__)
 
-#define LEELA_DEBUG(fmt, ...) leela_debug("%s:%d: " #fmt , __FILE__, __LINE__, __VA_ARGS__)
+#define LEELA_DEBUG(ctx, fmt, ...) lql_log(ctx, "%s:%d: " #fmt , __FILE__, __LINE__, __VA_ARGS__)
 
 #ifdef LEELA_TRACING
-# define LEELA_TRACE0(fmt) leela_debug("[TRACE] %s:%d: " #fmt, __FILE__, __LINE__)
-# define LEELA_TRACE(fmt, ...) leela_debug("[TRACE] %s:%d: " #fmt, __FILE__, __LINE__, __VA_ARGS__)
+# define LEELA_TRACE0(ctx, fmt) lql_log(ctx, "[TRACE] %s:%d: " #fmt, __FILE__, __LINE__)
+# define LEELA_TRACE(ctx, fmt, ...) lql_log(ctx, "[TRACE] %s:%d: " #fmt, __FILE__, __LINE__, __VA_ARGS__)
 #else
-# define LEELA_TRACE0(fmt)
-# define LEELA_TRACE(fmt, ...)
+# define LEELA_TRACE0(ctx, fmt)
+# define LEELA_TRACE(ctx, fmt, ...)
 #endif
-
-void leela_debug (const char *fmt, ...);
 
 #endif

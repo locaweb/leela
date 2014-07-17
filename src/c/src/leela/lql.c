@@ -39,7 +39,9 @@ struct lql_context_t
   leela_signature_t *sig;
   int                timeout;
   unsigned char      nonce[LEELA_SIGNATURE_NONCE_SIZE];
+  log_function_f     logfunction;
 };
+
 
 struct lql_cursor_t {
   lql_context_t     *ctx;
@@ -53,6 +55,22 @@ struct lql_cursor_t {
   lql_row_type       row;
   zmq_msg_t          buffer;
 };
+
+void lql_log (lql_context_t *ctx, const char *logmsg, ...)
+{
+  va_list argp;
+  if (ctx != NULL && ctx->logfunction != NULL)
+  {
+    va_start(argp, logmsg);
+    ctx->logfunction(logmsg, argp);
+    va_end(argp);
+  }
+}
+
+void lql_log_function (lql_context_t *ctx, log_function_f logfunction)
+{
+  ctx->logfunction = logfunction;
+}
 
 void __leela_lql_value_free (lql_value_t *value)
 {
@@ -80,7 +98,7 @@ int __next_nounce (lql_cursor_t *cursor, unsigned char nonce[LEELA_SIGNATURE_NON
 {
   if (pthread_mutex_lock(&cursor->ctx->mutex) != 0)
   {
-    LEELA_DEBUG0("__signature: error acquiring the lock, aborting");
+    LEELA_DEBUG0(cursor->ctx, "__signature: error acquiring the lock, aborting");
     return(-1);
   }
   leela_signature_nonce_next(nonce, cursor->ctx->nonce);
@@ -212,7 +230,7 @@ int __zmq_recvmsg_str (lql_cursor_t *cursor, char *buff, int buflen)
   int rc = __zmq_recvmsg(cursor);
   if (buflen < rc)
   {
-    LEELA_DEBUG("[cursor/%s] buffer is too small: %d x %d", cursor->channel, buflen, rc);
+    LEELA_DEBUG(cursor->ctx, "[cursor/%s] buffer is too small: %d x %d", cursor->channel, buflen, rc);
     return(-1);
   }
 
@@ -437,7 +455,6 @@ void __init_random()
   if (leela_random_urandom(&seed, sizeof(seed)) != 0)
   {
     seed = (unsigned int) time(NULL);
-    LEELA_DEBUG0("__init_random: could not read from /dev/random, falling back to time(0)");
   }
   srand(seed);
   srand48(seed);
@@ -454,16 +471,17 @@ lql_context_t *leela_lql_context_init (const leela_endpoint_t *const *warpdrive,
 
     if (pthread_mutex_init(&ctx->mutex, NULL) != 0)
     {
-      LEELA_DEBUG0("leela_lql_context_init: error initializing mutex");
+      LEELA_DEBUG0(ctx, "leela_lql_context_init: error initializing mutex");
       free(ctx);
       return(NULL);
     }
     __init_random();
-    ctx->zmqctx   = zmq_ctx_new();
-    ctx->timeout  = timeout_in_ms <= 0 ? LQL_DEFAULT_TIMEOUT : timeout_in_ms;
-    ctx->naming   = leela_naming_init(warpdrive, ctx->timeout / 1000);
-    ctx->username = leela_strdup(username);
-    ctx->sig      = leela_signature_init(seed);
+    ctx->zmqctx      = zmq_ctx_new();
+    ctx->timeout     = timeout_in_ms <= 0 ? LQL_DEFAULT_TIMEOUT : timeout_in_ms;
+    ctx->naming      = leela_naming_init(warpdrive, ctx->timeout / 1000);
+    ctx->username    = leela_strdup(username);
+    ctx->sig         = leela_signature_init(seed);
+    ctx->logfunction = NULL;
     leela_random_urandom(ctx->nonce, LEELA_SIGNATURE_NONCE_SIZE);
 
     if (ctx->naming == NULL
@@ -515,7 +533,7 @@ lql_cursor_t *leela_lql_cursor_init_on (lql_context_t *ctx, const leela_endpoint
   zmqendpoint = (endpoint == NULL ? NULL : leela_endpoint_dump(endpoint));
   if (zmqendpoint == NULL)
   { goto handle_error; }
-  LEELA_DEBUG("selecting backend: %s", zmqendpoint);
+  LEELA_DEBUG(ctx, "selecting backend: %s", zmqendpoint);
 
   cursor->socket = zmq_socket(ctx->zmqctx, ZMQ_REQ);
   if (cursor->socket == NULL)
@@ -543,7 +561,7 @@ lql_cursor_t *leela_lql_cursor_init (lql_context_t *ctx, const char *username, c
   leela_endpoint_t *endpoint = leela_naming_select(ctx->naming);
   if (endpoint == NULL)
   {
-    LEELA_DEBUG0("no warpdrive instances avaialble!");
+    LEELA_DEBUG0(ctx, "no warpdrive instances avaialble!");
     return(NULL);
   }
 
@@ -574,14 +592,14 @@ leela_status leela_lql_cursor_execute (lql_cursor_t *cursor, const char *query)
   }
   else if (!(strncmp(buffer, "done", 4) == 0))
   {
-    LEELA_DEBUG("error executing statement: %s", query);
+    LEELA_DEBUG(cursor->ctx, "error executing statement: %s", query);
     goto handle_error;
   }
 
   cursor->channel = __zmq_recvmsg_copystr(cursor);
   if (cursor->channel == NULL)
   {
-    LEELA_DEBUG0("protocol error: bad channel!");
+    LEELA_DEBUG0(cursor->ctx, "protocol error: bad channel!");
     goto handle_error;
   }
 
@@ -610,7 +628,7 @@ leela_status leela_lql_cursor_next (lql_cursor_t *cursor)
     for (frames=0; zmq_msg_more(&cursor->buffer); frames+=1)
     { __zmq_recvmsg(cursor); }
     if (frames > 0)
-    { LEELA_DEBUG("skipping %d frames [invoking next without fetch?]", frames); }
+    { LEELA_DEBUG(cursor->ctx, "skipping %d frames [invoking next without fetch?]", frames); }
     if (__zmq_sendmsg_str(cursor, "fetch", cursor->channel, NULL) == -1)
     { return(LEELA_ERROR); }
   }
