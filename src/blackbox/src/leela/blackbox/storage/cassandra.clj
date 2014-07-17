@@ -51,56 +51,56 @@
      cluster :graph
      (if-not-exists)
      (column-definitions {:a :uuid :l :varchar :b :uuid :primary-key [[:a :l] :b]})
-     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
+     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}})))
   (when-not (describe-table cluster keyspace :n_naming)
     (warn "creating table n_naming")
     (create-table
      cluster :n_naming
      (if-not-exists)
      (column-definitions {:user :varchar :tree :varchar :kind :varchar :node :varchar :guid :uuid :primary-key [[:user :tree :kind] :node]})
-     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
+     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}})))
   (when-not (describe-table cluster keyspace :g_naming)
     (warn "creating table g_naming")
     (create-table
      cluster :g_naming
      (if-not-exists)
      (column-definitions {:guid :uuid :user :varchar :tree :varchar :kind :varchar :node :varchar :primary-key [:guid]})
-     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
+     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}})))
   (when-not (describe-table cluster keyspace :t_attr)
     (warn "creating table t_attr")
     (create-table
      cluster :t_attr
      (if-not-exists)
      (column-definitions {:key :uuid :name :varchar :bucket :bigint :slot :int :data :blob :primary-key [[:key :name :bucket] :slot]})
-     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
+     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}})))
   (when-not (describe-table cluster keyspace :k_attr)
     (warn "creating table k_attr")
     (create-table
      cluster :k_attr
      (if-not-exists)
      (column-definitions {:key :uuid :name :varchar :value :blob  :primary-key [[:key :name]]})
-     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
+     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}})))
   (when-not (describe-table cluster keyspace :g_index)
     (warn "creating table g_index")
     (create-table
      cluster :g_index
      (if-not-exists)
      (column-definitions {:key :uuid :name :varchar :primary-key [[:key] :name]})
-     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
+     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}})))
   (when-not (describe-table cluster keyspace :k_index)
     (warn "creating table k_index")
     (create-table
      cluster :k_index
      (if-not-exists)
      (column-definitions {:key :uuid :name :varchar :primary-key [[:key] :name]})
-     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}})))
+     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}})))
   (when-not (describe-table cluster keyspace :t_index)
     (warn "creating table t_index")
     (create-table 
     cluster :t_index
      (if-not-exists)
      (column-definitions {:key :uuid :name :varchar :primary-key [[:key] :name]})
-     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "128"}}))))
+     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}}))))
 
 (defmacro with-connection [[conn endpoint options] & body]
   `(let [~conn (.connect (client/build-cluster {:hosts ~endpoint
