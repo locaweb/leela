@@ -290,13 +290,13 @@ bool __zmq_recvmsg_done (lql_cursor_t *cursor)
 }
 
 static
-bool __zmq_recvmsg_longlong (lql_cursor_t *cursor, long long *out)
+bool __zmq_recvmsg_uint64 (lql_cursor_t *cursor, uint64_t *out)
 {
   char buffer[22];
   buffer[21] = '\0';
   if (__zmq_recvmsg_str(cursor, buffer, 21) != -1)
   {
-    *out = (long long) atoll(buffer);
+    *out = (uint64_t) atoll(buffer);
     return(true);
   }
   return(false);
@@ -305,8 +305,8 @@ bool __zmq_recvmsg_longlong (lql_cursor_t *cursor, long long *out)
 static
 bool __zmq_recvmsg_uint32 (lql_cursor_t *cursor, uint32_t *out)
 {
-  long long tmp;
-  if (__zmq_recvmsg_longlong(cursor, &tmp))
+  uint64_t tmp;
+  if (__zmq_recvmsg_uint64(cursor, &tmp))
   {
     *out = (uint32_t) tmp;
     return(true);
@@ -315,22 +315,10 @@ bool __zmq_recvmsg_uint32 (lql_cursor_t *cursor, uint32_t *out)
 }
 
 static
-bool __zmq_recvmsg_uint64 (lql_cursor_t *cursor, uint64_t *out)
-{
-  long long tmp;
-  if (__zmq_recvmsg_longlong(cursor, &tmp))
-  {
-    *out = (uint64_t) tmp;
-    return(true);
-  }
-  return(false);
-}
-
-static
 bool __zmq_recvmsg_int32 (lql_cursor_t *cursor, int32_t *out)
 {
-  long long tmp;
-  if (__zmq_recvmsg_longlong(cursor, &tmp))
+  uint64_t tmp;
+  if (__zmq_recvmsg_uint64(cursor, &tmp))
   {
     *out = (int32_t) tmp;
     return(true);
@@ -341,8 +329,8 @@ bool __zmq_recvmsg_int32 (lql_cursor_t *cursor, int32_t *out)
 static
 bool __zmq_recvmsg_int64 (lql_cursor_t *cursor, int64_t *out)
 {
-  long long tmp;
-  if (__zmq_recvmsg_longlong(cursor, &tmp))
+  uint64_t tmp;
+  if (__zmq_recvmsg_uint64(cursor, &tmp))
   {
     *out = (int64_t) tmp;
     return(true);
