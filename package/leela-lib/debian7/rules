@@ -7,7 +7,7 @@ DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 	dh $@
 
 pyleela-clean:
-	cd ../../src/python && { \
+	cd ../../src/libs/python && { \
 	  for bin_python in $$(pyversions -rs); \
 	  do \
 	    $$bin_python setup.py clean -a; \
@@ -15,22 +15,22 @@ pyleela-clean:
 	}
 
 pyleela-install:
-	cd ../../src/python && { \
+	cd ../../src/libs/python && { \
 	  for bin_python in $$(pyversions -rs); \
 	  do \
 	    $$bin_python setup.py clean -a; \
-	    $$bin_python setup.py install --install-layout=deb --root=../../package/leela-lib/debian/leela-python; \
+	    $$bin_python setup.py install --install-layout=deb --root=../../../package/leela-lib/debian/leela-python; \
 	  done; \
 	}
 
 cleela-clean:
-	$(MAKE) -C ../../src/c clean
+	$(MAKE) -C ../../src/libs/c clean
 
 cleela-install:
 	mkdir -p debian/leela-c/usr/include/leela
 	mkdir -p debian/leela-c/usr/lib/$(DEB_HOST_MULTIARCH)
-	cp -a ../../src/c/src/leela/*.h debian/leela-c/usr/include/leela/
-	cp -a ../../src/c/libleela.so* debian/leela-c/usr/lib/$(DEB_HOST_MULTIARCH)/
+	cp -a ../../src/libs/c/src/leela/*.h debian/leela-c/usr/include/leela/
+	cp -a ../../src/libs/c/libleela.so* debian/leela-c/usr/lib/$(DEB_HOST_MULTIARCH)/
 
 override_dh_auto_clean: cleela-clean pyleela-clean
 	rm -f debian/*substvars
@@ -40,6 +40,6 @@ override_dh_install: cleela-install pyleela-install
 	dh_install
 
 override_dh_auto_build:
-	$(MAKE) -C ../../src/c build
+	$(MAKE) -C ../../src/libs/c build
 
 .PHONY: cleela-clean cleela-install pyleela-clean pyleela-install
