@@ -132,7 +132,7 @@ leela_naming_cluster_t *__naming_discover2 (leela_naming_t *naming, const leela_
 handle_error:
   naming->attempt = LEELA_MIN(naming->attempt + 1, 8);
   if (failmsg != NULL)
-  { LEELA_DEBUG("leela_fail: [%d] %s", failmsg->code, failmsg->message); }
+  { LEELA_DEBUG2(naming->context, "leela_fail: [%d] %s", failmsg->code, failmsg->message); }
   leela_lql_fail_free(failmsg);
   leela_naming_cluster_free(result);
   leela_lql_stat_free(stat);
@@ -154,7 +154,8 @@ leela_naming_cluster_t *__naming_discover (leela_naming_t *naming, const leela_n
       { break; }
     }
   }
-  LEELA_DEBUG("naming_discover: cur: %d, new: %d",
+  LEELA_DEBUG2(naming->context,
+              "naming_discover: cur: %d, new: %d",
               (cluster == NULL ? 0 : cluster->size),
               (new_cluster == NULL ? 0 : new_cluster->size));
   return(new_cluster);

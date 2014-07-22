@@ -39,7 +39,8 @@ struct lql_context_t
   leela_signature_t *sig;
   int                timeout;
   unsigned char      nonce[LEELA_SIGNATURE_NONCE_SIZE];
-  log_function_f     logfunction;
+  log_function_f     debug_f;
+  log_function_f     trace_f;
 };
 
 
@@ -56,20 +57,26 @@ struct lql_cursor_t {
   zmq_msg_t          buffer;
 };
 
-void lql_log (lql_context_t *ctx, const char *logmsg, ...)
+void lql_debug (lql_context_t *ctx, const char *fmt, ...)
 {
   va_list argp;
-  if (ctx != NULL && ctx->logfunction != NULL)
+  if (ctx != NULL && ctx->debug_f != NULL)
   {
-    va_start(argp, logmsg);
-    ctx->logfunction(logmsg, argp);
+    va_start(argp, fmt);
+    ctx->debug_f(fmt, argp);
     va_end(argp);
   }
 }
 
-void lql_log_function (lql_context_t *ctx, log_function_f logfunction)
+void lql_trace (lql_context_t *ctx, const char *fmt, ...)
 {
-  ctx->logfunction = logfunction;
+  va_list argp;
+  if (ctx != NULL && ctx->trace_f != NULL)
+  {
+    va_start(argp, fmt);
+    ctx->trace_f(fmt, argp);
+    va_end(argp);
+  }
 }
 
 void __leela_lql_value_free (lql_value_t *value)
@@ -188,7 +195,7 @@ int __zmq_sendmsg_str (lql_cursor_t *cursor, const char *data, ...)
       part = data;
     }
 
-    LEELA_TRACE("[cursor/%s] > |%s|", cursor->channel == NULL ? "" : cursor->channel, last);
+    LEELA_TRACE2(cursor->ctx, "[cursor/%s] > |%s|", cursor->channel == NULL ? "" : cursor->channel, last);
     rc = zmq_send(cursor->socket, last, strlen(last), (part == NULL ? 0 : ZMQ_SNDMORE));
     if (rc == -1)
     { goto handle_error; }
@@ -230,7 +237,7 @@ int __zmq_recvmsg_str (lql_cursor_t *cursor, char *buff, int buflen)
   int rc = __zmq_recvmsg(cursor);
   if (buflen < rc)
   {
-    LEELA_DEBUG(cursor->ctx, "[cursor/%s] buffer is too small: %d x %d", cursor->channel, buflen, rc);
+    LEELA_DEBUG3(cursor->ctx, "[cursor/%s] buffer is too small: %d x %d", cursor->channel, buflen, rc);
     return(-1);
   }
 
@@ -241,9 +248,9 @@ int __zmq_recvmsg_str (lql_cursor_t *cursor, char *buff, int buflen)
   }
 
   if (rc != -1)
-  { LEELA_TRACE("[cursor/%s] < |%s|", cursor->channel == NULL ? "" : cursor->channel, buff); }
+  { LEELA_TRACE2(cursor->ctx, "[cursor/%s] < |%s|", cursor->channel == NULL ? "" : cursor->channel, buff); }
   else
-  { LEELA_TRACE("[cursor/%s] < |ERROR:%d|", cursor->channel == NULL ? "" : cursor->channel, rc); }
+  { LEELA_TRACE2(cursor->ctx, "[cursor/%s] < |ERROR:%d|", cursor->channel == NULL ? "" : cursor->channel, rc); }
   return(rc);
 }
 
@@ -262,7 +269,7 @@ char *__zmq_recvmsg_copystr (lql_cursor_t *cursor)
     buffer[buflen] = '\0';
   }
 
-  LEELA_TRACE("[cursor/%s] < |%s|", cursor->channel == NULL ? "" : cursor->channel, buffer);
+  LEELA_TRACE2(cursor->ctx, "[cursor/%s] < |%s|", cursor->channel == NULL ? "" : cursor->channel, buffer);
   return(buffer);
 }
 
@@ -461,6 +468,9 @@ void __init_random()
 }
 
 lql_context_t *leela_lql_context_init (const leela_endpoint_t *const *warpdrive, const char *username, const char *secret, int timeout_in_ms)
+{ return(leela_lql_context_init2(warpdrive, username, secret, timeout_in_ms, NULL, NULL)); }
+
+lql_context_t *leela_lql_context_init2 (const leela_endpoint_t *const *warpdrive, const char *username, const char *secret, int timeout_in_ms, log_function_f debug_f, log_function_f trace_f)
 {
   unsigned char seed[LEELA_SIGNATURE_SEED_SIZE];
   lql_context_t *ctx = (lql_context_t *) malloc(sizeof(lql_context_t));
@@ -481,7 +491,8 @@ lql_context_t *leela_lql_context_init (const leela_endpoint_t *const *warpdrive,
     ctx->naming      = leela_naming_init(warpdrive, ctx->timeout / 1000);
     ctx->username    = leela_strdup(username);
     ctx->sig         = leela_signature_init(seed);
-    ctx->logfunction = NULL;
+    ctx->debug_f     = debug_f;
+    ctx->trace_f     = trace_f;
     leela_random_urandom(ctx->nonce, LEELA_SIGNATURE_NONCE_SIZE);
 
     if (ctx->naming == NULL
@@ -533,7 +544,7 @@ lql_cursor_t *leela_lql_cursor_init_on (lql_context_t *ctx, const leela_endpoint
   zmqendpoint = (endpoint == NULL ? NULL : leela_endpoint_dump(endpoint));
   if (zmqendpoint == NULL)
   { goto handle_error; }
-  LEELA_DEBUG(ctx, "selecting backend: %s", zmqendpoint);
+  LEELA_DEBUG1(ctx, "selecting backend: %s", zmqendpoint);
 
   cursor->socket = zmq_socket(ctx->zmqctx, ZMQ_REQ);
   if (cursor->socket == NULL)
@@ -592,7 +603,7 @@ leela_status leela_lql_cursor_execute (lql_cursor_t *cursor, const char *query)
   }
   else if (!(strncmp(buffer, "done", 4) == 0))
   {
-    LEELA_DEBUG(cursor->ctx, "error executing statement: %s", query);
+    LEELA_DEBUG1(cursor->ctx, "error executing statement: %s", query);
     goto handle_error;
   }
 
@@ -628,7 +639,7 @@ leela_status leela_lql_cursor_next (lql_cursor_t *cursor)
     for (frames=0; zmq_msg_more(&cursor->buffer); frames+=1)
     { __zmq_recvmsg(cursor); }
     if (frames > 0)
-    { LEELA_DEBUG(cursor->ctx, "skipping %d frames [invoking next without fetch?]", frames); }
+    { LEELA_DEBUG1(cursor->ctx, "skipping %d frames [invoking next without fetch?]", frames); }
     if (__zmq_sendmsg_str(cursor, "fetch", cursor->channel, NULL) == -1)
     { return(LEELA_ERROR); }
   }

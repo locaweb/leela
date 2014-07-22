@@ -134,6 +134,10 @@ typedef struct
   lql_tuple2_t *attrs;    //!^ The property: (char *, char *);
 } lql_stat_t;
 
+/*! Refer to leela_lql_context_init2
+ */
+lql_context_t *leela_lql_context_init (const leela_endpoint_t *const *warpdrive, const char *username, const char *secret, int timeout_in_ms);
+
 /*! Initializes the leela context. You should call this only once and
  *  share it in the program. It is ok, though unecessary, to have
  *  multiple contexts.
@@ -150,8 +154,12 @@ typedef struct
  *         to wait for an answer from the server. Use (-1) to wait
  *         forever and (0) to use the default (implementation defined)
  *         timeout;
+ *
+ *  \param debug_f The function to use to log debug messages (may be NULL);
+ *
+ *  \param trace_f The function to use to trace the lql protocol (may be NULL);  
  */
-lql_context_t *leela_lql_context_init (const leela_endpoint_t *const *warpdrive, const char *username, const char *secret, int timeout_in_ms);
+lql_context_t *leela_lql_context_init2 (const leela_endpoint_t *const *warpdrive, const char *username, const char *secret, int timeout_in_ms, log_function_f debug_f, log_function_f trace_f);
 
 /*! Creates a new cursor.  This selects one available warpdrive
  *  instance to connect to. The actual load balancing algorithm is
@@ -278,8 +286,8 @@ leela_status leela_lql_cursor_close (lql_cursor_t *cursor);
  */
 leela_status leela_lql_context_close (lql_context_t *ctx);
 
-/*! Invokes the registered logging function */
-void lql_log (lql_context_t *ctx, const char *logmsg, ...);
+void lql_debug (lql_context_t *ctx, const char *logmsg, ...);
+void lql_trace (lql_context_t *ctx, const char *logmsg, ...);
 
 LEELA_CPLUSPLUS_CLOSE
 
