@@ -1,16 +1,17 @@
-// Copyright 2014 (c) Diego Souza <dsouza@c0d3.xxx>
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/* Copyright 2014 (c) Diego Souza <dsouza@c0d3.xxx>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 #ifndef __leela_lql_h__
 #define __leela_lql_h__
@@ -69,7 +70,7 @@ typedef struct
   } data;
 } lql_value_t;
 
-//! A simple 2-tuple type;
+/*! A simple 2-tuple type; */
 typedef struct
 {
   void *fst;
@@ -78,60 +79,60 @@ typedef struct
   finalizer_f snd_finalizer;
 } lql_tuple2_t;
 
-//! A path entry as defined in warpdrive(1);
+/*! A path entry as defined in warpdrive(1); */
 typedef struct lql_path_t
 {
-  int          size;      //!^ The number of path entries;
-  lql_tuple2_t *entries;  //!^ The path entries (char *, char *);
+  int          size;      /*!^ The number of path entries; */
+  lql_tuple2_t *entries;  /*!^ The path entries (char *, char *); */
 } lql_path_t;
 
-//! A name entry as defined in warpdrive(1);
+/*! A name entry as defined in warpdrive(1); */
 typedef struct
 {
-  char *user;             //!^ The owner of this node;
-  char *tree;             //!^ The namespace of this node;
-  char *name;             //!^ The name of this node;
-  char *kind;             //!^ The type of this node;
-  char *guid;             //!^ The hash that has been requested;
+  char *user;             /*!^ The owner of this node; */
+  char *tree;             /*!^ The namespace of this node; */
+  char *name;             /*!^ The name of this node; */
+  char *kind;             /*!^ The type of this node; */
+  char *guid;             /*!^ The hash that has been requested; */
 } lql_name_t;
 
-//! An fail entry as defined in warpdrive(1);
+/*! An fail entry as defined in warpdrive(1); */
 typedef struct
 {
-  uint32_t code;          //!^ The fail code reported;
-  char    *message;       //!^ The fail message;
+  uint32_t code;          /*!^ The fail code reported; */
+  char    *message;       /*!^ The fail message; */
 } lql_fail_t;
 
-//! The attribute names (n-attr message)
+/*! The attribute names (n-attr message) */
 typedef struct
 {
-  int   size;             //!^ The number of entries
-  char *guid;             //!^ The node we are referencing
-  char **names;           //!^ The attr names
+  int   size;             /*!^ The number of entries */
+  char *guid;             /*!^ The node we are referencing */
+  char **names;           /*!^ The attr names */
 } lql_nattr_t;
 
-//! The attribute name & value (k-attr message)
+/*! The attribute name & value (k-attr message) */
 typedef struct
 {
-  char        *guid;      //!^ The node this attribute is set on
-  char        *name;      //!^ The name of the attribute
-  lql_value_t *value;     //!^ The value
+  char        *guid;      /*!^ The node this attribute is set on */
+  char        *name;      /*!^ The name of the attribute */
+  lql_value_t *value;     /*!^ The value */
 } lql_kattr_t;
 
-//! Time-series (t-attr message)
+/*! Time-series (t-attr message) */
 typedef struct
 {
-  char         *guid;     //! ^ The node this attribute is set on
-  char         *name;     //! ^ The name of the attribute
-  int           size;     //! ^ The number of time-value entries
-  lql_tuple2_t *series;   //! ^ The time-series: (double *, value *)
+  char         *guid;     /*! ^ The node this attribute is set on */
+  char         *name;     /*! ^ The name of the attribute */
+  int           size;     /*! ^ The number of time-value entries */
+  lql_tuple2_t *series;   /*! ^ The time-series: (double *, value *) */
 } lql_tattr_t;
 
-//! Information about the cluster
+/*! Information about the cluster */
 typedef struct
 {
-  int           size;     //!^ The number of key-value entries;
-  lql_tuple2_t *attrs;    //!^ The property: (char *, char *);
+  int           size;     /*!^ The number of key-value entries; */
+  lql_tuple2_t *attrs;    /*!^ The property: (char *, char *); */
 } lql_stat_t;
 
 /*! Refer to leela_lql_context_init2

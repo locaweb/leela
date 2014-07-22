@@ -1,16 +1,17 @@
-// Copyright 2014 (c) Diego Souza <dsouza@c0d3.xxx>
-//  
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//  
-//     http://www.apache.org/licenses/LICENSE-2.0
-//  
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/* Copyright 2014 (c) Diego Souza <dsouza@c0d3.xxx>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,14 +22,14 @@
 
 leela_endpoint_t *leela_endpoint_load (const char *endpoint)
 {
+  size_t k                 = 6;
+  size_t start             = 6;
   leela_endpoint_t *result = (leela_endpoint_t *) malloc(sizeof(leela_endpoint_t));
+
   if (result == NULL)
   { return(NULL); }
-
   result->host = NULL;
   result->path = NULL;
-  size_t k     = 6;
-  size_t start = 6;
   if (strncmp("tcp://", endpoint, 6) == 0)
   { result->protocol = PROTO_TCP; }
   else if (strncmp("udp://", endpoint, 6) == 0)
@@ -99,9 +100,9 @@ leela_endpoint_t *leela_endpoint_dup2 (leela_endpoint_t *dup, const leela_endpoi
 
 char *leela_endpoint_dump (const leela_endpoint_t *endpoint)
 {
-  size_t l  = 6 + 5 + 1; // protocol + port + \0
-  l        += strlen(endpoint->host);               
-  l        += strlen(endpoint->path);
+  size_t l  = 6 + 5 + 1 /* protocol + port + \0 */
+              + strlen(endpoint->host)
+              + strlen(endpoint->path);
   char *s   = (char *) malloc(l);
   if (s == NULL)
   { return(s); }
