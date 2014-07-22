@@ -19,8 +19,8 @@ cleanobj:
 	rm -f libleela.so*
 	rm -f src/driver
 
-$(OBJ_FILES): override CPPFLAGS += -D_POSIX_SOURCE=200112 -D_XOPEN_SOURCE
-$(OBJ_FILES): override CFLAGS += -Isrc -std=c99 -pedantic -fPIC -pthread -I$(poly1305aes.h)
+$(OBJ_FILES): override CPPFLAGS += -D_POSIX_C_SOURCE=200112 -D_XOPEN_SOURCE
+$(OBJ_FILES): override CFLAGS += -Isrc -pedantic -fPIC -pthread -I$(poly1305aes.h)
 
 libleela.so.$(LEELA_LIB_VERSION): $(OBJ_FILES)
 	$(CC) $(LDFLAGS) -pthread -shared -Wl,-soname,$(@) -o$(@) $(OBJ_FILES) $(LDLIBS) $(poly1305aes.a) -lzmq
