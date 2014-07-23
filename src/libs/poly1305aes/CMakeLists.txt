@@ -1,0 +1,29 @@
+option(LIBPOLY1305AES_BUILD_SO "build poly1305aes as a shared library" OFF)
+
+if(LIBPOLY1305AES_BUILD_SO)
+   set(LIBPOLY1305AES_TYPE SHARED)
+   add_definitions( -DLIBPOLY1305AES_BUILD_SO)
+else(LIBPOLY1305AES_BUILD_SO)
+   set(LIBPOLY1305AES_TYPE STATIC)
+endif(LIBPOLY1305AES_BUILD_SO)
+
+file(GLOB LIBPOLY1305AES_HEADERS "src/poly1305aes/*.h")
+file(GLOB LIBPOLY1305AES_FILES "src/poly1305aes/*.[cs]")
+
+add_library(libpoly1305aes ${LIBPOLY1305AES_TYPE}
+                            ${LIBPOLY1305AES_HEADERS}
+                            ${LIBPOLY1305AES_FILES})
+target_include_directories(libpoly1305aes PUBLIC src)
+
+if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+set_target_properties(libpoly1305aes PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+
+set_target_properties(libpoly1305aes PROPERTIES OUTPUT_NAME poly1305aes)
+set_target_properties(libpoly1305aes PROPERTIES VERSION ${LIBPOLY1305AES_VERSION} SOVERSION ${LIBPOLY1305AES_VERSION})
+
+install(TARGETS libpoly1305aes
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+       )
