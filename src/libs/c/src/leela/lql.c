@@ -475,19 +475,34 @@ lql_context_t *leela_lql_context_init2 (const leela_endpoint_t *const *warpdrive
     ctx->debug_f     = debug_f;
     ctx->trace_f     = trace_f;
 
-    if (ctx->random == NULL || leela_random_read(ctx->random, ctx->nonce, LEELA_SIGNATURE_NONCE_SIZE) != 0)
-    { goto handle_error; }
+    if (ctx->random == NULL)
+    {
+      LEELA_DEBUG0(ctx, "error initializing random subsystem");
+      goto handle_error;
+    }
+
+    if (leela_random_read(ctx->random, ctx->nonce, LEELA_SIGNATURE_NONCE_SIZE) != 0)
+    {
+      LEELA_DEBUG0(ctx, "error initializing nonce");
+      goto handle_error;
+    }
 
     if (ctx->naming == NULL
         || ctx->random == NULL
         || ctx->zmqctx == NULL
         || ctx->username == NULL
         || ctx->sig == NULL)
-    { goto handle_error; }
+    {
+      LEELA_DEBUG0(ctx, "malloc error");
+      goto handle_error;
+    }
 
     bool ok = leela_naming_start(ctx->naming, ctx);
     if (! ok)
-    { goto handle_error; }
+    {
+      LEELA_DEBUG0(ctx, "error initializing naming thread");
+      goto handle_error;
+    }
   }
   return(ctx);
 
