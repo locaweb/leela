@@ -28,7 +28,7 @@ struct leela_random_t
 
 int leela_random_read (leela_random_t *state, void *buffer, size_t bytes)
 {
-  if (CryptGenRandom(state->provider, bytes, buffer))
+  if (CryptGenRandom(state->provider, bytes, (BYTE *) buffer))
   { return(0); }
   return(-1);
 }
@@ -36,7 +36,7 @@ int leela_random_read (leela_random_t *state, void *buffer, size_t bytes)
 leela_random_t *leela_random_init ()
 {
   leela_random_t *provider = (leela_random_t *) malloc(sizeof(leela_random_t));
-  if (CryptAcquireContext(&provider->provider, NULL, NULL, PROV_RNG, 0))
+  if (CryptAcquireContext(&provider->provider, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
   {
     unsigned int seed;
     if (leela_random_read(provider, &seed, sizeof(seed)) == 0)
@@ -45,7 +45,6 @@ leela_random_t *leela_random_init ()
       return(provider);
     }
   }
-  free(provider);
   return(NULL);
 }
 
