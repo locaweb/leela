@@ -2,9 +2,18 @@
 #define poly1305aes_auto__
 
 #if defined(__x86_64__) || defined(_WIN64)
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 # include "poly1305aes-20050218/aes_big.h"
 # include "poly1305aes-20050218/poly1305_53.h"
 # include "poly1305aes-20050218/poly1305aes_53.h"
+
+#ifdef __cplusplus
+}
+#endif
 
 # define poly1305aes_auto_aes_c                       "poly1305aes-20050218/aes_big.c"
 # define poly1305aes_auto_aes_s                       "empty.c"
