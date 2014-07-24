@@ -13,14 +13,14 @@
  * limitations under the License.
  */
 
-#ifndef __leela_endpoint_h__
-#define __leela_endpoint_h__
+#ifndef leela_endpoint_h__
+#define leela_endpoint_h__
 
 #include <stdlib.h>
 #include <inttypes.h>
-#include "leela/base.h"
+#include "base.h"
 
-LEELA_CPLUSPLUS_OPEN
+LIBLEELA_HEAD
 
 typedef enum leela_protocol
 {
@@ -48,27 +48,27 @@ typedef struct
  *  \return NULL      : the endpoint could not be parsed;
  *  \return :otherwise: the parsed endpoint;
  */
-leela_endpoint_t *leela_endpoint_load (const char *endpoint);
+LIBLEELA_API leela_endpoint_t *leela_endpoint_load (const char *endpoint);
 
 /*! Transforms an endpoint into a string. This forms an identity with
  *  `leela_endpoint_load' function: `load(dump(t)) == t';
  *
  *  N.B.: remember to free the returned memory (which might be NULL);
  */
-char *leela_endpoint_dump (const leela_endpoint_t *);
+LIBLEELA_API char *leela_endpoint_dump (const leela_endpoint_t *);
 
 /*! Duplicates an endpoint;
  */
-leela_endpoint_t *leela_endpoint_dup (const leela_endpoint_t *);
+LIBLEELA_API leela_endpoint_t *leela_endpoint_dup (const leela_endpoint_t *);
 
 /*! Duplicates an endpoint;
  */
-leela_endpoint_t *leela_endpoint_dup2 (leela_endpoint_t *dst, const leela_endpoint_t *src);
+LIBLEELA_API leela_endpoint_t *leela_endpoint_dup2 (leela_endpoint_t *dst, const leela_endpoint_t *src);
 
 /*! Frees memory.
  */
-void leela_endpoint_free (leela_endpoint_t *);
+LIBLEELA_API void leela_endpoint_free (leela_endpoint_t *);
 
-LEELA_CPLUSPLUS_CLOSE
+LIBLEELA_TAIL
 
 #endif

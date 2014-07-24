@@ -18,7 +18,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include "signature.h"
-#include <poly1305aes/poly1305aes.h>
+#include <poly1305aes/poly1305aes_auto.h>
 
 struct leela_signature_t
 {
@@ -26,11 +26,11 @@ struct leela_signature_t
 };
 
 static
-char __henc(unsigned char i)
+char henc__(unsigned char i)
 { return(i < 10 ? (i + 48) : (i+55)); }
 
 static
-unsigned char __hdec(unsigned char i)
+unsigned char hdec__(unsigned char i)
 { return(i >= 65 ? (i - 55) : (i - 48)); }
 
 void leela_signature_hexencode (char *dst, const unsigned char *src, size_t size)
@@ -38,8 +38,8 @@ void leela_signature_hexencode (char *dst, const unsigned char *src, size_t size
   size_t i;
   for (i=0; i<size; i+=1)
   {
-    dst[2 * i]     = __henc(src[i] >> 4);
-    dst[2 * i + 1] = __henc(src[i] & 0x0F);
+    dst[2 * i]     = henc__(src[i] >> 4);
+    dst[2 * i + 1] = henc__(src[i] & 0x0F);
   }
   dst[2 * size] = '\0';
 }
@@ -48,7 +48,7 @@ void leela_signature_hexdecode (unsigned char *dst, size_t size, const char *src
 {
   size_t i;
   for (i=0; i<size; i+=1)
-  { dst[i] = (__hdec(src[2 * i]) << 4) | __hdec(src[2 * i + 1]); }
+  { dst[i] = (hdec__(src[2 * i]) << 4) | hdec__(src[2 * i + 1]); }
 }
 
 leela_signature_t *leela_signature_init (const unsigned char seed[LEELA_SIGNATURE_SEED_SIZE])

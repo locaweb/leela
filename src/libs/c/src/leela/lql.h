@@ -18,13 +18,24 @@
 
 #include <zmq.h>
 #include <stdbool.h>
-#include "leela/base.h"
-#include "leela/status.h"
-#include "leela/endpoint.h"
+#include "base.h"
+#include "random.h"
+#include "status.h"
+#include "endpoint.h"
 
 #define LQL_DEFAULT_TIMEOUT 60000
 
-LEELA_CPLUSPLUS_OPEN
+LIBLEELA_HEAD
+
+#define LEELA_DEBUG0(ctx, fmt) lql_debug(ctx, "[debug] %s:%d: " #fmt , __FILE__, __LINE__)
+#define LEELA_DEBUG1(ctx, fmt, arg0) lql_debug(ctx, "[debug] %s:%d: " #fmt , __FILE__, __LINE__, arg0)
+#define LEELA_DEBUG2(ctx, fmt, arg0, arg1) lql_debug(ctx, "[debug] %s:%d: " #fmt , __FILE__, __LINE__, arg0, arg1)
+#define LEELA_DEBUG3(ctx, fmt, arg0, arg1, arg2) lql_debug(ctx, "[debug] %s:%d: " #fmt , __FILE__, __LINE__, arg0, arg1, arg2)
+
+#define LEELA_TRACE0(ctx, fmt) lql_trace(ctx, "[trace] %s:%d: " #fmt, __FILE__, __LINE__)
+#define LEELA_TRACE1(ctx, fmt, arg0) lql_trace(ctx, "[trace] %s:%d: " #fmt, __FILE__, __LINE__, arg0)
+#define LEELA_TRACE2(ctx, fmt, arg0, arg1) lql_trace(ctx, "[trace] %s:%d: " #fmt, __FILE__, __LINE__, arg0, arg1)
+#define LEELA_TRACE3(ctx, fmt, arg0, arg1, arg2) lql_trace(ctx, "[trace] %s:%d: " #fmt, __FILE__, __LINE__, arg0, arg1, arg2)
 
 typedef void (*log_function_f)(const char*, va_list);
 typedef struct lql_cursor_t lql_cursor_t;
@@ -137,7 +148,7 @@ typedef struct
 
 /*! Refer to leela_lql_context_init2
  */
-lql_context_t *leela_lql_context_init (const leela_endpoint_t *const *warpdrive, const char *username, const char *secret, int timeout_in_ms);
+LIBLEELA_API lql_context_t *leela_lql_context_init (const leela_endpoint_t *const *warpdrive, const char *username, const char *secret, int timeout_in_ms);
 
 /*! Initializes the leela context. You should call this only once and
  *  share it in the program. It is ok, though unecessary, to have
@@ -160,7 +171,7 @@ lql_context_t *leela_lql_context_init (const leela_endpoint_t *const *warpdrive,
  *
  *  \param trace_f The function to use to trace the lql protocol (may be NULL);  
  */
-lql_context_t *leela_lql_context_init2 (const leela_endpoint_t *const *warpdrive, const char *username, const char *secret, int timeout_in_ms, log_function_f debug_f, log_function_f trace_f);
+LIBLEELA_API lql_context_t *leela_lql_context_init2 (const leela_endpoint_t *const *warpdrive, const char *username, const char *secret, int timeout_in_ms, log_function_f debug_f, log_function_f trace_f);
 
 /*! Creates a new cursor.  This selects one available warpdrive
  *  instance to connect to. The actual load balancing algorithm is
@@ -183,21 +194,21 @@ lql_context_t *leela_lql_context_init2 (const leela_endpoint_t *const *warpdrive
  *  \return * NULL     : an error has ocurred;
  *          * otherwise: the cursor has been sucessfully initialized;
  */
-lql_cursor_t *leela_lql_cursor_init (lql_context_t *ctx, const char *username, const char *secret, int timeout_in_ms);
+LIBLEELA_API lql_cursor_t *leela_lql_cursor_init (lql_context_t *ctx, const char *username, const char *secret, int timeout_in_ms);
 
 /*! Same as leela_lql_cursor_init but uses the username, secret &
  *  timeout provided when the context has been created.
  *
  *  Please refer to leela_lql_context_init.
  */
-lql_cursor_t *leela_lql_cursor_init_default (lql_context_t *ctx);
+LIBLEELA_API lql_cursor_t *leela_lql_cursor_init_default (lql_context_t *ctx);
 
 /*! Creater a new cursor for an specific backend. You should avoid
  *  using this directly, and instead use leela_lql_context_init.
  *
  *  Please refer to leela_lql_context_init.
  */
-lql_cursor_t *leela_lql_cursor_init_on (lql_context_t *ctx, const leela_endpoint_t *endpoint, const char *username, const char *secret, int timeout_in_ms);
+LIBLEELA_API lql_cursor_t *leela_lql_cursor_init_on (lql_context_t *ctx, const leela_endpoint_t *endpoint, const char *username, const char *secret, int timeout_in_ms);
 
 /*! Executes a query. To consume the results use leela_cursor_next
  *
@@ -208,7 +219,7 @@ lql_cursor_t *leela_lql_cursor_init_on (lql_context_t *ctx, const leela_endpoint
  *          * LEELA_ERROR  : any error has ocurred;
  *          * LEELA_BADARGS: the cursor is not valid;
  */
-leela_status leela_lql_cursor_execute (lql_cursor_t *cursor, const char *query);
+LIBLEELA_API leela_status leela_lql_cursor_execute (lql_cursor_t *cursor, const char *query);
 
 /*! Retrieves the next row out of a cursor;
  *
@@ -218,63 +229,63 @@ leela_status leela_lql_cursor_execute (lql_cursor_t *cursor, const char *query);
  *  \return LEELA_EOF there are no more entries;
  *  \return LEELA_TIMEOUT the operation has timed out;
  */
-leela_status leela_lql_cursor_next (lql_cursor_t *cursor);
+LIBLEELA_API leela_status leela_lql_cursor_next (lql_cursor_t *cursor);
 
 /*! Retrieves the current row type. Notice you *must* invoke
  * `leela_lql_cursor_next' and it *must* return `LEELA_OK' prior
  * calling this function. Return `LEELA_ERROR'
  * if a `fail' message was received.
  */
-lql_row_type leela_lql_fetch_type (lql_cursor_t *cursor);
+LIBLEELA_API lql_row_type leela_lql_fetch_type (lql_cursor_t *cursor);
 
 /*! Extracts the name message from the cursor. Use this function only
  *  if the message type is LQL_NAME (refer to leela_lql_fetch_type);
  */
-lql_name_t *leela_lql_fetch_name (lql_cursor_t *cursor);
+LIBLEELA_API lql_name_t *leela_lql_fetch_name (lql_cursor_t *cursor);
 
 /*! Extracts the path message from the cursor. Use this function only
  *  if the message type is LQL_PATH (refer to leela_lql_fetch_type);
  */
-lql_path_t *leela_lql_fetch_path (lql_cursor_t *cursor);
+LIBLEELA_API lql_path_t *leela_lql_fetch_path (lql_cursor_t *cursor);
 
 /*! Extracts the stat message from the cursor. Use this function only
  *  if the message type is LQL_STAT (refer to leela_lql_fetch_type);
  */
-lql_stat_t *leela_lql_fetch_stat (lql_cursor_t *cursor);
+LIBLEELA_API lql_stat_t *leela_lql_fetch_stat (lql_cursor_t *cursor);
 
 /*! Extracts the error message from the cursor. Use this function only
  *  if the message type is LQL_FAIL_MSG (refer to leela_lql_fetch_type);
  */
-lql_fail_t *leela_lql_fetch_fail (lql_cursor_t *cursor);
+LIBLEELA_API lql_fail_t *leela_lql_fetch_fail (lql_cursor_t *cursor);
 
 /*! Extracts the nattr message from the cursor, which contains the
  *  attribute names of a given node. Use this function only if the
  *  message type is LQL_NATTR_MSG (refer to leela_lql_nattr_type).
  */
-lql_nattr_t *leela_lql_fetch_nattr (lql_cursor_t *cursor);
+LIBLEELA_API lql_nattr_t *leela_lql_fetch_nattr (lql_cursor_t *cursor);
 
 /*! Extracts the kattr message from the cursor. This message contains
  *  the attribute value. Use this function only if the message type is
  *  LQL_KATTR_MSG (refer to leela_lql_kattr_type).
  */
-lql_kattr_t *leela_lql_fetch_kattr (lql_cursor_t *cursor);
+LIBLEELA_API lql_kattr_t *leela_lql_fetch_kattr (lql_cursor_t *cursor);
 
-lql_tattr_t *leela_lql_fetch_tattr (lql_cursor_t *cursor);
+LIBLEELA_API lql_tattr_t *leela_lql_fetch_tattr (lql_cursor_t *cursor);
 
-void leela_lql_name_free (lql_name_t *);
-void leela_lql_path_free (lql_path_t *);
-void leela_lql_stat_free (lql_stat_t *);
-void leela_lql_fail_free (lql_fail_t *);
-void leela_lql_nattr_free (lql_nattr_t *);
-void leela_lql_kattr_free (lql_kattr_t *);
-void leela_lql_tattr_free (lql_tattr_t *);
+LIBLEELA_API void leela_lql_name_free (lql_name_t *);
+LIBLEELA_API void leela_lql_path_free (lql_path_t *);
+LIBLEELA_API void leela_lql_stat_free (lql_stat_t *);
+LIBLEELA_API void leela_lql_fail_free (lql_fail_t *);
+LIBLEELA_API void leela_lql_nattr_free (lql_nattr_t *);
+LIBLEELA_API void leela_lql_kattr_free (lql_kattr_t *);
+LIBLEELA_API void leela_lql_tattr_free (lql_tattr_t *);
 
 /*! Terminates a cursor. Remember to always call this function after
  *  you are done iterating.
  *
  *  \param cursor The cursor to close;
  */
-leela_status leela_lql_cursor_close (lql_cursor_t *cursor);
+LIBLEELA_API leela_status leela_lql_cursor_close (lql_cursor_t *cursor);
 
 /*! Terminates the context. This may block if there are outstanding
  *  open cursors. Make sure to close them all or this may never
@@ -285,12 +296,14 @@ leela_status leela_lql_cursor_close (lql_cursor_t *cursor);
  *  \return * LEELA_OK   : success;
  *          * LEELA_ERROR: could not close the context;
  */
-leela_status leela_lql_context_close (lql_context_t *ctx);
+LIBLEELA_API leela_status leela_lql_context_close (lql_context_t *ctx);
 
-void lql_debug (lql_context_t *ctx, const char *logmsg, ...);
-void lql_trace (lql_context_t *ctx, const char *logmsg, ...);
+LIBLEELA_API leela_random_t *leela_random(lql_context_t *ctx);
 
-LEELA_CPLUSPLUS_CLOSE
+LIBLEELA_API void lql_debug (lql_context_t *ctx, const char *logmsg, ...);
+LIBLEELA_API void lql_trace (lql_context_t *ctx, const char *logmsg, ...);
+
+LIBLEELA_TAIL
 
 
 #endif

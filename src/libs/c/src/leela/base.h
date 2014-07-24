@@ -13,15 +13,27 @@
  * limitations under the License.
  */
 
-#ifndef __leela_base_h__
-#define __leela_base_h__
+#ifndef leela_base_h__
+#define leela_base_h__
 
 #ifdef __cplusplus
-#define LEELA_CPLUSPLUS_OPEN extern "C" {
-#define LEELA_CPLUSPLUS_CLOSE }
+#  define LIBLEELA_HEAD extern "C" {
+#  define LIBLEELA_TAIL }
 #else
-#define LEELA_CPLUSPLUS_OPEN
-#define LEELA_CPLUSPLUS_CLOSE
+#  define LIBLEELA_HEAD
+#  define LIBLEELA_TAIL
+#endif
+
+#ifdef _WIN32
+#  if defined(LIBLEELA_STATIC)
+#    define LIBLEELA_API
+#  elif defined(LIBLEELA_SHARED)
+#    define LIBLEELA_API __declspec(dllexport)
+#  else
+#    define LIBLEELA_API __declspec(dllimport)
+#  endif
+#else
+#  define LIBLEELA_API
 #endif
 
 #define LEELA_MIN(a, b) (a < b ? a : b)

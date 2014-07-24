@@ -13,26 +13,26 @@
  * limitations under the License.
  */
 
-#ifndef __leela_string_h__
-#define __leela_string_h__
+#ifndef leela_string_h__
+#define leela_string_h__
 
-#include "leela/base.h"
+#include "base.h"
 
-LEELA_CPLUSPLUS_OPEN
+LIBLEELA_HEAD
 
-char *leela_strdup (const char *);
+LIBLEELA_API char *leela_strdup (const char *);
 
-char *leela_strndup (const char *, size_t);
+LIBLEELA_API char *leela_strndup (const char *, size_t);
 
-char *leela_join (const char *, ...);
+LIBLEELA_API char *leela_join (const char *, ...);
 
 /*! Check if the string is a valid guid.
  *
  * \return 0 Ok;
  * \return x String is not a guid;
  */
-int leela_check_guid(const char *);
+LIBLEELA_API int leela_check_guid(const char *);
 
-LEELA_CPLUSPLUS_CLOSE
+LIBLEELA_TAIL
 
 #endif

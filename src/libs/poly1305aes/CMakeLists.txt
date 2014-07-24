@@ -15,10 +15,6 @@ add_library(libpoly1305aes ${LIBPOLY1305AES_TYPE}
                             ${LIBPOLY1305AES_FILES})
 target_include_directories(libpoly1305aes PUBLIC src)
 
-if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
-set_target_properties(libpoly1305aes PROPERTIES POSITION_INDEPENDENT_CODE ON)
-endif("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
-
 set_target_properties(libpoly1305aes PROPERTIES OUTPUT_NAME poly1305aes)
 set_target_properties(libpoly1305aes PROPERTIES VERSION ${LIBPOLY1305AES_VERSION} SOVERSION ${LIBPOLY1305AES_VERSION})
 

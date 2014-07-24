@@ -13,15 +13,15 @@
  * limitations under the License.
  */
 
-#ifndef __leela_naming_h__
-#define __leela_naming_h__
+#ifndef leela_naming_h__
+#define leela_naming_h__
 
 #include <pthread.h>
-#include "leela/lql.h"
-#include "leela/base.h"
-#include "leela/endpoint.h"
+#include "lql.h"
+#include "base.h"
+#include "endpoint.h"
 
-LEELA_CPLUSPLUS_OPEN
+LIBLEELA_HEAD
 
 typedef struct leela_naming_t leela_naming_t;
 
@@ -53,7 +53,7 @@ typedef struct leela_naming_cluster_t
  *  \return NULL      : there was an error and the naming could not be created;
  *  \return :otherwise: success;
  */
-leela_naming_t *leela_naming_init (const leela_endpoint_t *const *warpdrive, int maxdelay);
+LIBLEELA_API leela_naming_t *leela_naming_init (const leela_endpoint_t *const *warpdrive, int maxdelay);
 
 /*! Starts the discover thread. This functions waits for the naming
  *  thread to query a warpdrive instance.
@@ -61,14 +61,14 @@ leela_naming_t *leela_naming_init (const leela_endpoint_t *const *warpdrive, int
  *  \return true : succesfully connected to the warpdrive cluster;
  *  \return false: could not connect to any machine;
  */
-bool leela_naming_start (leela_naming_t *naming, lql_context_t *ctx);
+LIBLEELA_API bool leela_naming_start (leela_naming_t *naming, lql_context_t *ctx);
 
 /*! Returns the endpoints found under this resource.
  *
  *  \return NULL     : zero endpoints found;
  *  \return otherwise: A valid endpoint;
  */
-leela_naming_cluster_t *leela_naming_discover (leela_naming_t *);
+LIBLEELA_API leela_naming_cluster_t *leela_naming_discover (leela_naming_t *);
 
 /*! Returns a endpoint to use, so that the load is distruted uniformly
  *  amongst the cluster members.
@@ -76,17 +76,17 @@ leela_naming_cluster_t *leela_naming_discover (leela_naming_t *);
  *  \return NULL      : failure;
  *  \return otherwise : A valid endpoint to use;
  */
-leela_endpoint_t *leela_naming_select (leela_naming_t *);
+LIBLEELA_API leela_endpoint_t *leela_naming_select (leela_naming_t *);
 
 /*! Frees memory
  */
-void leela_naming_cluster_free (leela_naming_cluster_t *);
+LIBLEELA_API void leela_naming_cluster_free (leela_naming_cluster_t *);
 
 /*! Terminates the naming thread. This functions waits for the naming
  *  thread to finish, so it may take up to a second to return.
  */
-void leela_naming_destroy (leela_naming_t *);
+LIBLEELA_API void leela_naming_destroy (leela_naming_t *);
 
-LEELA_CPLUSPLUS_CLOSE
+LIBLEELA_TAIL
 
 #endif

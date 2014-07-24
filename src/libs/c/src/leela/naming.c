@@ -13,6 +13,19 @@
  * limitations under the License.
  */
 
+#if defined(HAS_SYM_USLEEP)
+#  include <unistd.h>
+#  define SLEEP__(x) usleep(x * 1000)
+#elif defined(HAS_SYM_WINSLEEP)
+#  include <windows.h>
+#  define SLEEP__(x) Sleep(x)
+#elif defined(HAS_SYM_SLEEP)
+#  include <unistd.h>
+#  defined SLEEP__(x) sleep(x <= 1000 ? 1 : x / 1000)
+#else
+#  error "naming.c: no sleep function found"
+#endif
+
 #include <math.h>
 #include <time.h>
 #include <stdio.h>
@@ -21,17 +34,17 @@
 #include <string.h>
 #include <stdbool.h>
 #include <pthread.h>
-#include <sys/select.h>
-#include "leela/debug.h"
-#include "leela/string.h"
-#include "leela/naming.h"
-#include "leela/signature.h"
+#include "lql.h"
+#include "string.h"
+#include "naming.h"
+#include "signature.h"
 
 struct leela_naming_t
 {
   int                     maxdelay;
   int                     attempt;
   bool                    cancel;
+  size_t                  lb_index;
   pthread_t               thread;
   pthread_cond_t         *notify;
   pthread_mutex_t         mutex;
@@ -41,7 +54,7 @@ struct leela_naming_t
 };
 
 static
-leela_naming_cluster_t *__cluster_init (size_t size)
+leela_naming_cluster_t *cluster_init__ (size_t size)
 {
   size_t k;
   leela_naming_cluster_t *cluster;
@@ -67,7 +80,7 @@ leela_naming_cluster_t *__cluster_init (size_t size)
 }
 
 static
-void __naming_notify (leela_naming_t *naming)
+void naming_notify__ (leela_naming_t *naming)
 {
   if (naming->notify != NULL)
   { pthread_cond_signal(naming->notify); }
@@ -75,7 +88,7 @@ void __naming_notify (leela_naming_t *naming)
 }
 
 static
-leela_naming_cluster_t *__naming_discover2 (leela_naming_t *naming, const leela_endpoint_t *endpoint)
+leela_naming_cluster_t *naming_discover2__ (leela_naming_t *naming, const leela_endpoint_t *endpoint)
 {
   int k;
   lql_tuple2_t *entry;
@@ -109,7 +122,7 @@ leela_naming_cluster_t *__naming_discover2 (leela_naming_t *naming, const leela_
     { count += 1; }
   }
 
-  result = __cluster_init(count);
+  result = cluster_init__(count);
   if (result == NULL)
   { goto handle_error; }
 
@@ -146,16 +159,20 @@ handle_error:
 }
 
 static
-leela_naming_cluster_t *__naming_discover (leela_naming_t *naming, const leela_naming_cluster_t *cluster)
+leela_naming_cluster_t *naming_discover__ (leela_naming_t *naming, const leela_naming_cluster_t *cluster)
 {
+  long int rnd = 0;
   size_t k, offset;
   leela_naming_cluster_t *new_cluster = NULL;
   if (cluster != NULL)
   {
-    offset = ((size_t) lrand48()) - cluster->size;
+    if (leela_random_next(leela_random(naming->context), &rnd) != 0
+        && leela_random_read(leela_random(naming->context), &rnd, sizeof(rnd)) != 0)
+    { LEELA_DEBUG0(naming->context, "naming_discover: error reading random number"); }
+    offset = (size_t) rnd;
     for (k=0; k<cluster->size; k+=1)
     {
-      new_cluster = __naming_discover2(naming, cluster->endpoint[(k + offset) % cluster->size]);
+      new_cluster = naming_discover2__(naming, cluster->endpoint[(k + offset) % cluster->size]);
       if (new_cluster != NULL)
       { break; }
     }
@@ -168,10 +185,10 @@ leela_naming_cluster_t *__naming_discover (leela_naming_t *naming, const leela_n
 }
 
 static
-void *__naming_loop (void *data)
+void *naming_loop__ (void *data)
 {
   struct timeval tv;
-  int w_sec, w_usec;
+  int w_wait;
   leela_naming_cluster_t *cluster = NULL;
   leela_naming_t *naming          = (leela_naming_t *) data;
   LEELA_DEBUG0(naming->context, "ENTER:naming loop");
@@ -180,9 +197,9 @@ void *__naming_loop (void *data)
     if (naming->context != NULL)
     {
       if (naming->cluster != NULL)
-      { cluster = __naming_discover(naming, naming->cluster); }
+      { cluster = naming_discover__(naming, naming->cluster); }
       else
-      { cluster = __naming_discover(naming, naming->cluster0); }
+      { cluster = naming_discover__(naming, naming->cluster0); }
     }
 
     if (pthread_mutex_lock(&naming->mutex) == 0)
@@ -191,25 +208,16 @@ void *__naming_loop (void *data)
       naming->cluster = cluster;
       pthread_mutex_unlock(&naming->mutex);
     }
-    __naming_notify(naming);
+    naming_notify__(naming);
 
     if (naming->context == NULL || naming->cluster == NULL)
-    {
-      w_sec  = 0;
-      w_usec = 100000;
-    }
+    { w_wait = 250; }
     else
+    { w_wait = (30 + (((unsigned int) rand()) % naming->maxdelay)) * 1000; }
+    while (!naming->cancel && (w_wait > 0))
     {
-      w_sec  = ((unsigned int) rand()) % naming->maxdelay;
-      w_usec = 0;
-    }
-    while (!naming->cancel && (w_sec > 0 || w_usec > 0))
-    {
-      tv.tv_sec  = (w_sec > 0 ? 1 : 0);
-      tv.tv_usec = (w_usec > 0 ? w_usec : 0);
-      select(0, NULL, NULL, NULL, &tv);
-      w_sec     -= 1;
-      w_usec     = 0;
+      SLEEP__(w_wait > 1000 ? 1000 : w_wait);
+      w_wait -= 1000;
     }
   } while (! naming->cancel);
   LEELA_DEBUG0(naming->context, "EXIT:naming loop");
@@ -255,13 +263,17 @@ bool leela_naming_start (leela_naming_t *naming, lql_context_t *context)
 
 leela_endpoint_t *leela_naming_select (leela_naming_t *naming)
 {
+  long int rnd;
   leela_endpoint_t *endpoint = NULL;
   if (pthread_mutex_lock(&naming->mutex) == 0)
   {
     if (naming->cluster != NULL && naming->cluster->size > 0)
     {
-      unsigned int at = lrand48() % naming->cluster->size;
-      endpoint        = leela_endpoint_dup(naming->cluster->endpoint[at]);
+      if (leela_random_next(leela_random(naming->context), &rnd) == 0
+          || leela_random_read(leela_random(naming->context), &rnd, sizeof(rnd)) == 0)
+      { endpoint = leela_endpoint_dup(naming->cluster->endpoint[rnd % naming->cluster->size]); }
+      else
+      { LEELA_DEBUG0(naming->context, "leela_naming_select: error reading next random number"); }
     }
     pthread_mutex_unlock(&naming->mutex);
   }
@@ -286,8 +298,8 @@ leela_naming_t *leela_naming_init (const leela_endpoint_t *const *warpdrive, int
   k = 0;
   while (iterator[k] != NULL)
   { k += 1; }
-  naming->cluster  = __cluster_init(k);
-  naming->cluster0 = __cluster_init(k);
+  naming->cluster  = cluster_init__(k);
+  naming->cluster0 = cluster_init__(k);
   if (naming->cluster == NULL || naming->cluster0 == NULL)
   { goto handle_error; }
   for (k=0; warpdrive[k]!=NULL; k+=1)
@@ -301,7 +313,7 @@ leela_naming_t *leela_naming_init (const leela_endpoint_t *const *warpdrive, int
   if (pthread_mutex_init(&naming->mutex, NULL) != 0)
   { goto handle_error; }
 
-  pthread_create(&naming->thread, NULL, __naming_loop, naming);
+  pthread_create(&naming->thread, NULL, naming_loop__, naming);
   return(naming);
 
 handle_error:
@@ -345,7 +357,7 @@ leela_naming_cluster_t *leela_naming_discover (leela_naming_t *naming)
 
   if (naming->cluster != NULL)
   {
-    cluster = __cluster_init(naming->cluster->size);
+    cluster = cluster_init__(naming->cluster->size);
     if (cluster != NULL)
     {
       for (k=0; k<naming->cluster->size; k+=1)

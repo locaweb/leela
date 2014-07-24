@@ -13,13 +13,13 @@
  * limitations under the License.
  */
 
-#ifndef __leela_signature_h__
-#define __leela_signature_h__
+#ifndef leela_signature_h__
+#define leela_signature_h__
 
 #include <stdlib.h>
 #include "base.h"
 
-LEELA_CPLUSPLUS_OPEN
+LIBLEELA_HEAD
 
 #define LEELA_SIGNATURE_SIZE 16
 #define LEELA_SIGNATURE_HEX_SIZE 33
@@ -37,7 +37,7 @@ typedef struct leela_signature_t leela_signature_t;
  *  
  *  \param size The size of src;
  */
-void leela_signature_hexencode (char *dst, const unsigned char *src, size_t size);
+LIBLEELA_API void leela_signature_hexencode (char *dst, const unsigned char *src, size_t size);
 
 /*! Decodes a hex-encoded string.
  *
@@ -47,7 +47,7 @@ void leela_signature_hexencode (char *dst, const unsigned char *src, size_t size
  *  
  *  \param size The size of dst;
  */
-void leela_signature_hexdecode (unsigned char *dst, size_t size, const char *src);
+LIBLEELA_API void leela_signature_hexdecode (unsigned char *dst, size_t size, const char *src);
 
 /*! Initializes the signature framework. The seed must be exactly
  *  LEELA_SIGNATURE_SEED_SIZE long.
@@ -55,11 +55,11 @@ void leela_signature_hexdecode (unsigned char *dst, size_t size, const char *src
  *  \return NULL: something went wrong;
  *          _   : a valid pointer;
  */
-leela_signature_t *leela_signature_init (const unsigned char seed[LEELA_SIGNATURE_SEED_SIZE]);
+LIBLEELA_API leela_signature_t *leela_signature_init (const unsigned char seed[LEELA_SIGNATURE_SEED_SIZE]);
 
 /*! Generates a new nonce.
  */
-void leela_signature_nonce_next (unsigned char dst[LEELA_SIGNATURE_NONCE_SIZE], const unsigned char src[LEELA_SIGNATURE_NONCE_SIZE]);
+LIBLEELA_API void leela_signature_nonce_next (unsigned char dst[LEELA_SIGNATURE_NONCE_SIZE], const unsigned char src[LEELA_SIGNATURE_NONCE_SIZE]);
 
 /*! Signs a new message.
  *
@@ -75,7 +75,7 @@ void leela_signature_nonce_next (unsigned char dst[LEELA_SIGNATURE_NONCE_SIZE], 
  *  
  *  \param msglen The size of this message;
  */
-void leela_signature_sign (leela_signature_t *sig, unsigned char mac[LEELA_SIGNATURE_SIZE], const unsigned char nonce[LEELA_SIGNATURE_NONCE_SIZE], const void *msg, unsigned int msglen);
+LIBLEELA_API void leela_signature_sign (leela_signature_t *sig, unsigned char mac[LEELA_SIGNATURE_SIZE], const unsigned char nonce[LEELA_SIGNATURE_NONCE_SIZE], const void *msg, unsigned int msglen);
 
 /*! Checks wheter or not the signature is valid.
  *
@@ -92,12 +92,12 @@ void leela_signature_sign (leela_signature_t *sig, unsigned char mac[LEELA_SIGNA
  *  \return 0: Ok;
  *          x: An error has ocurred;
  */
-int leela_signature_check (leela_signature_t *s, const unsigned char sig[LEELA_SIGNATURE_SIZE], const unsigned char nonce[LEELA_SIGNATURE_NONCE_SIZE], const void *msg, unsigned int msglen);
+LIBLEELA_API int leela_signature_check (leela_signature_t *s, const unsigned char sig[LEELA_SIGNATURE_SIZE], const unsigned char nonce[LEELA_SIGNATURE_NONCE_SIZE], const void *msg, unsigned int msglen);
 
 /*! Frees all memory.
  */
-void leela_signature_destroy (leela_signature_t *sig);
+LIBLEELA_API void leela_signature_destroy (leela_signature_t *sig);
 
-LEELA_CPLUSPLUS_CLOSE
+LIBLEELA_TAIL
 
 #endif

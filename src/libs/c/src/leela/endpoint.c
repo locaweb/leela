@@ -17,8 +17,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include "leela/string.h"
-#include "leela/endpoint.h"
+#include "string.h"
+#include "endpoint.h"
 
 leela_endpoint_t *leela_endpoint_load (const char *endpoint)
 {

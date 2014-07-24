@@ -13,18 +13,41 @@
  * limitations under the License.
  */
 
-#ifndef __leela_random_h__
-#define __leela_random_h__
+#ifndef leela_random_h__
+#define leela_random_h__
 
-#define LEELA_CPLUSPLUS_OPEN
+#include "base.h"
 
-/*! Read a given amount of bytes from the /dev/urandom
+LIBLEELA_HEAD
+
+typedef struct leela_random_t leela_random_t;
+
+/*! Initializes the random with a suitable seed so that
+ *  leela_random_next can be used.
+ *
+ *  \return NULL: an error has occurred;
+ *          x   : ok;
+ */
+LIBLEELA_API leela_random_t *leela_random_init ();
+
+/*! Read a given amount of random bytes from a suitable source.
  *
  * \return 0: ok;
  *         x: an error has ocurred;
  */
-int leela_random_urandom (void *buffer, size_t bytes);
+LIBLEELA_API int leela_random_read (leela_random_t *, void *buffer, size_t bytes);
 
-#define LEELA_CPLUSPLUS_CLOSE
+/*! Returns the next random number.
+ *
+ * \param random The variable that receives the next random number
+ * 
+ * \return 0: ok;
+ *         x: an error has ocurred;
+ */
+LIBLEELA_API int leela_random_next (leela_random_t *, long int *random);
+
+LIBLEELA_API void leela_random_close (leela_random_t *);
+
+LIBLEELA_TAIL
 
 #endif

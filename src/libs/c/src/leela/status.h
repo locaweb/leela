@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-#ifndef __leela_status_h__
-#define __leela_status_h__
+#ifndef leela_status_h__
+#define leela_status_h__
 
 typedef enum leela_status
 {

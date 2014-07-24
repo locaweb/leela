@@ -16,7 +16,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
-#include "leela/string.h"
+#include "string.h"
 
 char *leela_strdup (const char *s)
 { return(leela_strndup(s, strlen(s))); }
