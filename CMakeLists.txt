@@ -6,7 +6,7 @@ include(CheckCCompilerFlag)
 
 project(leela)
 
-option(LEELA_BUILD_LIB_C      "builds the c library" OFF)
+option(LEELA_BUILD_LIB_C      "builds the c library" ON)
 option(LEELA_BUILD_LIB_PYTHON "builds the python library" OFF)
 option(LEELA_BUILD_LIB_RUBY   "builds the ruby library" OFF)
 option(LEELA_BUILD_WARPDRIVE  "builds the warpdrive binary" OFF)
@@ -42,7 +42,7 @@ endif()
 if(LEELA_BUILD_LIB_C)
   find_package (Threads)
   add_subdirectory(src/libs/c)
-  add_subdirectory(src/libs/libzmq)
+  add_subdirectory(lib/libzmq)
   add_subdirectory(src/libs/poly1305aes)
 endif()
 
