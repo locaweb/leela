@@ -51,14 +51,10 @@ query db write (ByLabel a (Label l0)) = loadLabels (fmap Label $ glob l0)
             write (map (\b -> (a, l, b)) (init guids))
             loadLinks l (Just $ last guids)
 
-batch :: [Maybe (IO ())] -> IO ()
-batch = go []
-    where
-      go acc []           = mapM_ wait acc
-      go acc (Nothing:xs) = go acc xs
-      go acc (Just io:xs) = do
-        a <- async io
-        go (a : acc) xs
+execute :: [Maybe (IO ())] -> IO ()
+execute []             = return ()
+execute (Nothing : xs) = execute xs
+execute (Just a : xs)  = a >> execute xs
 
 mkio :: [a] -> ([a] -> IO b) -> Maybe (IO b)
 mkio [] _ = Nothing
@@ -99,7 +95,7 @@ buildQueue t0 t1 =
 
 loadTAttr :: (AttrBackend db) => db -> ([(Time, Value)] -> IO ()) -> GUID -> Attr -> Time -> Time -> IO ()
 loadTAttr db flush guid name t0 t1 = do
-  mapM_ (mapConcurrently procData) (intoChunks 16 $ buildQueue t0 t1)
+  mapM_ (mapConcurrently procData) (intoChunks 7 $ buildQueue t0 t1)
     where
       safeFlush [] = return ()
       safeFlush xs = flush xs
@@ -109,14 +105,14 @@ loadTAttr db flush guid name t0 t1 = do
 
 exec :: (GraphBackend db, AttrBackend db) => db -> [Journal] -> IO [(User, Tree, Kind, Node, GUID)]
 exec db rt = do
-  batch [ mkio (intoChunks 32 $ getPutLink rt) (mapM_ $ putLink db)
-        , mkio (intoChunks 32 $ getPutLabel rt) (mapM_ $ putLabel db)
-        , mkio (intoChunks 32 $ getDelLink rt) (mapM_ $ unlink db)
-        , mkio (intoChunks 32 $ getPutKAttr rt) (mapM_ $ putAttr db)
-        , mkio (intoChunks 32 $ getDelKAttr rt) (mapM_ $ delAttr db)
-        , mkio (intoChunks 32 $ getPutTAttr rt) (mapM_ $ putTAttr db)
-        ]
-  fmap concat (mapM (mapConcurrently register) (intoChunks 8 $ getPutNode rt))
+  execute [ mkio (intoChunks 32 $ getPutLink rt) (mapM_ $ putLink db)
+          , mkio (intoChunks 32 $ getPutLabel rt) (mapM_ $ putLabel db)
+          , mkio (intoChunks 32 $ getDelLink rt) (mapM_ $ unlink db)
+          , mkio (intoChunks 32 $ getPutKAttr rt) (mapM_ $ putAttr db)
+          , mkio (intoChunks 32 $ getDelKAttr rt) (mapM_ $ delAttr db)
+          , mkio (intoChunks 32 $ getPutTAttr rt) (mapM_ $ putTAttr db)
+          ]
+  mapM register (getPutNode rt)
     where
       register (u, t, k, n) = do
         g <- putName db u t k n
