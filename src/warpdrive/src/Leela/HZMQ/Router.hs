@@ -49,22 +49,22 @@ readMsg (Request _ val) = val
 readPeer :: Request -> [B.ByteString]
 readPeer (Request val _) = val
 
-reply :: Poller Router -> Request -> [L.ByteString] -> IO ()
-reply poller job msg = do
+reply :: Logger -> Poller Router -> Request -> [L.ByteString] -> IO ()
+reply syslog poller job msg = do
   let ans = (map L.fromStrict $ readPeer job) ++ (L.empty : msg)
-  ans `deepseq` (void $ sendMsg poller ans)
+  ans `deepseq` (sendMsg poller ans >>= flip unless (warning syslog "dropping msg [router#sndqueue full]"))
 
-worker :: Poller Router -> Request -> Worker -> IO ()
-worker poller job action = do
+worker :: Logger -> Poller Router -> Request -> Worker -> IO ()
+worker syslog poller job action = do
   mmsg <- try (onJob action (readMsg job))
   case mmsg of
     Left e    ->
-      onErr action e >>= reply poller job
+      onErr action e >>= reply syslog poller job
     Right msg ->
-      reply poller job msg
+      reply syslog poller job msg
 
-forkWorker :: Poller Router -> Request -> Worker -> IO ()
-forkWorker poller job action = void (forkIO $ void $ worker poller job action)
+forkWorker :: Logger -> Poller Router -> Request -> Worker -> IO ()
+forkWorker syslog poller job action = void (forkIO $ void $ worker syslog poller job action)
 
 recvRequest :: [B.ByteString] -> (Maybe Request)
 recvRequest []   = Nothing
@@ -97,7 +97,7 @@ startRouter syslog endpoint ctx action = do
         msg <- recvMsg poller
         when (isJust msg) $ do
           let mreq = recvRequest (fromJust msg)
-          when (isJust mreq) (forkWorker poller (fromJust mreq) action)
+          when (isJust mreq) (forkWorker syslog poller (fromJust mreq) action)
           recvLoop poller
 
       go ctrl fh = do
@@ -105,7 +105,7 @@ startRouter syslog endpoint ctx action = do
         poller <- newIOLoop_ fh
         wait   <- newQSem 0
         _      <- forkFinally (recvLoop poller) (const $ signalQSem wait)
-        _      <- forkFinally (pollLoop poller) (const $ signalQSem wait)
+        _      <- forkFinally (pollLoop syslog poller) (const $ signalQSem wait)
         waitCTRL ctrl
         cancel poller
         replicateM_ 2 (waitQSem wait)

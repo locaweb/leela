@@ -36,9 +36,9 @@ import           Leela.HZMQ.ZHelpers
 import qualified Data.ByteString.Lazy as L
 import           Control.Concurrent.STM
 
-newtype Poller a = Poller (TChan [B.ByteString], TChan [L.ByteString], MVar (Socket a), TVar Bool)
+newtype Poller a = Poller (TBQueue [B.ByteString], TBQueue [L.ByteString], MVar (Socket a), TVar Bool)
 
-newIOLoop :: TChan [B.ByteString] -> TChan [L.ByteString] -> Socket a -> IO (Poller a)
+newIOLoop :: TBQueue [B.ByteString] -> TBQueue [L.ByteString] -> Socket a -> IO (Poller a)
 newIOLoop qsrc qdst fh = do
   ctrl <- newTVarIO True
   lock <- newMVar fh
@@ -46,8 +46,8 @@ newIOLoop qsrc qdst fh = do
 
 newIOLoop_ :: Socket a -> IO (Poller a)
 newIOLoop_ fh = do
-  qsrc <- newTChanIO
-  qdst <- newTChanIO
+  qsrc <- newTBQueueIO 1024
+  qdst <- newTBQueueIO 1024
   newIOLoop qsrc qdst fh
 
 aliveSTM :: Poller a -> STM Bool
@@ -56,25 +56,28 @@ aliveSTM (Poller (_, _, _, ctrl)) = readTVar ctrl
 alive :: Poller a -> IO Bool
 alive = atomically . aliveSTM
 
-enqueue :: Poller a -> [B.ByteString] -> STM ()
+tryWriteTBQueue :: TBQueue a -> a -> STM Bool
+tryWriteTBQueue q a = (writeTBQueue q a >> return True) `orElse` (return False)
+
+enqueue :: Poller a -> [B.ByteString] -> STM Bool
 enqueue (Poller (q, _, _, _)) msg =
   case (break B.null msg) of
-    (_, (_ : [])) -> return ()
-    _             -> writeTChan q msg
+    (_, (_ : [])) -> return False
+    _             -> tryWriteTBQueue q msg
 
 dequeue :: Poller a -> Maybe [L.ByteString] -> STM [L.ByteString]
 dequeue _ (Just msg)            = return msg
-dequeue (Poller (_, q, _, _)) _ = readTChan q
+dequeue (Poller (_, q, _, _)) _ = readTBQueue q
 
 recvMsg :: Poller a -> IO (Maybe [B.ByteString])
 recvMsg p@(Poller (q, _, _, _)) = atomically $ do
   ok <- aliveSTM p
   if ok
-   then fmap Just (readTChan q)
+   then fmap Just (readTBQueue q)
    else return Nothing
 
-sendMsg :: Poller a -> [L.ByteString] -> IO ()
-sendMsg (Poller (_, q, _, _)) msg = atomically $ writeTChan q msg
+sendMsg :: Poller a -> [L.ByteString] -> IO Bool
+sendMsg (Poller (_, q, _, _)) msg = atomically $ tryWriteTBQueue q msg
 
 cancel :: Poller a -> IO ()
 cancel (Poller (_, _, _, ctrl)) = atomically $ writeTVar ctrl False
@@ -82,16 +85,16 @@ cancel (Poller (_, _, _, ctrl)) = atomically $ writeTVar ctrl False
 useSocket :: Poller a -> (Socket a -> IO b) -> IO b
 useSocket (Poller (_, _, lock, _)) = withMVar lock
 
-pollLoop :: (Receiver a, Sender a) => Poller a -> IO ()
-pollLoop p@(Poller (_, _, _, ctrl)) = do
+pollLoop :: (Receiver a, Sender a) => Logger -> Poller a -> IO ()
+pollLoop syslog p@(Poller (_, _, _, ctrl)) = do
   fd               <- useSocket p fileDescriptor
   (waitW, cancelW) <- waitFor (threadWaitWrite fd)
   (waitR, cancelR) <- waitFor (threadWaitRead fd)
-  supervise nullLogger "ioloop" (go waitR waitW Nothing) `finally` (cancelR >> cancelW)
+  supervise syslog "ioloop" (go waitR waitW Nothing) `finally` (cancelR >> cancelW)
     where
       waitFor waitFunc = do
         v <- newEmptyTMVarIO
-        t <- forkIO $ supervise nullLogger "ioloop/waitFor" $ forever $ do
+        t <- forkIO $ supervise syslog "ioloop/waitFor" $ forever $ do
           waitFunc
           atomically $ putTMVar v ()
         return (takeTMVar v, killThread t)
@@ -100,7 +103,8 @@ pollLoop p@(Poller (_, _, _, ctrl)) = do
         zready <- events fh
         if (In `elem` zready)
          then do
-           receiveMulti fh >>= atomically . enqueue p
+           ok <- receiveMulti fh >>= atomically . enqueue p
+           unless ok (warning syslog "dropping message [rcvqueue full]")
            handleRecv fh
          else return zready
 

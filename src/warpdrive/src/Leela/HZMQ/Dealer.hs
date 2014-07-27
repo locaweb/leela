@@ -71,10 +71,14 @@ modifyState ioref f = atomicModifyIORef' ioref $ \state ->
    Just state' -> (state', ())
 
 request :: Int -> ClientFH -> [L.ByteString] -> IO (Maybe [B.ByteString])
-request maxwait (ClientFH (dealer, _)) msg = mask $ \restore -> do
-  job <- newJob dealer
-  sendMsg (head $ poller dealer) (encodeLazy (readKey job) : L.empty : msg)
-  restore (timeout (maxwait * 1000) (takeMVar (readJob job))) `finally` (delJob dealer (readKey job))
+request maxwait (ClientFH (dealer, _)) msg =
+  bracket (newJob dealer) (delJob dealer . readKey) $ \job -> do
+    ok <- sendMsg (head $ poller dealer) (encodeLazy (readKey job) : L.empty : msg)
+    if ok
+     then timeout (maxwait * 1000) (takeMVar (readJob job))
+     else do
+       warning (logger dealer) "dropping request [dealer#sndqueue full]"
+       return Nothing
 
 newJob :: Client -> IO Job
 newJob dealer = do
@@ -98,7 +102,7 @@ dealerLoop dealer = do
   warning (logger dealer) "dealer has started"
   wait   <- newQSem 0
   _      <- forkFinally recvLoop (const $ signalQSem wait)
-  mapM_ (flip forkFinally (const $ signalQSem wait) . pollLoop) (poller dealer)
+  mapM_ (flip forkFinally (const $ signalQSem wait) . pollLoop (logger dealer)) (poller dealer)
   replicateM_ (length (poller dealer) + 1) (waitQSem wait)
   warning (logger dealer) "dealer has quit"
     where
@@ -128,8 +132,8 @@ create syslog cfg ctx = do
     fh <- socket ctx Dealer
     config fh
     return fh
-  qsrc   <- newTChanIO
-  qdst   <- newTChanIO
+  qsrc   <- newTBQueueIO 1024
+  qdst   <- newTBQueueIO 1024
   qsem   <- newQSem 0
   dealer <- liftM3 (Client syslog) (mapM (newIOLoop qsrc qdst) fhs) (newIORef M.empty) newCounter
   pool   <- createPool (createWorker dealer) (destroyWorker dealer)
