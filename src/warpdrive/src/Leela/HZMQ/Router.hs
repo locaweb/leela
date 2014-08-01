@@ -103,10 +103,10 @@ startRouter syslog endpoint ctx action = do
       go ctrl fh = do
         warning syslog "router has started"
         poller <- newIOLoop_ fh
-        wait   <- newQSem 0
-        _      <- forkFinally (recvLoop poller) (const $ signalQSem wait)
-        _      <- forkFinally (pollLoop syslog poller) (const $ signalQSem wait)
+        wait   <- newQSemN 0
+        _      <- forkFinally (recvLoop poller) (const $ signalQSemN wait 1)
+        _      <- forkFinally (pollLoop syslog poller) (const $ signalQSemN wait 1)
         waitCTRL ctrl
         cancel poller
-        replicateM_ 2 (waitQSem wait)
+        waitQSemN wait 2
         warning syslog "router has quit"

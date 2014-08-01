@@ -100,10 +100,10 @@ decodeKey = either (const Nothing) Just . decode
 dealerLoop :: Client -> IO ()
 dealerLoop dealer = do
   warning (logger dealer) "dealer has started"
-  wait   <- newQSem 0
-  _      <- forkFinally recvLoop (const $ signalQSem wait)
-  mapM_ (flip forkFinally (const $ signalQSem wait) . pollLoop (logger dealer)) (poller dealer)
-  replicateM_ (length (poller dealer) + 1) (waitQSem wait)
+  wait   <- newQSemN 0
+  _      <- forkFinally recvLoop (const $ signalQSemN wait 1)
+  mapM_ (flip forkFinally (const $ signalQSemN wait 1) . pollLoop (logger dealer)) (poller dealer)
+  waitQSemN wait (length (poller dealer) + 1)
   warning (logger dealer) "dealer has quit"
     where
       recvAns msg = do
