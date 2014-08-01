@@ -51,8 +51,8 @@ data Priority = DEBUG
 class ToString a where
     fmt :: a -> String
 
-newLogger :: Priority -> IO Logger
-newLogger p = fmap (Logger p) (newStdoutLoggerSet defaultBufSize)
+newLogger :: BufSize -> Priority -> IO Logger
+newLogger size p = fmap (Logger p) (newStdoutLoggerSet size)
 
 nullLogger :: Logger
 nullLogger = NullLogger

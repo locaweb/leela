@@ -40,6 +40,7 @@ data Options = Options { optConsul       :: String
                        , optEndpoint     :: Endpoint
                        , optDebugLevel   :: Priority
                        , optRedisSecret  :: String
+                       , optBufSize      :: Int
                        }
 
 defaultOptions :: Options
@@ -49,6 +50,7 @@ defaultOptions = Options { optEndpoint     = TCP "*" 4080 ""
                          , optRedisSecret  = ""
                          , optPasswd       = "/etc/leela/passwd"
                          , optTimeout      = 60 * 1000
+                         , optBufSize      = 512
                          }
 
 setReadOpt :: (Read a) => (a -> Options -> Options) -> String -> Options -> Options
@@ -67,12 +69,15 @@ options =
   , Option [] ["debug-level"]
            (ReqArg (setReadOpt (\v opts -> opts { optDebugLevel = v })) "DEBUG|INFO|NOTICE|WARNING|ERROR")
            "logging level"
-  , Option []    ["redis-secret"]
+  , Option [] ["redis-secret"]
            (ReqArg (\v opts -> opts { optRedisSecret = v }) "REDISSECRET")
            "redis authentication string"
   , Option [] ["timeout-in-ms"]
-           (ReqArg (setReadOpt (\v opts -> opts { optTimeout = v})) "TIMEOUT-IN-MS")
+           (ReqArg (setReadOpt (\v opts -> opts { optTimeout = v })) "TIMEOUT-IN-MS")
            "timeout in milliseconds"
+  , Option [] ["log-bufsize"]
+           (ReqArg (setReadOpt (\v opts -> opts { optBufSize = v })) "LOG-BUFSIZE")
+           "size of the buffer log"
   , Option [] ["passwd"]
            (ReqArg (\v opts -> opts { optPasswd = v }) "PASSWD")
            "passwd file path"
@@ -106,7 +111,7 @@ main = do
   opts   <- getArgs >>= readOpts
   alive  <- newEmptyMVar
   naming <- newIORef []
-  syslog <- newLogger (optDebugLevel opts)
+  syslog <- newLogger (optBufSize opts) (optDebugLevel opts)
   passwd <- passwdWatcher syslog (optPasswd opts)
   core   <- newCore syslog naming passwd
   resolver syslog naming (optConsul opts)
