@@ -265,14 +265,14 @@ void __consume_cursor (lql_cursor_t *cursor)
 }
 
 static
-void __mainloop (lql_context_t *ctx, const char *username, const char *secret, int timeout)
+void __mainloop (lql_context_t *ctx)
 {
   char buffer[8192];
   while (strlen(__readline(buffer, 8192)) > 4)
   {
     buffer[strlen(buffer)-2] = '\0';
     const char *query        = __unslash(buffer+2);
-    lql_cursor_t *cursor = leela_lql_cursor_init(ctx, username, secret, timeout);
+    lql_cursor_t *cursor = leela_lql_cursor_init_default(ctx);
     if (cursor != NULL)
     {
       if (leela_lql_cursor_execute(cursor, query) == LEELA_OK)
@@ -304,9 +304,9 @@ int main (int argc, char *argv[])
   int timeout                  = 60000;
   char *username               = __get_string(json, "\"username\":");
   leela_endpoint_t **endpoints = __get_endpoint(json, "\"endpoint\":");
-  lql_context_t *context       = leela_lql_context_init((const leela_endpoint_t * const *) endpoints);
+  lql_context_t *context       = leela_lql_context_init((const leela_endpoint_t * const *) endpoints, username, secret, timeout);
   if (context != NULL)
-  {  __mainloop(context, username, secret, timeout); }
+  {  __mainloop(context); }
   free(secret);
   free(username);
   leela_lql_context_close(context);
