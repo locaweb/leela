@@ -19,6 +19,7 @@
 #include <zmq.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #include "base.h"
 #include "random.h"
 #include "status.h"
