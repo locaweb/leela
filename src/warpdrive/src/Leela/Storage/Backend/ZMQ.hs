@@ -77,7 +77,7 @@ instance AttrBackend ZMQBackend where
   getTAttr m g a time limit = do
     reply <- send (dealer m) (MsgGetTAttr g a time limit)
     case reply of
-      TAttrMsg v  -> return v
+      TAttrMsg v  -> evaluate (reverse v)
       FailMsg 404 -> return []
       _           -> internalError "ZMQ/getTAttr: backend error"
 

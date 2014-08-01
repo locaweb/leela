@@ -55,7 +55,12 @@ foreverWith check io = do
 showDouble :: Double -> String
 showDouble = unpack . toShortest
 
-intoChunks :: Int -> [a] -> [[a]]
-intoChunks _ [] = []
-intoChunks n l  = let (a, rest) = splitAt n l
-                  in a : intoChunks n rest
+chunked :: Int -> [a] -> [[a]]
+chunked _ [] = []
+chunked n xs = let (chunk, ys) = splitAt n xs
+               in chunk : chunked n ys
+
+chunkSplit :: Int -> [a] -> [[a]]
+chunkSplit n xs = foldr zipList (replicate n []) (chunked n xs)
+    where
+      zipList xs = zipWith ($) (map (:) xs ++ repeat id)

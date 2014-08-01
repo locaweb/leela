@@ -21,12 +21,14 @@ module Leela.Data.Graph
     , loadTAttr
     ) where
 
-import Leela.Helpers
-import Control.Monad
-import Leela.Data.Time
-import Leela.Data.Types
-import Leela.Storage.Graph
-import Control.Concurrent.Async
+import qualified Data.IntMap as M
+import           Leela.Helpers
+import           Control.Monad
+import           Leela.Data.Time
+import           Leela.Data.Types
+import           Control.Concurrent
+import           Leela.Storage.Graph
+import           Control.Concurrent.Async
 
 query :: (GraphBackend db) => db -> ([(GUID, Label, GUID)] -> IO ()) -> Matcher -> IO ()
 query db write (ByEdge a l b) = do
@@ -90,27 +92,35 @@ buildQueue t0 t1 =
   in if (d0 == d1)
        then [(t0, dlimit)]
        else (t0, dlimit)
-            : (fromDateTime d1 0, max 1 (ceiling s1))
-            : whithin
+            : (whithin ++ [(fromDateTime d1 0, max 1 (ceiling s1))])
 
 loadTAttr :: (AttrBackend db) => db -> ([(Time, Value)] -> IO ()) -> GUID -> Attr -> Time -> Time -> IO ()
 loadTAttr db flush guid name t0 t1 = do
-  mapM_ (mapConcurrently procData) (intoChunks 7 $ buildQueue t0 t1)
+  caps   <- fmap (max 2) getNumCapabilities
+  memory <- newMVar (0, M.empty)
+  void $ mapConcurrently (mapM_ (procData memory)) (chunkSplit caps $ zip [0..] (buildQueue t0 t1))
     where
-      safeFlush [] = return ()
-      safeFlush xs = flush xs
+      flushQueue ix state = do
+        case (M.lookup ix state) of
+          Nothing -> return (ix, state)
+          Just xs -> do
+            unless (null xs) (flush xs)
+            flushQueue (ix + 1) (M.delete ix state)
 
-      procData (t, l) =
-        safeFlush =<< getTAttr db guid name t l
+      enqueueFlush memory ix xs =
+        modifyMVar_ memory $ \(at, state) -> flushQueue at (M.insert ix xs state)
+
+      procData memory (ix, (t, l)) =
+        enqueueFlush memory ix =<< getTAttr db guid name t l
 
 exec :: (GraphBackend db, AttrBackend db) => db -> [Journal] -> IO [(User, Tree, Kind, Node, GUID)]
 exec db rt = do
-  execute [ mkio (intoChunks 32 $ getPutLink rt) (mapM_ $ putLink db)
-          , mkio (intoChunks 32 $ getPutLabel rt) (mapM_ $ putLabel db)
-          , mkio (intoChunks 32 $ getDelLink rt) (mapM_ $ unlink db)
-          , mkio (intoChunks 32 $ getPutKAttr rt) (mapM_ $ putAttr db)
-          , mkio (intoChunks 32 $ getDelKAttr rt) (mapM_ $ delAttr db)
-          , mkio (intoChunks 32 $ getPutTAttr rt) (mapM_ $ putTAttr db)
+  execute [ mkio (chunked 32 $ getPutLink rt) (mapM_ $ putLink db)
+          , mkio (chunked 32 $ getPutLabel rt) (mapM_ $ putLabel db)
+          , mkio (chunked 32 $ getDelLink rt) (mapM_ $ unlink db)
+          , mkio (chunked 32 $ getPutKAttr rt) (mapM_ $ putAttr db)
+          , mkio (chunked 32 $ getDelKAttr rt) (mapM_ $ delAttr db)
+          , mkio (chunked 32 $ getPutTAttr rt) (mapM_ $ putTAttr db)
           ]
   mapM register (getPutNode rt)
     where
