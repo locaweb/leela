@@ -30,21 +30,6 @@ class TestPath(unittest.TestCase):
                 self.assertEqual([["path",[["foobaz", c_guid]]],
                                   ["path",[["foobar", b_guid]]]], answer)
 
-    def test_path_using_suffix(self):
-        with self.driver.session("smoke/test_path") as session:
-            a_guid = helpers.make(session)
-            b_guid = helpers.make(session)
-            c_guid = helpers.make(session)
-            helpers.link(session, a_guid, "foobar", b_guid)
-            helpers.link(session, a_guid, "goobar", c_guid)
-            answer = session.execute_fetch("path %s -[*bar]> ()" % (a_guid,))
-            if (answer[0][1][0][-1] == b_guid):
-                self.assertEqual([["path",[["foobar", b_guid]]],
-                                  ["path",[["goobar", c_guid]]]], answer)
-            else:
-                self.assertEqual([["path",[["goobar", c_guid]]],
-                                  ["path",[["foobar", b_guid]]]], answer)
-
     def test_path_without_arguments(self):
         with self.driver.session("smoke/test_path") as session:
             a_guid  = helpers.make(session)
