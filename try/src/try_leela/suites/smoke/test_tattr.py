@@ -13,12 +13,12 @@ class TestTAttr(unittest.TestCase):
     def test_tattr_must_return_null_when_there_is_no_attr(self):
         with self.driver.session("smoke/test_tattr") as session:
             a_guid = helpers.make(session)
-            self.assertEqual([["t-attr", [a_guid, "cpuidle", []]]], session.execute_fetch("attr get %s \"cpuidle\" [0:1]" % (a_guid,)))
+            self.assertEqual([], session.execute_fetch("attr get %s \"cpuidle\" [0:1]" % (a_guid,)))
 
     def test_tattr_must_return_null_when_there_is_no_guid(self):
         with self.driver.session("smoke/test_tattr") as session:
             guid = str(uuid.uuid1())
-            self.assertEqual([["t-attr", [guid, "cpuidle", []]]], session.execute_fetch("attr get %s \"cpuidle\" [0:1]" % (guid,)))
+            self.assertEqual([], session.execute_fetch("attr get %s \"cpuidle\" [0:1]" % (guid,)))
 
     def test_tattr_types(self):
         with self.driver.session("smoke/test_tattr") as session:
