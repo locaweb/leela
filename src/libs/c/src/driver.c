@@ -247,7 +247,7 @@ void __consume_cursor (lql_cursor_t *cursor)
     case LQL_TATTR_MSG:
     {
       lql_tattr_t *tattr = leela_lql_fetch_tattr(cursor);
-      fprintf(stdout, "[[\"t-attr\"], [\"%s\", \"%s\", [", tattr->guid, tattr->name);
+      fprintf(stdout, "[[\"t-attr\", [\"%s\", \"%s\", [", tattr->guid, tattr->name);
       for (int k=0; k<tattr->size; k+=1)
       {
         double *dval = (double *) tattr->series[k].fst;
@@ -255,7 +255,7 @@ void __consume_cursor (lql_cursor_t *cursor)
         __print_value((lql_value_t *) tattr->series[k].snd);
         fprintf(stdout, "]");
       }
-      fprintf(stdout, "]]]\n");
+      fprintf(stdout, "]]]]\n");
       fflush(stdout);
       leela_lql_tattr_free(tattr);
       break;
