@@ -25,10 +25,10 @@ class Session(object):
     def execute(self, *stmt):
         while (not self.clean):
             self.message()
-        env  = {"rnd_name.0": names.rnd_name(),
-                "rnd_name.1": names.rnd_name(),
-                "rnd_name.2": names.rnd_name(),
-                "rnd_name.3": names.rnd_name()}
+        env  = {"rnd_name.0": "%s::%s" % (names.rnd_name(), names.rnd_name()),
+                "rnd_name.1": "%s::%s" % (names.rnd_name(), names.rnd_name()),
+                "rnd_name.2": "%s::%s" % (names.rnd_name(), names.rnd_name()),
+                "rnd_name.3": "%s::%s" % (names.rnd_name(), names.rnd_name())}
         stmt = [line % env for line in stmt]
         self.exe.stdin.write("%s\n" % json.dumps(["using (%s) %s;" % (self.tree, "\n".join(stmt))]))
         self.exe.stdin.flush()
