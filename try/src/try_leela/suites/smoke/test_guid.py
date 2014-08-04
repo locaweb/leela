@@ -17,5 +17,5 @@ class TestGUID(unittest.TestCase):
     def test_guid_with_recently_created_guid(self):
         with self.driver.session("smoke/test_guid") as session:
             name0 = session.execute_fetch("make (%(rnd_name.0)s)")
-            name1 = session.execute_fetch("guid (%s)" % (name0[0][1][-1],))
+            name1 = session.execute_fetch("guid (%s::%s)" % (name0[0][1][-3], name0[0][1][-2]))
             self.assertEqual(name0, name1)
