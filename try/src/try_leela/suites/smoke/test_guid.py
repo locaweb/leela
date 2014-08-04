@@ -12,7 +12,8 @@ class TestGUID(unittest.TestCase):
 
     def test_guid_without_know_name_must_produce_404(self):
         with self.driver.session("smoke/test_guid") as session:
-            self.assertEqual([["fail", 404, "not found"]], session.execute_fetch("guid (%(rnd_name.0)s)"))
+            answer = session.execute_fetch("guid (%(rnd_name.0)s)")
+            self.assertEqual(["fail", 404], answer[0][0:2])
 
     def test_guid_with_recently_created_guid(self):
         with self.driver.session("smoke/test_guid") as session:
