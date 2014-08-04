@@ -46,6 +46,7 @@ module Leela.Data.Types
        , treeFromBS
        , userFromBS
        , labelFromBS
+       , getAlignment
        , getMaxDataPoints
        ) where
 
@@ -111,6 +112,7 @@ data Journal = PutLink GUID Label GUID
 data Option = TTL Int
             | Indexing
             | MaxDataPoints Int
+            | Alignment Int
             deriving (Eq)
 
 data Mode a = All (Maybe a)
@@ -174,6 +176,11 @@ getMaxDataPoints :: [Option] -> Maybe Int
 getMaxDataPoints []                  = Nothing
 getMaxDataPoints (MaxDataPoints n:_) = Just n
 getMaxDataPoints (_:xs)              = getMaxDataPoints xs
+
+getAlignment :: [Option] -> Maybe Int
+getAlignment []              = Nothing
+getAlignment (Alignment n:_) = Just n
+getAlignment (_:xs)          = getAlignment xs
 
 setOpt :: Option -> [Option] -> [Option]
 setOpt o1 []       = [o1]

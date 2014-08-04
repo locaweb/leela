@@ -219,7 +219,8 @@ parseWithStmt :: Parser [Option]
 parseWithStmt = "with " *> (parseOption `sepBy` (string ", "))
     where
       parseOption = ("ttl:" *> liftM TTL decimal
-                     <|> "max_data_points:" *> liftM MaxDataPoints decimal)
+                     <|> "max_data_points:" *> liftM MaxDataPoints decimal
+                     <|> "alignment:" *> liftM Alignment decimal)
 
 parseStmtMake :: Using -> Parser LQL
 parseStmtMake u = do

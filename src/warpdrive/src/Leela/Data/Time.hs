@@ -15,13 +15,15 @@
 -- limitations under the License.
 
 module Leela.Data.Time
-       ( Time
+       ( NominalDiffTime
+       , Time
        , Date (..)
        , TimeSpec (..)
        , add
        , now
        , diff
        , sleep
+       , alignBy
        , expired
        , seconds
        , dateTime
@@ -45,6 +47,10 @@ newtype Date = Date (Int, Int, Int)
 
 add :: NominalDiffTime -> Time -> Time
 add increment (Time t) = Time (t + realToFrac increment)
+
+alignBy :: Int -> Time -> Time
+alignBy by t = let offset = fromIntegral ((truncate $ seconds t) `mod` by)
+               in (negate offset) `add` t
 
 seconds :: Time -> Double
 seconds = unTime

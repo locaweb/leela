@@ -201,12 +201,11 @@ evalLQL cache db core queue (x:xs) = do
       enumKAttrs db (devwriteIO queue . Item . NAttrs g) g a
     KAttrGetStmt g a _ ->
       getAttr db g a >>= devwriteIO queue . Item . KAttr g a
-    TAttrGetStmt g a (Range t0 t1) opts ->
-      case (getMaxDataPoints opts) of
-        Just n  -> loadTAttr db (devwriteIO queue . (Item . TAttr g a . maxDataPoints n)) g a t0 t1
-        Nothing -> do
-          loadTAttr db (devwriteIO queue . (Item . TAttr g a)) g a t0 t1
-          devwriteIO queue (Item $ TAttr g a [])
+    TAttrGetStmt g a (Range t0 t1) opts -> do
+      let mdpFunc = maybe id maxDataPoints (getMaxDataPoints opts)
+          alnFunc = maybe id alignSeries (getAlignment opts)
+      loadTAttr db (devwriteIO queue . (Item . TAttr g a . alnFunc . mdpFunc)) g a t0 t1
+      devwriteIO queue (Item $ TAttr g a [])
     StatStmt          -> do
       state <- dumpStat core
       devwriteIO queue (Item $ Stat state)

@@ -16,7 +16,8 @@
 -- limitations under the License.
 
 module Leela.Data.TimeSeries
-       ( maxDataPoints
+       ( alignSeries
+       , maxDataPoints
        ) where
 
 import qualified Data.Vector as V
@@ -59,3 +60,6 @@ maxDataPoints maxPoints series
         (1,0) -> series
         (q,r) -> let summarize = (\(t, v) -> (t, Double $ mean v))
                  in maybe series (parMap rdeepseq summarize . groupBy (q + min 1 r)) (onlyNumeric series)
+
+alignSeries :: Int -> [(Time, Value)] -> [(Time, Value)]
+alignSeries by = map (\(t, v) -> (alignBy by t, v))
