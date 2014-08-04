@@ -251,11 +251,12 @@ void __consume_cursor (lql_cursor_t *cursor)
       for (int k=0; k<tattr->size; k+=1)
       {
         double *dval = (double *) tattr->series[k].fst;
-        fprintf(stdout, "%s[%f, ", (k == 0 ? "" : ", "), *dval);
+        fprintf(stdout, "%s[%f, ", (k == 0 ? "" : ","), *dval);
         __print_value((lql_value_t *) tattr->series[k].snd);
         fprintf(stdout, "]");
       }
       fprintf(stdout, "]]]\n");
+      fflush(stdout);
       leela_lql_tattr_free(tattr);
       break;
     }
