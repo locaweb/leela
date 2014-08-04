@@ -31,15 +31,3 @@ class TestNAttr(unittest.TestCase):
                 self.assertEqual([["n-attr", [a_guid, ["foobar", "foobaz"]]]], answer)
             else:
                 self.assertEqual([["n-attr", [a_guid, ["foobaz", "foobar"]]]], answer)
-
-    def test_nattr_by_suffix(self):
-        with self.driver.session("smoke/test_nattr") as session:
-            a_guid = helpers.make(session)
-            helpers.kattr_put(session, a_guid, "a_foobar", helpers.string_value("foobar"))
-            helpers.kattr_put(session, a_guid, "b_foobar", helpers.string_value("foobar"))
-            helpers.kattr_put(session, a_guid, "foobaz", helpers.string_value("foobar"))
-            answer = session.execute_fetch("attr kls %s \"*bar\"" % (a_guid,))
-            if ("a_foobar" == answer[0][1][1][0]):
-                self.assertEqual([["n-attr", [a_guid, ["a_foobar", "b_foobar"]]]], answer)
-            else:
-                self.assertEqual([["n-attr", [a_guid, ["b_foobar", "a_foobar"]]]], answer)
