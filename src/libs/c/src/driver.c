@@ -182,7 +182,7 @@ void __consume_cursor (lql_cursor_t *cursor)
     case LQL_NAME_MSG:
     {
       lql_name_t *name = leela_lql_fetch_name(cursor);
-      fprintf(stdout, "[[\"name\",[\"%s\",\"%s\",\"%s\",\"%s\"]]]\n", name->user, name->tree, name->name, name->guid);
+      fprintf(stdout, "[[\"name\",[\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"]]]\n", name->user, name->tree, name->kind, name->name, name->guid);
       fflush(stdout);
       leela_lql_name_free(name);
       break;
