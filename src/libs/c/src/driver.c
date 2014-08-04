@@ -172,6 +172,41 @@ char *__readline (char *buffer, size_t size)
 }
 
 static
+void __print_value (lql_value_t *value)
+{
+  switch (value->vtype)
+  {
+  case LQL_NIL_TYPE:
+    fprintf(stdout, "null");
+    break;
+  case LQL_BOOL_TYPE:
+    if (value->data.v_bool)
+    { fprintf(stdout, "true"); }
+    else
+    { fprintf(stdout, "false"); }
+    break;
+  case LQL_TEXT_TYPE:
+    fprintf(stdout, "\"%s\"", value->data.v_str);
+    break;
+  case LQL_INT32_TYPE:
+    fprintf(stdout, "%ld", (long int) value->data.v_i32);
+    break;
+  case LQL_INT64_TYPE:
+    fprintf(stdout, "%lld", (long long int) value->data.v_i64);
+    break;
+  case LQL_UINT32_TYPE:
+    fprintf(stdout, "%lu", (long unsigned int) value->data.v_u32);
+    break;
+  case LQL_UINT64_TYPE:
+    fprintf(stdout, "%llu", (long long unsigned int) value->data.v_u64);
+    break;
+  case LQL_DOUBLE_TYPE:
+    fprintf(stdout, "%f", value->data.v_double);
+    break;
+  }
+}
+
+static
 void __consume_cursor (lql_cursor_t *cursor)
 {
   leela_status rc;
@@ -209,40 +244,27 @@ void __consume_cursor (lql_cursor_t *cursor)
       leela_lql_nattr_free(nattr);
       break;
     }
+    case LQL_TATTR_MSG:
+    {
+      lql_tattr_t *tattr = leela_lql_fetch_tattr(cursor);
+      fprintf(stdout, "[[\"t-attr\"], [\"%s\", \"%s\", [", tattr->guid, tattr->name);
+      for (int k=0; k<tattr->size; k+=1)
+      {
+        double *dval = (double *) tattr->series[k].fst;
+        fprintf(stdout, "%s[%f, ", (k == 0 ? "" : ", "), *dval);
+        __print_value((lql_value_t *) tattr->series[k].snd);
+        fprintf(stdout, "]");
+      }
+      fprintf(stdout, "]]]\n");
+      leela_lql_tattr_free(tattr);
+      break;
+    }
     case LQL_KATTR_MSG:
     {
       lql_kattr_t *kattr = leela_lql_fetch_kattr(cursor);
       fprintf(stdout, "[[\"k-attr\", [\"%s\", \"%s\", ", kattr->guid, kattr->name);
-      switch (kattr->value->vtype)
-      {
-      case LQL_NIL_TYPE:
-        fprintf(stdout, "null]]]\n");
-        break;
-      case LQL_BOOL_TYPE:
-        if (kattr->value->data.v_bool)
-        { fprintf(stdout, "true]]]\n"); }
-        else
-        { fprintf(stdout, "false]]]\n"); }
-        break;
-      case LQL_TEXT_TYPE:
-        fprintf(stdout, "\"%s\"]]]\n", kattr->value->data.v_str);
-        break;
-      case LQL_INT32_TYPE:
-        fprintf(stdout, "%ld]]]\n", (long int) kattr->value->data.v_i32);
-        break;
-      case LQL_INT64_TYPE:
-        fprintf(stdout, "%lld]]]\n", (long long int) kattr->value->data.v_i64);
-        break;
-      case LQL_UINT32_TYPE:
-        fprintf(stdout, "%lu]]]\n", (long unsigned int) kattr->value->data.v_u32);
-        break;
-      case LQL_UINT64_TYPE:
-        fprintf(stdout, "%llu]]]\n", (long long unsigned int) kattr->value->data.v_u64);
-        break;
-      case LQL_DOUBLE_TYPE:
-        fprintf(stdout, "%f]]]\n", kattr->value->data.v_double);
-        break;
-      }
+      __print_value(kattr->value);
+      fprintf(stdout, "]]]\n");
       fflush(stdout);
       leela_lql_kattr_free(kattr);
       break;
