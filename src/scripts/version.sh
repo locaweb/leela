@@ -243,14 +243,14 @@ write_rbmetriksversion () {
 module Metriks
   module Reporter
     module Leela
-     
+
       module Version
         MAJOR   = $major
         MINOR   = $minor
         PATCH   = $patch
         VERSION = "$major.$minor.$patch"
       end
-     
+
     end
   end
 end
@@ -284,7 +284,7 @@ unset major minor patch
 component=.leela-ruby
 read_version
 check_environ
-write_rbversion $leela_root/src/ruby/leela_ruby/lib/leela_ruby/version.rb
+write_rbversion $leela_root/src/libs/ruby/leela_ruby/lib/leela_ruby/version.rb
 
 unset major minor patch
 component=.leela-metriks
