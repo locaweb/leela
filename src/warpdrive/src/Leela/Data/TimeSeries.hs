@@ -24,7 +24,6 @@ import qualified Data.Vector as V
 import           Leela.Data.Time
 import           Leela.Data.Types
 import           Statistics.Sample
-import           Control.Parallel.Strategies
 
 castToDouble :: Value -> Maybe Double
 castToDouble (Text _)   = Nothing
@@ -59,7 +58,7 @@ maxDataPoints maxPoints series
         (0,_) -> series
         (1,0) -> series
         (q,r) -> let summarize = (\(t, v) -> (t, Double $ mean v))
-                 in maybe series (parMap rdeepseq summarize . groupBy (q + min 1 r)) (onlyNumeric series)
+                 in maybe series (map summarize . groupBy (q + min 1 r)) (onlyNumeric series)
 
 alignSeries :: Int -> [(Time, Value)] -> [(Time, Value)]
 alignSeries by = map (\(t, v) -> (alignBy by t, v))
