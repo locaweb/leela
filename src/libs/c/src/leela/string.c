@@ -13,10 +13,18 @@
  * limitations under the License.
  */
 
+#include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include "string.h"
+
+struct leela_strbuilder_t
+{
+  char *buffer;
+  size_t len;
+  size_t off;
+};
 
 char *leela_strdup (const char *s)
 { return(leela_strndup(s, strlen(s))); }
@@ -80,3 +88,88 @@ int leela_check_guid(const char *s)
   }
   return(0);
 }
+
+void leela_strbuilder_free (leela_strbuilder_t *builder)
+{
+  if (builder != NULL)
+  {
+    free(builder->buffer);
+    free(builder);
+  }
+}
+
+leela_strbuilder_t *leela_strbuilder_realloc (leela_strbuilder_t *builder, size_t len)
+{
+  builder->off = 0;
+
+  if (len == 0)
+  {
+    free(builder->buffer);
+    builder->len    = 0;
+    builder->buffer = NULL;
+  }
+  else
+  {
+    char *newbuffer = (char *) realloc(builder->buffer, len + 2);
+    if (newbuffer == NULL)
+    {
+      leela_strbuilder_free(builder);
+      return(NULL);
+    }
+    builder->len    = len + 1;
+    builder->buffer = newbuffer;
+    memset(builder->buffer, '\0', len + 2);
+  }
+  return(builder);
+}
+
+leela_strbuilder_t *leela_strbuilder_new (size_t len)
+{
+  leela_strbuilder_t *builder = (leela_strbuilder_t *) malloc(sizeof(leela_strbuilder_t));
+  if (builder != NULL)
+  {
+    builder->len    = len;
+    builder->off    = 0;
+    builder->buffer = NULL;
+    builder         = leela_strbuilder_realloc(builder, len);
+  }
+  return(builder);
+}
+
+size_t leela_strbuilder_strlen (leela_strbuilder_t *builder)
+{ return(builder->off); }
+
+const char *leela_strbuilder_string (leela_strbuilder_t *builder)
+{ return(builder->buffer); }
+
+int leela_strbuilder_add_str (leela_strbuilder_t *builder, const char *str)
+{ return(leela_strbuilder_add_nstr(builder, str, strlen(str))); }
+
+int leela_strbuilder_add_nstr (leela_strbuilder_t *builder, const char *str, size_t len)
+{
+  if (builder->buffer != NULL)
+  {
+    if (len + builder->off >= builder->len)
+    { return(-1); }
+    strcpy(builder->buffer + builder->off, str);
+  }
+  builder->off += len;
+  return(0);
+}
+
+int leela_strbuilder_add_fmt (leela_strbuilder_t *builder, const char *fmt, ...)
+{
+  int off;
+  size_t len = builder->len > builder->off ? builder->len - builder->off : 0;
+  va_list args;
+  va_start(args, fmt);
+  off = vsnprintf(builder->buffer == NULL ? NULL : builder->buffer + builder->off, len, fmt, args);
+  va_end(args);
+  if (off < 0 || (size_t) off > len)
+  { return(-1); }
+  builder->off += off;
+  return(0);
+}
+
+char *leela_strbuilder_str (leela_strbuilder_t *builder)
+{ return(builder != NULL ? builder->buffer : NULL); }

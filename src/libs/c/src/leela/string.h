@@ -16,9 +16,70 @@
 #ifndef leela_string_h__
 #define leela_string_h__
 
+#include <stdlib.h>
 #include "base.h"
 
 LIBLEELA_HEAD
+
+typedef struct leela_strbuilder_t leela_strbuilder_t;
+
+/*! Rezises the internal buffer of this builder.
+ *
+ * Notice this will **erase** all previous data in this builder, even
+ * if the new size is greater than the previous size.
+ *
+ * \param builder A valid pointer to a builder type
+ *
+ * \param len The new size
+ *
+ * \return NULL: error
+ *         xxxx: success
+ */
+LIBLEELA_API leela_strbuilder_t *leela_strbuilder_realloc (leela_strbuilder_t *builder, size_t len);
+
+/*! Creates a new builder type.
+ *
+ * \param len The size of the internal buffer. This may be 0, in which
+ * case no memory gets allocated.
+ */
+LIBLEELA_API leela_strbuilder_t *leela_strbuilder_new (size_t len);
+
+LIBLEELA_API void leela_strbuilder_free (leela_strbuilder_t *builder);
+
+/*! Returns the internal buffer, which is zero-terminated.
+ */
+LIBLEELA_API char *leela_strbuilder_str (leela_strbuilder_t *builder);
+
+/*! Append a NULL-terminated string to the internal buffer.
+ *
+ * This is equivalent to:
+ *
+ *     leela_strbuilder_add_nstr(builder, str, strlen(str));
+ * 
+ * \param str The string to append;
+ *
+ * \return 0: success;
+ *         x: failure (e.g.: not enough space);
+ */
+LIBLEELA_API int leela_strbuilder_add_str (leela_strbuilder_t *builder, const char *str);
+
+/*! Append a string to the internal buffer.
+ *
+ * \param str The string to append;
+ *
+ * \param len the size of the str argument;
+ *
+ * \return 0: success;
+ *         x: failure (e.g.: not enough space);
+ */
+LIBLEELA_API int leela_strbuilder_add_nstr (leela_strbuilder_t *builder, const char *str, size_t len);
+
+/*! Append a string to the internal buffer using printf-like syntax.
+ *
+ * \return 0: success;
+ *         x: failure (e.g.: not enough space);
+ */
+LIBLEELA_API int leela_strbuilder_add_fmt (leela_strbuilder_t *builder, const char *fmt, ...);
 
 LIBLEELA_API char *leela_strdup (const char *);
 
