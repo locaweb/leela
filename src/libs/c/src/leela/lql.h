@@ -290,6 +290,10 @@ LIBLEELA_API void leela_lql_tattr_free (lql_tattr_t *);
  */
 LIBLEELA_API leela_status leela_lql_cursor_close (lql_cursor_t *cursor);
 
+/*! Alias to leela_lql_cursor_close that ignores the return value.
+ */
+LIBLEELA_API void leela_lql_cursor_free (lql_cursor_t *cursor);
+
 /*! Terminates the context. This may block if there are outstanding
  *  open cursors. Make sure to close them all or this may never
  *  return;
@@ -300,6 +304,10 @@ LIBLEELA_API leela_status leela_lql_cursor_close (lql_cursor_t *cursor);
  *          * LEELA_ERROR: could not close the context;
  */
 LIBLEELA_API leela_status leela_lql_context_close (lql_context_t *ctx);
+
+/*! Alias to leela_lql_context_close that ignores the return value.
+ */
+LIBLEELA_API void leela_lql_context_free (lql_context_t *ctx);
 
 LIBLEELA_API leela_random_t *leela_random(lql_context_t *ctx);
 
