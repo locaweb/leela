@@ -151,7 +151,7 @@ int leela_strbuilder_add_nstr (leela_strbuilder_t *builder, const char *str, siz
   {
     if (len + builder->off >= builder->len)
     { return(-1); }
-    strcpy(builder->buffer + builder->off, str);
+    strncpy(builder->buffer + builder->off, str, len);
   }
   builder->off += len;
   return(0);
@@ -170,6 +170,3 @@ int leela_strbuilder_add_fmt (leela_strbuilder_t *builder, const char *fmt, ...)
   builder->off += off;
   return(0);
 }
-
-char *leela_strbuilder_str (leela_strbuilder_t *builder)
-{ return(builder != NULL ? builder->buffer : NULL); }
