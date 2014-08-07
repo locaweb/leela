@@ -1019,6 +1019,9 @@ void leela_lql_tattr_free (lql_tattr_t *tattr)
   }
 }
 
+void leela_lql_cursor_free (lql_cursor_t *cursor)
+{ leela_lql_cursor_close(cursor); }
+
 leela_status leela_lql_cursor_close (lql_cursor_t *cursor)
 {
   leela_status rc = LEELA_ERROR;
@@ -1043,6 +1046,9 @@ leela_status leela_lql_cursor_close (lql_cursor_t *cursor)
 
 leela_random_t *leela_random (lql_context_t *ctx)
 { return(ctx != NULL ? ctx->random : NULL); }
+
+void leela_lql_context_free (lql_context_t *ctx)
+{ leela_lql_context_close(ctx); }
 
 leela_status leela_lql_context_close (lql_context_t *ctx)
 {
