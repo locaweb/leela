@@ -20,6 +20,8 @@ module Leela.Storage.Backend.ZMQ
     , zmqbackend
     ) where
 
+import           Control.Monad
+import           Leela.Helpers
 import           Leela.Data.Types
 import           Control.Exception
 import           Leela.HZMQ.Dealer
@@ -98,25 +100,35 @@ instance AttrBackend ZMQBackend where
 
 instance GraphBackend ZMQBackend where
 
-  getName m guids =
-    mapM work guids
+  getName m guids
+    | length guids == 1 = mapM fetchGUID guids
+    | otherwise         = mapMaybeM maybeFetchGUID guids
       where
-        work g = do
+        fetchGUID g = do
           reply <- send (dealer m) (MsgGetName g)
           case reply of
             NameMsg u t k n _ -> return (u, t, k, n, g)
             FailMsg 404       -> notFoundError "ZMQ/getName: name not found"
             _                 -> internalError "ZMQ/getName: backend error"
 
-  getGUID m names =
-     mapM work names
+        maybeFetchGUID = liftM (either (const Nothing) Just)
+                           . tryJust (guard . isNotFoundExcept)
+                           . fetchGUID
+
+  getGUID m names
+    | length names == 1 = mapM fetchName names
+    | otherwise         = mapMaybeM maybeFetchName names
        where
-         work (u, t, k, n) = do
+         fetchName (u, t, k, n) = do
            reply <- send (dealer m) (MsgGetGUID u t k n)
            case reply of
              NameMsg _ _ _ _ g -> return (u, t, k, n, g)
              FailMsg 404       -> notFoundError "ZMQ/getGUID: guid not found "
              _                 -> internalError "ZMQ/getGUID: backend error"
+
+         maybeFetchName = liftM (either (const Nothing) Just)
+                            . tryJust (guard . isNotFoundExcept)
+                            . fetchName
 
   putName m u t k n = do
     reply <- send (dealer m) (MsgPutName u t k n)
