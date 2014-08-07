@@ -1,11 +1,11 @@
 /* Copyright 2014 (c) Diego Souza <dsouza@c0d3.xxx>
- *  
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *  
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- *  
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -51,7 +51,7 @@ char *leela_join (const char *base, ...)
   { baselen += strlen(item); }
   va_end(args);
 
-  str = (char *) malloc(baselen + 1); 
+  str = (char *) malloc(baselen + 1);
   if (str == NULL)
   { return(NULL); }
 
@@ -136,7 +136,7 @@ leela_strbuilder_t *leela_strbuilder_new (size_t len)
   return(builder);
 }
 
-size_t leela_strbuilder_strlen (leela_strbuilder_t *builder)
+size_t leela_strbuilder_stringlen (leela_strbuilder_t *builder)
 { return(builder->off); }
 
 const char *leela_strbuilder_string (leela_strbuilder_t *builder)

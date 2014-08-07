@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *  
+ *
  *     http: *www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -46,22 +46,26 @@ LIBLEELA_API leela_strbuilder_t *leela_strbuilder_new (size_t len);
 
 LIBLEELA_API void leela_strbuilder_free (leela_strbuilder_t *builder);
 
-/*! Returns the internal buffer, which is zero-terminated.
- */
-LIBLEELA_API char *leela_strbuilder_str (leela_strbuilder_t *builder);
-
 /*! Append a NULL-terminated string to the internal buffer.
  *
  * This is equivalent to:
  *
  *     leela_strbuilder_add_nstr(builder, str, strlen(str));
- * 
+ *
  * \param str The string to append;
  *
  * \return 0: success;
  *         x: failure (e.g.: not enough space);
  */
 LIBLEELA_API int leela_strbuilder_add_str (leela_strbuilder_t *builder, const char *str);
+
+/*! Returns the built string
+ */
+LIBLEELA_API const char *leela_strbuilder_string (leela_strbuilder_t *builder);
+
+/*! Returns the length of the string
+ */
+LIBLEELA_API size_t leela_strbuilder_stringlen (leela_strbuilder_t *builder);
 
 /*! Append a string to the internal buffer.
  *
