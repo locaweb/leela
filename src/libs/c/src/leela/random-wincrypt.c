@@ -51,6 +51,15 @@ leela_random_t *leela_random_init ()
 int leela_random_next (leela_random_t *state, long int *random)
 { return(leela_random_read(state, &random, sizeof(random))); }
 
+void leela_random_close (leela_random_t *state)
+{
+  if (state != NULL)
+  {
+    CryptReleaseContext(state->provider, 0);
+    free(state);
+  }
+}
+
 #else
 
 /* XXX: ISO C forbids an empty translation unit */
