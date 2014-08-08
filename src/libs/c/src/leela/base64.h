@@ -24,7 +24,7 @@ LIBLEELA_HEAD
 /*! The first 64 characters are the alphabet. The last one is the
  *  padding.
  */
-extern const char default_alphabet[65];
+LIBLEELA_API extern const char leela_b64_default_alphabet[65];
 
 /*! performs the base64 encode.
  *
