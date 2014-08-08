@@ -58,13 +58,13 @@ size_t leela_b64encode (const char alphabet[65], char *dst, size_t dstlen, const
   switch (srclen % 3)
   {
   case 1:
-    if (len++ < dstlen)
+    if (len-1 < dstlen)
     { dst[len-1] = alphabet[64]; }
-    if (len++ < dstlen)
-    { dst[len-1] = alphabet[64]; }
+    if (len-2 < dstlen)
+    { dst[len-2] = alphabet[64]; }
     break;
   case 2:
-    if (len++ < dstlen)
+    if (len-1 < dstlen)
     { dst[len-1] = alphabet[64]; }
     break;
   }
