@@ -853,7 +853,7 @@ lql_stat_t *leela_lql_fetch_stat (lql_cursor_t *cursor)
     elems = cursor->elems[1] / 2;
     stat->size  = 0;
     stat->attrs = (lql_tuple2_t *) malloc(elems * sizeof(lql_tuple2_t));
-    
+
     k = 0;
     for (; k<elems && stat->attrs != NULL; k+=1)
     {
@@ -1058,6 +1058,8 @@ leela_status leela_lql_context_close (lql_context_t *ctx)
     { leela_naming_destroy(ctx->naming); }
     if (ctx->zmqctx != NULL)
     { zmq_ctx_destroy(ctx->zmqctx); }
+    if (ctx->random != NULL)
+    { leela_random_close(ctx->random); }
     leela_signature_destroy(ctx->sig);
     free(ctx->username);
     pthread_mutex_destroy(&ctx->mutex);
