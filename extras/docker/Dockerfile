@@ -26,16 +26,24 @@ RUN lein upgrade
 RUN apt-get install -y ghc
 
 # Install Cassandra
-ADD bin/install-cassandra /usr/bin/install-cassandra
+ADD bundle/bin/install-cassandra /usr/bin/install-cassandra
 RUN install-cassandra 2.0.9
-ADD bin/pipework /usr/bin/
-ADD bin/start-cassandra /usr/bin/
-ADD bin/run-command /usr/bin/
+ADD bundle/bin/pipework /usr/bin/
+ADD bundle/bin/start-cassandra /usr/bin/
+ADD bundle/bin/run-command /usr/bin/
 ADD etc/cassandra.hosts /etc/dnsmasq.d/0hosts
 ADD etc/dnsmasq.conf /etc/dnsmasq.conf
 ADD etc/resolv.conf /etc/resolv.dnsmasq.conf
 EXPOSE 9160 9042
 
 # Install Consul
-RUN wget https://dl.bintray.com/mitchellh/consul/0.3.1_linux_amd64.zip -O /tmp/consul.zip;
-    unzip /tmp/consul.zip; mv /tmp/consul /usr/local/bin; rm /tmp/consul.zip
+RUN wget https://dl.bintray.com/mitchellh/consul/0.3.1_linux_amd64.zip -O /tmp/consul.zip; unzip /tmp/consul.zip -d /usr/local/bin
+
+# Copy leela to Docker
+COPY bundle/leela /opt/leela
+
+# Build blackbox
+RUN cd /opt/leela/src/blackbox; lein urberjar
+
+# Build warpdrive
+RUN cd /opt/leela/src/warpdrive; cabal update; cabal sanbox init; cabal install --only-dependencies; cabal configure -O2; cabal build
