@@ -4,6 +4,7 @@
 *.o
 *.class
 *.gem
+*.log
 try_leela.stderr
 /tmp/
 /tags
