@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
 
 # PARAMETERS
+basedir=$(dirname $0)
 docker_bin_name="docker"
-dockerfile_name="Dockerfile"
-leela_path="../../../"
+dockerfile="${basedir}/Dockerfile"
+leela_path="${basedir}/../../../leela"
+bundle_path="${basedir}/bundle"
 
 # FUNCTIONS
 
 main() {
   docker_exists
   dockerfile_exists
-  create_symlink_for_leela
+  create_tarball_for_leela_repo
   build_docker
 }
 
@@ -26,25 +28,27 @@ docker_exists() {
 }
 
 dockerfile_exists() {
-  if [ ! -e $dockerfile_name ]; then
+  if [ ! -e $dockerfile ]; then
     error "To run the bootstrapper, you must have the shipped Dockerfile. SMH, son."
   else
     success "Dockerfile exists. <3"
   fi
 }
 
-create_symlink_for_leela() {
-  if [ ! -e bundle/leela ]; then
-    ln -s $leela_path bundle/leela
-    success "Created symlink for leela."
+create_tarball_for_leela_repo() {
+  tar -czf ${bundle_path}/leela.tar.gz $leela_path --exclude=".git" \
+    --exclude=".gitignore" --exclude=".gitmodules"
+
+  if [ ! $? -eq 0 ]; then
+    error "Something happened while creating the tarball for Leela."
   else
-    success "Symlink for leela already exists, it's ok."
+    success "Created tarball for the Leela repository."
   fi
 }
 
 build_docker() {
   make_log_dir
-  docker build -t leela . > log/docker_bootstrap.log 2>&1
+  docker build -t leela ${basedir} > ${basedir}/log/docker_bootstrap.log 2>&1
 
   if [ ! $? -eq 0 ]; then
     error "Something happened while building docker. D:"
@@ -69,8 +73,8 @@ msg() {
 }
 
 make_log_dir() {
-  if [ ! -e log ]; then
-    mkdir log
+  if [ ! -e ${basedir}/log ]; then
+    mkdir ${basedir}/log
   fi
 }
 
