@@ -43,6 +43,7 @@ create_symlink_for_leela() {
 }
 
 build_docker() {
+  make_log_dir
   docker build -t leela . > log/docker_bootstrap.log 2>&1
 
   if [ ! $? -eq 0 ]; then
@@ -65,6 +66,12 @@ error() {
 
 msg() {
   printf "%b\n" "$1" >&2
+}
+
+make_log_dir() {
+  if [ ! -e log ]; then
+    mkdir log
+  fi
 }
 
 # EXECUTION
