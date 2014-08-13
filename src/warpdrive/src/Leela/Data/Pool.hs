@@ -20,9 +20,9 @@ module Leela.Data.Pool
        , use
        ) where
 
-import qualified Data.Map as M
 import qualified Data.Set as S
 import           Control.Monad
+import qualified Data.Map.Strict as M
 import           Control.Exception (bracket)
 import           Leela.Data.Excepts
 import           Control.Concurrent.STM
@@ -60,11 +60,12 @@ kill :: (Ord a) => Pool a b -> a -> IO ()
 kill pool k = do
   mhandle <- atomically $ do
     m0 <- readTVar (state pool)
+    writeTVar (state pool) (M.delete k m0)
+    return (M.lookup k m0)
+  _       <- atomically $ do
     m1 <- readTVar (using pool)
     when (M.findWithDefault 0 k m1 /= 0) retry
-    writeTVar (state pool) (M.delete k m0)
     writeTVar (using pool) (M.delete k m1)
-    return (M.lookup k m0)
   case mhandle of
     Nothing     -> return ()
     Just handle -> delete pool k handle
