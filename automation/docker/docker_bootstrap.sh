@@ -37,7 +37,7 @@ dockerfile_exists() {
 
 create_tarball_for_leela_repo() {
   tar -czf ${bundle_path}/leela.tar.gz $leela_path --exclude=".git" \
-    --exclude=".gitignore" --exclude=".gitmodules"
+    --exclude=".gitignore" --exclude=".gitmodules" > /dev/null 2>&1
 
   if [ ! $? -eq 0 ]; then
     error "Something happened while creating the tarball for Leela."
