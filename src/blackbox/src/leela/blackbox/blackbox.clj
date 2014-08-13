@@ -35,8 +35,10 @@
                                    ["--cassandra" "the cassandra hosts [comma separated] to connect to"
                                     :default ["localhost"]
                                     :parse-fn #(string/split % #",")]
-                                   ["--keyspace" "the keyspace to use"
+                                   ["--attr-keyspace" "the [attr] keyspace to use"
                                     :default "leela"]
+                                   ["--graph-keyspace" "the [graph] keyspace to use"
+                                    :default "graph"]
                                    ["--username" "the username to use when connecting to cassandra"
                                     :default "$LEELA_CASSANDRA_USERNAME"]
                                    ["--password" "the password to use when connecting to cassandra"
@@ -59,5 +61,8 @@
                           :connections 1}
           endpoint       (:endpoint options)]
       (f/supervise
-       (storage/with-session [cluster (:cassandra options) (:keyspace options) cassandra-args]
-         (zserver/server-start (ZMQ/context 1) cluster (assoc options :endpoint endpoint)))))))
+       (storage/with-connection [attr-cluster (:cassandra options) cassandra-args]
+         (storage/with-connection [graph-cluster (:cassandra options) cassandra-args]
+           (storage/check-attr-schema attr-cluster (:attr-keyspace options))
+           (storage/check-graph-schema graph-cluster (:graph-keyspace options))
+           (zserver/server-start (ZMQ/context 1) attr-cluster graph-cluster (assoc options :endpoint endpoint))))))))

@@ -35,7 +35,46 @@
 (defn encode-time [bucket slot]
   (+ bucket slot))
 
-(defn check-schema [cluster keyspace]
+(defn check-attr-schema [cluster keyspace]
+  (when-not (describe-keyspace cluster keyspace)
+    (warn (format "creating keyspace %s [simplestrategy, rf=1]" keyspace))
+    (create-keyspace
+     cluster
+     keyspace
+     (if-not-exists)
+     (with {:replication {:class "SimpleStrategy" :replication_factor 1}})))
+  (info (format "connecting to keyspace %s" keyspace))
+  (use-keyspace cluster keyspace)
+  (when-not (describe-table cluster keyspace :t_attr)
+    (warn "creating table t_attr")
+    (create-table
+     cluster :t_attr
+     (if-not-exists)
+     (column-definitions {:key :uuid :name :varchar :bucket :bigint :slot :int :data :blob :primary-key [[:key :name :bucket] :slot]})
+     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}})))
+  (when-not (describe-table cluster keyspace :k_attr)
+    (warn "creating table k_attr")
+    (create-table
+     cluster :k_attr
+     (if-not-exists)
+     (column-definitions {:key :uuid :name :varchar :value :blob  :primary-key [[:key :name]]})
+     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}})))
+  (when-not (describe-table cluster keyspace :k_index)
+    (warn "creating table k_index")
+    (create-table
+     cluster :k_index
+     (if-not-exists)
+     (column-definitions {:key :uuid :name :varchar :primary-key [[:key] :name]})
+     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}})))
+  (when-not (describe-table cluster keyspace :t_index)
+    (warn "creating table t_index")
+    (create-table 
+    cluster :t_index
+     (if-not-exists)
+     (column-definitions {:key :uuid :name :varchar :primary-key [[:key] :name]})
+     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}}))))
+
+(defn check-graph-schema [cluster keyspace]
   (when-not (describe-keyspace cluster keyspace)
     (warn (format "creating keyspace %s [simplestrategy, rf=1]" keyspace))
     (create-keyspace
@@ -66,38 +105,10 @@
      (if-not-exists)
      (column-definitions {:guid :uuid :user :varchar :tree :varchar :kind :varchar :node :varchar :primary-key [:guid]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}})))
-  (when-not (describe-table cluster keyspace :t_attr)
-    (warn "creating table t_attr")
-    (create-table
-     cluster :t_attr
-     (if-not-exists)
-     (column-definitions {:key :uuid :name :varchar :bucket :bigint :slot :int :data :blob :primary-key [[:key :name :bucket] :slot]})
-     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}})))
-  (when-not (describe-table cluster keyspace :k_attr)
-    (warn "creating table k_attr")
-    (create-table
-     cluster :k_attr
-     (if-not-exists)
-     (column-definitions {:key :uuid :name :varchar :value :blob  :primary-key [[:key :name]]})
-     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}})))
   (when-not (describe-table cluster keyspace :g_index)
     (warn "creating table g_index")
     (create-table
      cluster :g_index
-     (if-not-exists)
-     (column-definitions {:key :uuid :name :varchar :primary-key [[:key] :name]})
-     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}})))
-  (when-not (describe-table cluster keyspace :k_index)
-    (warn "creating table k_index")
-    (create-table
-     cluster :k_index
-     (if-not-exists)
-     (column-definitions {:key :uuid :name :varchar :primary-key [[:key] :name]})
-     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}})))
-  (when-not (describe-table cluster keyspace :t_index)
-    (warn "creating table t_index")
-    (create-table 
-    cluster :t_index
      (if-not-exists)
      (column-definitions {:key :uuid :name :varchar :primary-key [[:key] :name]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}}))))
@@ -113,11 +124,6 @@
      (try
        ~@body
        (finally (.shutdown ~conn)))))
-
-(defmacro with-session [[cluster endpoint keyspace & options] & body]
-  `(with-connection [~cluster ~endpoint ~(first options)]
-     (check-schema ~cluster ~keyspace)
-     ~@body))
 
 (defmacro with-consistency [tag & body]
   `(policies/with-consistency-level

@@ -217,44 +217,44 @@
           (partition 2 labels))))
   (msg-done))
 
-(defn handle-get [cluster msg]
+(defn handle-get [attr-cluster graph-cluster msg]
   (case (f/bytes-to-str (first msg))
-    "name" (exec-getname cluster (drop 1 msg))
-    "guid" (exec-getguid cluster (drop 1 msg))
-    "link" (exec-getlink cluster (drop 1 msg))
-    "label" (exec-getlabel cluster (drop 1 msg))
-    "attr" (exec-listattr cluster (drop 1 msg))
-    "t-attr" (exec-get-tattr cluster (drop 1 msg))
-    "k-attr" (exec-get-kattr cluster (drop 1 msg))
+    "name" (exec-getname graph-cluster (drop 1 msg))
+    "guid" (exec-getguid graph-cluster (drop 1 msg))
+    "link" (exec-getlink graph-cluster (drop 1 msg))
+    "label" (exec-getlabel graph-cluster (drop 1 msg))
+    "attr" (exec-listattr attr-cluster (drop 1 msg))
+    "t-attr" (exec-get-tattr attr-cluster (drop 1 msg))
+    "k-attr" (exec-get-kattr attr-cluster (drop 1 msg))
     (msg-fail 400)))
 
-(defn handle-put [cluster msg]
+(defn handle-put [attr-cluster graph-cluster msg]
   (case (f/bytes-to-str (first msg))
-    "name" (exec-putname cluster (drop 1 msg))
-    "link" (exec-putlink cluster (drop 1 msg))
-    "label" (exec-putlabel cluster (drop 1 msg))
-    "t-attr" (exec-put-tattr cluster (drop 1 msg))
-    "k-attr" (exec-put-kattr cluster (drop 1 msg))
+    "name" (exec-putname graph-cluster (drop 1 msg))
+    "link" (exec-putlink graph-cluster (drop 1 msg))
+    "label" (exec-putlabel graph-cluster (drop 1 msg))
+    "t-attr" (exec-put-tattr attr-cluster (drop 1 msg))
+    "k-attr" (exec-put-kattr attr-cluster (drop 1 msg))
     (msg-fail 400)))
 
-(defn handle-del [cluster msg]
+(defn handle-del [attr-cluster graph-cluster msg]
   (case (f/bytes-to-str (first msg))
-    "link" (exec-dellink cluster (drop 1 msg))
-    "t-attr" (exec-del-tattr cluster (drop 1 msg))
-    "k-attr" (exec-del-kattr cluster (drop 1 msg))
+    "link" (exec-dellink graph-cluster (drop 1 msg))
+    "t-attr" (exec-del-tattr attr-cluster (drop 1 msg))
+    "k-attr" (exec-del-kattr attr-cluster (drop 1 msg))
     (msg-fail 400)))
 
-(defn handle-message [cluster msg]
+(defn handle-message [attr-cluster graph-cluster msg]
   (if (< (count msg) 1)
     (msg-fail 400)
     (case (f/bytes-to-str (first msg))
-      "get" (handle-get cluster (drop 1 msg))
-      "put" (handle-put cluster (drop 1 msg))
-      "del" (handle-del cluster (drop 1 msg))
+      "get" (handle-get attr-cluster graph-cluster (drop 1 msg))
+      "put" (handle-put attr-cluster graph-cluster (drop 1 msg))
+      "del" (handle-del attr-cluster graph-cluster (drop 1 msg))
       (msg-fail 400))))
 
-(defn zmqworker [cluster]
-  {:onjob #(handle-message cluster %) :onerr (msg-fail 500)})
+(defn zmqworker [attr-cluster graph-cluster]
+  {:onjob #(handle-message attr-cluster graph-cluster %) :onerr (msg-fail 500)})
 
 (defn server-start [ctx cluster options]
   (router/router-start ctx (zmqworker cluster) options))
