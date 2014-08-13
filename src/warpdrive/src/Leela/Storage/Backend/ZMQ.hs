@@ -20,6 +20,8 @@ module Leela.Storage.Backend.ZMQ
     , zmqbackend
     ) where
 
+import qualified Data.Map as M
+import           Leela.Logger
 import           Control.Monad
 import           Leela.Helpers
 import           Leela.Data.Types
@@ -28,13 +30,24 @@ import           Leela.HZMQ.Dealer
 import           Leela.Data.Excepts
 import           Leela.Storage.Graph
 import qualified Data.ByteString as B
+import           Leela.Storage.KeyValue
+import           Control.Concurrent.Async
 import           Control.Parallel.Strategies
 import           Leela.Storage.Backend.ZMQ.Protocol
 
-data ZMQBackend = ZMQBackend { dealer :: ClientFH }
+newtype ZMQBackend cache = ZMQBackend (Logger, ClientFH, cache)
 
-zmqbackend :: ClientFH -> ZMQBackend
-zmqbackend = ZMQBackend
+dealer :: ZMQBackend a -> ClientFH
+dealer (ZMQBackend (_, v, _)) = v
+
+cachedb :: ZMQBackend a -> a
+cachedb (ZMQBackend (_, _, v)) = v
+
+syslog :: ZMQBackend a -> Logger
+syslog (ZMQBackend (v, _, _)) = v
+
+zmqbackend :: (KeyValue cache) => Logger -> ClientFH -> cache -> ZMQBackend cache
+zmqbackend a b c = ZMQBackend (a, b, c)
 
 recv :: Maybe [B.ByteString] -> Reply
 recv Nothing    = FailMsg 500
@@ -59,15 +72,36 @@ send_ pool req = do
     DoneMsg -> return ()
     _       -> internalError "ZMQ/send_: error sending request"
 
-instance AttrBackend ZMQBackend where
+instance (KeyValue a) => AttrBackend (ZMQBackend a) where
 
   putAttr _ []    = return ()
   putAttr m attrs = send_ (dealer m) (MsgPutAttr $ map setIndexing attrs)
-      where setIndexing (g, a, v, o) = (g, a, v, setOpt Indexing o)
+      where
+        setIndexing (g, a, v, o) = (g, a, v, setOpt Indexing o)
 
   putTAttr _ []    = return ()
-  putTAttr m attrs = send_ (dealer m) (MsgPutTAttr $ map setIndexing attrs)
-      where setIndexing (g, a, t, v, o) = (g, a, t, v, setOpt Indexing o)
+  putTAttr m attrs = do
+    cache <- fmap (M.fromList . filter snd) $ mapConcurrently seen attrs
+    send_ (dealer m) (MsgPutTAttr $ map (setIndexing cache) attrs)
+    void $ mapConcurrently storeCache attrs
+      where
+        setIndexing cache (g, a, t, v, o)
+          | M.member (g, a) cache = (g, a, t, v, o)
+          | otherwise             = (g, a, t, v, setOpt Indexing o)
+
+        storeCache (g, a, t, v, _) =
+          (void $ insertLazy (cachedb m) 86400 (cacheKey g a) (cacheVal t v))
+            `catch` (warnAndReturn "storeCache# error writing on redis" ())
+
+        seen (g, a, _, _, _) =
+          let key = (g, a)
+          in fmap (key,) ((existsLazy (cachedb m) $ cacheKey g a)
+               `catch` (warnAndReturn "seen# error reading from redis" False))
+
+        warnAndReturn :: String -> a -> SomeException -> IO a
+        warnAndReturn msg value e = do
+          warning (syslog m) (msg ++ " / " ++ show e)
+          return value
 
   getAttr m a k   = do
     reply <- send (dealer m) (MsgGetAttr a k)
@@ -98,7 +132,7 @@ instance AttrBackend ZMQBackend where
   delAttr _ []    = return ()
   delAttr m attrs = send_ (dealer m) (MsgDelAttr attrs)
 
-instance GraphBackend ZMQBackend where
+instance GraphBackend (ZMQBackend a) where
 
   getName m guids
     | length guids == 1 = mapM fetchGUID guids

@@ -15,14 +15,35 @@
 module Leela.Storage.KeyValue
     ( TTL
     , KeyValue (..)
+    , existsLazy
+    , selectLazy
+    , insertLazy
+    , updateLazy
     ) where
 
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as L
 
 type TTL = Int
 
+existsLazy :: KeyValue m => m -> L.ByteString  -> IO Bool
+existsLazy db = exists db . L.toStrict
+
+selectLazy :: KeyValue m => m -> L.ByteString -> IO (Maybe B.ByteString)
+selectLazy db = select db . L.toStrict
+
+insertLazy :: KeyValue m => m -> TTL -> L.ByteString -> B.ByteString -> IO Bool
+insertLazy db ttl key val = insert db ttl (L.toStrict key) val
+
+updateLazy :: KeyValue m => m -> TTL -> L.ByteString -> (Maybe B.ByteString -> IO B.ByteString) -> IO B.ByteString
+updateLazy db ttl key f = update db ttl (L.toStrict key) f
+
 class KeyValue m where
 
-  select :: m -> B.ByteString -> IO (Maybe B.ByteString)
+  exists    :: m -> B.ByteString -> IO Bool
+             
+  select    :: m -> B.ByteString -> IO (Maybe B.ByteString)
 
-  update :: m -> B.ByteString -> (Maybe B.ByteString -> IO B.ByteString) -> IO B.ByteString
+  insert    :: m -> TTL -> B.ByteString -> B.ByteString -> IO Bool
+             
+  update    :: m -> TTL -> B.ByteString -> (Maybe B.ByteString -> IO B.ByteString) -> IO B.ByteString

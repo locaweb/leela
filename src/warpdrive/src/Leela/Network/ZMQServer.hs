@@ -27,21 +27,20 @@ import Leela.Data.Endpoint
 import Leela.Storage.Graph
 import Data.ByteString.Lazy (ByteString)
 import Leela.Storage.Passwd
-import Leela.Storage.KeyValue
 import Leela.Network.Protocol
 import Control.Parallel.Strategies
 
 strictEncode :: Reply -> [ByteString]
 strictEncode = withStrategy (evalList rdeepseq) . encode
 
-worker :: (KeyValue cache, GraphBackend db, AttrBackend db) => cache -> db -> CoreServer -> Worker
-worker cache db core = Worker f (evaluate . strictEncode . encodeE)
+worker :: (GraphBackend db, AttrBackend db) => db -> CoreServer -> Worker
+worker db core = Worker f (evaluate . strictEncode . encodeE)
   where
     f msg = do
       secretdb <- readPasswd core
       case (decode (readSecret secretdb) msg) of
               Left err -> evaluate $ strictEncode err
-              Right q  -> process cache db core q >>= evaluate . strictEncode
+              Right q  -> process db core q >>= evaluate . strictEncode
 
-startServer :: (KeyValue cache, GraphBackend m, AttrBackend m) => CoreServer -> Endpoint -> Context -> cache -> m -> IO RouterFH
-startServer core addr ctx cache storage = startRouter (logger core) addr ctx (worker cache storage core)
+startServer :: (GraphBackend m, AttrBackend m) => CoreServer -> Endpoint -> Context -> m -> IO RouterFH
+startServer core addr ctx storage = startRouter (logger core) addr ctx (worker storage core)

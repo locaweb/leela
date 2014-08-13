@@ -19,6 +19,8 @@ module Leela.Storage.Backend.ZMQ.Protocol
     , Reply (..)
     , encode
     , decode
+    , cacheKey
+    , cacheVal
     , mapToLazyBS
     ) where
 
@@ -70,6 +72,12 @@ decodeInt s = case (B8.readInt s) of
 
 truncateInt :: Double -> Int
 truncateInt = truncate
+
+cacheKey :: GUID -> Attr -> L.ByteString
+cacheKey (GUID g) (Attr a) = toLazyBS 128 (lazyByteString g <> char7 '\0' <> lazyByteString a)
+
+cacheVal :: Time -> Value -> B.ByteString
+cacheVal time value = E.encode (time, value)
 
 decodeValues :: [B.ByteString] -> Either Int [(Time, Value)]
 decodeValues = go []
@@ -233,3 +241,4 @@ decode ["k-attr", value]       = either (const $ FailMsg 599) KAttrMsg (E.decode
 decode ("t-attr":values)       = either FailMsg TAttrMsg $ decodeValues values
 decode ["fail", code]          = maybe (FailMsg 599) id (fmap FailMsg (decodeInt code))
 decode _                       = FailMsg 599
+

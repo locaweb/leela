@@ -39,7 +39,7 @@ data Options = Options { optConsul       :: String
                        , optTimeout      :: Int
                        , optEndpoint     :: Endpoint
                        , optDebugLevel   :: Priority
-                       , optRedisSecret  :: String
+                       , optRedisSecret  :: Maybe String
                        , optBufSize      :: Int
                        }
 
@@ -47,7 +47,7 @@ defaultOptions :: Options
 defaultOptions = Options { optEndpoint     = TCP "*" 4080 ""
                          , optDebugLevel   = NOTICE
                          , optConsul       = "http://127.0.0.1:8500"
-                         , optRedisSecret  = ""
+                         , optRedisSecret  = Nothing
                          , optPasswd       = "/etc/leela/passwd"
                          , optTimeout      = 60 * 1000
                          , optBufSize      = 512
@@ -70,7 +70,7 @@ options =
            (ReqArg (setReadOpt (\v opts -> opts { optDebugLevel = v })) "DEBUG|INFO|NOTICE|WARNING|ERROR")
            "logging level"
   , Option [] ["redis-secret"]
-           (ReqArg (\v opts -> opts { optRedisSecret = v }) "REDISSECRET")
+           (ReqArg (\v opts -> opts { optRedisSecret = Just v }) "REDISSECRET")
            "redis authentication string"
   , Option [] ["timeout-in-ms"]
            (ReqArg (setReadOpt (\v opts -> opts { optTimeout = v })) "TIMEOUT-IN-MS")
@@ -126,7 +126,7 @@ main = do
     let cfg = ClientConf (naming, fmap (maybe [] id . lookup "blackbox") . readIORef)
     cache  <- redisOpen syslog (naming, fmap (maybe [] id . lookup "redis") . readIORef) (optRedisSecret opts)
     client <- create syslog cfg ctx
-    router <- startServer core (optEndpoint opts) ctx cache (zmqbackend client)
+    router <- startServer core (optEndpoint opts) ctx (zmqbackend syslog client cache)
     takeMVar alive
     flushLogger syslog
     stopDealer client

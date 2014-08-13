@@ -1,3 +1,4 @@
+
 {-# LANGUAGE OverloadedStrings #-}
 
 -- Copyright 2014 (c) Diego Souza <dsouza@c0d3.xxx>
@@ -97,13 +98,16 @@ readTime = fmap (fromSeconds . fromInt) . readDecimal
       fromInt :: Int -> Double
       fromInt = fromIntegral
 
+maxSigTime :: NominalDiffTime
+maxSigTime = 300
+
 whenValidSignature :: (User -> Maybe Secret) -> User -> Nonce -> MAC -> B.ByteString -> a -> Either Reply a
 whenValidSignature secLookup u nonce sig msg =
   case (secLookup u) of
-    Nothing                      -> const $ Left $ Fail 401 $ Just "signature error"
+    Nothing                      -> const $ Left $ Fail 401 $ Just "signature error: unknown user"
     Just sec
       | verify sec nonce msg sig -> Right
-      | otherwise                -> const $ Left $ Fail 403 $ Just "signature error"
+      | otherwise                -> const $ Left $ Fail 403 $ Just "signature error: invalid secret"
 
 readNonce :: B.ByteString -> Either Reply Nonce
 readNonce = maybe (Left $ Fail 400 $ Just "signature error: invalid nonce") Right . initNonce . fst . B16.decode
@@ -117,10 +121,10 @@ readSignature users sig msg =
   in case (B.splitWith (== 0x3a) base) of
        [user, timestr, nonce] -> do
          let u = userFromBS user
-         t <- readTime timestr
-         n <- readNonce nonce
-         s <- readMAC $ B.drop 1 mac
-         whenValidSignature users u n s (B.concat (base : B.singleton 0x3a : msg)) (Signature u t n s)
+         t0 <- readTime timestr
+         n  <- readNonce nonce
+         s  <- readMAC $ B.drop 1 mac
+         whenValidSignature users u n s (B.concat (base : B.singleton 0x3a : msg)) (Signature u t0 n s)
        _                      ->
          Left $ Fail 400 (Just "syntax error: signature")
 

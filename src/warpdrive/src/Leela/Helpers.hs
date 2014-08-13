@@ -44,6 +44,16 @@ supervise syslog name io = io `catch` restart
 sConcatMap :: (a -> [b]) -> [a] -> [b]
 sConcatMap f = toList . mconcat . map (fromList . f)
 
+mapMaybeM :: (a -> IO (Maybe b)) -> [a] -> IO [b]
+mapMaybeM f = go []
+    where
+      go acc []     = return acc
+      go acc (a:as) = do
+        mb <- f a
+        case mb of
+          Just b  -> go (b : acc) as
+          Nothing -> go acc as
+
 ignore :: SomeException -> IO ()
 ignore _ = return ()
 
@@ -63,4 +73,4 @@ chunked n xs = let (chunk, ys) = splitAt n xs
 chunkSplit :: Int -> [a] -> [[a]]
 chunkSplit n xs = foldr zipList (replicate n []) (chunked n xs)
     where
-      zipList xs = zipWith ($) (map (:) xs ++ repeat id)
+      zipList ys = zipWith ($) (map (:) ys ++ repeat id)

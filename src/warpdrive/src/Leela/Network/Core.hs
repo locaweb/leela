@@ -47,7 +47,6 @@ import qualified Data.ByteString.Lazy as L
 import           Leela.Data.TimeSeries
 import           Control.Concurrent.STM
 import           Leela.Network.Protocol
-import           Leela.Storage.KeyValue
 import           Data.ByteString.Builder
 
 data CoreServer = CoreServer { logger :: Logger
@@ -189,9 +188,9 @@ navigate db queue (source, pipeline) = do
         dstpipe <- forkFilter srcpipe f
         forkFilters dstpipe fs
 
-evalLQL :: (KeyValue cache, GraphBackend m, AttrBackend m) => cache -> m -> CoreServer -> Device Reply -> [LQL] -> IO ()
-evalLQL _ _ _ queue []             = devwriteIO queue Last
-evalLQL cache db core queue (x:xs) = do
+evalLQL :: (GraphBackend m, AttrBackend m) => m -> CoreServer -> Device Reply -> [LQL] -> IO ()
+evalLQL _ _ queue []         = devwriteIO queue Last
+evalLQL db core queue (x:xs) = do
   case x of
     PathStmt q         ->
       navigate db queue q
@@ -220,7 +219,7 @@ evalLQL cache db core queue (x:xs) = do
       guids <- getGUID db [(targetUser user, uTree user, k, n) | (k, n) <- toList names]
       forM_ guids (\(u, t, k, n, g) ->
         devwriteIO queue (Item $ Name u t k n g))
-  evalLQL cache db core queue xs
+  evalLQL db core queue xs
 
 evalFinalizer :: Logger -> Time -> FH -> Device Reply -> Either SomeException () -> IO ()
 evalFinalizer syslog t0 chan dev (Left e)  = do
@@ -233,8 +232,8 @@ evalFinalizer syslog t0 chan dev (Right _)   = do
   closeIO dev
   notice syslog $ printf "SUCCESS: %s [%s ms]" (show chan) (showDouble $ milliseconds t)
 
-process :: (KeyValue cache, GraphBackend m, AttrBackend m) => cache -> m -> CoreServer -> Query -> IO Reply
-process cache storage srv (Begin sig msg) =
+process :: (GraphBackend m, AttrBackend m) => m -> CoreServer -> Query -> IO Reply
+process storage srv (Begin sig msg) =
   case (chkloads (parseLQL $ sigUser sig) msg) of
     Left _      -> return $ Fail 400 (Just "syntax error")
     Right stmts -> do
@@ -242,9 +241,9 @@ process cache storage srv (Begin sig msg) =
       if (level (logger srv) >= NOTICE)
         then notice (logger srv) (printf "BEGIN %s %d" (lqlDescr stmts) fh)
         else info (logger srv) (printf "BEGIN %s %d" (show msg) fh)
-      _         <- forkFinally (evalLQL cache storage srv dev stmts) (evalFinalizer (logger srv) time fh dev)
+      _         <- forkFinally (evalLQL storage srv dev stmts) (evalFinalizer (logger srv) time fh dev)
       return $ Done fh
-process _ _ srv (Fetch sig fh) = do
+process _ srv (Fetch sig fh)        = do
   let channel = (sigUser sig, fh)
   notice (logger srv) (printf "FETCH %d" fh)
   withFD srv channel $ \mdev -> do
@@ -254,7 +253,7 @@ process _ _ srv (Fetch sig fh) = do
         case mreply of
           Just reply -> return reply
           Nothing    -> return Last
-process _ _ srv (Close _ sig fh) = do
+process _ srv (Close _ sig fh)      = do
   t <- closeFD srv (sigUser sig, fh)
   notice (logger srv) (printf "CLOSE %d [%s ms]" fh (showDouble t))
   return Last
