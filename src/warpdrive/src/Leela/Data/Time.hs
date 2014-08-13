@@ -114,3 +114,9 @@ instance Enum Date where
 instance NFData Time where
 
   rnf (Time v) = rnf v
+
+instance Serialize Time where
+
+  put (Time t) = put t
+
+  get = fmap Time get
