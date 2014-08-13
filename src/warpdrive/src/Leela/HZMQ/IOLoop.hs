@@ -95,7 +95,7 @@ pollLoop syslog p@(Poller (_, _, _, ctrl)) = do
       waitFor waitFunc = do
         v <- newEmptyTMVarIO
         t <- forkIO $ supervise syslog "ioloop/waitFor" $ forever $ do
-          waitFunc
+          _ <- waitFunc
           atomically $ putTMVar v ()
         return (takeTMVar v, killThread t)
 
@@ -123,7 +123,7 @@ pollLoop syslog p@(Poller (_, _, _, ctrl)) = do
         case ready of
           Nothing          -> return ()
           Just (Left _)    -> do
-            useSocket p handleRecv
+            _ <- useSocket p handleRecv
             go waitR waitW wMiss
           Just (Right msg) -> do
             wMiss' <- useSocket p (handleSend msg)
