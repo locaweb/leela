@@ -1,7 +1,0 @@
-#!/bin/bash
-
-pipework --wait
-dnsmasq
-
-export PATH=$PATH:/opt/apache-cassandra/bin
-$@
