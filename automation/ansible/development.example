@@ -1,4 +1,0 @@
-# file: development
-
-[local]
-localhost ansible_connection=local

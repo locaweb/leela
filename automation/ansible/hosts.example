@@ -1,0 +1,15 @@
+# file: hosts
+
+[native]
+# List the targets to build the native environment.
+#
+# Example:
+#   localhost ansible_connection=local
+#   production
+
+[docker]
+# List the targets to build the docker environment.
+#
+# Example:
+#   localhost ansible_connection=local
+#   staging

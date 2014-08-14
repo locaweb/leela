@@ -1,0 +1,5 @@
+# file: native.yml
+---
+- hosts: native
+  roles:
+    - build-native
