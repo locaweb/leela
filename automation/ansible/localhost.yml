@@ -2,4 +2,4 @@
 # file: localhost.yml
 - hosts: local
   roles:
-    - common
+    - build
