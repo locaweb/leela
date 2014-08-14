@@ -28,4 +28,4 @@ try_leela.stderr
 /src/c/libleela4.0.0.so
 /src/c/src/driver
 /package/leela-lib/debian
-automation/docker/bundle/leela.tar.gz
+automation/ansible/leela-*
