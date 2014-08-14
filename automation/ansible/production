@@ -1,0 +1,4 @@
+# file: production
+
+[local]
+localhost ansible_connection=local

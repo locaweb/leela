@@ -1,0 +1,16 @@
+---
+# file: roles/common/tasks/main.yml
+- name: make sure debootstrap is installed
+  shell: type debootstrap
+
+- name: make sure rinse is installed
+  shell: type rinse
+
+- name: make sure docker is running
+  service: name=docker state=running
+
+- name: execute stage 0 build
+  shell: sudo roles/common/files/stage-0.sh
+
+- name: execute stage 1 build
+  script: stage-1.sh debian7-amd64.dockerfile
