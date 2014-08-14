@@ -21,29 +21,30 @@ module Leela.Storage.KeyValue
     , updateLazy
     ) where
 
+import           Data.Hashable
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
 
 type TTL = Int
 
-existsLazy :: KeyValue m => m -> L.ByteString  -> IO Bool
-existsLazy db = exists db . L.toStrict
+existsLazy :: (KeyValue m, Hashable k) => m -> k -> L.ByteString  -> IO Bool
+existsLazy db sel = exists db sel . L.toStrict
 
-selectLazy :: KeyValue m => m -> L.ByteString -> IO (Maybe B.ByteString)
-selectLazy db = select db . L.toStrict
+selectLazy :: (KeyValue m, Hashable k) => m -> k -> L.ByteString -> IO (Maybe B.ByteString)
+selectLazy db sel = select db sel . L.toStrict
 
-insertLazy :: KeyValue m => m -> TTL -> L.ByteString -> B.ByteString -> IO Bool
-insertLazy db ttl key val = insert db ttl (L.toStrict key) val
+insertLazy :: (KeyValue m, Hashable k) => m -> TTL -> k -> L.ByteString -> B.ByteString -> IO Bool
+insertLazy db ttl sel key val = insert db ttl sel (L.toStrict key) val
 
-updateLazy :: KeyValue m => m -> TTL -> L.ByteString -> (Maybe B.ByteString -> IO B.ByteString) -> IO B.ByteString
-updateLazy db ttl key f = update db ttl (L.toStrict key) f
+updateLazy :: (KeyValue m, Hashable k) => m -> TTL -> k -> L.ByteString -> (Maybe B.ByteString -> IO B.ByteString) -> IO B.ByteString
+updateLazy db ttl sel key f = update db ttl sel (L.toStrict key) f
 
 class KeyValue m where
 
-  exists    :: m -> B.ByteString -> IO Bool
+  exists    :: (Hashable k) => m -> k -> B.ByteString -> IO Bool
              
-  select    :: m -> B.ByteString -> IO (Maybe B.ByteString)
+  select    :: (Hashable k) => m -> k -> B.ByteString -> IO (Maybe B.ByteString)
 
-  insert    :: m -> TTL -> B.ByteString -> B.ByteString -> IO Bool
+  insert    :: (Hashable k) => m -> TTL -> k -> B.ByteString -> B.ByteString -> IO Bool
              
-  update    :: m -> TTL -> B.ByteString -> (Maybe B.ByteString -> IO B.ByteString) -> IO B.ByteString
+  update    :: (Hashable k) => m -> TTL -> k -> B.ByteString -> (Maybe B.ByteString -> IO B.ByteString) -> IO B.ByteString

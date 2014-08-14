@@ -90,13 +90,13 @@ instance (KeyValue a) => AttrBackend (ZMQBackend a) where
           | otherwise             = (g, a, t, v, setOpt Indexing o)
 
         storeCache (g, a, t, v, _) =
-          (void $ insertLazy (cachedb m) 86400 (cacheKey g a) (cacheVal t v))
-            `catch` (warnAndReturn "storeCache# error writing on redis" ())
+          (void $ insertLazy (cachedb m) 86400 g (cacheKey g a) (cacheVal t v))
+             `catch` (warnAndReturn "storeCache# error writing to redis" ())
 
         seen (g, a, _, _, _) =
           let key = (g, a)
-          in fmap (key,) ((existsLazy (cachedb m) $ cacheKey g a)
-               `catch` (warnAndReturn "seen# error reading from redis" False))
+          in fmap (key,) ((existsLazy (cachedb m) g (cacheKey g a))
+                             `catch` (warnAndReturn "seen# error reading from redis" False))
 
         warnAndReturn :: String -> a -> SomeException -> IO a
         warnAndReturn msg value e = do

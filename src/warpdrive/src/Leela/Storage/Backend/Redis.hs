@@ -21,22 +21,21 @@ module Leela.Storage.Backend.Redis
     , runRedisIO_
     ) where
 
-import           Leela.Logger
-import           Control.Monad
-import           Data.Hashable
-import           Leela.Helpers
-import           Database.Redis as Redis
-import           Leela.Data.Time
-import           Leela.Data.Pool
-import qualified Data.ByteString as B
-import           Control.Exception
-import           Control.Concurrent
-import           Leela.Data.Excepts
-import           Control.Applicative
-import           Control.Monad.Trans
-import           Leela.Data.Endpoint
-import           Data.ByteString.Char8 (pack)
-import           Leela.Storage.KeyValue
+import Leela.Logger
+import Control.Monad
+import Data.Hashable
+import Leela.Helpers
+import Database.Redis as Redis
+import Leela.Data.Time
+import Leela.Data.Pool
+import Control.Exception
+import Control.Concurrent
+import Leela.Data.Excepts
+import Control.Applicative
+import Control.Monad.Trans
+import Leela.Data.Endpoint
+import Data.ByteString.Char8 (pack)
+import Leela.Storage.KeyValue
 
 type Password = String
 
@@ -76,8 +75,8 @@ redisClose (RedisBackend _ ctrl pool) = do
   putMVar ctrl ()
   deletePool pool
 
-hashSelector :: B.ByteString -> [Endpoint] -> Endpoint
-hashSelector s e = e !! (hash s `mod` length e)
+hashSelector :: Hashable k => k -> [Endpoint] -> Endpoint
+hashSelector s  e = e !! (hash s `mod` length e)
 
 runRedisIO_ :: Logger -> AnswerT Redis a -> Connection -> IO a
 runRedisIO_ syslog = runRedisIO syslog 0
@@ -110,19 +109,19 @@ liftTxRedis m = AnswerT $ do
 
 instance KeyValue RedisBackend where
 
-  exists (RedisBackend _ _ pool) k   = use pool (hashSelector k) (\c -> runRedis c action)
+  exists (RedisBackend _ _ pool) sel k   = use pool (hashSelector sel) (\c -> runRedis c action)
       where
         action = liftM (either (const False) id) (Redis.exists k)
 
-  select (RedisBackend _ _ pool) k   = use pool (hashSelector k) (\c -> runRedis c action)
+  select (RedisBackend _ _ pool) selector k   = use pool (hashSelector selector) (\c -> runRedis c action)
       where
         action = liftM (either (const Nothing) id) (get k)
 
-  insert (RedisBackend _ _ pool) ttl_ k v = use pool (hashSelector k) (\c -> runRedis c action)
+  insert (RedisBackend _ _ pool) ttl_ selector k v = use pool (hashSelector selector) (\c -> runRedis c action)
       where
         action = liftM (== (Right Ok)) (setex k (fromIntegral ttl_) v)
 
-  update (RedisBackend syslog _ pool) ttl_ k f = use pool (hashSelector k) (runRedisIO syslog 3 transaction)
+  update (RedisBackend syslog _ pool) ttl_ selector k f = use pool (hashSelector selector) (runRedisIO syslog 3 transaction)
       where
         transaction = do
           _  <- liftRedis $ watch [k]

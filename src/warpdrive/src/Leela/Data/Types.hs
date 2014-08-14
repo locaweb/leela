@@ -52,6 +52,7 @@ module Leela.Data.Types
 
 import           Data.Int
 import           Data.Word
+import           Data.Hashable
 import           Data.Serialize
 import           Control.DeepSeq
 import qualified Data.ByteString as B
@@ -61,25 +62,25 @@ import           Leela.Data.Excepts
 import qualified Data.ByteString.Lazy as L
 
 newtype GUID = GUID L.ByteString
-        deriving (Eq, Ord, Show)
+             deriving (Eq, Ord, Show)
 
 newtype Label = Label L.ByteString
-        deriving (Eq, Ord, Show)
+              deriving (Eq, Ord, Show)
 
 newtype Node = Node L.ByteString
-        deriving (Eq, Ord, Show)
+             deriving (Eq, Ord, Show)
 
 newtype User = User L.ByteString
-        deriving (Eq, Ord, Show)
+             deriving (Eq, Ord, Show)
 
 newtype Tree = Tree L.ByteString
-        deriving (Eq, Ord, Show)
+             deriving (Eq, Ord, Show)
 
 newtype Kind = Kind L.ByteString
-        deriving (Eq, Ord, Show)
+             deriving (Eq, Ord, Show)
 
 newtype Attr = Attr L.ByteString
-        deriving (Eq, Ord, Show)
+             deriving (Eq, Ord, Show)
 
 data Value = Bool Bool
            | Text L.ByteString
@@ -287,3 +288,31 @@ instance NFData Value where
   rnf (Int64 v)  = rnf v
   rnf (UInt32 v) = rnf v
   rnf (UInt64 v) = rnf v
+
+instance Hashable GUID where
+
+  hashWithSalt salt (GUID v) = hashWithSalt salt v
+
+instance Hashable Label where
+
+  hashWithSalt salt (Label v) = hashWithSalt salt v
+
+instance Hashable Node where
+
+  hashWithSalt salt (Node v) = hashWithSalt salt v
+
+instance Hashable User where
+
+  hashWithSalt salt (User v) = hashWithSalt salt v
+
+instance Hashable Tree where
+
+  hashWithSalt salt (Tree v) = hashWithSalt salt v
+
+instance Hashable Kind where
+
+  hashWithSalt salt (Kind v) = hashWithSalt salt v
+
+instance Hashable Attr where
+
+  hashWithSalt salt (Attr v) = hashWithSalt salt v
