@@ -256,5 +256,5 @@
 (defn zmqworker [attr-cluster graph-cluster]
   {:onjob #(handle-message attr-cluster graph-cluster %) :onerr (msg-fail 500)})
 
-(defn server-start [ctx cluster options]
-  (router/router-start ctx (zmqworker cluster) options))
+(defn server-start [ctx attr-cluster graph-cluster options]
+  (router/router-start ctx (zmqworker attr-cluster graph-cluster) options))
