@@ -31,3 +31,4 @@ try_leela.stderr
 automation/ansible/leela-*
 automation/ansible/development
 automation/ansible/production
+automation/tmp/
