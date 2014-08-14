@@ -13,4 +13,4 @@
   shell: sudo roles/build/files/stage-0.sh
 
 - name: execute stage 1 build
-  shell: roles/build/files/stage-1.sh roles/build/files/debian7-amd64.dockerfile
+  shell: roles/build/files/stage-1.sh debian7-amd64.dockerfile
