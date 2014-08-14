@@ -29,3 +29,5 @@ try_leela.stderr
 /src/c/src/driver
 /package/leela-lib/debian
 automation/ansible/leela-*
+automation/ansible/development
+automation/ansible/production
