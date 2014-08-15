@@ -15,8 +15,8 @@
 - name: execute stage 1 build
   shell: roles/build-docker/files/stage-1.sh debian7-amd64.dockerfile
 
-- name: transfer local ssh key
-  shell: cat ~/.ssh/id_rsa | docker run -i leela/debian7-amd64 sh -c "cat > ~/.ssh/id_rsa"
+- name: copy leela directory to docker
+  shell: docker run -v $(pwd)/roles/build-native/files/leela:/opt/leela_tmp leela/debian7-amd64 cp -r /opt/leela_tmp /opt/leela
 
 - name: commit changes
   shell: docker commit $(docker ps -a -l | awk "NR==2{print $1}") leela/debian7-amd64
