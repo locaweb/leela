@@ -19,16 +19,16 @@
   shell: docker run -v $(pwd)/roles/build-native/files/leela:/opt/leela_tmp leela/debian7-amd64 cp -r /opt/leela_tmp /opt/leela
 
 - name: commit changes
-  shell: docker commit $(docker ps -a -l | awk "NR==2{print $1}") leela/debian7-amd64
+  shell: docker commit $(docker ps -a -q | awk "NR==1{print $1}") leela/debian7-amd64
 
 - name: clone leela repository
   docker: image=leela/debian7-amd64 command="git clone git@code.locaweb.com.br:iaas/leela.git /opt/leela"
 
 - name: commit changes
-  shell: docker commit $(docker ps -a -l | awk "NR==2{print $1}") leela/debian7-amd64
+  shell: docker commit $(docker ps -a -q | awk "NR==1{print $1}") leela/debian7-amd64
 
 - name: run build-native
-  docker: image=leela/debian7-amd64 command="/opt/leela/automation/build.sh -e native"
+  shell: docker run leela/debian7-amd64 /opt/leela/automation/build.sh -e native
 
 - name: commit changes
-  shell: docker commit $(docker ps -a -l | awk "NR==2{print $1}") leela/debian7-amd64
+  shell: docker commit $(docker ps -a -q | awk "NR==1{print $1}") leela/debian7-amd64
