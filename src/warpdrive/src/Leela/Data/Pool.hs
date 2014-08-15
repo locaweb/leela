@@ -1,3 +1,5 @@
+{-# LANGUAGE TupleSections #-}
+
 -- Copyright 2014 (c) Diego Souza <dsouza@c0d3.xxx>
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,9 +20,11 @@ module Leela.Data.Pool
        , updatePool
        , deletePool
        , use
+       , useAll
        ) where
 
 import qualified Data.Set as S
+import           Data.Maybe
 import           Control.Monad
 import qualified Data.Map.Strict as M
 import           Control.Exception (bracket)
@@ -87,4 +91,16 @@ use pool select apply = bracket acquire release (apply . snd)
           _      -> throwSTM (SystemExcept (Just "Pool/use: can't find pool entry"))
 
       release (a, _) = atomically $
-        modifyTVar' (using pool) (M.insertWith (+) a (-1))
+        modifyTVar' (using pool) (M.insertWith (-) a 1)
+
+useAll :: (Ord a) => Pool a b -> ([b] -> IO c) -> IO c
+useAll pool apply = bracket acquire release (apply . snd)
+    where
+      acquire = atomically $ do
+        m <- readTVar (state pool)
+        let as = M.keys m
+        mapM_ (\a -> modifyTVar' (using pool) (M.insertWith (+) a 1)) as
+        return (as, mapMaybe (flip M.lookup m) as)
+
+      release (as, _) = atomically $
+        mapM_ (\a -> modifyTVar' (using pool) (M.insertWith (-) a 1)) as

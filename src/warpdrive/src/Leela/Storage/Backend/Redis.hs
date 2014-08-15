@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 -- Copyright 2014 (c) Diego Souza <dsouza@c0d3.xxx>
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,21 +23,23 @@ module Leela.Storage.Backend.Redis
     , runRedisIO_
     ) where
 
-import Leela.Logger
-import Control.Monad
-import Data.Hashable
-import Leela.Helpers
-import Database.Redis as Redis
-import Leela.Data.Time
-import Leela.Data.Pool
-import Control.Exception
-import Control.Concurrent
-import Leela.Data.Excepts
-import Control.Applicative
-import Control.Monad.Trans
-import Leela.Data.Endpoint
-import Data.ByteString.Char8 (pack)
-import Leela.Storage.KeyValue
+import           Data.Maybe
+import           Leela.Logger
+import           Control.Monad
+import           Data.Hashable
+import           Leela.Helpers
+import           Database.Redis as Redis
+import qualified Data.ByteString as B
+import           Leela.Data.Time
+import           Leela.Data.Pool
+import           Control.Exception
+import           Control.Concurrent
+import           Leela.Data.Excepts
+import           Control.Applicative
+import           Control.Monad.Trans
+import           Leela.Data.Endpoint
+import           Data.ByteString.Char8 (pack)
+import           Leela.Storage.KeyValue
 
 type Password = String
 
@@ -66,7 +70,7 @@ redisOpen syslog (a, f) password = do
                           , connectPort           = PortNumber (fromIntegral port)
                           , connectAuth           = fmap pack password
                           , connectDatabase       = 0
-                          , connectMaxConnections = 8
+                          , connectMaxConnections = 32
                           , connectMaxIdleTime    = 600})
       onBegin e                 = throwIO (SystemExcept (Just $ "Redis/redisOpen: invalid redis endpoint: " ++ (dumpEndpointStr e)))
 
@@ -107,6 +111,33 @@ liftTxRedis m = AnswerT $ do
      TxAborted   -> return TxAbort
      TxError e   -> return (Failure e)
 
+scanKeys :: Logger -> B.ByteString -> (Maybe [(B.ByteString, B.ByteString)] -> IO ()) -> [Connection] -> IO ()
+scanKeys syslog glob callback = go "0"
+    where
+      continue cursor conns
+        | cursor == "0" = go cursor (drop 1 conns)
+        | otherwise     = go cursor conns
+
+      go :: B.ByteString -> [Connection] -> IO ()
+      go _ []                  = return ()
+      go cursor (conn : conns) = do
+        mkeyset <- runRedis conn $ sendRequest ["SCAN", cursor, "MATCH", glob]
+        case mkeyset of
+          Left what    -> do
+            warning syslog ("scanKeys# error reading redis: " ++ show what)
+            callback Nothing
+          Right (nextCursor, keyset)
+            | null keyset -> continue nextCursor (conn : conns)
+            | otherwise   -> do
+                mvalset <- runRedis conn $ mget keyset
+                case mvalset of
+                  Left what    -> do
+                    warning syslog ("scanKeys# error reading redis: " ++ show what)
+                    callback Nothing
+                  Right valset -> do
+                    callback (Just $ map (\(k, v) -> (k, fromJust v)) $ filter (isJust . snd) (zip keyset valset))
+                    continue nextCursor (conn : conns)
+
 instance KeyValue RedisBackend where
 
   exists (RedisBackend _ _ pool) sel k   = use pool (hashSelector sel) (\c -> runRedis c action)
@@ -128,6 +159,12 @@ instance KeyValue RedisBackend where
           v  <- (liftIO . f =<< liftRedis (get k))
           _  <- liftTxRedis (multiExec (psetex k (fromIntegral ttl_) v))
           return v
+
+  scanOn (RedisBackend syslog _ pool) selector glob callback =
+    use pool (hashSelector selector) (scanKeys syslog glob callback . (:[]))
+
+  scanAll (RedisBackend syslog _ pool) glob callback =
+    useAll pool (scanKeys syslog glob callback)
 
 instance (Monad m) => Monad (AnswerT m) where
 

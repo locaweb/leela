@@ -20,14 +20,17 @@ module Leela.Storage.Backend.ZMQ
     , zmqbackend
     ) where
 
-import qualified Data.Map as M
+import qualified Data.Set as S
+import           Data.Maybe
 import           Leela.Logger
 import           Control.Monad
 import           Leela.Helpers
+import           Leela.Data.Time
 import           Leela.Data.Types
 import           Control.Exception
 import           Leela.HZMQ.Dealer
 import           Leela.Data.Excepts
+import           Control.Applicative
 import           Leela.Storage.Graph
 import qualified Data.ByteString as B
 import           Leela.Storage.KeyValue
@@ -72,6 +75,16 @@ send_ pool req = do
     DoneMsg -> return ()
     _       -> internalError "ZMQ/send_: error sending request"
 
+wrapCallback :: (Maybe [(GUID, Attr, Time, Value)] -> IO ()) -> Maybe [(B.ByteString, B.ByteString)] -> IO ()
+wrapCallback callback Nothing       =
+  callback Nothing
+wrapCallback callback (Just values) =
+  callback (Just $ mapMaybe decodeKeyVal values)
+    where
+      decodeKeyVal (key, val) = 
+        let (g, a) = cacheUnkey key
+        in (\(t, v) -> (g, a, t, v)) <$> cacheUnval val
+
 instance (KeyValue a) => AttrBackend (ZMQBackend a) where
 
   putAttr _ []    = return ()
@@ -81,12 +94,12 @@ instance (KeyValue a) => AttrBackend (ZMQBackend a) where
 
   putTAttr _ []    = return ()
   putTAttr m attrs = do
-    cache <- fmap (M.fromList . filter snd) $ mapConcurrently seen attrs
+    cache <- liftM (S.fromList . map fst . filter snd) $ mapConcurrently seen attrs
     send_ (dealer m) (MsgPutTAttr $ map (setIndexing cache) attrs)
     void $ mapConcurrently storeCache attrs
       where
         setIndexing cache (g, a, t, v, o)
-          | M.member (g, a) cache = (g, a, t, v, o)
+          | S.member (g, a) cache = (g, a, t, v, o)
           | otherwise             = (g, a, t, v, setOpt Indexing o)
 
         storeCache (g, a, t, v, _) =
@@ -95,13 +108,18 @@ instance (KeyValue a) => AttrBackend (ZMQBackend a) where
 
         seen (g, a, _, _, _) =
           let key = (g, a)
-          in fmap (key,) ((existsLazy (cachedb m) g (cacheKey g a))
-                             `catch` (warnAndReturn "seen# error reading from redis" False))
+          in liftM (key,) ((existsLazy (cachedb m) g (cacheKey g a))
+                              `catch` (warnAndReturn "seen# error reading from redis" False))
 
         warnAndReturn :: String -> a -> SomeException -> IO a
         warnAndReturn msg value e = do
           warning (syslog m) (msg ++ " / " ++ show e)
           return value
+
+  scanLast m (Just g) a callback =
+    scanOnLazy (cachedb m) g (cacheKeyGlob (Just g) a) (wrapCallback callback)
+  scanLast m Nothing a callback  =
+    scanAllLazy (cachedb m) (cacheKeyGlob Nothing a) (wrapCallback callback)
 
   getAttr m a k   = do
     reply <- send (dealer m) (MsgGetAttr a k)

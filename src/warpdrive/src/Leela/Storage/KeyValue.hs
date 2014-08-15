@@ -19,6 +19,8 @@ module Leela.Storage.KeyValue
     , selectLazy
     , insertLazy
     , updateLazy
+    , scanOnLazy
+    , scanAllLazy
     ) where
 
 import           Data.Hashable
@@ -26,6 +28,10 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
 
 type TTL = Int
+
+type Glob = B.ByteString
+
+type GlobLazy = L.ByteString
 
 existsLazy :: (KeyValue m, Hashable k) => m -> k -> L.ByteString  -> IO Bool
 existsLazy db sel = exists db sel . L.toStrict
@@ -39,12 +45,22 @@ insertLazy db ttl sel key val = insert db ttl sel (L.toStrict key) val
 updateLazy :: (KeyValue m, Hashable k) => m -> TTL -> k -> L.ByteString -> (Maybe B.ByteString -> IO B.ByteString) -> IO B.ByteString
 updateLazy db ttl sel key f = update db ttl sel (L.toStrict key) f
 
+scanOnLazy :: (KeyValue m, Hashable k) => m -> k -> GlobLazy -> (Maybe [(B.ByteString, B.ByteString)] -> IO ()) -> IO ()
+scanOnLazy db sel glob callback = scanOn db sel (L.toStrict glob) callback
+
+scanAllLazy :: KeyValue m => m -> GlobLazy -> (Maybe [(B.ByteString, B.ByteString)] -> IO ()) -> IO ()
+scanAllLazy db glob callback = scanAll db (L.toStrict glob) callback
+
 class KeyValue m where
 
-  exists    :: (Hashable k) => m -> k -> B.ByteString -> IO Bool
+  exists  :: (Hashable k) => m -> k -> B.ByteString -> IO Bool
              
-  select    :: (Hashable k) => m -> k -> B.ByteString -> IO (Maybe B.ByteString)
+  select  :: (Hashable k) => m -> k -> B.ByteString -> IO (Maybe B.ByteString)
 
-  insert    :: (Hashable k) => m -> TTL -> k -> B.ByteString -> B.ByteString -> IO Bool
+  insert  :: (Hashable k) => m -> TTL -> k -> B.ByteString -> B.ByteString -> IO Bool
              
-  update    :: (Hashable k) => m -> TTL -> k -> B.ByteString -> (Maybe B.ByteString -> IO B.ByteString) -> IO B.ByteString
+  update  :: (Hashable k) => m -> TTL -> k -> B.ByteString -> (Maybe B.ByteString -> IO B.ByteString) -> IO B.ByteString
+
+  scanOn  :: (Hashable k) => m -> k -> Glob -> (Maybe [(B.ByteString, B.ByteString)] -> IO ()) -> IO ()
+
+  scanAll :: m -> Glob -> (Maybe [(B.ByteString, B.ByteString)] -> IO ()) -> IO ()

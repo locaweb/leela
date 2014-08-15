@@ -262,6 +262,8 @@ parseStmtKill = "kill " *> doParse
 
 parseStmtAttr :: Parser LQL
 parseStmtAttr = "attr put " *> parsePutAttr
+                <|> "attr last * " *> parseLastAttrAll
+                <|> "attr last " *> parseLastAttrOn
                 <|> "attr get " *> parseGetAttr
                 <|> "attr del " *> parseDelAttr
                 <|> "attr kls " *> parseListAttr KAttrListStmt
@@ -276,6 +278,16 @@ parseStmtAttr = "attr put " *> parsePutAttr
         case token of
           Just 0x5b -> parsePutTAttr g k
           _         -> parsePutKAttr g k
+
+      parseLastAttrAll = do
+        a <- parseAttr
+        return (TAttrLastStmt Nothing a)
+
+      parseLastAttrOn = do
+        g <- parseGUID
+        hardspace
+        a <- parseAttr
+        return (TAttrLastStmt (Just g) a)
 
       parsePutKAttr g k = do
         v <- parseValue

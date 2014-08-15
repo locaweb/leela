@@ -21,7 +21,10 @@ module Leela.Storage.Backend.ZMQ.Protocol
     , decode
     , cacheKey
     , cacheVal
+    , cacheUnkey
+    , cacheUnval
     , mapToLazyBS
+    , cacheKeyGlob
     ) where
 
 import           Data.List (intersperse)
@@ -73,11 +76,22 @@ decodeInt s = case (B8.readInt s) of
 truncateInt :: Double -> Int
 truncateInt = truncate
 
+cacheKeyGlob :: Maybe GUID -> Attr -> L.ByteString
+cacheKeyGlob Nothing (Attr a)         = 0x2a `L.cons` 0 `L.cons` a
+cacheKeyGlob (Just (GUID g)) (Attr a) = g `L.append` (0 `L.cons` a)
+
 cacheKey :: GUID -> Attr -> L.ByteString
 cacheKey (GUID g) (Attr a) = toLazyBS 128 (lazyByteString g <> char7 '\0' <> lazyByteString a)
 
+cacheUnkey :: B.ByteString -> (GUID, Attr)
+cacheUnkey raw = let (guid, attr) = B.break (== 0) raw
+                 in (guidFromBS guid, attrFromBS $ B.drop 1 attr)
+
 cacheVal :: Time -> Value -> B.ByteString
 cacheVal time value = E.encode (time, value)
+
+cacheUnval :: B.ByteString -> Maybe (Time, Value)
+cacheUnval = either (const Nothing) Just . E.decode
 
 decodeValues :: [B.ByteString] -> Either Int [(Time, Value)]
 decodeValues = go []

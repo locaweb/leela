@@ -77,6 +77,8 @@ class AttrBackend m where
 
   putTAttr  :: m -> [(GUID, Attr, Time, Value, [Option])] -> IO ()
 
+  scanLast  :: m -> Maybe GUID -> Attr -> (Maybe [(GUID, Attr, Time, Value)] -> IO ()) -> IO ()
+
   getTAttr  :: m -> GUID -> Attr -> Time -> Limit -> IO [(Time, Value)]
 
   getAttr   :: m -> GUID -> Attr -> IO (Maybe Value)

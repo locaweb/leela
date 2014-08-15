@@ -135,4 +135,6 @@ suite = testGroup "Parser"
     , testCase "attr put : boolean : false"
       (count "using (leela) attr put 00000000-0000-0000-0000-000000000000 \"attr\" [0] (bool false);" @?= 1)
     ]
+  , testGroup "attr last"
+    []
   ]

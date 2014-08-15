@@ -35,6 +35,7 @@ module Leela.Data.Time
 
 import Data.Time
 import System.Clock
+import Data.Serialize
 import Control.DeepSeq
 import Control.Concurrent
 import Data.Time.Clock.POSIX

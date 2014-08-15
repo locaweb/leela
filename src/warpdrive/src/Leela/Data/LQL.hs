@@ -20,9 +20,9 @@ module Leela.Data.LQL
     , groupLQL
     ) where
 
-import qualified Data.Map as M
 import qualified Data.Sequence as S
 import           Data.Foldable (toList)
+import qualified Data.Map.Strict as M
 import           Leela.Data.Types
 
 targetUser :: Using -> User
@@ -40,6 +40,7 @@ data LQL = StatStmt
          | TAttrGetStmt GUID Attr TimeRange [Option]
          | KAttrListStmt GUID (Mode Attr)
          | TAttrListStmt GUID (Mode Attr)
+         | TAttrLastStmt (Maybe GUID) Attr
          | NameStmt Using (S.Seq GUID)
          | GUIDStmt Using (S.Seq (Kind, Node))
          | AlterStmt (S.Seq Journal)
@@ -56,6 +57,7 @@ lqlDescr = show . go M.empty
       go acc (TAttrGetStmt _ _ _ _ : xs) = go (M.insertWith (+) "attr get(t)" 1 acc) xs
       go acc (NameStmt _ _ : xs)         = go (M.insertWith (+) "name" 1 acc) xs
       go acc (GUIDStmt _ _ : xs)         = go (M.insertWith (+) "guid" 1 acc) xs
+      go acc (TAttrLastStmt _ _ : xs)    = go (M.insertWith (+) "attr last" 1 acc) xs
       go acc (AlterStmt j : xs)          = go (jDescr acc (toList j)) xs
 
       jDescr acc []                   = acc

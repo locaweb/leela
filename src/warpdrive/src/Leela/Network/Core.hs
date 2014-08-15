@@ -205,6 +205,13 @@ evalLQL db core queue (x:xs) = do
           alnFunc = maybe id alignSeries (getAlignment opts)
       loadTAttr db (devwriteIO queue . (Item . TAttr g a . alnFunc . mdpFunc)) g a t0 t1
       devwriteIO queue (Item $ TAttr g a [])
+    TAttrLastStmt guid attr -> do
+      let toTAttr (g, a, t, v) = TAttr g a [(t, v)]
+      scanLast db guid attr (\value ->
+        case value of
+          Just [] -> return ()
+          Just xs -> devwriteIO queue (Item $ List (map toTAttr xs))
+          Nothing -> devwriteIO queue (Fail 500 (Just "error reading from storage")))
     StatStmt          -> do
       state <- dumpStat core
       devwriteIO queue (Item $ Stat state)
