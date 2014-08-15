@@ -19,6 +19,7 @@ module Leela.Data.Endpoint
        , StrEndpoint
        , isTCP
        , isUDP
+       , portMap
        , loadEndpoint
        , dumpEndpoint
        , parseEndpoint
@@ -50,6 +51,10 @@ isTCP _           = False
 isUDP :: Endpoint -> Bool
 isUDP (UDP _ _ _) = True
 isUDP _           = False
+
+portMap :: (Word16 -> Word16) -> Endpoint -> Endpoint
+portMap f (TCP host port path) = TCP host (f port) path
+portMap f (UDP host port path) = UDP host (f port) path
 
 parseURL :: (String -> Word16 -> String -> a) -> Parser a
 parseURL f = do
