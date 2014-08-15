@@ -21,8 +21,8 @@
 - name: commit changes
   shell: docker commit $(docker ps -a -q | awk "NR==1{print $1}") leela/debian7-amd64
 
-- name: clone leela repository
-  docker: image=leela/debian7-amd64 command="git clone git@code.locaweb.com.br:iaas/leela.git /opt/leela"
+- name: install ansible in docker
+  shell: docker run leela/debian7-amd64 apt-get install -y ansible
 
 - name: commit changes
   shell: docker commit $(docker ps -a -q | awk "NR==1{print $1}") leela/debian7-amd64
