@@ -1,0 +1,22 @@
+# file: roles/build-docker/tasks/main.yml
+---
+- name: install dependencies
+shell: apt-get install -y curl leiningen ghc cabal-install
+
+- name: upgrade leininge
+  shell: lein upgrade
+
+- name: configure datastax repository
+  shell: echo "deb http://debian.datastax.com/community stable main" | sudo tee -a /etc/apt/sources.list.d/cassandra.sources.list; curl -L http://debian.datastax.com/debian/repo_key | apt-key add -
+
+- name: install cassandra
+  shell: apt-get update; apt-get install dsc20
+
+- name: install consul
+  shell: wget https://dl.bintray.com/mitchellh/consul/0.3.1_linux_amd64.zip -O /tmp/consul.zip; unzip /tmp/consul.zip -d /usr/local/bin
+
+- name: build blackbox
+  script: build-blackbox.sh
+
+- name: build warpdrive
+  script: build-warpdrive.sh
