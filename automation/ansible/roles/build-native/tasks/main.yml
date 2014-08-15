@@ -1,7 +1,7 @@
 # file: roles/build-docker/tasks/main.yml
 ---
 - name: install dependencies
-shell: apt-get install -y curl leiningen ghc cabal-install
+  shell: apt-get install -y curl leiningen ghc cabal-install
 
 - name: upgrade leininge
   shell: lein upgrade
