@@ -40,6 +40,7 @@ import           Control.Monad.Trans
 import           Leela.Data.Endpoint
 import           Data.ByteString.Char8 (pack)
 import           Leela.Storage.KeyValue
+import           Control.Concurrent.Async
 
 type Password = String
 
@@ -52,16 +53,18 @@ data Answer a = Value a
 
 newtype AnswerT m a = AnswerT { runAnswerT :: m (Answer a) }
 
-data RedisBackend = RedisBackend Logger (MVar ()) (Pool Endpoint Connection)
+data RedisBackend = RedisBackend Logger (MVar ()) (Pool Endpoint Connection) (Pool Endpoint Connection)
 
-redisOpen :: Logger -> (a, a -> IO [Endpoint]) -> Maybe Password -> IO RedisBackend
-redisOpen syslog (a, f) password = do
-  ctrl <- newEmptyMVar
-  pool <- createPool onBegin onClose
-  _    <- forkIO (supervise syslog "redis/pool" $ forever $ do
-            f a >>= updatePool pool
-            sleep 1)
-  return $ RedisBackend syslog ctrl pool
+redisOpen :: Logger -> (a, a -> IO [Endpoint], a -> IO [Endpoint]) -> Maybe Password -> IO RedisBackend
+redisOpen syslog (a, ronly, rdwr) password = do
+  ctrl   <- newEmptyMVar
+  ropool <- createPool onBegin onClose
+  rwpool <- createPool onBegin onClose
+  _      <- forkIO (supervise syslog "redis/pool" $ forever $ do
+              ronly a >>= updatePool ropool
+              rdwr a >>= updatePool rwpool
+              sleep 1)
+  return $ RedisBackend syslog ctrl ropool rwpool
     where
       onClose _ conn = void (runRedis conn quit)
 
@@ -75,9 +78,10 @@ redisOpen syslog (a, f) password = do
       onBegin e                 = throwIO (SystemExcept (Just $ "Redis/redisOpen: invalid redis endpoint: " ++ (dumpEndpointStr e)))
 
 redisClose :: RedisBackend -> IO ()
-redisClose (RedisBackend _ ctrl pool) = do
+redisClose (RedisBackend _ ctrl ropool rwpool) = do
   putMVar ctrl ()
-  deletePool pool
+  deletePool ropool
+  deletePool rwpool
 
 hashSelector :: Hashable k => k -> [Endpoint] -> Endpoint
 hashSelector s  e = e !! (hash s `mod` length e)
@@ -111,23 +115,22 @@ liftTxRedis m = AnswerT $ do
      TxAborted   -> return TxAbort
      TxError e   -> return (Failure e)
 
-scanKeys :: Logger -> B.ByteString -> (Maybe [(B.ByteString, B.ByteString)] -> IO ()) -> [Connection] -> IO ()
+scanKeys :: Logger -> B.ByteString -> (Maybe [(B.ByteString, B.ByteString)] -> IO ()) -> Connection -> IO ()
 scanKeys syslog glob callback = go "0"
     where
-      continue cursor conns
-        | cursor == "0" = go cursor (drop 1 conns)
-        | otherwise     = go cursor conns
+      continue cursor conn
+        | cursor == "0" = return ()
+        | otherwise     = go cursor conn
 
-      go :: B.ByteString -> [Connection] -> IO ()
-      go _ []                  = return ()
-      go cursor (conn : conns) = do
-        mkeyset <- runRedis conn $ sendRequest ["SCAN", cursor, "MATCH", glob]
+      go :: B.ByteString -> Connection -> IO ()
+      go cursor conn = do
+        mkeyset <- runRedis conn $ sendRequest ["SCAN", cursor, "MATCH", glob, "COUNT", "1000"]
         case mkeyset of
           Left what    -> do
             warning syslog ("scanKeys# error reading redis: " ++ show what)
             callback Nothing
           Right (nextCursor, keyset)
-            | null keyset -> continue nextCursor (conn : conns)
+            | null keyset -> continue nextCursor conn
             | otherwise   -> do
                 mvalset <- runRedis conn $ mget keyset
                 case mvalset of
@@ -136,23 +139,23 @@ scanKeys syslog glob callback = go "0"
                     callback Nothing
                   Right valset -> do
                     callback (Just $ map (\(k, v) -> (k, fromJust v)) $ filter (isJust . snd) (zip keyset valset))
-                    continue nextCursor (conn : conns)
+                    continue nextCursor conn
 
 instance KeyValue RedisBackend where
 
-  exists (RedisBackend _ _ pool) sel k   = use pool (hashSelector sel) (\c -> runRedis c action)
+  exists (RedisBackend _ _ _ rwpool) sel k   = use rwpool (hashSelector sel) (\c -> runRedis c action)
       where
         action = liftM (either (const False) id) (Redis.exists k)
 
-  select (RedisBackend _ _ pool) selector k   = use pool (hashSelector selector) (\c -> runRedis c action)
+  select (RedisBackend _ _ _ rwpool) selector k   = use rwpool (hashSelector selector) (\c -> runRedis c action)
       where
         action = liftM (either (const Nothing) id) (get k)
 
-  insert (RedisBackend _ _ pool) ttl_ selector k v = use pool (hashSelector selector) (\c -> runRedis c action)
+  insert (RedisBackend _ _ _ rwpool) ttl_ selector k v = use rwpool (hashSelector selector) (\c -> runRedis c action)
       where
         action = liftM (== (Right Ok)) (setex k (fromIntegral ttl_) v)
 
-  update (RedisBackend syslog _ pool) ttl_ selector k f = use pool (hashSelector selector) (runRedisIO syslog 3 transaction)
+  update (RedisBackend syslog _ _ rwpool) ttl_ selector k f = use rwpool (hashSelector selector) (runRedisIO syslog 3 transaction)
       where
         transaction = do
           _  <- liftRedis $ watch [k]
@@ -160,11 +163,11 @@ instance KeyValue RedisBackend where
           _  <- liftTxRedis (multiExec (psetex k (fromIntegral ttl_) v))
           return v
 
-  scanOn (RedisBackend syslog _ pool) selector glob callback =
-    use pool (hashSelector selector) (scanKeys syslog glob callback . (:[]))
+  scanOn (RedisBackend syslog _ ropool _) selector glob callback =
+    use ropool (hashSelector selector) (scanKeys syslog glob callback)
 
-  scanAll (RedisBackend syslog _ pool) glob callback =
-    useAll pool (scanKeys syslog glob callback)
+  scanAll (RedisBackend syslog _ ropool _) glob callback =
+    useAll ropool (void . mapConcurrently (scanKeys syslog glob callback))
 
 instance (Monad m) => Monad (AnswerT m) where
 

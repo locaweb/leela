@@ -123,8 +123,10 @@ main = do
             (optTimeout opts)
             (show $ optEndpoint opts))
   withContext $ \ctx -> do
-    let cfg = ClientConf (naming, fmap (maybe [] id . lookup "blackbox") . readIORef)
-    cache  <- redisOpen syslog (naming, fmap (maybe [] id . lookup "redis") . readIORef) (optRedisSecret opts)
+    let cfg     = ClientConf (naming, fmap (maybe [] id . lookup "blackbox") . readIORef)
+        redisRW = fmap (maybe [] id . lookup "redis") . readIORef
+        redisRO = fmap (maybe [] (map (portMap (+1))) . lookup "redis") . readIORef
+    cache  <- redisOpen syslog (naming, redisRO, redisRW) (optRedisSecret opts)
     client <- create syslog cfg ctx
     router <- startServer core (optEndpoint opts) ctx (zmqbackend syslog client cache)
     takeMVar alive
