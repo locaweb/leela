@@ -1,5 +1,5 @@
+# file: roles/build-docker/tasks/main.yml
 ---
-# file: roles/common/tasks/main.yml
 - name: make sure debootstrap is installed
   shell: type debootstrap
 
@@ -14,3 +14,21 @@
 
 - name: execute stage 1 build
   shell: roles/build-docker/files/stage-1.sh debian7-amd64.dockerfile
+
+- name: transfer local ssh key
+  shell: cat ~/.ssh/id_rsa | docker run -i leela/debian7-amd64 sh -c "cat > ~/.ssh/id_rsa"
+
+- name: commit changes
+  shell: docker commit $(docker ps -a -l | awk "NR==2{print $1}") leela/debian7-amd64
+
+- name: clone leela repository
+  docker: image=leela/debian7-amd64 command="git clone git@code.locaweb.com.br:iaas/leela.git /opt/leela"
+
+- name: commit changes
+  shell: docker commit $(docker ps -a -l | awk "NR==2{print $1}") leela/debian7-amd64
+
+- name: run build-native
+  docker: image=leela/debian7-amd64 command="/opt/leela/automation/build.sh -e native"
+
+- name: commit changes
+  shell: docker commit $(docker ps -a -l | awk "NR==2{print $1}") leela/debian7-amd64
