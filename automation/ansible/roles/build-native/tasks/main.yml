@@ -1,22 +1,25 @@
 # file: roles/build-docker/tasks/main.yml
 ---
 - name: install dependencies
-  shell: apt-get install -y curl leiningen ghc cabal-install
+  shell: apt-get install -y curl leiningen ghc cabal-install libzmq3-dev libffi-dev
+
+- name: set LEIN_ROOT
+  shell: export LEIN_ROOT=1
 
 - name: upgrade leininge
   shell: lein upgrade
 
 - name: configure datastax repository
-  shell: echo "deb http://debian.datastax.com/community stable main" | sudo tee -a /etc/apt/sources.list.d/cassandra.sources.list; curl -L http://debian.datastax.com/debian/repo_key | apt-key add -
+  shell: echo "deb http://debian.datastax.com/community stable main" | tee -a /etc/apt/sources.list.d/cassandra.sources.list; curl -L http://debian.datastax.com/debian/repo_key | apt-key add -
 
 - name: install cassandra
-  shell: apt-get update; apt-get install dsc20
+  shell: apt-get update; apt-get install -y dsc20
 
 - name: install consul
   shell: wget https://dl.bintray.com/mitchellh/consul/0.3.1_linux_amd64.zip -O /tmp/consul.zip; unzip /tmp/consul.zip -d /usr/local/bin
 
 - name: build blackbox
-  script: build-blackbox.sh
+  shell: roles/build-native/files/build-blackbox.sh
 
 - name: build warpdrive
-  script: build-warpdrive.sh
+  shell: roles/build-native/files/build-warpdrive.sh
