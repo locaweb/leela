@@ -34,7 +34,7 @@
   shell: docker commit $(docker ps -a -q | awk "NR==1{print $1}") leela/debian7-amd64
 
 - name: run build-native
-  shell: docker run leela/debian7-amd64 /opt/leela/automation/build.sh -e native
+  shell: docker run leela/debian7-amd64 /opt/leela/automation/builder -e native
 
 - name: commit changes
   shell: docker commit $(docker ps -a -q | awk "NR==1{print $1}") leela/debian7-amd64
