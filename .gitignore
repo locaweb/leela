@@ -30,4 +30,3 @@ try_leela.stderr
 /package/leela-lib/debian
 automation/ansible/leela-*
 automation/ansible/hosts
-automation/tmp/
