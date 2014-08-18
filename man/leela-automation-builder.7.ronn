@@ -1,6 +1,6 @@
 -*- mode: markdown; -*-
 
-# leela-builder(7) -- automation suite for bootstrap and build leela #
+# leela-automation-builder(7) -- automation suite for bootstrap and build leela #
 
 ## SYNOPSIS ##
 
@@ -19,6 +19,11 @@
     production use.
 
 Ansible and Docker are necessary in order to run this tool.
+
+## CONFIGURATION ##
+
+List the hosts to be bootstrapped in `automation/ansible/hosts`. There's
+an example file for reference in `automation/ansible/hosts.example`.
 
 ## AUTHOR ##
 
