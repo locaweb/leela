@@ -1,0 +1,33 @@
+-*- mode: markdown; -*-
+
+# leela-builder(7) -- automation suite for bootstrap and build leela #
+
+## SYNOPSIS ##
+
+`builder` [-e ENVIRONMENT]
+
+## DESCRIPTION ##
+
+`builder` is a tool based on Ansible for bootstrap Leela.
+
+-e
+  Select environment for bootstrap. Currently supports two environments:
+
+  * `docker`, which creates a Debian container and build Leela inside this
+    container. This option is more suitable for development environments.
+  * `native`, which builds Leela in loco. This option is more suitable for
+    production use.
+
+Ansible and Docker are necessary in order to run this tool.
+
+## AUTHOR ##
+
+Written by Stephano Ferreira<stephano.ferreira@locaweb.com.br>.
+
+## RESOURCES ##
+
+Source code available at http://github.com/locaweb/leela
+
+## COPYING ##
+
+Please refer to COPYING file.
