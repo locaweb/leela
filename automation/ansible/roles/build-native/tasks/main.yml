@@ -1,7 +1,7 @@
 # file: roles/build-docker/tasks/main.yml
 ---
 - name: install dependencies
-  shell: apt-get install -y curl leiningen ghc cabal-install libzmq3-dev libffi-dev
+  shell: apt-get install -y --allow-unauthenticated curl leiningen ghc cabal-install libzmq3-dev libffi-dev
 
 - name: set LEIN_ROOT
   shell: export LEIN_ROOT=1
@@ -13,7 +13,7 @@
   shell: echo "deb http://pacotes.linux.locaweb.com.br/cassandra stable main" > /etc/apt/sources.list.d/cassandra.sources.list
 
 - name: install cassandra
-  shell: apt-get update; apt-get install -y dsc20
+  shell: apt-get update; apt-get install -y --allow-unauthenticated dsc20
 
 - name: install consul
   shell: wget https://dl.bintray.com/mitchellh/consul/0.3.1_linux_amd64.zip -O /tmp/consul.zip; unzip /tmp/consul.zip -d /usr/local/bin
