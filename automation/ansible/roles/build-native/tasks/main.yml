@@ -1,8 +1,5 @@
-# file: roles/build-docker/tasks/main.yml
+# file: roles/build-native/tasks/main.yml
 ---
-- name: install dependencies
-  shell: apt-get install -y --allow-unauthenticated curl leiningen ghc cabal-install libzmq3-dev libffi-dev
-
 - name: set LEIN_ROOT
   shell: export LEIN_ROOT=1
 
