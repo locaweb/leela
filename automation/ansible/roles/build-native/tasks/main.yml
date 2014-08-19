@@ -3,9 +3,6 @@
 - name: set LEIN_ROOT
   shell: export LEIN_ROOT=1
 
-- name: upgrade leininge
-  shell: lein upgrade
-
 - name: configure datastax repository
   shell: echo "deb http://pacotes.linux.locaweb.com.br/cassandra stable main" > /etc/apt/sources.list.d/cassandra.sources.list
 
