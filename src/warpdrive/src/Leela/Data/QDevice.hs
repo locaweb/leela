@@ -38,6 +38,8 @@ module Leela.Data.QDevice
        , trydevread
        , notClosedIO
        , withControl
+       , addFinalizer
+       , runFinalizer
        ) where
 
 import Control.Monad
@@ -47,19 +49,29 @@ import Control.Concurrent.STM
 
 type Limit = Int
 
-newtype Control = Control (TVar Bool)
+newtype Control = Control (TVar Bool, TVar [Finalizer])
 
-data Device a = Device (TVar Bool) (TBQueue a)
+data Device a = Device Control (TBQueue a)
 
 class HasControl a where
     ctrlof :: a -> Control
 
+type Finalizer = IO ()
+
 control :: STM Control
-control = fmap Control (newTVar False)
+control = do
+  tvar0 <- newTVar False
+  tvar1 <- newTVar []
+  return (Control (tvar0, tvar1))
+
+addFinalizer :: Control -> Finalizer -> IO ()
+addFinalizer (Control (_, tvar)) fin = atomically $ do
+  current <- readTVar tvar
+  writeTVar tvar (fin : current)
 
 devnull :: STM (Device a)
 devnull = do
-  ctrl <- newTVar True
+  ctrl <- control
   fmap (Device ctrl) (newTBQueue 0)
 
 withControl :: (Control -> IO a) -> IO ()
@@ -70,7 +82,7 @@ withControl io = mask $ \restore -> do
 
 closed :: HasControl ctrl => ctrl -> STM Bool
 closed box = let Control ctrl = ctrlof box
-             in readTVar ctrl
+             in readTVar (fst ctrl)
 
 copy :: Device a -> (a -> Maybe b) -> Device b -> IO ()
 copy src f dst = do
@@ -89,21 +101,29 @@ closedIO :: HasControl ctrl => ctrl -> IO Bool
 closedIO = atomically . closed
 
 open :: HasControl ctrl => ctrl -> Limit -> STM (Device a)
-open ctrl0 l = fmap (Device ctrl) (newTBQueue (max l 1))
-    where Control ctrl = ctrlof ctrl0
+open ctrl l = fmap (Device (ctrlof ctrl)) (newTBQueue (max l 1))
 
 openIO :: HasControl ctrl => ctrl -> Limit -> IO (Device a)
 openIO ctrl l = atomically $ open ctrl l
 
 close :: HasControl ctrl => ctrl -> STM ()
 close ctrl = let Control tvar = ctrlof ctrl
-             in writeTVar tvar True
+             in writeTVar (fst tvar) True
+
+runFinalizer :: HasControl ctrl => ctrl -> IO ()
+runFinalizer ctrl = do
+  let Control (_, tmvar) = ctrlof ctrl
+  fins <- atomically $ do
+    current <- readTVar tmvar
+    writeTVar tmvar []
+    return current
+  sequence_ fins
 
 closeIO :: HasControl ctrl => ctrl -> IO ()
 closeIO = atomically . close
 
 select :: Device a -> STM (Bool, TBQueue a)
-select (Device ctrl q) = fmap (, q) (readTVar ctrl)
+select (Device (Control (ctrl, _)) q) = fmap (, q) (readTVar ctrl)
 
 devwrite :: Device a -> a -> STM ()
 devwrite dev v = do
@@ -149,4 +169,4 @@ instance HasControl Control where
 
 instance HasControl (Device a) where
 
-    ctrlof (Device ctrl _) = Control ctrl
+    ctrlof (Device ctrl _) = ctrl
