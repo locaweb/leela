@@ -113,7 +113,7 @@ makeFD :: CoreServer -> User -> IO (Time, FH, Device Reply)
 makeFD srv (User u) = do
   dev  <- atomically $ do
     ctrl <- control
-    open ctrl 512
+    open ctrl 4
   time <- snapshot
   fd   <- next (fdseq srv)
   at   <- peek (tick srv)
