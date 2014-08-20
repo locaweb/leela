@@ -63,9 +63,10 @@ resolver :: Logger -> IORef [(String, [Endpoint])] -> String -> IO ()
 resolver syslog ioref url = do
   info syslog (printf "resolver: fetching from consul: %s" url)
   oldServices <- readIORef ioref
-  newServices <- fmap (M.toList . parseServices) (fetchCatalog url "/v1/health/service/leela")
-  atomicWriteIORef ioref newServices
-  when (oldServices /= newServices) $ notice syslog (printf "resolver: %s" (show newServices))
+  newServices <- fmap (M.toAscList . parseServices) (fetchCatalog url "/v1/health/service/leela")
+  when (oldServices /= newServices && (not $ null newServices)) $ do
+    atomicWriteIORef ioref newServices
+    notice syslog (printf "resolver: %s" (show newServices))
 
 instance FromJSON Service where
    parseJSON (Object v) = Service <$>
