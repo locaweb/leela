@@ -94,22 +94,20 @@ instance (KeyValue a) => AttrBackend (ZMQBackend a) where
 
   putTAttr _ []    = return ()
   putTAttr m attrs = do
-    cache <- liftM (S.fromList . map fst . filter snd) $ mapConcurrently seen attrs
-    send_ (dealer m) (MsgPutTAttr $ map (setIndexing cache) attrs)
-    void $ mapConcurrently storeCache attrs
+    seenset <- liftM (S.fromList . concatMap (map fst . filter snd)) $ mapConcurrently (mapM seen) (chunkSplit 64 attrs)
+    send_ (dealer m) (MsgPutTAttr $ map (setIndexing seenset) attrs)
+    void $ mapConcurrently (mapM storeCache) (chunkSplit 64 attrs)
       where
-        setIndexing cache (g, a, t, v, o)
-          | S.member (g, a) cache = (g, a, t, v, o)
-          | otherwise             = (g, a, t, v, setOpt Indexing o)
+        setIndexing seenset (g, a, t, v, o)
+          | S.member (g, a) seenset = (g, a, t, v, o)
+          | otherwise               = (g, a, t, v, setOpt Indexing o)
 
         storeCache (g, a, t, v, _) =
           (void $ insertLazy (cachedb m) 86400 g (cacheKey g a) (cacheVal t v))
              `catch` (warnAndReturn "storeCache# error writing to redis" ())
 
         seen (g, a, _, _, _) =
-          let key = (g, a)
-          in liftM (key,) ((existsLazy (cachedb m) g (cacheKey g a))
-                              `catch` (warnAndReturn "seen# error reading from redis" False))
+          liftM ((g, a), ) $ existsLazy (cachedb m) g (cacheKey g a)
 
         warnAndReturn :: String -> a -> SomeException -> IO a
         warnAndReturn msg value e = do
