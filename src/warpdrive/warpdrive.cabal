@@ -43,7 +43,9 @@ executable warpdrive
                   , parallel             (>= 3      && < 4)
                   , hashable             (>= 1.2    && < 2)
                   , old-locale           (>= 1      && < 2)
-                  , attoparsec           (>= 0.11   && < 1)
+-- https://github.com/informatikr/hedis/issues/16
+-- https://github.com/informatikr/hedis/issues/15
+                  , attoparsec           (== 0.11.3.4)
                   , bytestring           (>= 0.10.4 && < 1)
                   , containers           (>= 0.5    && < 1)
                   , semigroups           (>= 0.11   && < 1)
