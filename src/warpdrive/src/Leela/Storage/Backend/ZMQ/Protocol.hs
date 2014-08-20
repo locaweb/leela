@@ -77,6 +77,7 @@ truncateInt :: Double -> Int
 truncateInt = truncate
 
 cacheKeyGlob :: Maybe GUID -> Attr -> L.ByteString
+cacheKeyGlob Nothing (Attr "*")       = "*"
 cacheKeyGlob Nothing (Attr a)         = 0x2a `L.cons` 0 `L.cons` a
 cacheKeyGlob (Just (GUID g)) (Attr a) = g `L.append` (0 `L.cons` a)
 
