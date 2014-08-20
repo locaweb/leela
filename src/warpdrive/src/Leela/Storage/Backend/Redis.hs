@@ -73,7 +73,7 @@ redisOpen syslog (a, ronly, rdwr) password = do
                           , connectPort           = PortNumber (fromIntegral port)
                           , connectAuth           = fmap pack password
                           , connectDatabase       = 0
-                          , connectMaxConnections = 32
+                          , connectMaxConnections = 128
                           , connectMaxIdleTime    = 600})
       onBegin e                 = throwIO (SystemExcept (Just $ "Redis/redisOpen: invalid redis endpoint: " ++ (dumpEndpointStr e)))
 
@@ -115,35 +115,37 @@ liftTxRedis m = AnswerT $ do
      TxAborted   -> return TxAbort
      TxError e   -> return (Failure e)
 
-scanKeys :: Logger -> B.ByteString -> (Maybe [(B.ByteString, B.ByteString)] -> IO ()) -> Connection -> IO ()
-scanKeys syslog glob callback = go "0"
+scanKeys :: Logger -> B.ByteString -> (Maybe [(B.ByteString, B.ByteString)] -> IO ()) -> Connection -> IO Bool
+scanKeys syslog glob callback conn = go "0"
     where
-      continue cursor conn
-        | cursor == "0" = return ()
-        | otherwise     = go cursor conn
+      continue cursor
+        | cursor == "0" = return True
+        | otherwise     = go cursor
 
-      go :: B.ByteString -> Connection -> IO ()
-      go cursor conn = do
-        mkeyset <- runRedis conn $ sendRequest ["SCAN", cursor, "MATCH", glob, "COUNT", "1000"]
-        case mkeyset of
+      fetchKeys [] cursor     = continue cursor
+      fetchKeys keyset cursor = do
+        let (lkeys, rkeys) = splitAt 2048 keyset
+        mvalset <- runRedis conn $ mget lkeys
+        case mvalset of
           Left what    -> do
             warning syslog ("scanKeys# error reading redis: " ++ show what)
-            callback Nothing
-          Right (nextCursor, keyset)
-            | null keyset -> continue nextCursor conn
-            | otherwise   -> do
-                mvalset <- runRedis conn $ mget keyset
-                case mvalset of
-                  Left what    -> do
-                    warning syslog ("scanKeys# error reading redis: " ++ show what)
-                    callback Nothing
-                  Right valset -> do
-                    callback (Just $ map (\(k, v) -> (k, fromJust v)) $ filter (isJust . snd) (zip keyset valset))
-                    continue nextCursor conn
+            return False
+          Right valset -> do
+            callback (Just $ map (\(k, v) -> (k, fromJust v)) $ filter (isJust . snd) (zip lkeys valset))
+            fetchKeys rkeys cursor
+
+      go :: B.ByteString -> IO Bool
+      go cursor = do
+        mkeyset <- runRedis conn $ sendRequest ["SCAN", cursor, "MATCH", glob, "COUNT", "4096"]
+        case mkeyset of
+          Left what                  -> do
+            warning syslog ("scanKeys# error reading redis: " ++ show what)
+            return False
+          Right (nextCursor, keyset) -> fetchKeys keyset nextCursor
 
 instance KeyValue RedisBackend where
 
-  exists (RedisBackend _ _ _ rwpool) sel k   = use rwpool (hashSelector sel) (\c -> runRedis c action)
+  exists (RedisBackend _ _ _ rwpool) sel k = use rwpool (hashSelector sel) (\c -> runRedis c action)
       where
         action = liftM (either (const False) id) (Redis.exists k)
 
@@ -164,10 +166,14 @@ instance KeyValue RedisBackend where
           return v
 
   scanOn (RedisBackend syslog _ ropool _) selector glob callback =
-    use ropool (hashSelector selector) (scanKeys syslog glob callback)
+    use ropool (hashSelector selector) (void . scanKeys syslog glob callback)
 
   scanAll (RedisBackend syslog _ ropool _) glob callback =
-    useAll ropool (void . mapConcurrently (scanKeys syslog glob callback))
+    useAll ropool action
+      where
+        action conns = do
+          results <- mapConcurrently (scanKeys syslog glob callback) conns
+          unless (and results) (callback Nothing)
 
 instance (Monad m) => Monad (AnswerT m) where
 
