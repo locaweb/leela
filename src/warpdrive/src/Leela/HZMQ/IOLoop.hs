@@ -18,6 +18,7 @@ module Leela.HZMQ.IOLoop
        , cancel
        , sendMsg
        , recvMsg
+       , sendMsg_
        , aliveSTM
        , pollLoop
        , newIOLoop
@@ -25,10 +26,12 @@ module Leela.HZMQ.IOLoop
        , newIOLoop_
        ) where
 
+import           Data.Maybe
 import           System.ZMQ4
 import           Leela.Logger
 import           Control.Monad
 import           Leela.Helpers
+import           Control.DeepSeq
 import qualified Data.ByteString as B
 import           Control.Exception
 import           Control.Concurrent
@@ -36,22 +39,27 @@ import           Leela.HZMQ.ZHelpers
 import qualified Data.ByteString.Lazy as L
 import           Control.Concurrent.STM
 
-newtype Poller a = Poller (TBQueue [B.ByteString], TBQueue [L.ByteString], MVar (Socket a), TVar Bool)
+data Poller a = Poller { pollName :: String
+                       , pollInQ  :: TBQueue [B.ByteString]
+                       , pollOutQ :: TBQueue (MVar [B.ByteString])
+                       , pollLock :: MVar (Socket a)
+                       , pollCtrl :: TVar Bool
+                       }
 
-newIOLoop :: TBQueue [B.ByteString] -> TBQueue [L.ByteString] -> Socket a -> IO (Poller a)
-newIOLoop qsrc qdst fh = do
+newIOLoop :: String -> TBQueue [B.ByteString] -> TBQueue (MVar [B.ByteString]) -> Socket a -> IO (Poller a)
+newIOLoop name qsrc qdst fh = do
   ctrl <- newTVarIO True
   lock <- newMVar fh
-  return (Poller (qsrc, qdst, lock, ctrl))
+  return (Poller name qsrc qdst lock ctrl)
 
-newIOLoop_ :: Socket a -> IO (Poller a)
-newIOLoop_ fh = do
-  qsrc <- newTBQueueIO 1024
-  qdst <- newTBQueueIO 1024
-  newIOLoop qsrc qdst fh
+newIOLoop_ :: String -> Int -> Int -> Socket a -> IO (Poller a)
+newIOLoop_ name srcsz dstsz fh = do
+  qsrc <- newTBQueueIO srcsz
+  qdst <- newTBQueueIO dstsz
+  newIOLoop name qsrc qdst fh
 
 aliveSTM :: Poller a -> STM Bool
-aliveSTM (Poller (_, _, _, ctrl)) = readTVar ctrl
+aliveSTM = readTVar . pollCtrl
 
 alive :: Poller a -> IO Bool
 alive = atomically . aliveSTM
@@ -60,33 +68,52 @@ tryWriteTBQueue :: TBQueue a -> a -> STM Bool
 tryWriteTBQueue q a = (writeTBQueue q a >> return True) `orElse` (return False)
 
 enqueue :: Poller a -> [B.ByteString] -> STM Bool
-enqueue (Poller (q, _, _, _)) msg =
+enqueue p msg =
   case (break B.null msg) of
     (_, (_ : [])) -> return False
-    _             -> tryWriteTBQueue q msg
+    _             -> tryWriteTBQueue (pollInQ p) msg
 
-dequeue :: Poller a -> Maybe [L.ByteString] -> STM [L.ByteString]
-dequeue _ (Just msg)            = return msg
-dequeue (Poller (_, q, _, _)) _ = readTBQueue q
+dequeue :: Poller a -> Maybe [B.ByteString] -> STM (Either [B.ByteString] (MVar [B.ByteString]))
+dequeue _ (Just msg) = return (Left msg)
+dequeue p _          = liftM Right (readTBQueue (pollOutQ p))
 
 recvMsg :: Poller a -> IO (Maybe [B.ByteString])
-recvMsg p@(Poller (q, _, _, _)) = atomically $ do
+recvMsg p = atomically $ do
   ok <- aliveSTM p
   if ok
-   then fmap Just (readTBQueue q)
+   then liftM Just (readTBQueue (pollInQ p))
    else return Nothing
 
-sendMsg :: Poller a -> [L.ByteString] -> IO Bool
-sendMsg (Poller (_, q, _, _)) msg = atomically $ tryWriteTBQueue q msg
+sendMsg' :: Poller a -> [B.ByteString] -> IO (Maybe (IO ()))
+sendMsg' p msg = do
+  mvar <- msg `deepseq` newMVar msg
+  ok   <- atomically $ tryWriteTBQueue (pollOutQ p) mvar
+  if ok
+   then return (Just $ void $ tryTakeMVar mvar)
+   else return Nothing
+
+sendMsg :: Poller a -> [L.ByteString] -> IO (Maybe (IO ()))
+sendMsg p = sendMsg' p . map L.toStrict
+
+sendMsg_ :: Poller a -> [L.ByteString] -> IO Bool
+sendMsg_ p = liftM isJust . sendMsg p
+
+readReq :: Logger -> String -> Either [B.ByteString] (MVar [B.ByteString]) -> IO (Maybe [B.ByteString])
+readReq _ _ (Left msg)           = return (Just msg)
+readReq syslog name (Right mvar) = do
+  mmsg <- tryTakeMVar mvar
+  when (isNothing mmsg) $
+    warning syslog (printf "dropping message [%s#cancel]" name)
+  return mmsg
 
 cancel :: Poller a -> IO ()
-cancel (Poller (_, _, _, ctrl)) = atomically $ writeTVar ctrl False
+cancel = atomically . flip writeTVar False . pollCtrl
 
 useSocket :: Poller a -> (Socket a -> IO b) -> IO b
-useSocket (Poller (_, _, lock, _)) = withMVar lock
+useSocket p = withMVar (pollLock p)
 
 pollLoop :: (Receiver a, Sender a) => Logger -> Poller a -> IO ()
-pollLoop syslog p@(Poller (_, _, _, ctrl)) = do
+pollLoop syslog p = do
   fd               <- useSocket p fileDescriptor
   (waitW, cancelW) <- waitFor (threadWaitWrite fd)
   (waitR, cancelR) <- waitFor (threadWaitRead fd)
@@ -97,6 +124,7 @@ pollLoop syslog p@(Poller (_, _, _, ctrl)) = do
         t <- forkIO $ supervise syslog "ioloop/waitFor" $ forever $ do
           _ <- waitFunc
           atomically $ putTMVar v ()
+          atomically $ isEmptyTMVar v >>= flip unless retry
         return (takeTMVar v, killThread t)
 
       handleRecv fh = do
@@ -104,27 +132,38 @@ pollLoop syslog p@(Poller (_, _, _, ctrl)) = do
         if (In `elem` zready)
          then do
            ok <- receiveMulti fh >>= atomically . enqueue p
-           unless ok (warning syslog "dropping message [rcvqueue full]")
+           unless ok (warning syslog (printf "dropping message [%s#rcvqueue full]" (pollName p)))
            handleRecv fh
          else return zready
 
       handleSend msg fh = do
         zready <- events fh
         if (Out `elem` zready)
-         then sendAll' fh msg >> return Nothing
+         then sendAll fh msg >> return Nothing
          else return (Just msg)
-      
+
+      execPoll waitR waitW wMiss = do
+        wready <- (waitW >> liftM Just (dequeue p wMiss)) `orElse` (return Nothing)
+        rready <- (waitR >> return True) `orElse` (return False)
+        when (rready == False && wready == Nothing) retry
+        return (rready, wready)
+
       go waitR waitW wMiss = do
         ready <- atomically $ do
-          ok <- readTVar ctrl
+          ok <- readTVar (pollCtrl p)
           if ok
-           then fmap Just ((waitW >> fmap Right (dequeue p wMiss)) `orElse` (fmap Left waitR))
-           else return Nothing
+           then fmap Right (execPoll waitR waitW wMiss)
+           else return (Left ())
         case ready of
-          Nothing          -> return ()
-          Just (Left _)    -> do
-            _ <- useSocket p handleRecv
+          Left ()                  -> return ()
+          Right (rready, Just req) -> do
+            when rready $ void (useSocket p handleRecv)
+            mmsg <- readReq syslog (pollName p) req
+            case mmsg of
+              Nothing  -> go waitR waitW wMiss
+              Just msg -> do
+                wMiss' <- useSocket p (handleSend msg)
+                go waitR waitW wMiss'
+          Right (rready, Nothing)  -> do
+            when rready $ void (useSocket p handleRecv)
             go waitR waitW wMiss
-          Just (Right msg) -> do
-            wMiss' <- useSocket p (handleSend msg)
-            go waitR waitW wMiss'

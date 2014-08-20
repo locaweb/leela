@@ -42,7 +42,6 @@ import           Leela.Data.Counter
 import           Leela.Data.Endpoint
 import           Leela.HZMQ.ZHelpers
 import qualified Data.ByteString.Lazy as L
-import           Control.Concurrent.STM
 
 type JKey = Word32
 
@@ -51,7 +50,7 @@ newtype Job = Job (JKey, MVar [B.ByteString])
 data ClientConf a = ClientConf { endpoint :: (a, a -> IO [Endpoint]) }
 
 data Client = Client { logger  :: Logger
-                     , poller  :: [Poller Dealer]
+                     , poller  :: Poller Dealer
                      , cstate  :: IORef (M.HashMap JKey Job)
                      , counter :: Counter JKey
                      }
@@ -71,22 +70,29 @@ modifyState ioref f = atomicModifyIORef' ioref $ \state ->
    Just state' -> (state', ())
 
 request :: Int -> ClientFH -> [L.ByteString] -> IO (Maybe [B.ByteString])
-request maxwait (ClientFH (dealer, _)) msg =
-  bracket (newJob dealer) (delJob dealer . readKey) $ \job -> do
-    ok <- sendMsg (head $ poller dealer) (encodeLazy (readKey job) : L.empty : msg)
-    if ok
-     then timeout (maxwait * 1000) (takeMVar (readJob job))
-     else do
-       warning (logger dealer) "dropping request [dealer#sndqueue full]"
-       return Nothing
+request maxwait (ClientFH (dealer, _)) msg = bracket acquire release useFunc
+    where
+      acquire = newJob dealer msg
 
-newJob :: Client -> IO Job
-newJob dealer = do
+      useFunc Nothing         = return Nothing
+      useFunc (Just (job, _)) = timeout (maxwait * 1000) (takeMVar (readJob job))
+
+      release Nothing             = return ()
+      release (Just (job, abort)) = abort >> delJob dealer (readKey job)
+
+newJob :: Client -> [L.ByteString] -> IO (Maybe (Job, IO ()))
+newJob dealer msg = do
   key   <- next (counter dealer)
-  shmem <- newEmptyMVar
-  let job = Job (key, shmem)
-  modifyState (cstate dealer) (Just . M.insert key job)
-  return job
+  abort <- sendMsg (poller dealer) (encodeLazy key : L.empty : msg)
+  case abort of
+    Nothing -> do
+      warning (logger dealer) "dropping request [dealer#sndqueue full]"
+      return Nothing
+    Just func  -> do
+      shmem <- newEmptyMVar
+      let job = Job (key, shmem)
+      modifyState (cstate dealer) (Just . M.insert key job)
+      return (Just (job, func))
 
 delJob :: Client -> JKey -> IO ()
 delJob dealer key = modifyState (cstate dealer) (Just . M.delete key)
@@ -102,8 +108,8 @@ dealerLoop dealer = do
   warning (logger dealer) "dealer has started"
   wait   <- newQSemN 0
   _      <- forkFinally recvLoop (const $ signalQSemN wait 1)
-  mapM_ (flip forkFinally (const $ signalQSemN wait 1) . pollLoop (logger dealer)) (poller dealer)
-  waitQSemN wait (length (poller dealer) + 1)
+  _      <- forkFinally (pollLoop (logger dealer) (poller dealer)) (const $ signalQSemN wait 1)
+  waitQSemN wait 2
   warning (logger dealer) "dealer has quit"
     where
       recvAns msg = do
@@ -116,7 +122,7 @@ dealerLoop dealer = do
           _                    -> return ()
 
       recvLoop = do
-        msg <- recvMsg (head $ poller dealer)
+        msg <- recvMsg (poller dealer)
         when (isJust msg) (recvAns (fromJust msg) >> recvLoop)
 
 poolUpdate :: ClientConf a -> Pool Endpoint () -> IO ()
@@ -128,33 +134,34 @@ create :: Logger -> ClientConf a -> Context -> IO ClientFH
 create syslog cfg ctx = do
   notice syslog "creating zmq.dealer"
   caps   <- fmap (max 1) getNumCapabilities
-  fhs    <- replicateM caps $ do
-    fh <- socket ctx Dealer
-    config fh
-    return fh
-  qsrc   <- newTBQueueIO 1024
-  qdst   <- newTBQueueIO 1024
-  qsem   <- newQSem 0
-  dealer <- liftM3 (Client syslog) (mapM (newIOLoop qsrc qdst) fhs) (newIORef M.empty) newCounter
+  fh     <- zmqSocket
+  qsem   <- newQSemN 0
+  dealer <- liftM3 (Client syslog) (newIOLoop_ "dealer" (caps * 100) (caps * 1000) fh) (newIORef M.empty) newCounter
   pool   <- createPool (createWorker dealer) (destroyWorker dealer)
   poolUpdate cfg pool
   _      <- forkFinally
-              (supervise syslog "poolUpdate" $ foreverWith (alive (head $ poller dealer)) (poolUpdate cfg pool >> sleep 1))
-              (const $ signalQSem qsem)
-  _      <- forkFinally (dealerLoop dealer) (const $ signalQSem qsem)
-  return $ ClientFH (dealer, replicateM_ 2 (waitQSem qsem) >> mapM_ close fhs)
+              (supervise syslog "poolUpdate" $ foreverWith (alive (poller dealer)) (poolUpdate cfg pool >> sleep 1))
+              (const $ signalQSemN qsem 1)
+  _      <- forkFinally (dealerLoop dealer) (const $ signalQSemN qsem 1)
+  return $ ClientFH (dealer, waitQSemN qsem 2 >> close fh)
     where
+      zmqSocket = do
+        fh <- socket ctx Dealer
+        setHWM (1000, 1) fh
+        config fh
+        return fh
+
       destroyWorker dealer addr _ = do
         let addrStr = dumpEndpointStr addr
-        forM_ (poller dealer) (\p -> useSocket p (flip disconnect addrStr))
+        useSocket (poller dealer) (flip disconnect addrStr)
         warning syslog (printf "dealer: disconnect %s" addrStr)
 
       createWorker dealer addr = do
         let addrStr = dumpEndpointStr addr
-        forM_ (poller dealer) (\p -> useSocket p (flip connect  addrStr))
+        useSocket (poller dealer) (flip connect  addrStr)
         warning syslog (printf "dealer: connect %s" addrStr)
 
 stopDealer :: ClientFH -> IO ()
 stopDealer (ClientFH (dealer, waitStop)) = do
-  mapM_ cancel (poller dealer)
+  cancel (poller dealer)
   waitStop

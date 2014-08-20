@@ -48,7 +48,6 @@ setHWM (rcvQueue, sndQueue) fh = do
 
 config :: Socket a -> IO ()
 config fh = do
-  setHWM (0, 0) fh
   setLinger (restrict 0) fh
   setTcpKeepAlive On fh
   setImmediate True fh

@@ -25,7 +25,6 @@ import           Data.Maybe
 import           System.ZMQ4
 import           Leela.Logger
 import           Control.Monad
-import           Control.DeepSeq
 import qualified Data.ByteString as B
 import           Leela.Data.Time
 import           Control.Exception
@@ -52,7 +51,7 @@ readPeer (Request val _) = val
 reply :: Logger -> Poller Router -> Request -> [L.ByteString] -> IO ()
 reply syslog poller job msg = do
   let ans = (map L.fromStrict $ readPeer job) ++ (L.empty : msg)
-  ans `deepseq` (sendMsg poller ans >>= flip unless (warning syslog "dropping msg [router#sndqueue full]"))
+  sendMsg_ poller ans >>= flip unless (warning syslog "dropping msg [router#sndqueue full]")
 
 worker :: Logger -> Poller Router -> Request -> Worker -> IO ()
 worker syslog poller job action = do
@@ -89,6 +88,7 @@ startRouter syslog endpoint ctx action = do
   ctrl <- newMVar True
   void $ flip forkFinally (\_ -> void $ takeMVar ctrl) $ do
     withSocket ctx Router $ \fh -> do
+      setHWM (1000, 1) fh
       configAndBind fh (dumpEndpointStr endpoint)
       go ctrl fh
   return (RouterFH ctrl)
@@ -102,7 +102,8 @@ startRouter syslog endpoint ctx action = do
 
       go ctrl fh = do
         warning syslog "router has started"
-        poller <- newIOLoop_ fh
+        caps   <- fmap (max 1) getNumCapabilities
+        poller <- newIOLoop_ "router" (caps * 100) (caps * 1000) fh
         wait   <- newQSemN 0
         _      <- forkFinally (recvLoop poller) (const $ signalQSemN wait 1)
         _      <- forkFinally (pollLoop syslog poller) (const $ signalQSemN wait 1)
