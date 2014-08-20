@@ -70,9 +70,9 @@ options =
   , Option [] ["debug-level"]
            (ReqArg (setReadOpt (\v opts -> opts { optDebugLevel = v })) "DEBUG|INFO|NOTICE|WARNING|ERROR")
            (printf "logging level [default: %s]" (show $ optDebugLevel defaultOptions))
-  , Option [] ["redis-secret"]
+  , Option [] ["redis-secret-env"]
            (ReqArg (\v opts -> opts { optRedisSecret = Just v }) "REDIS-SECRET")
-           (printf "redis authentication string [default: %s]" (maybe "<<nopasswd>>" id (optRedisSecret defaultOptions)))
+           (printf "environment variable in which contains the redis authentication string [default: %s]" (maybe "<<no-value>>" id (optRedisSecret defaultOptions)))
   , Option [] ["log-bufsize"]
            (ReqArg (setReadOpt (\v opts -> opts { optBufSize = v })) "LOG-BUFSIZE")
            (printf "size of the buffer log [default: %d]" (optBufSize defaultOptions))
@@ -126,7 +126,8 @@ main = do
         redisRW = fmap (maybe [] id . lookup "redis") . readIORef
         redisRO = fmap (maybe [] (map (portMap (+1))) . lookup "redis") . readIORef
     setIoThreads (optIoThreads opts) ctx
-    cache  <- redisOpen syslog (naming, redisRO, redisRW) (optRedisSecret opts)
+    secret <- maybe (return Nothing) lookupEnv (optRedisSecret opts)
+    cache  <- redisOpen syslog (naming, redisRO, redisRW) secret
     client <- create syslog cfg ctx
     router <- warpServer core (optEndpoint opts) ctx (zmqbackend syslog client cache)
     takeMVar alive
