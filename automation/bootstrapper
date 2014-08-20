@@ -40,13 +40,13 @@ build_native() {
 }
 
 build_docker() {
-  msg "\e[34m Building Docker"
+  msg "\e[34m Bootstrapping Docker"
   ansible-playbook -i ${inventory_file} -v ${docker_playbook_file}
 
   if [ ! $? -eq 0 ]; then
-    error "Something happened while building Leela in the Docker environment. D:"
+    error "Something happened while bootstrapping the Docker environment. D:"
   else
-    success "Leela was successfully built in the Docker environment. Big win!"
+    success "Leela was successfully bootstrapped in the Docker environment. Big win!"
   fi
 }
 
