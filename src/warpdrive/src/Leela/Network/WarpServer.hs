@@ -14,8 +14,8 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-module Leela.Network.ZMQServer
-       ( startServer
+module Leela.Network.WarpServer
+       ( warpServer
        , stopRouter
        ) where
 
@@ -42,5 +42,5 @@ worker db core = Worker f (evaluate . strictEncode . encodeE)
               Left err -> evaluate $ strictEncode err
               Right q  -> process db core q >>= evaluate . strictEncode
 
-startServer :: (GraphBackend m, AttrBackend m) => CoreServer -> Endpoint -> Context -> m -> IO RouterFH
-startServer core addr ctx storage = startRouter (logger core) addr ctx (worker storage core)
+warpServer :: (GraphBackend m, AttrBackend m) => CoreServer -> Endpoint -> Context -> m -> IO RouterFH
+warpServer core addr ctx storage = startRouter (logger core) addr ctx (worker storage core)

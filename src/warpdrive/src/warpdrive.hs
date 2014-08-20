@@ -14,6 +14,7 @@
 
 module Main (main) where
 
+import Data.Word
 import System.IO
 import Data.IORef
 import System.ZMQ4
@@ -30,27 +31,27 @@ import Leela.Data.Endpoint
 import System.Posix.Signals
 import Leela.Storage.Passwd
 import System.Console.GetOpt
-import Leela.Network.ZMQServer
+import Leela.Network.WarpServer
 import Leela.Storage.Backend.ZMQ
 import Leela.Storage.Backend.Redis
 
-data Options = Options { optConsul       :: String
+data Options = Options { optConsul       :: Endpoint
                        , optPasswd       :: String
-                       , optTimeout      :: Int
                        , optEndpoint     :: Endpoint
                        , optDebugLevel   :: Priority
                        , optRedisSecret  :: Maybe String
-                       , optBufSize      :: Int
+                       , optBufSize      :: Word
+                       , optIoThreads    :: Word
                        }
 
 defaultOptions :: Options
 defaultOptions = Options { optEndpoint     = TCP "*" 4080 ""
                          , optDebugLevel   = NOTICE
-                         , optConsul       = "http://127.0.0.1:8500"
+                         , optConsul       = HTTP "127.0.0.1" 8500 ""
                          , optRedisSecret  = Nothing
                          , optPasswd       = "/etc/leela/passwd"
-                         , optTimeout      = 60 * 1000
                          , optBufSize      = 512
+                         , optIoThreads    = 2
                          }
 
 setReadOpt :: (Read a) => (a -> Options -> Options) -> String -> Options -> Options
@@ -60,27 +61,27 @@ setReadOpt f raw opts = case (reads raw) of
 
 options :: [OptDescr (Options -> Options)]
 options =
-  [ Option ['e'] ["endpoint"]
+  [ Option [] ["endpoint"]
            (ReqArg (setReadOpt (\v opts -> opts { optEndpoint = v })) "ENDPOINT")
-           "endpoint to bind this service to"
+           (printf "endpoint to bind this service to [default: %s]" (show $ optEndpoint defaultOptions))
   , Option [] ["consul-endpoint"]
-           (ReqArg (\v opts -> opts { optConsul = v }) "CONSULENDPOINT")
-           "the consul endpoint to find leela services"
+           (ReqArg (setReadOpt (\v opts -> opts { optConsul = v })) "CONSUL-ENDPOINT")
+           (printf "the consul endpoint to find leela services [default: %s]" (show $ optConsul defaultOptions))
   , Option [] ["debug-level"]
            (ReqArg (setReadOpt (\v opts -> opts { optDebugLevel = v })) "DEBUG|INFO|NOTICE|WARNING|ERROR")
-           "logging level"
+           (printf "logging level [default: %s]" (show $ optDebugLevel defaultOptions))
   , Option [] ["redis-secret"]
-           (ReqArg (\v opts -> opts { optRedisSecret = Just v }) "REDISSECRET")
-           "redis authentication string"
-  , Option [] ["timeout-in-ms"]
-           (ReqArg (setReadOpt (\v opts -> opts { optTimeout = v })) "TIMEOUT-IN-MS")
-           "timeout in milliseconds"
+           (ReqArg (\v opts -> opts { optRedisSecret = Just v }) "REDIS-SECRET")
+           (printf "redis authentication string [default: %s]" (maybe "<<nopasswd>>" id (optRedisSecret defaultOptions)))
   , Option [] ["log-bufsize"]
            (ReqArg (setReadOpt (\v opts -> opts { optBufSize = v })) "LOG-BUFSIZE")
-           "size of the buffer log"
+           (printf "size of the buffer log [default: %d]" (optBufSize defaultOptions))
   , Option [] ["passwd"]
            (ReqArg (\v opts -> opts { optPasswd = v }) "PASSWD")
-           "passwd file path"
+           (printf "passwd file path [default: %s]" (optPasswd defaultOptions))
+  , Option [] ["iothreads"]
+           (ReqArg (setReadOpt (\v opts -> opts { optIoThreads = v })) "IOTHREADS")
+           (printf "number of iothreads to use [default: %d]" (optIoThreads defaultOptions))
   ]
 
 readOpts :: [String] -> IO Options
@@ -111,24 +112,23 @@ main = do
   opts   <- getArgs >>= readOpts
   alive  <- newEmptyMVar
   naming <- newIORef []
-  syslog <- newLogger (optBufSize opts) (optDebugLevel opts)
+  syslog <- newLogger (fromIntegral $ max 1 (optBufSize opts)) (optDebugLevel opts)
   passwd <- passwdWatcher syslog (optPasswd opts)
   core   <- newCore syslog naming passwd
-  resolver syslog naming (optConsul opts)
-  _      <- forkIO (supervise syslog "main/resolver" $ forever $ sleep 5 >> resolver syslog naming (optConsul opts))
+  resolver syslog naming (show $ optConsul opts)
+  _      <- forkIO (supervise syslog "main/resolver" $ forever $ sleep 5 >> resolver syslog naming (show $ optConsul opts))
   void $ installHandler sigTERM (Catch $ signal alive) Nothing
   void $ installHandler sigINT (Catch $ signal alive) Nothing
   warning syslog
-    (printf "warpdrive: yo!yo!; timeout=%d, endpoint=%s"
-            (optTimeout opts)
-            (show $ optEndpoint opts))
+    (printf "warpdrive: yo!yo!; endpoint=%s" (show $ optEndpoint opts))
   withContext $ \ctx -> do
     let cfg     = ClientConf (naming, fmap (maybe [] id . lookup "blackbox") . readIORef)
         redisRW = fmap (maybe [] id . lookup "redis") . readIORef
         redisRO = fmap (maybe [] (map (portMap (+1))) . lookup "redis") . readIORef
+    setIoThreads (optIoThreads opts) ctx
     cache  <- redisOpen syslog (naming, redisRO, redisRW) (optRedisSecret opts)
     client <- create syslog cfg ctx
-    router <- startServer core (optEndpoint opts) ctx (zmqbackend syslog client cache)
+    router <- warpServer core (optEndpoint opts) ctx (zmqbackend syslog client cache)
     takeMVar alive
     flushLogger syslog
     stopDealer client
