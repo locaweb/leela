@@ -12,7 +12,7 @@ place_conf() {
 }
 
 place_init() {
-  cp $(basedir)/inits/redis-server /etc/redis/
+  cp $(basedir)/inits/redis-server /etc/init.d/
 }
 
 main
