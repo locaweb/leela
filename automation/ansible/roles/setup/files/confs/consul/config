@@ -1,0 +1,13 @@
+{
+  "datacenter": "local",
+  "encrypt": "NsBXYk+ENjR8So+uJVTaVQ==",
+  "server": true,
+  "leave_on_terminate": true,
+
+  "client_addr": "127.0.0.1",
+
+  "dns_config": {
+    "allow_stale": true,
+    "max_stale": "60s"
+  }
+}

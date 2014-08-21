@@ -1,0 +1,12 @@
+{
+    "service": {
+        "name": "leela",
+        "id": "blackbox",
+        "tags": ["blackbox"],
+        "port": 50023,
+        "check": {
+            "script": "/usr/bin/leela-blackbox-watchdog.sh",
+            "interval": "5s"
+        }
+    }
+}

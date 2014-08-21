@@ -1,0 +1,14 @@
+LEELA_CAPABILITIES=3
+
+if [ $(nproc) -ge 4 ]
+then
+  LEELA_NPROC=$(( $(nproc) * 3 / 4 ))
+else
+  LEELA_NPROC=2
+fi
+
+# The endpoint to bind to [do not use *, other services use this]
+LEELA_WARPDRIVE_ENDPOINT='tcp://10.30.124.165:4080'
+
+# Extra options for blackbox
+LEELA_WARPDRIVE_OPTS="--debug-level=NOTICE --redis-secret=JKQNLwe5PhapumYJQhch --consul-endpoint=http://warp0013.locaweb.com.br:8500 +RTS -N$LEELA_NPROC -A512K -H -M4G -G4 -qa -I0 -s -RTS"

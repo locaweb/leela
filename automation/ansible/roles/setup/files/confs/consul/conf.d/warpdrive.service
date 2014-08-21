@@ -1,0 +1,12 @@
+{
+    "service": {
+        "name": "leela",
+        "id": "warpdrive",
+        "tags": ["warpdrive"],
+        "port": 4080,
+        "check": {
+            "script": "/usr/bin/leela-warpdrive-watchdog.sh",
+            "interval": "5s"
+        }
+    }
+}

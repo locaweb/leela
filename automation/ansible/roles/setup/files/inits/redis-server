@@ -1,0 +1,102 @@
+#! /bin/sh
+### BEGIN INIT INFO
+# Provides:		redis-server
+# Required-Start:	$syslog $remote_fs
+# Required-Stop:	$syslog $remote_fs
+# Should-Start:		$local_fs
+# Should-Stop:		$local_fs
+# Default-Start:	2 3 4 5
+# Default-Stop:		0 1 6
+# Short-Description:	redis-server - Persistent key-value db
+# Description:		redis-server - Persistent key-value db
+### END INIT INFO
+
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+DAEMON=/usr/bin/redis-server
+MASTER_CONF=/etc/redis/redis.conf
+SLAVE_CONF=/etc/redis/slave.conf
+NAME=redis-server
+DESC=redis-server
+
+RUNDIR=/var/run/redis
+MASTER_PIDFILE=$RUNDIR/redis-server-master.pid
+SLAVE_PIDFILE=$RUNDIR/redis-server-slave.pid
+
+test -x $DAEMON || exit 0
+
+if [ -r /etc/default/$NAME ]
+then
+	. /etc/default/$NAME
+fi
+
+. /lib/lsb/init-functions
+
+set -e
+
+case "$1" in
+  start)
+	echo -n "Starting $DESC: "
+	mkdir -p $RUNDIR
+	touch $MASTER_PIDFILE
+	touch $SLAVE_PIDFILE
+	chown redis:redis $RUNDIR $MASTER_PIDFILE
+	chown redis:redis $RUNDIR $SLAVE_PIDFILE
+	chmod 755 $RUNDIR
+
+	if [ -n "$ULIMIT" ]
+	then
+		ulimit -n $ULIMIT
+	fi
+
+	if start-stop-daemon --start --quiet --umask 007 --pidfile $MASTER_PIDFILE --chuid redis:redis --exec $DAEMON -- $MASTER_CONF
+	then
+		echo "$NAME master."
+	else
+		echo "master failed"
+	fi
+
+	if start-stop-daemon --start --quiet --umask 007 --pidfile $SLAVE_PIDFILE --chuid redis:redis --exec $DAEMON -- $SLAVE_CONF
+	then
+		echo "$NAME slave."
+	else
+		echo "slave failed"
+	fi
+	;;
+  stop)
+	echo -n "Stopping $DESC: "
+	if start-stop-daemon --stop --retry forever/TERM/1 --quiet --oknodo --pidfile $MASTER_PIDFILE --exec $DAEMON
+	then
+		echo "$NAME master."
+	else
+		echo "master failed"
+	fi
+
+	if start-stop-daemon --stop --retry forever/TERM/1 --quiet --oknodo --pidfile $SLAVE_PIDFILE --exec $DAEMON
+	then
+		echo "$NAME slave."
+	else
+		echo "slave failed"
+	fi
+
+	rm -f $MASTER_PIDFILE
+	rm -f $SLAVE_PIDFILE
+	sleep 1
+	;;
+
+  restart|force-reload)
+	${0} stop
+	${0} start
+	;;
+
+  status)
+	status_of_proc -p ${MASTER_PIDFILE} ${DAEMON} ${NAME}
+	;;
+
+  *)
+	echo "Usage: /etc/init.d/$NAME {start|stop|restart|force-reload|status}" >&2
+	exit 1
+	;;
+esac
+
+exit 0
