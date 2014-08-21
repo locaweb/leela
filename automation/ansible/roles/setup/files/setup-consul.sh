@@ -7,7 +7,11 @@ main() {
 }
 
 place_conf() {
-  cp -r $(basedir)/confs/consul/* /etc/consul/
+  if [ ! -e /etc/consul ]; then
+    mkdir /etc/consul
+  fi
+
+  cp -r ${basedir}/confs/consul/* /etc/consul/
 }
 
 main

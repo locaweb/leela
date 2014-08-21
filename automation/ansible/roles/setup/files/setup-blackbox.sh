@@ -7,7 +7,7 @@ main() {
 }
 
 place_conf() {
-  cp $(basedir)/confs/blackbox/leela-blackbox /etc/default/
+  cp ${basedir}/confs/blackbox/leela-blackbox /etc/default/
 }
 
 main

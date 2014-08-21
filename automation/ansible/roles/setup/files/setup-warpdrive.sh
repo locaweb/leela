@@ -7,7 +7,7 @@ main() {
 }
 
 place_conf() {
-  cp $(basedir)/confs/warpdrive/leela-warpdrive /etc/default/
+  cp ${basedir}/confs/warpdrive/leela-warpdrive /etc/default/
 }
 
 main

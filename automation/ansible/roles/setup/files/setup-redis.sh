@@ -8,11 +8,11 @@ main() {
 }
 
 place_conf() {
-  cp $(basedir)/confs/redis/* /etc/redis/
+  cp ${basedir}/confs/redis/* /etc/redis/
 }
 
 place_init() {
-  cp $(basedir)/inits/redis-server /etc/init.d/
+  cp ${basedir}/inits/redis-server /etc/init.d/
 }
 
 main
