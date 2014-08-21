@@ -1,14 +1,14 @@
 -*- mode: markdown; -*-
 
-# leela-automation-builder(7) -- automation suite for bootstrap and build leela #
+# leela-automation-bootstrapper(7) -- automation suite for bootstrap leela #
 
 ## SYNOPSIS ##
 
-`builder` [-e ENVIRONMENT]
+`bootstrapper` [-e ENVIRONMENT]
 
 ## DESCRIPTION ##
 
-`builder` is a tool based on Ansible for bootstrap Leela.
+`bootstrapper` is a tool based on Ansible for bootstrap Leela.
 
 -e
   Select environment for bootstrap. Currently supports two environments:
