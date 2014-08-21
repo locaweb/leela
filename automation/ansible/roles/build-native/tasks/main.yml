@@ -3,14 +3,17 @@
 - name: set LEIN_ROOT
   shell: export LEIN_ROOT=1
 
-- name: configure datastax repository
+- name: add datastax repository
   shell: echo "deb http://pacotes.linux.locaweb.com.br/cassandra stable main" > /etc/apt/sources.list.d/cassandra.sources.list
 
 - name: install cassandra
   shell: apt-get update; apt-get install -y --allow-unauthenticated dsc20
 
 - name: install consul
-  shell: wget https://dl.bintray.com/mitchellh/consul/0.3.1_linux_amd64.zip -O /tmp/consul.zip; unzip /tmp/consul.zip -d /usr/local/bin
+  shell: apt-get install -y --allow-unauthenticated consul
+
+- name: install redis
+  shell: roles/build-native/files/install-redis.sh
 
 - name: build blackbox
   shell: roles/build-native/files/build-blackbox.sh
