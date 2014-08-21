@@ -4,280 +4,154 @@
 
 ## SYNOPSIS ##
 
-`warpdrive` [OPTION]... 
+`warpdrive` [OPTION]...
 
 ## DESCRIPTION ##
 
-`warpdrive` is the heart of the leela system. In conjunction with a
-suitable storage implementation, it provides a property-graph engine
-where properties can also be time-series. This daemon is a network
-server which uses `0mq` and the protocol specified in
-leela-network-iterator(7) to serve users.
+`warpdrive` is the program that allows users interacting with the
+leela system. In conjunction with a few other services, it provides a
+_property-graph database_ in which properties can be either
+_time-series_ or _key-value_.
 
-This page describe some of the internals and the query language used
-to modify and query the graph -- hereafter referenced as *LQL* (Leela
-Query Language).
+This manual provides information about how to use it and its
+internals. It does not give information about the lql syntax, but this
+can be found at leela-lql(7).
 
-## LQL - OVERVIEW ##
+## OPTIONS ##
 
-Clients always initiate a request with a `begin` message which must
-contains a valid *LQL* statement. LQL is an *ASCII* encoded string
-that allows the user to modify and query the graph.
+  * --endpoint=ENDPOINT:
 
-In *LQL*, there are currently five statements available:
+    The enpoint the server binds to;
 
-* `path`: to navigate through the graph;
-* `name`: to resolve the name and tree of a guid;
-* `guid`: same as `name` but takes a guid;
-* `attr`: to modify and query properties;
-* `make`: used to create nodes, labels and edges;
-* `kill`: remove edges or vertexes;
+  * --consul-endpoint=ENDPOINT:
 
-This section gives only a brief introduction about the first two and
-all clauses are properly defined in future sections.
+    The consul [HTTP] endpoint to find leela services. This should use
+    the consul agent that is monitoring this instance;
 
-Let's start with an example. The following is a valid *LQL* statement
-(numbers are not part of the message):
+  * --debug-level=[DEBUG|INFO|NOTICE|WARNING|ERROR]:
 
-    1| using (system)
-    2| make (leela)
-    3| make (warpdrive)
-    4| make (blackbox)
-    5| make bd8f0e77-d2df-473c-b654-924cf3dadbb7 -[zmq/lql]> 189f7aa5-7c14-4380-9083-535a797b009a -[zmq/storage]> 08443ee0-d27f-497b-a006-7c0d07ae0b2c;
+    The logging level. For production consider using NOTICE and above;
 
-Every *lql* statement must define which namespace to use with a
-`using` message:
+  * --redis-secret-env=STRING:
 
-    1| using (system)
+    The _name of the environment variable_ which contais the redis
+    secret;
 
-This informs that you are referring to the *system
-namespace*. Vertexes names are *unique* whithin a *namespace*.
+  * --log-bufsize=UINT:
 
-Then the next three lines:
+    The size to buffer log messages in memory before flushing to disk;
 
-    2| make (leela)
-    3| make (warpdrive)
-    4| make (blackbox)
+  * --iothreads=UINT:
 
-These create three vertexes: *leela*, *warpdrive* and *blackbox*
-respectively. This is a required step before creating *edges* as it
-registers the name of the node. The server answers these requests with
-a `name` message, which is an unique identifier [= *guid*] that you must
-use when referring to them.
+    The number of zmq iothreads to use; The generic rule to consider
+    is 1Gbp per iothread;
 
-Finally, the last line creates two *edges*. An edge is something that
-links two vertexes, establishing a path between them. We can always
-break down the multiple create statement into a series binary
-operations and still produce the same result:
+  * --passwd=PATH:
 
-    make bd8f0e77-d2df-473c-b654-924cf3dadbb7 -[zmq/lql]> 189f7aa5-7c14-4380-9083-535a797b009a
+    The passwd file path, which must be a valid json:
 
-The above creates a path (notice the *guid* may vary) connecting
-*leela* to the vertex *warpdrive* with the label *zmq/lql*. The
-brackets delimit the string and the arrow (the string between the two
-vertexes) defines direction. So to create a path in the opposite
-direction we could either do:
+        { USERNAME: [ SECRET, [ [LOGIN-AS, PERM-FLAGS] ] ] }
 
-    make 189f7aa5-7c14-4380-9083-535a797b009a -[zmq/lql]> bd8f0e77-d2df-473c-b654-924cf3dadbb7
-    make bd8f0e77-d2df-473c-b654-924cf3dadbb7 <[zmq/lql]- 189f7aa5-7c14-4380-9083-535a797b009a
+    Where:
 
-The above lines are equivalent. Continuing:
+      *USERNAME*: string that defines the username;
 
-    make 189f7aa5-7c14-4380-9083-535a797b009a -[zmq/storage]> 08443ee0-d27f-497b-a006-7c0d07ae0b2c;
+      *SECRET*: 64 chars long string, hex-encoded;
 
-This does exactly the same as the first component, except by the
-trailing semi-colon. This is used indicate the end of the statement
-and everything after it gets ignored.
+      *LOGIN-AS*: username this user is allowed to read from or write
+       to;
 
-The other statement at our disposal is `path`. It shares the same
-syntax as the `make` statement:
+      *PERM-FLAGS*: 4 chars long string that matches the regex:
+      `^([r-][w-]){2}$`. The first two characters refers to the graph
+      database and the last two to the properties. The `r` means read
+      access, the `w` character means write access and the `-` denies
+      access;
 
-    path bd8f0e77-d2df-473c-b654-924cf3dadbb7
+    Example:
 
-This will retrieve all *outgoing edges* the *leela* vertex may
-have. Supposing that the previous `make` statement has executed
-successfully then this would return the tuple (*warpdrive*,
-*zmq/lql*).
+        { "locaweb": [ "0000000000000000000000000000000000000000000000000000000000000000",
+                       ["locaweb-test-1", "rw--"],
+                       ["locaweb-test-2", "--r-"]
+                     ]
+        }
 
-We can also provide a path:
+## INTERNALS ##
 
-    path bd8f0e77-d2df-473c-b654-924cf3dadbb7 -[zmq/lql]> ()
+It exposes a network service via `0mq` using the protocol defined in
+leela-network-protocol(7), which allows users to retrieve and modify
+data using the lql syntax leela-lql(7).
 
-Notice the empty parenthesis at the end of the path. This is used to
-express that we want to retrieve all vertexes that `leela` have an
-outgoing edge to.
+To work properly, this program requires a number of services:
 
-You may also perform a prefix or suffix match in the label using the
-`*` character:
-
-    path bd8f0e77-d2df-473c-b654-924cf3dadbb7 -[zmq/*]> ()
-    path bd8f0e77-d2df-473c-b654-924cf3dadbb7 -[*/lql]> ()
-    path bd8f0e77-d2df-473c-b654-924cf3dadbb7 -[*]> ()
-
-Path queries can have arbitrary sizes too:
-
-    path bd8f0e77-d2df-473c-b654-924cf3dadbb7 -[zmq/lql]> 189f7aa5-7c14-4380-9083-535a797b009a -> -[*/native]> ()
-
-This should cover the basics of the *LQL*, following we provide
-details of the actual syntax and internals.
-
-## LQL SYNTAX ##
-
-Each lql statement must begin with the `using` clause, which defines
-the namespace. Following, a sequece of one or more clauses separated
-by newline. The end of the statement is defined with a trailing
-semi-colon. The parser is very strict, make sure you use only one
-newline, only one space etc.
+  * blackbox
 
-The message must be sent inside a `begin` message as shown bellow. The
-examples in this page use the character *>* to represent a user's
-request and the character *<* a reply from the server:
+    the storage service that uses cassandra as the storage
+    system. This service must register itself in consul using
+    `service=leela` and `tag=blackbox`. Warpdrive is able to auto
+    configure itself when new instances are created or removed;
 
-    > <SIGNATURE> | begin | using (leela) make (warpdrive);
-    < done | 1
+  * redis
 
-The server will then reply with a valid channel. Then the user must
-consume results using the `fetch` message, which should return `item`
-or `done` messages. If there are multiple items ready, the server may
-send them at once using the `list` message:
+    used mostly for caching and to retrieve the last value of a
+    time-series property. This service must register itself in consul
+    using `service=leela` and `tag=redis`. Similarly, it is also able
+    to configure itself when new instances are created or removed;
 
-    0      1      2..n
-    +------+------+----------------+
-    | item | list | <LENGTH> | ... |
-    +------+------+----------------+
+    Notice that warpdrive requires an read-only redis slave for each
+    redis you announce in consul. This slave instance is used for
+    expensive commands, like `SCAN`. The slave must be listening for
+    requests at the subsequent port of the master
+    [i.e. if master port is 6379 then slave port must be 6380].
 
-where *<LENGTH>* is the number of `item` messages. For instance, the
-server could encode a `name` and a `path` in a single `item` message:
+  * consul
 
-    > <SIGNATURE> | fetch | 1
-    < item | list | 2
-        | name | dgvncsz0f | leela | foobar | 189f7aa5-7c14-4380-9083-535a797b009a
-        | path | 2 | foobar | 189f7aa5-7c14-4380-9083-535a797b009a
-    * line breaks just for legibility purposes
+    the naming server which monitors the health of the leela cluster
+    and allows to dynamically create or remove nodes. This is a
+    critical service;
 
-If there is any error, the server will send a `fail` message. Also,
-the `done` message may be used instead of an `item` informing the user
-the server is done.
-
-### ABNF ###
-
-    lql   = "using" SP "(" +VCHAR ")" SP stmts ";"
-    stmts = stmt *(LF stmt)
-    stmt  = attr
-          / name
-          / path
-          / kill
-          / guid
-          / make ; please refer to MAKE, PATH,
-                 ; NAME, ATTR and KILL sections
-
-## MAKE ##
-
-Creates vertexes or edges. This statement produces no response (except
-when an error occurs), so there is no need to fetch them if you are
-not interested in errors:
-
-    > <SIGNATURE> | begin | using (leela) make (warpdrive);
-    < done | 1
-    > <SIGNATURE> | fetch | 1
-    < item | name | leela | leela | warprive | 189f7aa5-7c14-4380-9083-535a797b009a
-    > <SIGNATURE> | close | 1
-    < done
-
-Calling close without *nowait* flag waits for either error or
-success. If you want to make sure everything went fine:
-
-    > <SIGNATURE> | begin | using (leela) make (warpdrive);
-    < done | 1
-    > <SIGNATURE> | fetch | 1
-    < item | name | leela | warpdrive | 189f7aa5-7c14-4380-9083-535a797b009a
-    > <SIGNAGURE> | close | 1 | nowait
-    < done
-
-### ABNF ###
-
-    make   = "make" SP vertex
-    vertex = "(" +VCHAR ")" *(SP link)
-    link   = (r-link / l-link) SP vertex
-    r-link = "-[" +VCHAR "]>"
-    l-link = "<[" +VCHAR "]-"
-
-## PATH ##
-
-Find edges matching a given path. The server respond with zero or more
-`path` messages, one for each edge that has been found:
-
-    0      1         2..2+<LINKS>
-    +------+---------+---------+---------+
-    | path | <LINKS> | <LABEL> | <GUID> |
-    +------+---------+---------+---------+
-
-The first vertex is mandatory, you must provide a starting point. When
-specifying the labels, you may use wildcards, like the following
-examples:
-
-    path a -[foo*]> (); labels starting with foo
-    path a -[*foo]> (); labels ending with foo;
-    path a -[foobar]> (); exact match;
-    path a -[*]> (); any labels;
-
-The path may put a constrain on intermediary nodes as well:
-
-    path a -[*]> b; labels between (a) and (b)?
-
-An special case is a `path` on a single node. This is equivalent of
-asking all labels of the vertex, so these two produce the same
-results:
-
-    path a;
-    path a -[*]> ();
-
-### EXAMPLES ###
-
-    > <SIGNATURE> | begin | using (leela) path 189f7aa5-7c14-4380-9083-535a797b009a;
-    < done | 1
-    > <SIGNATURE> | fetch | 1
-    > done | path | 2 | foobar | 08443ee0-d27f-497b-a006-7c0d07ae0b2c
-    > <SIGNATURE> | close | 1
-    < done
-
-### ABNF ###
-
-    path   = "path" SP vertex
-    vertex = GUID *(SP link)
-    link   = "-[" +VCHAR "]>" SP vertex
-
-## NAME ##
-
-Extracts name and tree from vertex references. The response is a
-`name` message:
-
-    0      1        2        3             4
-    +------+--------+--------+--------+--------+
-    | name | <USER> | <TREE> | <NAME> | <GUID> |
-    +------+--------+--------+--------+--------+
-
-### EXAMPLES ###
-
-    > <SIGNATURE> | begin | using (leela) name 189f7aa5-7c14-4380-9083-535a797b009a;
-    < done | 1
-    > <SIGNATURE> | fetch | 1
-    < done | name | dgvncsz0f | leela | foobar | 189f7aa5-7c14-4380-9083-535a797b009a
-    > <SIGNATURE> | close | 1
-    < done
-
-### ABNF ###
-
-    name = "name" SP NAME
-
-## GUID ##
-
-Extracts name and tree from a vertex guid. The response is a `name`
-message. Refer to `name` section for more information.
-
-### ABNF ###
-
-    guid = "guid" SP GUID
+The following diagram summarizes the architecture:
+
+              +--------+
+          +---| consul |
+          |   +--------+
+          |
+    +-----------+        +----------+         +-----------+
+    | warpdrive |--------| blackbox |---------| cassandra |
+    +-----------+        +----------+         +-----------+
+          |
+          |                                +--------------+
+          +--------------------------------| redis-master |
+          |                                +--------------+
+          |                                       |
+          |                                +--------------+
+          +--------------------------------| redis-slave  |
+                                           +--------------+
+
+Notice this hides the fact that there are consul agents monitoring
+each instance of `warpdrive`, `blackbox`, `redis-master` and
+`redis-slave`.
+
+### REQUEST-RESPONSE LIFECYCLE ###
+
+Each request starts with a `BEGIN` message that contains the `lql`
+statement to execute. This forks a new thread on the server and
+returns a channel to the caller, which must be used to reference this
+request afterwards.
+
+The caller then issues a series of `FETCH` requests using this channel
+to read data. This shall either return the result of the statement or
+an error.
+
+Lastly, the user must issue a `CLOSE` request using the channel to
+free any resources associated with the request. More information about
+this protocol can be found in leela-lql-protocol(7) and leelq-lql(7).
+
+The server atomically disposes channels that have no activity, i.e.,
+no fetch messages.
+
+## BUGS ##
+
+https://github.com/locaweb/leela/issues
 
 ## AUTHORS ##
 
