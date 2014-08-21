@@ -1,6 +1,5 @@
 {
   "datacenter": "local",
-  "encrypt": "NsBXYk+ENjR8So+uJVTaVQ==",
   "server": true,
   "leave_on_terminate": true,
 
