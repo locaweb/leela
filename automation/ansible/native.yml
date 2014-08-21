@@ -3,3 +3,5 @@
 - hosts: native
   roles:
     - build-native
+    - setup
+    - init
