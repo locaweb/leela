@@ -34,9 +34,7 @@ lql_meta_cursor_t *leela_new_meta_cursor(lql_cursor_t *cursor1, lql_cursor_t *cu
   lql_meta_cursor_t *meta = NULL;
   meta = malloc(sizeof(lql_meta_cursor_t));
   if (meta == NULL)
-  {
-    return NULL;
-  }
+  { return NULL; }
   meta->cursor1 = cursor1;
   meta->cursor2 = cursor2;
   return(meta);
@@ -50,11 +48,13 @@ leela_status leela_lql_meta_cursor_next (lql_meta_cursor_t *meta)
 
 lql_tattr_t *leela_fetch_meta_cursor(lql_meta_cursor_t *meta, aggr_tattr_f aggr_func)
 {
+  if ((meta->cursor1->row != LQL_TATTR_MSG) || (meta->cursor2->row != LQL_TATTR_MSG))
+  { return(NULL); }
+
   lql_tattr_t *tattr = (lql_tattr_t *) malloc(sizeof(lql_tattr_t));
   if (tattr == NULL)
-  {
-    return(NULL);
-  }
+  { return(NULL); }
+
   int i, j;
   lql_tattr_t *tattr1 = leela_lql_fetch_tattr(meta->cursor1);
   lql_tattr_t *tattr2 = leela_lql_fetch_tattr(meta->cursor2);
@@ -97,11 +97,7 @@ lql_tattr_t *leela_fetch_meta_cursor(lql_meta_cursor_t *meta, aggr_tattr_f aggr_
     value->data.v_double = value1->data.v_double + value2->data.v_double;
     value = aggr_func(value1, value2);
     printf("Value1: %f, Value2: %f, Aggregation: %f\n", value1->data.v_double, value2->data.v_double, value->data.v_double);
-    /*
-    printf("Timeseries: %f, Somatoria %f\n", *dval, value1->data.v_double + value2->data.v_double);
-    */
-    i++;
-    j++;
+    i++; j++;
   }
   leela_lql_tattr_free(tattr1);
   leela_lql_tattr_free(tattr2);
