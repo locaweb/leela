@@ -49,9 +49,10 @@ more concise representation may get used:
 
 This represents user's request (notice the character *>* at the
 beginning of the string). The server reply is represented with the
-character *<*:
+character *<*. The *#* character is meant for comments:
 
     < part0 | part1 | ... | part_n
+    # this is a comment
 
 ## REQUEST-RESPONSE PROTOCOL ##
 
