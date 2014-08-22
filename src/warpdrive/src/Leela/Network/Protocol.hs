@@ -101,13 +101,15 @@ readTime = fmap (fromSeconds . fromInt) . readDecimal
 maxSigTime :: NominalDiffTime
 maxSigTime = 300
 
-whenValidSignature :: (User -> Maybe Secret) -> User -> Nonce -> MAC -> B.ByteString -> a -> Either Reply a
-whenValidSignature secLookup u nonce sig msg =
+whenValidSignature :: (Time, NominalDiffTime) -> (User -> Maybe Secret) -> Time -> User -> Nonce -> MAC -> B.ByteString -> a -> Either Reply a
+whenValidSignature now secLookup t u nonce sig msg =
   case (secLookup u) of
-    Nothing                      -> const $ Left $ Fail 401 $ Just "signature error: unknown user"
-    Just sec
-      | verify sec nonce msg sig -> Right
-      | otherwise                -> const $ Left $ Fail 403 $ Just "signature error: invalid secret"
+    Nothing  -> const $ Left $ Fail 401 $ Just "signature error: unknown user"
+    Just sec -> if (not $ verify sec nonce msg sig)
+                 then const $ Left $ Fail 403 $ Just "signature error: invalid secret"
+                 else if (expired now t)
+                  then const $ Left $ Fail 403 $ Just "signature error: expired"
+                  else Right
 
 readNonce :: B.ByteString -> Either Reply Nonce
 readNonce = maybe (Left $ Fail 400 $ Just "signature error: invalid nonce") Right . initNonce . fst . B16.decode
@@ -115,8 +117,8 @@ readNonce = maybe (Left $ Fail 400 $ Just "signature error: invalid nonce") Righ
 readMAC :: B.ByteString -> Either Reply MAC
 readMAC = maybe (Left $ Fail 400 (Just "signature error: invalid mac")) Right . initMAC . fst . B16.decode
 
-readSignature :: (User -> Maybe Secret) -> B.ByteString -> [B.ByteString] -> Either Reply Signature
-readSignature users sig msg =
+readSignature :: (Time, NominalDiffTime) -> (User -> Maybe Secret) -> B.ByteString -> [B.ByteString] -> Either Reply Signature
+readSignature now users sig msg =
   let (base, mac) = B.break (== 0x20) sig
   in case (B.splitWith (== 0x3a) base) of
        [user, timestr, nonce] -> do
@@ -124,16 +126,16 @@ readSignature users sig msg =
          t0 <- readTime timestr
          n  <- readNonce nonce
          s  <- readMAC $ B.drop 1 mac
-         whenValidSignature users u n s (B.concat (base : B.singleton 0x3a : msg)) (Signature u t0 n s)
+         whenValidSignature now users t0 u n s (B.concat (base : B.singleton 0x3a : msg)) (Signature u t0 n s)
        _                      ->
          Left $ Fail 400 (Just "syntax error: signature")
 
-decode :: (User -> Maybe Secret) -> [B.ByteString] -> Either Reply Query
-decode users (sig:"begin":lql)         = fmap (flip Begin lql) (readSignature users sig ("begin" : lql))
-decode users [sig,"close",fh]          = liftM2 (Close False) (readSignature users sig ["close",fh]) (readDecimal fh)
-decode users [sig,"close",fh,"nowait"] = liftM2 (Close True) (readSignature users sig ["close",fh,"nowait"]) (readDecimal fh)
-decode users [sig,"fetch",fh]          = liftM2 Fetch (readSignature users sig ["fetch",fh]) (readDecimal fh)
-decode _ _                             = Left $ Fail 400 (Just "syntax error: bad frame")
+decode :: (Time, NominalDiffTime) -> (User -> Maybe Secret) -> [B.ByteString] -> Either Reply Query
+decode now users (sig:"begin":lql)         = fmap (flip Begin lql) (readSignature now users sig ("begin" : lql))
+decode now users [sig,"close",fh]          = liftM2 (Close False) (readSignature now users sig ["close",fh]) (readDecimal fh)
+decode now users [sig,"close",fh,"nowait"] = liftM2 (Close True) (readSignature now users sig ["close",fh,"nowait"]) (readDecimal fh)
+decode now users [sig,"fetch",fh]          = liftM2 Fetch (readSignature now users sig ["fetch",fh]) (readDecimal fh)
+decode _ _ _                               = Left $ Fail 400 (Just "syntax error: bad frame")
 
 encodeDouble :: Double -> L.ByteString
 encodeDouble = L.fromStrict . toShortest

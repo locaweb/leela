@@ -42,6 +42,7 @@ data Options = Options { optConsul       :: Endpoint
                        , optRedisSecret  :: Maybe String
                        , optBufSize      :: Word
                        , optIoThreads    :: Word
+                       , optSigTTL       :: Word
                        }
 
 defaultOptions :: Options
@@ -52,6 +53,7 @@ defaultOptions = Options { optEndpoint     = TCP "*" 4080 ""
                          , optPasswd       = "/etc/leela/passwd"
                          , optBufSize      = 512
                          , optIoThreads    = 2
+                         , optSigTTL       = 300
                          }
 
 setReadOpt :: (Read a) => (a -> Options -> Options) -> String -> Options -> Options
@@ -82,6 +84,9 @@ options =
   , Option [] ["iothreads"]
            (ReqArg (setReadOpt (\v opts -> opts { optIoThreads = v })) "IOTHREADS")
            (printf "number of iothreads to use [default: %d]" (optIoThreads defaultOptions))
+  , Option [] ["signature-ttl"]
+           (ReqArg (setReadOpt (\v opts -> opts { optSigTTL = v })) "SIGNATURE-TTL")
+           (printf "time window for signatures to be valid [default: %s]" (optSigTTL defaultOptions))
   ]
 
 readOpts :: [String] -> IO Options
@@ -129,7 +134,7 @@ main = do
     secret <- maybe (return Nothing) lookupEnv (optRedisSecret opts)
     cache  <- redisOpen syslog (naming, redisRO, redisRW) secret
     client <- create syslog cfg ctx
-    router <- warpServer core (optEndpoint opts) ctx (zmqbackend syslog client cache)
+    router <- warpServer core (fromIntegral $ optSigTTL opts) (optEndpoint opts) ctx (zmqbackend syslog client cache)
     takeMVar alive
     flushLogger syslog
     stopDealer client

@@ -20,6 +20,7 @@ module Leela.Network.WarpServer
        ) where
 
 import System.ZMQ4
+import Leela.Data.Time
 import Control.Exception
 import Leela.HZMQ.Router
 import Leela.Network.Core
@@ -33,14 +34,15 @@ import Control.Parallel.Strategies
 strictEncode :: Reply -> [ByteString]
 strictEncode = withStrategy (evalList rdeepseq) . encode
 
-worker :: (GraphBackend db, AttrBackend db) => db -> CoreServer -> Worker
-worker db core = Worker f (evaluate . strictEncode . encodeE)
+worker :: (GraphBackend db, AttrBackend db) => db -> CoreServer -> NominalDiffTime -> Worker
+worker db core ttl = Worker f (evaluate . strictEncode . encodeE)
   where
     f msg = do
+      time     <- now
       secretdb <- readPasswd core
-      case (decode (readSecret secretdb) msg) of
+      case (decode (time, ttl) (readSecret secretdb) msg) of
               Left err -> evaluate $ strictEncode err
               Right q  -> process db core q >>= evaluate . strictEncode
 
-warpServer :: (GraphBackend m, AttrBackend m) => CoreServer -> Endpoint -> Context -> m -> IO RouterFH
-warpServer core addr ctx storage = startRouter (logger core) addr ctx (worker storage core)
+warpServer :: (GraphBackend m, AttrBackend m) => CoreServer -> NominalDiffTime -> Endpoint -> Context -> m -> IO RouterFH
+warpServer core ttl addr ctx storage = startRouter (logger core) addr ctx (worker storage core ttl)
