@@ -1,5 +1,14 @@
 --*-- mode: text; --*--
 
+v5.8.0 | 2014-08-22
+  * use redis for caching and to avoid index option on every metric
+  * new syntax: attr last which retrieves the value from the cache
+  * performance: tune internal queues and zmq hwm
+  * no longer throw not_found when multiple guids/names are requested
+  * add align option on t-attr get statement
+  * better fail messages
+  * returns times-series sorted [asc] by time 
+
 v5.7.0 | 2014-06-16
   * using the new t_attr table on blackbox
   * dealer now user zmq.DEALER instead of zmq.REQ

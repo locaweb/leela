@@ -1,5 +1,8 @@
 --*-- mode: text; --*--
 
+v6.1.0 | 2014-08-22
+  * ability to use different namespaces for graph and properties
+
 v6.0.0-1 | 2014-06-16
   * logging request elapsed time
   * changing the schema of t_attr
