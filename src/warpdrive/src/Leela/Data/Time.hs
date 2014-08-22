@@ -15,10 +15,10 @@
 -- limitations under the License.
 
 module Leela.Data.Time
-       ( NominalDiffTime
-       , Time
+       ( Time
        , Date (..)
        , TimeSpec (..)
+       , NominalDiffTime
        , add
        , now
        , diff
@@ -92,10 +92,8 @@ fromTimeSpec t = let a = fromIntegral $ sec t
 snapshot :: IO Time
 snapshot = fmap fromTimeSpec $ getTime Monotonic
 
-expired :: Time -> NominalDiffTime -> IO Bool
-expired t0 limit = do
-  t1 <- now
-  return (t1 < tMin || t1 > tMax)
+expired :: (Time, NominalDiffTime) -> Time -> Bool
+expired (t1, limit) t0 = (t1 < tMin || t1 > tMax)
     where
       pLim = abs limit
       tMax = pLim `add` t0
