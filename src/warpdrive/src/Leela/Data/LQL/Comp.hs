@@ -225,9 +225,8 @@ parseTimeRange = do
 parseWithStmt :: Parser [Option]
 parseWithStmt = "with " *> (parseOption `sepBy` (string ", "))
     where
-      parseOption = ("ttl:" *> (TTL <$> decimal)
-                     <|> "max_data_points:" *> (MaxDataPoints <$> decimal)
-                     <|> "alignment:" *> (Alignment <$> decimal))
+      parseOption = "ttl:" *> (TTL <$> decimal)
+                    <|> "max_data_points:" *> (MaxDataPoints <$> decimal)
 
 parseStmtMake :: Using -> Parser LQL
 parseStmtMake u = do

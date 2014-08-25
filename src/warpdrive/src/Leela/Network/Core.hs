@@ -196,8 +196,7 @@ evalLQL db core queue (x:xs) = do
       getAttr db g a >>= devwriteIO queue . Item . KAttr g a
     TAttrGetStmt g a (Range t0 t1) opts -> do
       let mdpFunc = maybe id maxDataPoints (getMaxDataPoints opts)
-          alnFunc = maybe id alignSeries (getAlignment opts)
-      loadTAttr db (devwriteIO queue . (Item . TAttr g a . alnFunc . mdpFunc)) g a t0 t1
+      loadTAttr db (devwriteIO queue . (Item . TAttr g a . mdpFunc)) g a t0 t1
       devwriteIO queue (Item $ TAttr g a [])
     TAttrLastStmt guid attr -> do
       let toTAttr (g, a, t, v) = TAttr g a [(t, v)]
