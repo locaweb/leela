@@ -30,11 +30,11 @@ import qualified Data.Set as S
 import qualified Data.Text as T
 import           System.IO
 import           Data.Aeson
+import           Data.Maybe
 import qualified Data.Vector as V
 import           Control.Monad
 import qualified Data.ByteString as B
 import           Leela.Data.Types
-import           Control.Exception
 import           Data.Text.Encoding
 import           Control.Applicative
 import qualified Data.HashMap.Strict as H
@@ -61,12 +61,12 @@ zero :: Passwd
 zero = Passwd M.empty
 
 can_ :: User -> Tree -> Acl -> UserInfo -> Bool
-can_ (User u) (Tree t) perm info = let userOnly = (S.member perm) <$> (M.lookup u $ acl info)
-                                       userTree = (S.member perm) <$> (M.lookup (L.intercalate "::" [u, t]) $ acl info)
-                                   in maybe (maybe False id userOnly) id userTree
+can_ (User u) (Tree t) perm info = let userOnly = S.member perm <$> M.lookup u (acl info)
+                                       userTree = S.member perm <$> M.lookup (L.intercalate "::" [u, t]) (acl info)
+                                   in fromMaybe (fromMaybe False userOnly) userTree
 
 can :: Passwd -> User -> User -> Tree -> Acl -> Bool
-can (Passwd db) caller user tree perm = maybe False id (can_ user tree perm <$> (M.lookup caller db))
+can (Passwd db) caller user tree perm = fromMaybe False (can_ user tree perm <$> (M.lookup caller db))
 
 readSecret :: Passwd -> User -> Maybe Secret
 readSecret (Passwd db) user = secret <$> M.lookup user db
@@ -75,9 +75,8 @@ parse :: B.ByteString -> Maybe Passwd
 parse = decodeStrict
 
 parseFile :: FilePath -> IO (Maybe Passwd)
-parseFile fh = bracket (openFile fh ReadMode)
-                       hClose
-                       (fmap parse . flip B.hGetSome (1024 * 1024))
+parseFile fh = withFile fh ReadMode
+                 (fmap parse . flip B.hGetSome (1024 * 1024))
 
 parsePerms :: String -> [Acl]
 parsePerms = go [('r', RGraph), ('w', WGraph), ('r', RAttrs), ('w', WAttrs)]
@@ -111,4 +110,4 @@ instance FromJSON Passwd where
   parseJSON (Object o) = (Passwd . M.fromList) <$> mapM parseEntry (H.toList o)
       where
         parseEntry (k0, v0) = (User $ toLazyByteString $ encodeUtf8Builder k0,) <$> parseJSON v0
-  parseJSON _         = mzero
+  parseJSON _          = mzero

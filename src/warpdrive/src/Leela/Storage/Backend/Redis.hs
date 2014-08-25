@@ -145,15 +145,15 @@ scanKeys syslog glob callback conn = go "0"
 
 instance KeyValue RedisBackend where
 
-  exists (RedisBackend _ _ _ rwpool) sel k = use rwpool (hashSelector sel) (\c -> runRedis c action)
+  exists (RedisBackend _ _ _ rwpool) sel k = use rwpool (hashSelector sel) (`runRedis` action)
       where
         action = liftM (either (const False) id) (Redis.exists k)
 
-  select (RedisBackend _ _ _ rwpool) selector k   = use rwpool (hashSelector selector) (\c -> runRedis c action)
+  select (RedisBackend _ _ _ rwpool) selector k   = use rwpool (hashSelector selector) (`runRedis` action)
       where
         action = liftM (either (const Nothing) id) (get k)
 
-  insert (RedisBackend _ _ _ rwpool) ttl_ selector k v = use rwpool (hashSelector selector) (\c -> runRedis c action)
+  insert (RedisBackend _ _ _ rwpool) ttl_ selector k v = use rwpool (hashSelector selector) (`runRedis` action)
       where
         action = liftM (== (Right Ok)) (setex k (fromIntegral ttl_) v)
 

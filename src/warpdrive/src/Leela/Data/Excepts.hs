@@ -37,4 +37,4 @@ isNotFoundExcept (NotFoundExcept _) = True
 isNotFoundExcept _                  = False
 
 isNotFoundExcept' :: SomeException -> Bool
-isNotFoundExcept' = maybe False id . fmap isNotFoundExcept . fromException
+isNotFoundExcept' = maybe False isNotFoundExcept . fromException

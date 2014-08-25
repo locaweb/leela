@@ -88,9 +88,9 @@ sendMsg' :: Poller a -> [B.ByteString] -> IO (Maybe (IO ()))
 sendMsg' p msg = do
   mvar <- msg `deepseq` newMVar msg
   ok   <- atomically $ tryWriteTBQueue (pollOutQ p) mvar
-  if ok
-   then return (Just $ void $ tryTakeMVar mvar)
-   else return Nothing
+  return (if ok
+           then Just $ void $ tryTakeMVar mvar
+           else Nothing)
 
 sendMsg :: Poller a -> [L.ByteString] -> IO (Maybe (IO ()))
 sendMsg p = sendMsg' p . map L.toStrict
@@ -145,7 +145,7 @@ pollLoop syslog p = do
       execPoll waitR waitW wMiss = do
         wready <- (waitW >> liftM Just (dequeue p wMiss)) `orElse` (return Nothing)
         rready <- (waitR >> return True) `orElse` (return False)
-        when (rready == False && wready == Nothing) retry
+        when (not rready && isNothing wready) retry
         return (rready, wready)
 
       go waitR waitW wMiss = do

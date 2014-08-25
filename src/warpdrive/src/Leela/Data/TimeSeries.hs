@@ -44,7 +44,7 @@ onlyNumeric = go id
           Just v' -> go (acc . ((t,v'):)) xs
 
 groupBy :: Int -> [(Time, a)] -> [(Time, V.Vector a)]
-groupBy n xs0 = go xs0
+groupBy n = go
     where
       go [] = []
       go xs = let (as, bs) = splitAt n xs
@@ -57,7 +57,7 @@ maxDataPoints maxPoints series
       case (length series `divMod` maxPoints) of
         (0,_) -> series
         (1,0) -> series
-        (q,r) -> let summarize = (\(t, v) -> (t, Double $ mean v))
+        (q,r) -> let summarize (t, v) = (t, Double $ mean v)
                  in maybe series (map summarize . groupBy (q + min 1 r)) (onlyNumeric series)
 
 alignSeries :: Int -> [(Time, Value)] -> [(Time, Value)]

@@ -20,13 +20,14 @@ module Leela.Data.LQL
     , groupLQL
     ) where
 
+import           Data.Maybe
 import qualified Data.Sequence as S
 import           Data.Foldable (toList)
 import qualified Data.Map.Strict as M
 import           Leela.Data.Types
 
 targetUser :: Using -> User
-targetUser u = maybe (uUser u) id (uAsUser u)
+targetUser u = fromMaybe (uUser u) (uAsUser u)
 
 data Using = Using { uUser   :: User
                    , uTree   :: Tree
@@ -48,28 +49,28 @@ data LQL = StatStmt
 lqlDescr :: [LQL] -> String
 lqlDescr = show . go M.empty
     where
-      go acc []                     = M.toList acc
-      go acc (StatStmt : xs)        = go (M.insertWith (+) "stat" 1 acc) xs
-      go acc (PathStmt _ : xs)           = go (M.insertWith (+) "path" 1 acc) xs
-      go acc (KAttrGetStmt _ _ _ : xs)   = go (M.insertWith (+) "attr get(k)" 1 acc) xs
-      go acc (KAttrListStmt _ _ : xs)    = go (M.insertWith (+) "attr kls" 1 acc) xs
-      go acc (TAttrListStmt _ _ : xs)    = go (M.insertWith (+) "attr tls" 1 acc) xs
-      go acc (TAttrGetStmt _ _ _ _ : xs) = go (M.insertWith (+) "attr get(t)" 1 acc) xs
-      go acc (NameStmt _ _ : xs)         = go (M.insertWith (+) "name" 1 acc) xs
-      go acc (GUIDStmt _ _ : xs)         = go (M.insertWith (+) "guid" 1 acc) xs
-      go acc (TAttrLastStmt _ _ : xs)    = go (M.insertWith (+) "attr last" 1 acc) xs
-      go acc (AlterStmt j : xs)          = go (jDescr acc (toList j)) xs
+      go acc []                      = M.toList acc
+      go acc (StatStmt : xs)         = go (M.insertWith (+) "stat" 1 acc) xs
+      go acc (PathStmt _ : xs)       = go (M.insertWith (+) "path" 1 acc) xs
+      go acc (KAttrGetStmt {} : xs)  = go (M.insertWith (+) "attr get(k)" 1 acc) xs
+      go acc (KAttrListStmt {} : xs) = go (M.insertWith (+) "attr kls" 1 acc) xs
+      go acc (TAttrListStmt {} : xs) = go (M.insertWith (+) "attr tls" 1 acc) xs
+      go acc (TAttrGetStmt {} : xs)  = go (M.insertWith (+) "attr get(t)" 1 acc) xs
+      go acc (NameStmt {} : xs)      = go (M.insertWith (+) "name" 1 acc) xs
+      go acc (GUIDStmt {} : xs)      = go (M.insertWith (+) "guid" 1 acc) xs
+      go acc (TAttrLastStmt {} : xs) = go (M.insertWith (+) "attr last" 1 acc) xs
+      go acc (AlterStmt j : xs)      = go (jDescr acc (toList j)) xs
 
-      jDescr acc []                   = acc
-      jDescr acc (PutLink _ _ _ : xs)     = jDescr (M.insertWith (+) "make(l)" 1 acc) xs
-      jDescr acc (PutLabel _ _ : xs)       = jDescr (M.insertWith (+) "make(l)" 1 acc) xs
-      jDescr acc (PutNode _ _ _ _ : xs)    = jDescr (M.insertWith (+) "make(n)" 1 acc) xs
-      jDescr acc (DelLink _ _ _ : xs)      = jDescr (M.insertWith (+) "kill(l)" 1 acc) xs
-      jDescr acc (DelNode _ : xs)          = jDescr (M.insertWith (+) "kill(n)" 1 acc) xs
-      jDescr acc (DelKAttr _ _ : xs)       = jDescr (M.insertWith (+) "attr kill(k)" 1 acc) xs
-      jDescr acc (DelTAttr _ _ _ : xs)     = jDescr (M.insertWith (+) "attr kill(t)" 1 acc) xs
-      jDescr acc (PutKAttr _ _ _ _ : xs)   = jDescr (M.insertWith (+) "attr put(k)" 1 acc) xs
-      jDescr acc (PutTAttr _ _ _ _ _ : xs) = jDescr (M.insertWith (+) "attr put(t)" 1 acc) xs
+      jDescr acc []                 = acc
+      jDescr acc (PutLink {} : xs)  = jDescr (M.insertWith (+) "make(l)" 1 acc) xs
+      jDescr acc (PutLabel {} : xs) = jDescr (M.insertWith (+) "make(l)" 1 acc) xs
+      jDescr acc (PutNode {} : xs)  = jDescr (M.insertWith (+) "make(n)" 1 acc) xs
+      jDescr acc (DelLink {} : xs)  = jDescr (M.insertWith (+) "kill(l)" 1 acc) xs
+      jDescr acc (DelNode {} : xs)  = jDescr (M.insertWith (+) "kill(n)" 1 acc) xs
+      jDescr acc (DelKAttr {} : xs) = jDescr (M.insertWith (+) "attr kill(k)" 1 acc) xs
+      jDescr acc (DelTAttr {} : xs) = jDescr (M.insertWith (+) "attr kill(t)" 1 acc) xs
+      jDescr acc (PutKAttr {} : xs) = jDescr (M.insertWith (+) "attr put(k)" 1 acc) xs
+      jDescr acc (PutTAttr {} : xs) = jDescr (M.insertWith (+) "attr put(t)" 1 acc) xs
 
 lqlMerge :: LQL -> LQL -> Either LQL (LQL, LQL)
 lqlMerge (NameStmt u xs) (NameStmt _ ys) = Left (NameStmt u (xs S.>< ys))

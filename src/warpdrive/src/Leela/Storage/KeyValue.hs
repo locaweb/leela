@@ -40,16 +40,16 @@ selectLazy :: (KeyValue m, Hashable k) => m -> k -> L.ByteString -> IO (Maybe B.
 selectLazy db sel = select db sel . L.toStrict
 
 insertLazy :: (KeyValue m, Hashable k) => m -> TTL -> k -> L.ByteString -> B.ByteString -> IO Bool
-insertLazy db ttl sel key val = insert db ttl sel (L.toStrict key) val
+insertLazy db ttl sel key = insert db ttl sel (L.toStrict key)
 
 updateLazy :: (KeyValue m, Hashable k) => m -> TTL -> k -> L.ByteString -> (Maybe B.ByteString -> IO B.ByteString) -> IO B.ByteString
-updateLazy db ttl sel key f = update db ttl sel (L.toStrict key) f
+updateLazy db ttl sel key = update db ttl sel (L.toStrict key)
 
 scanOnLazy :: (KeyValue m, Hashable k) => m -> k -> GlobLazy -> (Maybe [(B.ByteString, B.ByteString)] -> IO ()) -> IO ()
-scanOnLazy db sel glob callback = scanOn db sel (L.toStrict glob) callback
+scanOnLazy db sel glob = scanOn db sel (L.toStrict glob)
 
 scanAllLazy :: KeyValue m => m -> GlobLazy -> (Maybe [(B.ByteString, B.ByteString)] -> IO ()) -> IO ()
-scanAllLazy db glob callback = scanAll db (L.toStrict glob) callback
+scanAllLazy db glob = scanAll db (L.toStrict glob)
 
 class KeyValue m where
 

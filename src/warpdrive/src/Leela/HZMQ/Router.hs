@@ -74,7 +74,7 @@ recvRequest mmsg = do
     _          -> Nothing
 
 waitCTRL :: MVar Bool -> IO ()
-waitCTRL ctrl = do
+waitCTRL ctrl =
   sleep 1 >> readMVar ctrl >>= flip when (waitCTRL ctrl)
 
 stopRouter :: RouterFH -> IO ()
@@ -86,7 +86,7 @@ startRouter :: Logger -> Endpoint -> Context -> Worker -> IO RouterFH
 startRouter syslog endpoint ctx action = do
   notice syslog (printf "starting zmq.router: %s" (dumpEndpointStr endpoint))
   ctrl <- newMVar True
-  void $ flip forkFinally (\_ -> void $ takeMVar ctrl) $ do
+  void $ flip forkFinally (\_ -> void $ takeMVar ctrl) $
     withSocket ctx Router $ \fh -> do
       setHWM (1000, 1) fh
       configAndBind fh (dumpEndpointStr endpoint)

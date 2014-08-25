@@ -38,6 +38,7 @@ import System.Clock
 import Data.Serialize
 import Control.DeepSeq
 import Control.Concurrent
+import Control.Applicative
 import Data.Time.Clock.POSIX
 
 newtype Time = Time { unTime :: Double }
@@ -50,7 +51,7 @@ add :: NominalDiffTime -> Time -> Time
 add increment (Time t) = Time (t + realToFrac increment)
 
 alignBy :: Int -> Time -> Time
-alignBy by t = let offset = fromIntegral ((truncate $ seconds t) `mod` by)
+alignBy by t = let offset = fromIntegral (truncate (seconds t) `mod` by)
                in (negate offset) `add` t
 
 seconds :: Time -> Double
@@ -66,7 +67,7 @@ dateTime :: Time -> (Date, Double)
 dateTime (Time s) = let u                         = posixSecondsToUTCTime (realToFrac s)
                         time                      = realToFrac $ utctDayTime u
                         (year, month, dayOfMonth) = toGregorian $ utctDay u
-                    in (Date (fromIntegral $ year, month, dayOfMonth), time)
+                    in (Date (fromIntegral year, month, dayOfMonth), time)
 
 diff :: Time -> Time -> Time
 diff (Time a) (Time b) = Time (a - b)
@@ -86,11 +87,11 @@ toDate day = let (year, month, dayOfMonth) = toGregorian day
 
 fromTimeSpec :: TimeSpec -> Time
 fromTimeSpec t = let a = fromIntegral $ sec t
-                     b = (fromIntegral $ nsec t) / 1e9
+                     b = fromIntegral (nsec t) / 1e9
                  in Time (a + b)
 
 snapshot :: IO Time
-snapshot = fmap fromTimeSpec $ getTime Monotonic
+snapshot = fromTimeSpec <$> getTime Monotonic
 
 expired :: (Time, NominalDiffTime) -> Time -> Bool
 expired (t1, limit) t0 = (t1 < tMin || t1 > tMax)

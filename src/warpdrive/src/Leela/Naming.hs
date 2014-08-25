@@ -22,6 +22,7 @@ import qualified Data.Map as M
 import           Data.Word
 import           Data.Aeson
 import           Data.IORef
+import           Data.Maybe
 import           Leela.Logger
 import           Network.HTTP
 import           Control.Monad
@@ -47,7 +48,7 @@ parseService srv
   | otherwise     = []
 
 parseServices :: L.ByteString -> M.Map String [Endpoint]
-parseServices = M.fromListWith (++) . concatMap parseService . maybe [] id . decode
+parseServices = M.fromListWith (++) . concatMap parseService . fromMaybe [] . decode
 
 fetchCatalog :: String -> String -> IO L.ByteString
 fetchCatalog url key = do

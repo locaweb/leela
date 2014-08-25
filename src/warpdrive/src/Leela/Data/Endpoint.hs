@@ -49,20 +49,20 @@ data Endpoint = TCP String Word16 String
 type StrEndpoint = String
 
 isTCP :: Endpoint -> Bool
-isTCP (TCP _ _ _) = True
-isTCP _           = False
+isTCP (TCP {}) = True
+isTCP _        = False
 
 isUDP :: Endpoint -> Bool
-isUDP (UDP _ _ _) = True
-isUDP _           = False
+isUDP (UDP {}) = True
+isUDP _        = False
 
 isHTTP :: Endpoint -> Bool
-isHTTP (HTTP _ _ _) = True
-isHTTP _            = False
+isHTTP (HTTP {}) = True
+isHTTP _         = False
 
 isHTTPS :: Endpoint -> Bool
-isHTTPS (HTTPS _ _ _) = True
-isHTTPS _             = False
+isHTTPS (HTTPS {}) = True
+isHTTPS _          = False
 
 portMap :: (Word16 -> Word16) -> Endpoint -> Endpoint
 portMap f (TCP host port path)   = TCP host (f port) path
@@ -72,7 +72,7 @@ portMap f (HTTPS host port path) = HTTPS host (f port) path
 
 parseURL :: (String -> Word16 -> String -> a) -> Parser a
 parseURL f = do
-  host <- fmap B8.unpack $ A.takeWhile (/= 0x3a)
+  host <- B8.unpack <$> A.takeWhile (/= 0x3a)
   _    <- A.word8 0x3a
   port <- decimal
   path <- fmap B8.unpack takeByteString

@@ -39,7 +39,7 @@ enumAttrs listF db write g mode = do
   if (length values < defaultLimit)
     then write values
     else
-      when (not $ null values) $ do
+      unless (null values) $ do
         write (init values)
         enumAttrs listF db write g (nextPage mode $ last values)
 

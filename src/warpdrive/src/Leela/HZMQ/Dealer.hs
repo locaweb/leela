@@ -112,7 +112,7 @@ dealerLoop dealer = do
   waitQSemN wait 2
   warning (logger dealer) "dealer has quit"
     where
-      recvAns msg = do
+      recvAns msg =
         case (break B.null msg) of
           (key@(_:_), (_:ans)) -> do
             state <- readIORef (cstate dealer)
@@ -153,12 +153,12 @@ create syslog cfg ctx = do
 
       destroyWorker dealer addr _ = do
         let addrStr = dumpEndpointStr addr
-        useSocket (poller dealer) (flip disconnect addrStr)
+        useSocket (poller dealer) (`disconnect` addrStr)
         warning syslog (printf "dealer: disconnect %s" addrStr)
 
       createWorker dealer addr = do
         let addrStr = dumpEndpointStr addr
-        useSocket (poller dealer) (flip connect  addrStr)
+        useSocket (poller dealer) (`connect` addrStr)
         warning syslog (printf "dealer: connect %s" addrStr)
 
 stopDealer :: ClientFH -> IO ()

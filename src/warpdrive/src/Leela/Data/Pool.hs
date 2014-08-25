@@ -79,9 +79,7 @@ kill pool k = do
     m1 <- readTVar (using pool)
     when (M.findWithDefault 0 k m1 /= 0) retry
     writeTVar (using pool) (M.delete k m1)
-  case mhandle of
-    Nothing     -> return ()
-    Just handle -> delete pool k handle
+  maybe (return ()) (delete pool k) mhandle
 
 open :: (Ord a) => Pool a b -> a -> IO ()
 open pool k = do

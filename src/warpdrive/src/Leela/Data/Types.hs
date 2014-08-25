@@ -146,32 +146,32 @@ attrFromBS :: B.ByteString -> Attr
 attrFromBS = Attr . L.fromStrict
 
 isDelKAttr :: Journal -> Bool
-isDelKAttr (DelKAttr _ _) = True
-isDelKAttr _              = False
+isDelKAttr (DelKAttr {}) = True
+isDelKAttr _             = False
 
 isPutKAttr :: Journal -> Bool
-isPutKAttr (PutKAttr _ _ _ _) = True
-isPutKAttr _                  = False
+isPutKAttr (PutKAttr {}) = True
+isPutKAttr _             = False
 
 isDelLink :: Journal -> Bool
-isDelLink (DelLink _ _ _) = True
-isDelLink _               = False
+isDelLink (DelLink {}) = True
+isDelLink _            = False
 
 isPutLink :: Journal -> Bool
-isPutLink (PutLink _ _ _) = True
-isPutLink _               = False
+isPutLink (PutLink {}) = True
+isPutLink _            = False
 
 isPutLabel :: Journal -> Bool
 isPutLabel (PutLabel _ _) = True
 isPutLabel _              = False
 
 isPutNode :: Journal -> Bool
-isPutNode (PutNode _ _ _ _) = True
-isPutNode _                 = False
+isPutNode (PutNode {}) = True
+isPutNode _            = False
 
 isPutTAttr :: Journal -> Bool
-isPutTAttr (PutTAttr _ _ _ _ _) = True
-isPutTAttr _                    = False
+isPutTAttr (PutTAttr {}) = True
+isPutTAttr _             = False
 
 getMaxDataPoints :: [Option] -> Maybe Int
 getMaxDataPoints []                  = Nothing

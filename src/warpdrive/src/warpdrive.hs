@@ -16,6 +16,7 @@ module Main (main) where
 
 import Data.Word
 import System.IO
+import Data.Maybe
 import Data.IORef
 import System.ZMQ4
 import Leela.Logger
@@ -74,7 +75,7 @@ options =
            (printf "logging level [default: %s]" (show $ optDebugLevel defaultOptions))
   , Option [] ["redis-secret-env"]
            (ReqArg (\v opts -> opts { optRedisSecret = Just v }) "REDIS-SECRET")
-           (printf "environment variable in which contains the redis authentication string [default: %s]" (maybe "<<no-value>>" id (optRedisSecret defaultOptions)))
+           (printf "environment variable in which contains the redis authentication string [default: %s]" (fromMaybe "<<no-value>>" (optRedisSecret defaultOptions)))
   , Option [] ["log-bufsize"]
            (ReqArg (setReadOpt (\v opts -> opts { optBufSize = v })) "LOG-BUFSIZE")
            (printf "size of the buffer log [default: %d]" (optBufSize defaultOptions))
@@ -96,14 +97,14 @@ readOpts argv =
     (_, _, errs)  -> ioError (userError (concat errs ++ usageInfo "usage: warpdrive [OPTION...]" options))
 
 signal :: MVar () -> IO ()
-signal x = tryPutMVar x () >> return ()
+signal x = void $ tryPutMVar x ()
 
 passwdWatcher :: Logger -> FilePath -> IO (IORef Passwd)
 passwdWatcher syslog file = do
   shmem <- newIORef zero
   _     <- forkIO $ supervise syslog "main/passwd" $ forever $ do
     current <- readIORef shmem
-    passwd  <- fmap (maybe current id) (parseFile file)
+    passwd  <- fmap (fromMaybe current) (parseFile file)
     when (passwd /= current) $ do
       warning syslog "loading new passwd file"
       writeIORef shmem passwd
@@ -127,8 +128,8 @@ main = do
   warning syslog
     (printf "warpdrive: yo!yo!; endpoint=%s" (show $ optEndpoint opts))
   withContext $ \ctx -> do
-    let cfg     = ClientConf (naming, fmap (maybe [] id . lookup "blackbox") . readIORef)
-        redisRW = fmap (maybe [] id . lookup "redis") . readIORef
+    let cfg     = ClientConf (naming, fmap (fromMaybe [] . lookup "blackbox") . readIORef)
+        redisRW = fmap (fromMaybe [] . lookup "redis") . readIORef
         redisRO = fmap (maybe [] (map (portMap (+1))) . lookup "redis") . readIORef
     setIoThreads (optIoThreads opts) ctx
     secret <- maybe (return Nothing) lookupEnv (optRedisSecret opts)

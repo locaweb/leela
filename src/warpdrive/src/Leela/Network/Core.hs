@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE BangPatterns      #-}
 {-# LANGUAGE TupleSections     #-}
 {-# LANGUAGE Rank2Types        #-}
 
@@ -24,6 +23,7 @@ module Leela.Network.Core
        , readPasswd
        ) where
 
+import           Data.Maybe
 import           Data.IORef
 import           Data.Monoid ((<>))
 import           Leela.Logger
@@ -68,7 +68,7 @@ readPasswd :: CoreServer -> IO P.Passwd
 readPasswd = readIORef . passwd
 
 dumpStat :: CoreServer -> IO [(L.ByteString, L.ByteString)]
-dumpStat core = do
+dumpStat core =
   liftM (concatMap dumpEntry) $ readIORef (stat core)
     where
       dumpEntry (k, [])     = [(showEndpoint k, "")]
@@ -100,9 +100,8 @@ rungc syslog srv = do
             | (max at curr - min at curr) > ttl -> partition curr xs (k : acc)
             | otherwise                         -> partition curr xs acc
 
-      kill at = do
-        dead <- M.toList (fdlist srv) (partition at) []
-        return dead
+      kill at =
+        M.toList (fdlist srv) (partition at) []
 
       burry (u, fh) = do
         let k = (User u, fh)
@@ -131,7 +130,7 @@ withFD srv ((User u), fh) action = do
       restore (action $ Just dev) `finally` (setTick value Nothing)
     where
       setTick shmem mvalue = do
-        at <- fmap (\v -> maybe v id mvalue) (peek (tick srv))
+        at <- fmap (`fromMaybe` mvalue) (peek (tick srv))
         atomically $ do
           (_, time, dev) <- readTVar shmem
           writeTVar shmem (at, time, dev)
@@ -152,7 +151,7 @@ navigate :: (GraphBackend m) => m -> Device Reply -> (Matcher, [(GUID -> Matcher
 navigate db queue (source, pipeline) = do
   srcpipe <- openIO queue 16
   forkSource srcpipe
-  dstpipe <- forkFilters srcpipe pipeline
+  dstpipe <- foldM forkFilter srcpipe pipeline
   copy dstpipe asReply queue
     where
       two (_, b, c) = (c, b)
@@ -168,7 +167,7 @@ navigate db queue (source, pipeline) = do
           Just EOF                  -> return ()
           Just (Chunk (feed, path)) -> do
             forM_ feed (\(_, b, c) ->
-              query db (devwriteIO dstpipe . Chunk . (, (c, b) : path)) (f $ c))
+              query db (devwriteIO dstpipe . Chunk . (, (c, b) : path)) (f c))
             runFilter srcpipe f dstpipe
           Just chunk                -> devwriteIO dstpipe chunk
 
@@ -182,11 +181,6 @@ navigate db queue (source, pipeline) = do
           (runFilter srcpipe f dstpipe)
           (either (devwriteIO dstpipe . Error) (const $ devwriteIO dstpipe EOF))
         return dstpipe
-
-      forkFilters srcpipe []     = return srcpipe
-      forkFilters srcpipe (f:fs) = do
-        dstpipe <- forkFilter srcpipe f
-        forkFilters dstpipe fs
 
 evalLQL :: (GraphBackend m, AttrBackend m) => m -> CoreServer -> Device Reply -> [LQL] -> IO ()
 evalLQL _ _ queue []         = devwriteIO queue Last
@@ -253,7 +247,7 @@ process storage srv (Begin sig msg) =
 process _ srv (Fetch sig fh)        = do
   let channel = (sigUser sig, fh)
   notice (logger srv) (printf "FETCH %d" fh)
-  withFD srv channel $ \mdev -> do
+  withFD srv channel $ \mdev ->
     case mdev of
       Nothing  -> return $ Fail 404 $ Just "no such channel"
       Just dev -> devreadIO dev >>= \mreply ->

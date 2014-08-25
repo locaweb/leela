@@ -1,5 +1,4 @@
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE BangPatterns  #-}
 
 -- Copyright 2014 (c) Diego Souza <dsouza@c0d3.xxx>
 --
@@ -57,11 +56,11 @@ recv Nothing    = FailMsg 500
 recv (Just msg) = decode msg
 
 notFoundError :: String -> IO a
-notFoundError m = do
+notFoundError m =
   throwIO (NotFoundExcept (Just m))
 
 internalError :: String -> IO a
-internalError m = do
+internalError m =
   throwIO (SystemExcept (Just m))
 
 send :: ClientFH -> Query -> IO Reply
@@ -103,8 +102,8 @@ instance (KeyValue a) => AttrBackend (ZMQBackend a) where
           | otherwise               = (g, a, t, v, setOpt Indexing o)
 
         storeCache (g, a, t, v, _) =
-          (void $ insertLazy (cachedb m) 86400 g (cacheKey g a) (cacheVal t v))
-             `catch` (warnAndReturn "storeCache# error writing to redis" ())
+          void (insertLazy (cachedb m) 86400 g (cacheKey g a) (cacheVal t v)
+                 `catch` (warnAndReturn "storeCache# error writing to redis" False))
 
         seen (g, a, _, _, _) =
           liftM ((g, a), ) $ existsLazy (cachedb m) g (cacheKey g a)

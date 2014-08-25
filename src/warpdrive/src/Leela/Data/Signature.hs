@@ -37,6 +37,7 @@ import qualified Data.ByteString as B
 import           Foreign.Marshal
 import           Foreign.Storable
 import           System.IO.Unsafe
+import           Control.Applicative
 import           Data.ByteString.Unsafe
 
 newtype Nonce = Nonce B.ByteString
@@ -83,10 +84,10 @@ initNonce nonce
   | otherwise                   = Just $ Nonce nonce
 
 genSecret :: IO Secret
-genSecret = fmap Secret $ getEntropy secretSize
+genSecret = Secret <$> getEntropy secretSize
 
 genNonce :: IO Nonce
-genNonce = fmap Nonce $ getEntropy nonceSize
+genNonce = Nonce <$> getEntropy nonceSize
 
 nextNonce :: Nonce -> Nonce
 nextNonce (Nonce nonce) = unsafePerformIO $
@@ -120,7 +121,7 @@ sign (Secret secret) (Nonce nonce) msg = unsafePerformIO $
       unsafeUseAsCStringLen msg $ \(msgPtr, msgLen) -> do
         sigPtr <- mallocBytes nonceSize
         c_poly1305_authenticate sigPtr secretPtr noncePtr msgPtr (fromIntegral msgLen)
-        fmap MAC $ unsafePackMallocCStringLen (sigPtr, sigSize)
+        MAC <$> unsafePackMallocCStringLen (sigPtr, sigSize)
 
 foreign import capi unsafe "poly1305aes/poly1305aes.h poly1305aes_verify"
   c_poly1305_verify :: CString -> CString -> CString -> CString -> CUInt -> IO CInt

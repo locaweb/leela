@@ -27,6 +27,7 @@ import           Control.Monad
 import           Leela.Data.Time
 import           Leela.Data.Types
 import           Control.Concurrent
+import           Control.Applicative
 import           Leela.Storage.Graph
 import           Control.Concurrent.Async
 
@@ -35,14 +36,14 @@ query db write (ByEdge a l b) = do
   ok <- hasLink db a l b
   when ok (write [(a, l, b)])
 query db write (ByNode a)     = query db write (ByLabel a (Label "*"))
-query db write (ByLabel a (Label l0)) = loadLabels (fmap Label $ glob l0)
+query db write (ByLabel a (Label l0)) = loadLabels (Label <$> glob l0)
     where
       loadLabels page = do
         labels <- getLabel db a page defaultLimit
         if (length labels < defaultLimit)
-          then mapM_ (flip loadLinks Nothing) labels
+          then mapM_ (`loadLinks` Nothing) labels
           else do
-            mapM_ (flip loadLinks Nothing) (init labels)
+            mapM_ (`loadLinks` Nothing) (init labels)
             loadLabels (nextPage page (last labels))
 
       loadLinks l page = do
@@ -100,7 +101,7 @@ loadTAttr db flush guid name t0 t1 = do
   memory <- newMVar (0, M.empty)
   void $ mapConcurrently (mapM_ (procData memory)) (chunkSplit caps $ zip [0..] (buildQueue t0 t1))
     where
-      flushQueue ix state = do
+      flushQueue ix state =
         case (M.lookup ix state) of
           Nothing -> return (ix, state)
           Just xs -> do

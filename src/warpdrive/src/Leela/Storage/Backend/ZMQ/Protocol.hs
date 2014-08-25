@@ -36,6 +36,7 @@ import qualified Data.Serialize as E
 import qualified Data.ByteString as B
 import           Leela.Data.Time
 import           Leela.Data.Types
+import           Control.Applicative
 import           Leela.Storage.Graph (Limit)
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Char8 as B8
@@ -254,6 +255,6 @@ decode ("label":labels)        = LabelMsg (map labelFromBS labels)
 decode ("n-attr":names)        = NAttrMsg (map attrFromBS names)
 decode ["k-attr", value]       = either (const $ FailMsg 599) KAttrMsg (E.decode value)
 decode ("t-attr":values)       = either FailMsg TAttrMsg $ decodeValues values
-decode ["fail", code]          = maybe (FailMsg 599) id (fmap FailMsg (decodeInt code))
+decode ["fail", code]          = fromMaybe (FailMsg 599) (FailMsg <$> decodeInt code)
 decode _                       = FailMsg 599
 

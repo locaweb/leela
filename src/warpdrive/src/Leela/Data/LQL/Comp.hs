@@ -84,6 +84,13 @@ parseAttr = liftM Attr (qstring 512 0x22 0x22)
 parseGUID :: Parser GUID
 parseGUID = liftM guidFromBS (A.take 36)
 
+parseGUIDAttr :: Parser (GUID, Attr)
+parseGUIDAttr = do
+  g <- parseGUID
+  hardspace
+  k <- parseAttr
+  return (g, k)
+
 parseMaybeGUID :: Parser (Maybe GUID)
 parseMaybeGUID = ("()" *> return Nothing) <|> (liftM Just parseGUID)
 
@@ -179,10 +186,10 @@ inf :: Double
 inf = 1/0
 
 parseDouble :: Parser Double
-parseDouble = do
+parseDouble =
   "nan" *> return nan
   <|> "inf" *> return inf
-  <|> "-inf" *> (return $ negate inf)
+  <|> "-inf" *> return (negate inf)
   <|> signed double
 
 parseValue :: Parser Value
@@ -270,9 +277,7 @@ parseStmtAttr = "attr put " *> parsePutAttr
                 <|> "attr tls " *> parseListAttr TAttrListStmt
     where
       parsePutAttr = do
-        g <- parseGUID
-        hardspace
-        k <- parseAttr
+        (g, k) <- parseGUIDAttr
         hardspace
         token <- peekWord8
         case token of
@@ -302,22 +307,16 @@ parseStmtAttr = "attr put " *> parsePutAttr
         return (AlterStmt (S.singleton $ PutTAttr g k t v w))
 
       parseGetAttr = do
-        g  <- parseGUID
-        hardspace
-        a  <- parseAttr
+        (g, a) <- parseGUIDAttr
         ((liftM2 (TAttrGetStmt g a) (hardspace >> parseTimeRange) (option [] (hardspace >> parseWithStmt)))
          <|> liftM (KAttrGetStmt g a) (option [] (hardspace >> parseWithStmt)))
 
       parseListAttr kind = do
-        g      <- parseGUID
-        hardspace
-        Attr a <- parseAttr
-        return (kind g (fmap Attr $ glob a))
+        (g, Attr a) <- parseGUIDAttr
+        return (kind g (Attr <$> glob a))
 
       parseDelAttr = do
-        g  <- parseGUID
-        hardspace
-        k  <- parseAttr
+        (g, k) <- parseGUIDAttr
         liftM (AlterStmt . S.singleton) ((liftM (DelTAttr g k) (hardspace >> parseTimeRange))
                                           <|> return (DelKAttr g k))
 
