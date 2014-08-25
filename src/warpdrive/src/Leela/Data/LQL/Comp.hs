@@ -204,7 +204,7 @@ parseValue = do
                  <|> Double <$> ("(double " *> (parseDouble `endBy` word8 0x29))
                  <|> "(bool true)" *> return (Bool True)
                  <|> "(bool false)" *> return (Bool False)
-    _         -> fail "bad value"
+    _         -> Double <$> parseDouble
 
 parseTimePoint :: Parser Time
 parseTimePoint = do
