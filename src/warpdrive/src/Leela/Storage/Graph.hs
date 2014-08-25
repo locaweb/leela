@@ -15,23 +15,54 @@
 module Leela.Storage.Graph
     ( Page
     , Limit
+    , Monitor ()
+    , AttrEvent (..)
+    , GraphEvent (..)
     , AttrBackend (..)
     , GraphBackend (..)
-    , defaultLimit
     , enumKAttrs
     , enumTAttrs
+    , defaultLimit
+    , monitAttrBackend
+    , monitGraphBackend
     ) where
 
 import Control.Monad
 import Leela.Data.Time
 import Leela.Data.Types
 
+data GraphEvent = MakeVertexEvent User Tree Kind Node GUID
+                | KillVertexEvent GUID
+                | MakeLinkEvent GUID Label GUID
+                | KillLinkEvent GUID Label (Maybe GUID)
+                deriving (Eq)
+
+data AttrEvent = TAttrPutEvent GUID Attr Time Value [Option]
+               | KAttrPutEvent GUID Attr Value [Option]
+               | TAttrDelEvent GUID Attr (Maybe Time)
+               | KAttrDelEvent GUID Attr
+               deriving (Eq)
+
+data Monitor a = Monitor { proxy    :: a
+                         , ghandler :: GraphEvent -> IO ()
+                         , ahandler :: AttrEvent -> IO ()
+                         }
+
 type Page = Maybe
 
 type Limit = Int
 
+monitGraphBackend :: (GraphBackend a) => (GraphEvent -> IO ()) -> a -> Monitor a
+monitGraphBackend handler db = Monitor db handler (const $ return ())
+
+monitAttrBackend :: (AttrBackend a) => (AttrEvent -> IO ()) -> a -> Monitor a
+monitAttrBackend handler db = Monitor db (const $ return ()) handler
+
 defaultLimit :: Int
 defaultLimit = 512
+
+uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
+uncurry3 f (a, b, c) = f a b c
 
 enumAttrs :: (AttrBackend db) => (db -> GUID -> Mode Attr -> Limit -> IO [Attr]) -> db -> ([Attr] -> IO ()) -> GUID -> Mode Attr -> IO ()
 enumAttrs listF db write g mode = do
@@ -88,3 +119,59 @@ class AttrBackend m where
   listTAttr :: m -> GUID -> Mode Attr -> Limit -> IO [Attr]
 
   delAttr   :: m -> [(GUID, Attr)] -> IO ()
+
+instance (AttrBackend m) => AttrBackend (Monitor m) where
+
+  scanLast m = scanLast (proxy m)
+
+  getTAttr m = getTAttr (proxy m)
+
+  getAttr m = getAttr (proxy m)
+
+  listAttr m = listAttr (proxy m)
+
+  listTAttr m = listTAttr (proxy m)
+
+  putAttr m values = do
+    putAttr (proxy m) values
+    mapM_ (\(g, a, v, o) -> ahandler m $ KAttrPutEvent g a v o) values
+
+  putTAttr m values = do
+    putTAttr (proxy m) values
+    mapM_ (\(g, a, t, v, o) -> ahandler m $ TAttrPutEvent g a t v o) values
+
+  delAttr m values = do
+    delAttr (proxy m) values
+    mapM_ (\(g, a) -> ahandler m $ TAttrDelEvent g a Nothing) values
+    mapM_ (\(g, a) -> ahandler m $ KAttrDelEvent g a) values
+
+instance (GraphBackend m) => GraphBackend (Monitor m) where
+
+  getName m = getName (proxy m)
+
+  getGUID m = getGUID (proxy m)
+
+  hasLink m = hasLink (proxy m)
+
+  getLink m = getLink (proxy m)
+
+  getLabel m = getLabel (proxy m)
+
+  putLabel m = putLabel (proxy m)
+
+  putName m user tree kind node = do
+    guid <- putName (proxy m) user tree kind node
+    ghandler m $ MakeVertexEvent user tree kind node guid
+    return guid
+
+  putLink m links = do
+    putLink (proxy m) links
+    mapM_ (ghandler m . uncurry3 MakeLinkEvent) links
+
+  unlink m links = do
+    unlink (proxy m) links
+    mapM_ (ghandler m . uncurry3 KillLinkEvent) links
+
+  remove m guid = do
+    remove (proxy m) guid
+    ghandler m $ KillVertexEvent guid
