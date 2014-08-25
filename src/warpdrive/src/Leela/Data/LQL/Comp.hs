@@ -54,8 +54,8 @@ hardspace = void $ word8 0x20
 
 parseNode :: Parser (Kind, Node)
 parseNode = do
-  (Kind kind) <- liftM Kind $ qstring 64 0x28 0x3a
-  (Node name) <- liftM Node $ qstring 512 0x3a 0x29
+  (Kind kind) <- Kind <$> qstring 64 0x28 0x3a
+  (Node name) <- Node <$> qstring 512 0x3a 0x29
   when (L.null kind) (fail "kind must not be null")
   when (L.null name) (fail "name must not be null")
   return (Kind kind, Node name)
@@ -68,7 +68,7 @@ parseTree = do
       buildResult (left, right)
         | L.null right        = return (Nothing, Tree left)
         | otherwise           = case (L.take 2 right) of
-                                  "::" -> liftM2 (,) (fmap (Just . User) (validate left)) (fmap Tree (validate $ L.drop 2 right))
+                                  "::" -> liftM2 (,) (Just <$> User <$> (validate left)) (Tree <$> (validate $ L.drop 2 right))
                                   _    -> fail "parseTree: syntax error"
 
       validate s
@@ -76,13 +76,13 @@ parseTree = do
         | otherwise       = return s
 
 parseLabel :: Parser Label
-parseLabel = liftM Label (qstring 512 0x5b 0x5d)
+parseLabel = Label <$> qstring 512 0x5b 0x5d
 
 parseAttr :: Parser Attr
-parseAttr = liftM Attr (qstring 512 0x22 0x22)
+parseAttr = Attr <$> qstring 512 0x22 0x22
 
 parseGUID :: Parser GUID
-parseGUID = liftM guidFromBS (A.take 36)
+parseGUID = guidFromBS <$> (A.take 36)
 
 parseGUIDAttr :: Parser (GUID, Attr)
 parseGUIDAttr = do
@@ -92,7 +92,7 @@ parseGUIDAttr = do
   return (g, k)
 
 parseMaybeGUID :: Parser (Maybe GUID)
-parseMaybeGUID = ("()" *> return Nothing) <|> (liftM Just parseGUID)
+parseMaybeGUID = ("()" *> return Nothing) <|> (Just <$> parseGUID)
 
 qstring :: Int -> Word8 -> Word8 -> Parser L.ByteString
 qstring limit l r = word8 l >> anyWord8 >>= loop (limit - 1) []
@@ -119,8 +119,8 @@ parseLink = do
   mdir <- word8 0x2d <|> word8 0x3c
   l    <- option (Label L.empty) parseLabel
   f    <- case mdir of
-           0x2d -> (liftM (const B) (word8 0x2d)) <|> (liftM (const R) (word8 0x3e))
-           0x3c -> liftM (const L) (word8 0x2d)
+           0x2d -> (const B <$> (word8 0x2d)) <|> (const R <$> (word8 0x3e))
+           0x3c -> (const L <$> (word8 0x2d))
            _    -> fail "parseLink"
   return (f l)
 
@@ -196,56 +196,56 @@ parseValue :: Parser Value
 parseValue = do
   mw <- peekWord8
   case mw of
-    Just 0x22 -> liftM Text $ qstring (64 * 1024) 0x22 0x22
-    Just 0x28 -> liftM Int32 ("(int32 " *> (signed decimal `endBy` word8 0x29))
-                 <|> liftM Int64 ("(int64 " *> (signed decimal `endBy` word8 0x29))
-                 <|> liftM UInt32 ("(uint32 " *> (decimal `endBy` word8 0x29))
-                 <|> liftM UInt64 ("(uint64 " *> (decimal `endBy` word8 0x29))
-                 <|> liftM Double ("(double " *> (parseDouble `endBy` word8 0x29))
-                 <|> ("(bool true)" *> return (Bool True))
-                 <|> ("(bool false)" *> return (Bool False))
+    Just 0x22 -> Text <$> qstring (64 * 1024) 0x22 0x22
+    Just 0x28 -> Int32 <$> ("(int32 " *> (signed decimal `endBy` word8 0x29))
+                 <|> Int64 <$> ("(int64 " *> (signed decimal `endBy` word8 0x29))
+                 <|> UInt32 <$> ("(uint32 " *> (decimal `endBy` word8 0x29))
+                 <|> UInt64 <$> ("(uint64 " *> (decimal `endBy` word8 0x29))
+                 <|> Double <$> ("(double " *> (parseDouble `endBy` word8 0x29))
+                 <|> "(bool true)" *> return (Bool True)
+                 <|> "(bool false)" *> return (Bool False)
     _         -> fail "bad value"
 
 parseTimePoint :: Parser Time
 parseTimePoint = do
   _ <- word8 0x5b
-  r <- liftM fromSeconds double
+  r <- fromSeconds <$> double
   _ <- word8 0x5d
   return r
 
 parseTimeRange :: Parser TimeRange
 parseTimeRange = do
   _  <- word8 0x5b
-  t0 <- liftM fromSeconds double
+  t0 <- fromSeconds <$> double
   _  <- word8 0x3a
-  t1 <- liftM fromSeconds double
+  t1 <- fromSeconds <$> double
   _  <- word8 0x5d
   return (Range t0 t1)
 
 parseWithStmt :: Parser [Option]
 parseWithStmt = "with " *> (parseOption `sepBy` (string ", "))
     where
-      parseOption = ("ttl:" *> liftM TTL decimal
-                     <|> "max_data_points:" *> liftM MaxDataPoints decimal
-                     <|> "alignment:" *> liftM Alignment decimal)
+      parseOption = ("ttl:" *> (TTL <$> decimal)
+                     <|> "max_data_points:" *> (MaxDataPoints <$> decimal)
+                     <|> "alignment:" *> (Alignment <$> decimal))
 
 parseStmtMake :: Using -> Parser LQL
 parseStmtMake u = do
   _  <- string "make "
   at <- peekWord8
   case at of
-    Just 0x28 -> liftM (AlterStmt . S.singleton . uncurry (PutNode (targetUser u) (uTree u))) parseNode
-    Just _    -> liftM AlterStmt parseMakeCreate
+    Just 0x28 -> AlterStmt <$> S.singleton <$> uncurry (PutNode (targetUser u) (uTree u)) <$> parseNode
+    Just _    -> AlterStmt <$> parseMakeCreate
     _         -> fail "bad make statement"
 
 parseStmtPath :: Parser LQL
-parseStmtPath = "path " *> liftM PathStmt parseQuery
+parseStmtPath = "path " *> (PathStmt <$> parseQuery)
 
 parseStmtName :: Using -> Parser LQL
-parseStmtName u = "name " *> liftM (NameStmt u . S.singleton) parseGUID
+parseStmtName u = "name " *> (NameStmt u <$> (S.singleton <$> parseGUID))
 
 parseStmtGUID :: Using -> Parser LQL
-parseStmtGUID u = "guid " *> liftM (GUIDStmt u . S.singleton) parseNode
+parseStmtGUID u = "guid " *> (GUIDStmt u <$> (S.singleton <$> parseNode))
 
 parseStmtStat :: Parser LQL
 parseStmtStat = "stat" *> return StatStmt
@@ -308,8 +308,8 @@ parseStmtAttr = "attr put " *> parsePutAttr
 
       parseGetAttr = do
         (g, a) <- parseGUIDAttr
-        ((liftM2 (TAttrGetStmt g a) (hardspace >> parseTimeRange) (option [] (hardspace >> parseWithStmt)))
-         <|> liftM (KAttrGetStmt g a) (option [] (hardspace >> parseWithStmt)))
+        (TAttrGetStmt g a <$> (hardspace >> parseTimeRange) <*> (option [] (hardspace >> parseWithStmt)))
+          <|> (KAttrGetStmt g a <$> (option [] (hardspace >> parseWithStmt)))
 
       parseListAttr kind = do
         (g, Attr a) <- parseGUIDAttr
@@ -317,8 +317,8 @@ parseStmtAttr = "attr put " *> parsePutAttr
 
       parseDelAttr = do
         (g, k) <- parseGUIDAttr
-        liftM (AlterStmt . S.singleton) ((liftM (DelTAttr g k) (hardspace >> parseTimeRange))
-                                          <|> return (DelKAttr g k))
+        AlterStmt <$> (S.singleton <$> ((DelTAttr g k <$> (hardspace >> parseTimeRange))
+                                          <|> (return (DelKAttr g k))))
 
 parseStmt :: Using -> Parser LQL
 parseStmt u = do
@@ -334,7 +334,7 @@ parseStmt u = do
     _         -> fail "bad statement"
 
 parseStmts :: Using -> Parser [LQL]
-parseStmts u = fmap groupLQL $ parseStmt u `sepBy1` newline
+parseStmts u = groupLQL <$> parseStmt u `sepBy1` newline
 
 parseUsing :: User -> Parser Using
 parseUsing user = do
