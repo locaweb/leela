@@ -1,6 +1,7 @@
 --*-- mode: text; --*--
 
 v5.8.0 | 2014-08-22
+  * signature timestamp validation
   * use redis for caching and to avoid index option on every metric
   * new syntax: attr last which retrieves the value from the cache
   * performance: tune internal queues and zmq hwm
