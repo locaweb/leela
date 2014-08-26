@@ -42,8 +42,20 @@ lql_meta_cursor_t *leela_new_meta_cursor(lql_cursor_t *cursor1, lql_cursor_t *cu
 
 leela_status leela_lql_meta_cursor_next (lql_meta_cursor_t *meta)
 {
-  leela_lql_cursor_next(meta->cursor1);
-  leela_lql_cursor_next(meta->cursor2);
+  leela_status status1, status2;
+  status1 = leela_lql_cursor_next(meta->cursor1);
+  status2 = leela_lql_cursor_next(meta->cursor2);
+
+  if ( status1 == LEELA_OK && status2 == LEELA_OK )
+  { return LEELA_OK; }
+
+  if ( status1 == LEELA_EOF && (status2 == LEELA_OK || status2 == LEELA_EOF ) )
+  { return LEELA_EOF; }
+
+  if ( status2 == LEELA_EOF && (status1 == LEELA_OK || status1 == LEELA_EOF) )
+  { return LEELA_EOF; }
+
+  return LEELA_ERROR;
 }
 
 lql_tattr_t *leela_fetch_meta_cursor(lql_meta_cursor_t *meta, aggr_tattr_f aggr_func)
