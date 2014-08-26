@@ -26,7 +26,6 @@ import           System.ZMQ4
 import           Leela.Logger
 import           Control.Monad
 import qualified Data.ByteString as B
-import           Leela.Data.Time
 import           Control.Exception
 import           Leela.HZMQ.IOLoop
 import           Control.Concurrent
@@ -40,7 +39,7 @@ data Worker = Worker { onJob :: [B.ByteString] -> IO [L.ByteString]
                      , onErr :: SomeException -> IO [L.ByteString]
                      }
 
-newtype RouterFH = RouterFH (MVar Bool)
+newtype RouterFH = RouterFH (MVar ())
 
 readMsg :: Request -> [B.ByteString]
 readMsg (Request _ val) = val
@@ -73,20 +72,16 @@ recvRequest mmsg = do
     ("" : msg) -> Just (Request peer msg)
     _          -> Nothing
 
-waitCTRL :: MVar Bool -> IO ()
-waitCTRL ctrl =
-  sleep 1 >> readMVar ctrl >>= flip when (waitCTRL ctrl)
-
 stopRouter :: RouterFH -> IO ()
 stopRouter (RouterFH ctrl) = do
-  _ <- swapMVar ctrl False
-  putMVar ctrl False
+  putMVar ctrl ()
+  takeMVar ctrl
 
 startRouter :: Logger -> Endpoint -> Context -> Worker -> IO RouterFH
 startRouter syslog endpoint ctx action = do
   notice syslog (printf "starting zmq.router: %s" (dumpEndpointStr endpoint))
-  ctrl <- newMVar True
-  void $ flip forkFinally (\_ -> void $ takeMVar ctrl) $
+  ctrl <- newEmptyMVar
+  void $ flip forkFinally (\_ -> void $ putMVar ctrl ()) $
     withSocket ctx Router $ \fh -> do
       setHWM (1000, 1) fh
       configAndBind fh (dumpEndpointStr endpoint)
@@ -107,7 +102,7 @@ startRouter syslog endpoint ctx action = do
         wait   <- newQSemN 0
         _      <- forkFinally (recvLoop poller) (const $ signalQSemN wait 1)
         _      <- forkFinally (pollLoop syslog poller) (const $ signalQSemN wait 1)
-        waitCTRL ctrl
+        takeMVar ctrl
         cancel poller
         waitQSemN wait 2
         warning syslog "router has quit"
