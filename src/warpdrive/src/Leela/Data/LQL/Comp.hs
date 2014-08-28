@@ -227,6 +227,7 @@ parseWithStmt = "with " *> (parseOption `sepBy` (string ", "))
     where
       parseOption = "ttl:" *> (TTL <$> decimal)
                     <|> "max_data_points:" *> (MaxDataPoints <$> decimal)
+                    <|> "data" *> (Data <$> qstring 64 0x3a 0x3d <*> qstring 512 0x22 0x22)
 
 parseStmtMake :: Using -> Parser LQL
 parseStmtMake u = do

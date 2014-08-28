@@ -112,6 +112,7 @@ data Journal = PutLink GUID Label GUID
 data Option = TTL Int
             | Indexing
             | MaxDataPoints Int
+            | Data L.ByteString L.ByteString
             deriving (Eq)
 
 data Mode a = All (Maybe a)
