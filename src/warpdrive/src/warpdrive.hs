@@ -128,17 +128,21 @@ main = do
   warning syslog
     (printf "warpdrive: yo!yo!; endpoint=%s" (show $ optEndpoint opts))
   withContext $ \ctx -> do
-    let cfg     = ClientConf (naming, fmap (fromMaybe [] . lookup "blackbox") . readIORef)
-        redisRW = fmap (fromMaybe [] . lookup "redis") . readIORef
-        redisRO = fmap (maybe [] (map (portMap (+1))) . lookup "redis") . readIORef
+    let dealerCfg = ClientConf (fmap (fromMaybe [] . lookup "blackbox") (readIORef naming))
+        pushCfg   = ClientConf (fmap (fromMaybe [] . lookup "warplog") (readIORef naming))
+        redisRW   = fmap (fromMaybe [] . lookup "redis") (readIORef naming)
+        redisRO   = fmap (maybe [] (map (portMap (+1))) . lookup "redis") (readIORef naming)
     setIoThreads (optIoThreads opts) ctx
-    secret <- maybe (return Nothing) lookupEnv (optRedisSecret opts)
-    cache  <- redisOpen syslog (naming, redisRO, redisRW) secret
-    client <- create syslog cfg ctx
-    router <- warpServer core (fromIntegral $ optSigTTL opts) (optEndpoint opts) ctx (zmqbackend syslog client cache)
+    secret     <- maybe (return Nothing) lookupEnv (optRedisSecret opts)
+    cache      <- redisOpen syslog (redisRO, redisRW) secret
+    -- pusher     <- createPipeline syslog pushCfg ctx
+    dealer     <- createDealer syslog dealerCfg ctx
+    -- router     <- warpServer core (fromIntegral $ optSigTTL opts) (optEndpoint opts) ctx (warpLogServer pusher $ zmqbackend syslog dealer cache)
+    router     <- warpServer core (fromIntegral $ optSigTTL opts) (optEndpoint opts) ctx (zmqbackend syslog dealer cache)
     takeMVar alive
     flushLogger syslog
-    stopDealer client
+    -- stopDealer pusher
+    stopDealer dealer
     stopRouter router
   warning syslog "warpdrive: see ya!"
   closeLogger syslog

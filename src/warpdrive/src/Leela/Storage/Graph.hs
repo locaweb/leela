@@ -15,16 +15,17 @@
 module Leela.Storage.Graph
     ( Page
     , Limit
-    , Monitor ()
     , AttrEvent (..)
     , GraphEvent (..)
+    , LogBackend ()
     , AttrBackend (..)
     , GraphBackend (..)
     , enumKAttrs
     , enumTAttrs
     , defaultLimit
-    , monitAttrBackend
-    , monitGraphBackend
+    , logBackend
+    , logAttrBackend
+    , logGraphBackend
     ) where
 
 import Control.Monad
@@ -43,20 +44,23 @@ data AttrEvent = TAttrPutEvent GUID Attr Time Value [Option]
                | KAttrDelEvent GUID Attr
                deriving (Eq)
 
-data Monitor a = Monitor { proxy    :: a
-                         , ghandler :: GraphEvent -> IO ()
-                         , ahandler :: AttrEvent -> IO ()
-                         }
+data LogBackend a = LogBackend { proxy    :: a
+                               , ghandler :: GraphEvent -> IO ()
+                               , ahandler :: AttrEvent -> IO ()
+                               }
 
 type Page = Maybe
 
 type Limit = Int
 
-monitGraphBackend :: (GraphBackend a) => (GraphEvent -> IO ()) -> a -> Monitor a
-monitGraphBackend handler db = Monitor db handler (const $ return ())
+logGraphBackend :: (GraphBackend a) => (GraphEvent -> IO ()) -> a -> LogBackend a
+logGraphBackend handler db = LogBackend db handler (const $ return ())
 
-monitAttrBackend :: (AttrBackend a) => (AttrEvent -> IO ()) -> a -> Monitor a
-monitAttrBackend handler db = Monitor db (const $ return ()) handler
+logAttrBackend :: (AttrBackend a) => (AttrEvent -> IO ()) -> a -> LogBackend a
+logAttrBackend handler db = LogBackend db (const $ return ()) handler
+
+logBackend :: (GraphBackend a, AttrBackend a) => (GraphEvent -> IO ()) -> (AttrEvent -> IO ()) -> a -> LogBackend a
+logBackend ghandler ahandler db = LogBackend db ghandler ahandler
 
 defaultLimit :: Int
 defaultLimit = 512
@@ -120,17 +124,17 @@ class AttrBackend m where
 
   delAttr   :: m -> [(GUID, Attr)] -> IO ()
 
-instance (AttrBackend m) => AttrBackend (Monitor m) where
+instance (AttrBackend m) => AttrBackend (LogBackend m) where
 
-  scanLast m = scanLast (proxy m)
+  scanLast = scanLast . proxy
 
-  getTAttr m = getTAttr (proxy m)
+  getTAttr = getTAttr . proxy
 
-  getAttr m = getAttr (proxy m)
+  getAttr = getAttr . proxy
 
-  listAttr m = listAttr (proxy m)
+  listAttr = listAttr . proxy
 
-  listTAttr m = listTAttr (proxy m)
+  listTAttr = listTAttr . proxy
 
   putAttr m values = do
     putAttr (proxy m) values
@@ -145,19 +149,19 @@ instance (AttrBackend m) => AttrBackend (Monitor m) where
     mapM_ (\(g, a) -> ahandler m $ TAttrDelEvent g a Nothing) values
     mapM_ (\(g, a) -> ahandler m $ KAttrDelEvent g a) values
 
-instance (GraphBackend m) => GraphBackend (Monitor m) where
+instance (GraphBackend m) => GraphBackend (LogBackend m) where
 
-  getName m = getName (proxy m)
+  getName = getName . proxy
 
-  getGUID m = getGUID (proxy m)
+  getGUID = getGUID . proxy
 
-  hasLink m = hasLink (proxy m)
+  hasLink = hasLink . proxy
 
-  getLink m = getLink (proxy m)
+  getLink = getLink . proxy
 
-  getLabel m = getLabel (proxy m)
+  getLabel = getLabel . proxy
 
-  putLabel m = putLabel (proxy m)
+  putLabel = putLabel . proxy
 
   putName m user tree kind node = do
     guid <- putName (proxy m) user tree kind node

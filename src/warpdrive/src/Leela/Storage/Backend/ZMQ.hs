@@ -37,9 +37,9 @@ import           Control.Concurrent.Async
 import           Control.Parallel.Strategies
 import           Leela.Storage.Backend.ZMQ.Protocol
 
-newtype ZMQBackend cache = ZMQBackend (Logger, ClientFH, cache)
+newtype ZMQBackend cache = ZMQBackend (Logger, ClientFH Dealer, cache)
 
-dealer :: ZMQBackend a -> ClientFH
+dealer :: ZMQBackend a -> ClientFH Dealer
 dealer (ZMQBackend (_, v, _)) = v
 
 cachedb :: ZMQBackend a -> a
@@ -48,7 +48,7 @@ cachedb (ZMQBackend (_, _, v)) = v
 syslog :: ZMQBackend a -> Logger
 syslog (ZMQBackend (v, _, _)) = v
 
-zmqbackend :: (KeyValue cache) => Logger -> ClientFH -> cache -> ZMQBackend cache
+zmqbackend :: (KeyValue cache) => Logger -> ClientFH Dealer -> cache -> ZMQBackend cache
 zmqbackend a b c = ZMQBackend (a, b, c)
 
 recv :: Maybe [B.ByteString] -> Reply
@@ -63,11 +63,11 @@ internalError :: String -> IO a
 internalError m =
   throwIO (SystemExcept (Just m))
 
-send :: ClientFH -> Query -> IO Reply
+send :: ClientFH Dealer -> Query -> IO Reply
 send pool req = let msg = (encode req) `using` (evalList rdeepseq)
                 in request 5000 pool msg >>= evaluate . recv
 
-send_ :: ClientFH -> Query -> IO ()
+send_ :: ClientFH Dealer -> Query -> IO ()
 send_ pool req = do
   reply <- send pool req
   case reply of

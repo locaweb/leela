@@ -55,14 +55,14 @@ newtype AnswerT m a = AnswerT { runAnswerT :: m (Answer a) }
 
 data RedisBackend = RedisBackend Logger (MVar ()) (Pool Endpoint Connection) (Pool Endpoint Connection)
 
-redisOpen :: Logger -> (a, a -> IO [Endpoint], a -> IO [Endpoint]) -> Maybe Password -> IO RedisBackend
-redisOpen syslog (a, ronly, rdwr) password = do
+redisOpen :: Logger -> (IO [Endpoint], IO [Endpoint]) -> Maybe Password -> IO RedisBackend
+redisOpen syslog (ronly, rdwr) password = do
   ctrl   <- newEmptyMVar
   ropool <- createPool onBegin onClose
   rwpool <- createPool onBegin onClose
   _      <- forkIO (supervise syslog "redis/pool" $ forever $ do
-              ronly a >>= updatePool ropool
-              rdwr a >>= updatePool rwpool
+              ronly >>= updatePool ropool
+              rdwr >>= updatePool rwpool
               sleep 1)
   return $ RedisBackend syslog ctrl ropool rwpool
     where

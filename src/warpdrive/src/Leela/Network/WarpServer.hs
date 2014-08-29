@@ -17,21 +17,23 @@
 module Leela.Network.WarpServer
        ( warpServer
        , stopRouter
+       , warpLogServer
        ) where
 
-import System.ZMQ4
-import Leela.Data.Time
-import Control.Exception
-import Leela.HZMQ.Router
-import Leela.Network.Core
-import Leela.Data.Endpoint
-import Leela.Storage.Graph
-import Data.ByteString.Lazy (ByteString)
-import Leela.Storage.Passwd
-import Leela.Network.Protocol
-import Control.Parallel.Strategies
+import           System.ZMQ4
+import           Leela.Data.Time
+import           Control.Exception
+import           Leela.HZMQ.Router
+import           Leela.HZMQ.Dealer
+import           Leela.Network.Core
+import           Leela.Data.Endpoint
+import           Leela.Storage.Graph
+import qualified Data.ByteString.Lazy as L
+import           Leela.Storage.Passwd
+import           Leela.Network.Protocol
+import           Control.Parallel.Strategies
 
-strictEncode :: Reply -> [ByteString]
+strictEncode :: Reply -> [L.ByteString]
 strictEncode = withStrategy (evalList rdeepseq) . encode
 
 worker :: (GraphBackend db, AttrBackend db) => db -> CoreServer -> NominalDiffTime -> Worker
@@ -41,8 +43,16 @@ worker db core ttl = Worker f (evaluate . strictEncode . encodeE)
       time     <- now
       secretdb <- readPasswd core
       case (decode (time, ttl) (readSecret secretdb) msg) of
-              Left err -> evaluate $ strictEncode err
-              Right q  -> process db core q >>= evaluate . strictEncode
+        Left err -> evaluate $ strictEncode err
+        Right q  -> process db core q >>= evaluate . strictEncode
 
 warpServer :: (GraphBackend m, AttrBackend m) => CoreServer -> NominalDiffTime -> Endpoint -> Context -> m -> IO RouterFH
 warpServer core ttl addr ctx storage = startRouter (logger core) addr ctx (worker storage core ttl)
+
+warpLogServer :: (GraphBackend m, AttrBackend m) => ClientFH Push -> m -> LogBackend m
+warpLogServer client db =
+  logBackend handleAttrEvent handleGraphEvent db
+    where
+      handleAttrEvent _ = return ()
+
+      handleGraphEvent _ = return ()
