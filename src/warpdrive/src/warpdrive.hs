@@ -26,7 +26,6 @@ import Leela.Helpers
 import Leela.Data.Time
 import Leela.HZMQ.Dealer
 import Control.Concurrent
-import Leela.Network.Core
 import System.Environment
 import Leela.Data.Endpoint
 import System.Posix.Signals
@@ -115,14 +114,14 @@ main :: IO ()
 main = do
   hSetBuffering stdout NoBuffering
   hSetBuffering stderr NoBuffering
-  opts   <- getArgs >>= readOpts
-  alive  <- newEmptyMVar
-  naming <- newIORef []
-  syslog <- newLogger (fromIntegral $ max 1 (optBufSize opts)) (optDebugLevel opts)
-  passwd <- passwdWatcher syslog (optPasswd opts)
-  core   <- newCore syslog naming passwd
+  opts    <- getArgs >>= readOpts
+  alive   <- newEmptyMVar
+  naming  <- newIORef []
+  syslog  <- newLogger (fromIntegral $ max 1 (optBufSize opts)) (optDebugLevel opts)
+  passwd  <- passwdWatcher syslog (optPasswd opts)
+  warpsrv <- newWarpServer syslog naming passwd
   resolver syslog naming (show $ optConsul opts)
-  _      <- forkIO (supervise syslog "main/resolver" $ forever $ sleep 5 >> resolver syslog naming (show $ optConsul opts))
+  _       <- forkIO (supervise syslog "main/resolver" $ forever $ sleep 5 >> resolver syslog naming (show $ optConsul opts))
   void $ installHandler sigTERM (Catch $ signal alive) Nothing
   void $ installHandler sigINT (Catch $ signal alive) Nothing
   warning syslog
@@ -137,8 +136,8 @@ main = do
     cache      <- redisOpen syslog (redisRO, redisRW) secret
     -- pusher     <- createPipeline syslog pushCfg ctx
     dealer     <- createDealer syslog dealerCfg ctx
-    -- router     <- warpServer core (fromIntegral $ optSigTTL opts) (optEndpoint opts) ctx (warpLogServer pusher $ zmqbackend syslog dealer cache)
-    router     <- warpServer core (fromIntegral $ optSigTTL opts) (optEndpoint opts) ctx (zmqbackend syslog dealer cache)
+    -- router     <- warpServer warpsrv (fromIntegral $ optSigTTL opts) (optEndpoint opts) ctx (warpLogServer pusher $ zmqbackend syslog dealer cache)
+    router     <- warpServer warpsrv (fromIntegral $ optSigTTL opts) (optEndpoint opts) ctx (zmqbackend syslog dealer cache)
     takeMVar alive
     flushLogger syslog
     -- stopDealer pusher
