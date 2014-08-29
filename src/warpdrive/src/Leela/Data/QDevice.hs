@@ -43,6 +43,7 @@ module Leela.Data.QDevice
        ) where
 
 import Control.Monad
+import Leela.Helpers
 import Control.Exception
 import Leela.Data.Excepts
 import Control.Concurrent.STM
@@ -64,10 +65,12 @@ control = do
   tvar1 <- newTVar []
   return (Control (tvar0, tvar1))
 
-addFinalizer :: Control -> Finalizer -> IO ()
-addFinalizer (Control (_, tvar)) fin = atomically $ do
-  current <- readTVar tvar
-  writeTVar tvar (fin : current)
+addFinalizer :: (HasControl ctrl) => ctrl -> Finalizer -> IO ()
+addFinalizer target fin = do
+  let (Control (_, tvar)) = ctrlof target
+  atomically $ do
+    current <- readTVar tvar
+    writeTVar tvar (fin : current)
 
 devnull :: STM (Device a)
 devnull = do
@@ -110,17 +113,20 @@ close :: HasControl ctrl => ctrl -> STM ()
 close ctrl = let Control tvar = ctrlof ctrl
              in writeTVar (fst tvar) True
 
-runFinalizer :: HasControl ctrl => ctrl -> IO ()
-runFinalizer ctrl = do
-  let Control (_, tmvar) = ctrlof ctrl
+runFinalizer :: (HasControl ctrl) => ctrl -> IO ()
+runFinalizer target = do
   fins <- atomically $ do
     current <- readTVar tmvar
     writeTVar tmvar []
     return current
-  sequence_ fins
+  mapM_ (`catch` ignore) fins
+    where
+      Control (_, tmvar) = ctrlof target
 
 closeIO :: HasControl ctrl => ctrl -> IO ()
-closeIO = atomically . close
+closeIO ctrl = do
+  atomically (close ctrl)
+  runFinalizer ctrl `catch` ignore
 
 select :: Device a -> STM (Bool, TBQueue a)
 select (Device (Control (ctrl, _)) q) = fmap (, q) (readTVar ctrl)

@@ -171,15 +171,18 @@ navigate db queue (source, pipeline) = do
             runFilter srcpipe f dstpipe
           Just chunk                -> devwriteIO dstpipe chunk
 
-      forkSource dstpipe = void $ forkFinally
-        (query db (devwriteIO dstpipe . Chunk . (, [])) source)
-        (either (devwriteIO dstpipe . Error) (const $ devwriteIO dstpipe EOF))
+      forkSource dstpipe = do
+        t <- forkFinally
+               (query db (devwriteIO dstpipe . Chunk . (, [])) source)
+               (either (devwriteIO dstpipe . Error) (const $ devwriteIO dstpipe EOF))
+        addFinalizer queue (killThread t)
 
       forkFilter srcpipe f = do
         dstpipe <- openIO srcpipe 16
-        _       <- forkFinally
+        t       <- forkFinally
           (runFilter srcpipe f dstpipe)
           (either (devwriteIO dstpipe . Error) (const $ devwriteIO dstpipe EOF))
+        addFinalizer queue (killThread t)
         return dstpipe
 
 evalLQL :: (GraphBackend m, AttrBackend m) => m -> CoreServer -> Device Reply -> [LQL] -> IO ()
@@ -224,13 +227,13 @@ evalLQL db core queue (x:xs) = do
 evalFinalizer :: Logger -> Time -> FH -> Device Reply -> Either SomeException () -> IO ()
 evalFinalizer syslog t0 chan dev (Left e)  = do
   t <- fmap (`diff` t0) snapshot
+  warning syslog $ printf "FAILURE: %s %s [%s ms]" (show chan) (show e) (showDouble $ milliseconds t)
   devwriteIO dev (encodeE e) `catch` ignore
   closeIO dev
-  warning syslog $ printf "FAILURE: %s %s [%s ms]" (show chan) (show e) (showDouble $ milliseconds t)
 evalFinalizer syslog t0 chan dev (Right _)   = do
   t <- fmap (`diff` t0) snapshot
-  closeIO dev
   notice syslog $ printf "SUCCESS: %s [%s ms]" (show chan) (showDouble $ milliseconds t)
+  closeIO dev
 
 process :: (GraphBackend m, AttrBackend m) => m -> CoreServer -> Query -> IO Reply
 process storage srv (Begin sig msg) =
@@ -241,7 +244,8 @@ process storage srv (Begin sig msg) =
       if (level (logger srv) >= NOTICE)
         then notice (logger srv) (printf "BEGIN %s %d" (lqlDescr stmts) fh)
         else info (logger srv) (printf "BEGIN %s %d" (show msg) fh)
-      _         <- forkFinally (evalLQL storage srv dev stmts) (evalFinalizer (logger srv) time fh dev)
+      t         <- forkFinally (evalLQL storage srv dev stmts) (evalFinalizer (logger srv) time fh dev)
+      addFinalizer dev (killThread t)
       return $ Done fh
 process _ srv (Fetch sig fh)        = do
   let channel = (sigUser sig, fh)
