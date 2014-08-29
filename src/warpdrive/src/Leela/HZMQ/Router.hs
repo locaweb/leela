@@ -83,7 +83,7 @@ startRouter syslog endpoint ctx action = do
   ctrl <- newEmptyMVar
   void $ flip forkFinally (\_ -> void $ putMVar ctrl ()) $
     withSocket ctx Router $ \fh -> do
-      setHWM (1000, 1) fh
+      setHWM (1000, 1000) fh
       configAndBind fh (dumpEndpointStr endpoint)
       go ctrl fh
   return (RouterFH ctrl)

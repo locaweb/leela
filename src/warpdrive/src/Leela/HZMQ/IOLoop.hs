@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleInstances #-}
+
 -- Copyright 2014 (c) Diego Souza <dsouza@c0d3.xxx>
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
@@ -56,6 +58,14 @@ data PollMode = PollRdonlyMode
               | PollRdWrMode
               deriving (Eq)
 
+hasWrite :: PollMode -> Bool
+hasWrite PollRdonlyMode = False
+hasWrite _              = True
+
+hasRead :: PollMode -> Bool
+hasRead PollWronlyMode = False
+hasRead _              = True
+
 newIOLoop :: String -> TBQueue [B.ByteString] -> TBQueue (MVar [B.ByteString]) -> Socket a -> IO (Poller a)
 newIOLoop name qsrc qdst fh = do
   ctrl <- newTVarIO True
@@ -88,14 +98,14 @@ dequeue :: Poller a -> Maybe [B.ByteString] -> STM (Either [B.ByteString] (MVar 
 dequeue _ (Just msg) = return (Left msg)
 dequeue p _          = liftM Right (readTBQueue (pollOutQ p))
 
-recvMsg :: Poller a -> IO (Maybe [B.ByteString])
+recvMsg :: (Receiver a) => Poller a -> IO (Maybe [B.ByteString])
 recvMsg p = atomically $ do
   ok <- aliveSTM p
   if ok
    then liftM Just (readTBQueue (pollInQ p))
    else return Nothing
 
-sendMsg' :: Poller a -> [B.ByteString] -> IO (Maybe (IO ()))
+sendMsg' :: (Sender a) => Poller a -> [B.ByteString] -> IO (Maybe (IO ()))
 sendMsg' p msg = do
   mvar <- msg `deepseq` newMVar msg
   ok   <- atomically $ tryWriteTBQueue (pollOutQ p) mvar
@@ -103,10 +113,10 @@ sendMsg' p msg = do
            then Just $ void $ tryTakeMVar mvar
            else Nothing)
 
-sendMsg :: Poller a -> [L.ByteString] -> IO (Maybe (IO ()))
+sendMsg :: (Sender a) => Poller a -> [L.ByteString] -> IO (Maybe (IO ()))
 sendMsg p = sendMsg' p . map L.toStrict
 
-sendMsg_ :: Poller a -> [L.ByteString] -> IO Bool
+sendMsg_ :: (Sender a) => Poller a -> [L.ByteString] -> IO Bool
 sendMsg_ p = liftM isJust . sendMsg p
 
 readReq :: Logger -> String -> Either [B.ByteString] (MVar [B.ByteString]) -> IO (Maybe [B.ByteString])
@@ -135,8 +145,12 @@ pollLoop syslog = gpollLoop syslog PollRdWrMode receiveMulti sendAll
 gpollLoop :: Logger -> PollMode -> RecvCallback a -> SendCallback a -> Poller a -> IO ()
 gpollLoop syslog mode recvCallback sendCallback p = do
   fd               <- useSocket p fileDescriptor
-  (waitW, cancelW) <- waitFor (threadWaitWrite fd)
-  (waitR, cancelR) <- waitFor (threadWaitRead fd)
+  (waitW, cancelW) <- if (hasWrite mode)
+                       then waitFor (threadWaitWrite fd)
+                       else return (return (), return ())
+  (waitR, cancelR) <- if (hasRead mode)
+                       then waitFor (threadWaitRead fd)
+                       else return (return (), return ())
   supervise syslog "ioloop" (go waitR waitW Nothing) `finally` (cancelR >> cancelW)
     where
       waitFor waitFunc = do
