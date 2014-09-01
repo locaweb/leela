@@ -1,3 +1,4 @@
+{-# LANGUAGE Rank2Types        #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 -- Copyright 2014 (c) Diego Souza <dsouza@c0d3.xxx>
@@ -20,10 +21,12 @@ module Leela.HZMQ.Dealer
        , Push
        , Dealer
        , push
+       , pull
        , request
        , stopDealer
        , createDealer
-       , createPipeline
+       , createPush
+       , createPull
        ) where
 
 import           Data.Word
@@ -54,14 +57,14 @@ newtype Job = Job (JKey, MVar [B.ByteString])
 
 data ClientConf a = ClientConf { resources :: IO [Endpoint] }
 
-data Client = ReqReq { logger  :: Logger
-                     , dealer  :: Poller Dealer
-                     , cstate  :: IORef (M.HashMap JKey Job)
-                     , counter :: Counter JKey
-                     }
-            | Pipeline { logger   :: Logger
-                       , pipeline :: Poller Push
-                       }
+data Client = Bidirectional { logger  :: Logger
+                            , dealer  :: Poller Dealer
+                            , cstate  :: IORef (M.HashMap JKey Job)
+                            , counter :: Counter JKey
+                            }
+            | Unidirectional { logger   :: Logger
+                             , pipeline :: Either (Poller Push) (Poller Pull)
+                             }
 
 newtype ClientFH a = ClientFH (Client, IO ())
 
@@ -89,8 +92,15 @@ request maxwait (ClientFH (client, _)) msg = bracket acquire release useFunc
       release (Just (job, abort)) = abort >> delJob client (readKey job)
 
 push :: ClientFH Push -> [L.ByteString] -> IO Bool
-push (ClientFH (client, _)) msg = do
-  sendMsg_ (pipeline client) msg
+push (ClientFH (client, _)) msg =
+  case (pipeline client) of
+    Left poller -> sendMsg_ poller msg
+    _           -> return False
+
+pull (ClientFH (client, _)) =
+  case (pipeline client) of
+    Right poller -> recvMsg poller
+    _            -> return Nothing
 
 newJob :: Client -> [L.ByteString] -> IO (Maybe (Job, IO ()))
 newJob client msg = do
@@ -115,34 +125,6 @@ reply (Job (_, mvar)) ans = void $ tryPutMVar mvar ans
 decodeKey :: B.ByteString -> Maybe JKey
 decodeKey = either (const Nothing) Just . decode
 
-dealerLoop :: Client -> IO ()
-dealerLoop client = do
-  warning (logger client) "dealer has started"
-  wait   <- newQSemN 0
-  _      <- forkFinally recvLoop (const $ signalQSemN wait 1)
-  _      <- forkFinally (pollLoop (logger client) (dealer client)) (const $ signalQSemN wait 1)
-  waitQSemN wait 2
-  warning (logger client) "dealer has quit"
-    where
-      recvAns msg =
-        case (break B.null msg) of
-          (key@(_:_), (_:ans)) -> do
-            state <- readIORef (cstate client)
-            case (decodeKey (last key) >>= flip M.lookup state) of
-              Just job -> reply job ans
-              Nothing  -> return ()
-          _                    -> return ()
-
-      recvLoop = do
-        msg <- recvMsg (dealer client)
-        when (isJust msg) (recvAns (fromJust msg) >> recvLoop)
-
-pipelineLoop :: Client -> IO ()
-pipelineLoop client = do
-  warning (logger client) "pipeline has started"
-  pollOutLoop (logger client) (pipeline client)
-  warning (logger client) "pipeline has quit"
-
 poolUpdate :: ClientConf a -> Pool Endpoint () -> IO ()
 poolUpdate cfg pool =
   resources cfg >>= updatePool pool
@@ -164,46 +146,92 @@ createDealer syslog cfg ctx = do
   notice syslog "creating zmq.dealer"
   caps   <- fmap (max 1) getNumCapabilities
   fh     <- zmqSocket
-  qsem   <- newQSemN 0
-  client <- ReqReq syslog <$> (newIOLoop_ "dealer" (caps * 100) (caps * 1000) fh) <*> (newIORef M.empty) <*> newCounter
-  pool   <- createPool (createWorker syslog (dealer client)) (destroyWorker syslog (dealer client))
-  poolUpdate cfg pool
-  _      <- forkFinally
-              (supervise syslog "poolUpdate" $ foreverWith (alive (dealer client)) (poolUpdate cfg pool >> sleep 1))
-              (const $ signalQSemN qsem 1)
-  _      <- forkFinally (dealerLoop client) (const $ signalQSemN qsem 1)
-  return $ ClientFH (client, waitQSemN qsem 2 >> close fh)
+  client <- Bidirectional syslog
+              <$> (newIOLoop_ "dealer" (caps * 100) (caps * 100) fh)
+              <*> (newIORef M.empty)
+              <*> newCounter
+  runClient syslog cfg client
     where
       zmqSocket = do
         fh <- socket ctx Dealer
-        setHWM (1000, 10) fh
+        setHWM (100, 3) fh
         config fh
         return fh
 
-createPipeline :: Logger -> ClientConf Push -> Context -> IO (ClientFH Push)
-createPipeline syslog cfg ctx = do
-  notice syslog "creating zmq.pipeline"
+createPush :: Logger -> ClientConf Push -> Context -> IO (ClientFH Push)
+createPush syslog cfg ctx = do
+  notice syslog "creating zmq.push"
   caps   <- fmap (max 1) getNumCapabilities
   fh     <- zmqSocket
-  qsem   <- newQSemN 0
-  client <- Pipeline syslog <$> (newIOLoop_ "pipeline" 0 (caps * 100) fh)
-  pool   <- createPool (createWorker syslog (pipeline client)) (destroyWorker syslog (pipeline client))
-  poolUpdate cfg pool
-  _      <- forkFinally
-              (supervise syslog "poolUpdate" $ foreverWith (alive (pipeline client)) (poolUpdate cfg pool >> sleep 1))
-              (const $ signalQSemN qsem 1)
-  _      <- forkFinally (pipelineLoop client) (const $ signalQSemN qsem 1)
-  return $ ClientFH (client, waitQSemN qsem 2 >> close fh)
+  client <- Unidirectional syslog
+              <$> Left
+              <$> (newIOLoop_ "pipeline" 0 (caps * 10) fh)
+  runClient syslog cfg client
     where
       zmqSocket = do
         fh <- socket ctx Push
-        setHWM (0, 1000) fh
+        setHWM (0, 100) fh
         config fh
         return fh
+
+createPull :: Logger -> ClientConf Pull -> Context -> IO (ClientFH Pull)
+createPull syslog cfg ctx = do
+  notice syslog "creating zmq.pull"
+  caps   <- fmap (max 1) getNumCapabilities
+  fh     <- zmqSocket
+  client <- Unidirectional syslog
+              <$> Right
+              <$> (newIOLoop_ "pipeline" (caps * 10) 0 fh)
+  runClient syslog cfg client
+    where
+      zmqSocket = do
+        fh <- socket ctx Pull
+        setHWM (100, 0) fh
+        config fh
+        return fh
+
+runClient :: Logger -> ClientConf a -> Client -> IO (ClientFH a)
+runClient syslog cfg client = do
+  qsem <- newQSemN 0
+  pool <- createPool (onPoller (createWorker syslog)) (onPoller (destroyWorker syslog))
+  poolUpdate cfg pool
+  _    <- forkFinally
+            (supervise syslog "startDealer#poolUpdate" $ foreverWith (onPoller alive) (poolUpdate cfg pool >> sleep 1))
+            (const $ signalQSemN qsem 1)
+  _    <- forkFinally recvLoop (const $ signalQSemN qsem 1)
+
+  _    <- forkFinally ioloop (const $ signalQSemN qsem 1)
+  return (ClientFH (client, waitQSemN qsem 3 >> onPoller (`useSocket` close)))
+    where
+      recvAns msg =
+        case (break B.null msg) of
+          (key@(_:_), (_:ans)) -> do
+            state <- readIORef (cstate client)
+            case (decodeKey (last key) >>= flip M.lookup state) of
+              Just job -> reply job ans
+              Nothing  -> return ()
+          _                    -> return ()
+
+      recvLoop =
+        case client of
+          Bidirectional _ p _ _ -> do
+            msg <- recvMsg p
+            when (isJust msg) (recvAns (fromJust msg) >> recvLoop)
+          _                     -> return ()
+
+
+      onPoller :: forall b. (forall a. Poller a -> b) -> b
+      onPoller f = case client of
+                     Bidirectional _ p _ _ -> f p
+                     Unidirectional _ p    -> either f f p
+
+      ioloop = case client of
+                 Bidirectional _ p _ _ -> pollLoop (logger client) p
+                 Unidirectional _ p    -> either (pollOutLoop (logger client)) (pollInLoop (logger client)) p
 
 stopDealer :: ClientFH a -> IO ()
 stopDealer (ClientFH (client, waitStop)) = do
   case client of
-    ReqReq {}   -> cancel (dealer client)
-    Pipeline {} -> cancel (pipeline client)
+    Bidirectional {}  -> cancel (dealer client)
+    Unidirectional {} -> either cancel cancel (pipeline client)
   waitStop
