@@ -83,7 +83,7 @@ startRouter syslog endpoint ctx action = do
   ctrl <- newEmptyMVar
   void $ flip forkFinally (\_ -> void $ putMVar ctrl ()) $
     withSocket ctx Router $ \fh -> do
-      setHWM (1000, 1000) fh
+      setHWM (100, 100) fh
       configAndBind fh (dumpEndpointStr endpoint)
       go ctrl fh
   return (RouterFH ctrl)
@@ -98,7 +98,7 @@ startRouter syslog endpoint ctx action = do
       go ctrl fh = do
         warning syslog "router has started"
         caps   <- fmap (max 1) getNumCapabilities
-        poller <- newIOLoop_ "router" (caps * 100) (caps * 1000) fh
+        poller <- newIOLoop_ "router" (caps * 100) (caps * 100) fh
         wait   <- newQSemN 0
         _      <- forkFinally (recvLoop poller) (const $ signalQSemN wait 1)
         _      <- forkFinally (pollLoop syslog poller) (const $ signalQSemN wait 1)
