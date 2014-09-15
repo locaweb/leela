@@ -15,6 +15,7 @@
 module Leela.Data.LQL
     ( Using (..)
     , LQL (..)
+    , isStat
     , targetUser
     , lqlDescr
     , groupLQL
@@ -45,6 +46,10 @@ data LQL = StatStmt
          | NameStmt Using (S.Seq GUID)
          | GUIDStmt Using (S.Seq (Kind, Node))
          | AlterStmt (S.Seq Journal)
+
+isStat :: LQL -> Bool
+isStat StatStmt = True
+isStat _        = False
 
 lqlDescr :: [LQL] -> String
 lqlDescr = show . go M.empty

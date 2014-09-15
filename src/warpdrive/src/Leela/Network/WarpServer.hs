@@ -70,6 +70,9 @@ data Stream a = Chunk a
 ttl :: Tick
 ttl = 60
 
+maxTTL :: Tick
+maxTTL = 5 * ttl
+
 readPasswd :: WarpServer -> IO P.Passwd
 readPasswd = readIORef . passwd
 
@@ -95,23 +98,37 @@ newWarpServer syslog statdb secretdb = do
 rungc :: Logger -> WarpServer -> IO ()
 rungc syslog srv = do
   at <- next (tick srv)
-  kill at >>= mapM_ burry
+  xs <- kill at
+  logmsg "PURGE" xs
+  mapM_ bury xs
     where
+      elapsed :: Tick -> Tick -> Tick
+      elapsed curr at
+        | curr > at || overflow = curr - at
+        | otherwise             = 0
+          where
+            overflow = let diff = max at curr - min at curr
+                       in diff > maxTTL
+
+      logmsg :: String -> [a] -> IO ()
+      logmsg msg xs =
+        when (size > 10) $ warning syslog (printf "rungc: %s; %d items" msg size)
+          where
+            size = length xs
+
       partition _ [] acc               = return acc
       partition curr ((k, v) : xs) acc = do
-        (at, _, _) <- atomically $ readTVar v
-        case at of
-          0                                     -> partition curr xs acc
-          _
-            | (max at curr - min at curr) > ttl -> partition curr xs (k : acc)
-            | otherwise                         -> partition curr xs acc
+        (at, _, _) <- readTVarIO v
+        case (elapsed curr at) of
+          x
+            | x > ttl   -> partition curr xs (k : acc)
+            | otherwise -> partition curr xs acc
 
       kill at =
-        M.toList (fdlist srv) (partition at) []
+        M.toList (fdlist srv) (\xs acc -> logmsg "SCAN" xs >> partition at xs acc) []
 
-      burry (u, fh) = do
+      bury (u, fh) = do
         let k = (User u, fh)
-        warning syslog $ printf "PURGE %s" (show k)
         void $ closeFD srv k
 
 makeFD :: WarpServer -> User -> IO (Time, FH, Device Reply)
@@ -132,14 +149,15 @@ withFD srv ((User u), fh) action = do
   case mvalue of
     Nothing    -> action Nothing
     Just value -> mask $ \restore -> do
-      dev <- setTick value (Just 0)
+      at  <- peek (tick srv)
+      dev <- setTick value (Just $ maxTTL + at)
       restore (action $ Just dev) `finally` (setTick value Nothing)
     where
       setTick shmem mvalue = do
         at <- fmap (`fromMaybe` mvalue) (peek (tick srv))
         atomically $ do
           (_, time, dev) <- readTVar shmem
-          writeTVar shmem (at, time, dev)
+          at `seq` writeTVar shmem (at, time, dev)
           return dev
 
 closeFD :: WarpServer -> (User, FH) -> IO Double
@@ -241,6 +259,9 @@ evalFinalizer syslog t0 chan dev (Right _)   = do
   notice syslog $ printf "SUCCESS: %s [%s ms]" (show chan) (showDouble $ milliseconds t)
   closeIO dev
 
+onlyStat :: [LQL] -> Bool
+onlyStat = and . map isStat
+
 process :: (GraphBackend m, AttrBackend m) => m -> WarpServer -> Query -> IO Reply
 process storage srv (Begin sig msg) =
   case (chkloads (parseLQL $ sigUser sig) msg) of
@@ -248,10 +269,15 @@ process storage srv (Begin sig msg) =
     Right stmts -> do
       (time, fh, dev) <- makeFD srv (sigUser sig)
       if (level (logger srv) >= NOTICE)
-        then notice (logger srv) (printf "BEGIN %s %d" (lqlDescr stmts) fh)
-        else info (logger srv) (printf "BEGIN %s %d" (show msg) fh)
-      t         <- forkFinally (evalLQL storage srv dev stmts) (evalFinalizer (logger srv) time fh dev)
-      addFinalizer dev (killThread t)
+       then notice (logger srv) (printf "BEGIN %s %d" (lqlDescr stmts) fh)
+       else info (logger srv) (printf "BEGIN %s %d" (show msg) fh)
+      if (onlyStat stmts)
+       then do
+         result <- try $ evalLQL storage srv dev stmts
+         evalFinalizer (logger srv) time fh dev result
+       else do
+        t <- forkFinally (evalLQL storage srv dev stmts) (evalFinalizer (logger srv) time fh dev)
+        addFinalizer dev (killThread t)
       return $ Done fh
 process _ srv (Fetch sig fh)        = do
   let channel = (sigUser sig, fh)

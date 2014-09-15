@@ -132,7 +132,7 @@ encodeOptions = toLazyBS 512 . mconcat . intersperse (string7 ", ") . mapMaybe e
     where
       encodeOption (TTL v)           = Just $ string7 "ttl:" <> (intDec v)
       encodeOption (Indexing)        = Just $ string7 "index:true"
-      encodeOption (MaxDataPoints _) = Nothing
+      encodeOption _                 = Nothing
 
 encode :: Query -> [L.ByteString]
 encode (MsgGetName g)                  = [ "get"
