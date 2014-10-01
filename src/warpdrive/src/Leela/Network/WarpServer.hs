@@ -24,7 +24,6 @@ module Leela.Network.WarpServer
        , warpLogServer
        ) where
 
-import           Data.Maybe
 import           Data.IORef
 import           Data.Monoid ((<>))
 import           System.ZMQ4
@@ -70,9 +69,6 @@ data Stream a = Chunk a
 ttl :: Tick
 ttl = 60
 
-maxTTL :: Tick
-maxTTL = 5 * ttl
-
 readPasswd :: WarpServer -> IO P.Passwd
 readPasswd = readIORef . passwd
 
@@ -108,7 +104,7 @@ rungc syslog srv = do
         | otherwise             = 0
           where
             overflow = let diff = max at curr - min at curr
-                       in diff > maxTTL
+                       in diff > ttl
 
       logmsg :: String -> [a] -> IO ()
       logmsg msg xs =
@@ -149,27 +145,26 @@ withFD srv ((User u), fh) action = do
   case mvalue of
     Nothing    -> action Nothing
     Just value -> mask $ \restore -> do
-      at  <- peek (tick srv)
-      dev <- setTick value (Just $ maxTTL + at)
-      restore (action $ Just dev) `finally` (setTick value Nothing)
+      dev <- setTick value (+ ttl)
+      restore (action $ Just dev) `finally` (setTick value (+ ttl))
     where
-      setTick shmem mvalue = do
-        at <- fmap (`fromMaybe` mvalue) (peek (tick srv))
+      setTick shmem f = do
+        at <- liftM f (peek (tick srv))
         atomically $ do
           (_, time, dev) <- readTVar shmem
           at `seq` writeTVar shmem (at, time, dev)
           return dev
 
-closeFD :: WarpServer -> (User, FH) -> IO Double
+closeFD :: WarpServer -> (User, FH) -> IO ()
 closeFD srv ((User u), fh) = do
   mvalue <- M.delete u fh (fdlist srv)
   case mvalue of
-    Nothing    -> return 0
+    Nothing    -> return ()
     Just value -> do
       (_, t0, dev) <- atomically $ readTVar value
       t1           <- snapshot
       closeIO dev
-      return (milliseconds $ diff t1 t0)
+      notice (logger srv) (printf "CLOSE %d [%s ms]" fh (showDouble $ milliseconds (diff t1 t0)))
 
 navigate :: (GraphBackend m) => m -> Device Reply -> (Matcher, [(GUID -> Matcher)]) -> IO ()
 navigate db queue (source, pipeline) = do
@@ -187,13 +182,13 @@ navigate db queue (source, pipeline) = do
       runFilter srcpipe f dstpipe = do
         mg <- devreadIO srcpipe
         case mg of
-          Nothing                   -> return ()
-          Just EOF                  -> return ()
-          Just (Chunk (feed, path)) -> do
+          Nothing                      -> return ()
+          Just (EOF, _)                -> return ()
+          Just (Chunk (feed, path), _) -> do
             forM_ feed (\(_, b, c) ->
               query db (devwriteIO dstpipe . Chunk . (, (c, b) : path)) (f c))
             runFilter srcpipe f dstpipe
-          Just chunk                -> devwriteIO dstpipe chunk
+          Just (chunk, _)              -> devwriteIO dstpipe chunk
 
       forkSource dstpipe = do
         t <- forkFinally
@@ -287,11 +282,14 @@ process _ srv (Fetch sig fh)        = do
       Nothing  -> return $ Fail 404 $ Just "no such channel"
       Just dev -> devreadIO dev >>= \mreply ->
         case mreply of
-          Just reply -> return reply
-          Nothing    -> return Last
+          Just (reply, hasMore) -> do
+            when (isEOF reply || not hasMore) (closeFD srv (sigUser sig, fh))
+            return reply
+          Nothing               -> do
+            closeFD srv (sigUser sig, fh)
+            return Last
 process _ srv (Close _ sig fh)      = do
-  t <- closeFD srv (sigUser sig, fh)
-  notice (logger srv) (printf "CLOSE %d [%s ms]" fh (showDouble t))
+  closeFD srv (sigUser sig, fh)
   return Last
 
 strictEncode :: Reply -> [L.ByteString]
@@ -310,7 +308,7 @@ warpServer core ttl addr ctx storage = startRouter (logger core) addr ctx (worke
               Right q  -> process db core q >>= evaluate . strictEncode
 
 warpLogServer :: (GraphBackend m, AttrBackend m) => ClientFH Push -> m -> LogBackend m
-warpLogServer client db =
+warpLogServer _ db =
   logBackend handleAttrEvent handleGraphEvent db
     where
       handleAttrEvent _ = return ()
