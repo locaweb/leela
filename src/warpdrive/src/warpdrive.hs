@@ -51,7 +51,7 @@ defaultOptions = Options { optEndpoint     = TCP "*" 4080 ""
                          , optConsul       = HTTP "127.0.0.1" 8500 ""
                          , optRedisSecret  = Nothing
                          , optPasswd       = "/etc/leela/passwd"
-                         , optBufSize      = 512
+                         , optBufSize      = 1024
                          , optIoThreads    = 2
                          , optSigTTL       = 300
                          }
@@ -86,7 +86,7 @@ options =
            (printf "number of iothreads to use [default: %d]" (optIoThreads defaultOptions))
   , Option [] ["signature-ttl"]
            (ReqArg (setReadOpt (\v opts -> opts { optSigTTL = v })) "SIGNATURE-TTL")
-           (printf "time window for signatures to be valid [default: %s]" (optSigTTL defaultOptions))
+           (printf "time window for signatures to be valid [default: %d]" (optSigTTL defaultOptions))
   ]
 
 readOpts :: [String] -> IO Options
@@ -128,7 +128,7 @@ main = do
     (printf "warpdrive: yo!yo!; endpoint=%s" (show $ optEndpoint opts))
   withContext $ \ctx -> do
     let dealerCfg = ClientConf (fmap (fromMaybe [] . lookup "blackbox") (readIORef naming))
-        pushCfg   = ClientConf (fmap (fromMaybe [] . lookup "warplog") (readIORef naming))
+        pushCfg   = ClientConf (fmap (fromMaybe [] . lookup "warpgrep") (readIORef naming))
         redisRW   = fmap (fromMaybe [] . lookup "redis") (readIORef naming)
         redisRO   = fmap (maybe [] (map (portMap (+1))) . lookup "redis") (readIORef naming)
     setIoThreads (optIoThreads opts) ctx
