@@ -23,7 +23,7 @@ module Leela.Data.L2Map
 
 import           Prelude hiding (lookup)
 import           Data.Hashable
-import qualified Data.HashMap.Lazy as M
+import qualified Data.HashMap.Strict as M
 import           Control.Concurrent.STM
 
 newtype L2Map k1 k2 v = L2Map (TVar (M.HashMap k1 (TVar (M.HashMap k2 v))))
