@@ -26,12 +26,11 @@ module Leela.Data.QDevice
        , openIO
        , closed
        , control
+       , closeIO
        , devnull
        , devread
-       , closeIO
        , closedIO
        , devwrite
-       , blkreadIO
        , devreadIO
        , notClosed
        , devwriteIO
@@ -90,7 +89,7 @@ closed box = let Control ctrl = ctrlof box
 copy :: Device a -> (a -> Maybe b) -> Device b -> IO ()
 copy src f dst = do
   mv <- devreadIO src
-  case (join $ fmap f mv) of
+  case (join $ fmap (f . fst) mv) of
     Nothing -> return ()
     Just v  -> devwriteIO dst v >> copy src f dst
 
@@ -101,7 +100,8 @@ notClosedIO :: HasControl ctrl => ctrl -> IO Bool
 notClosedIO = atomically . notClosed
 
 closedIO :: HasControl ctrl => ctrl -> IO Bool
-closedIO = atomically . closed
+closedIO box = let Control ctrl = ctrlof box
+               in readTVarIO (fst ctrl)
 
 open :: HasControl ctrl => ctrl -> Limit -> STM (Device a)
 open ctrl l = fmap (Device (ctrlof ctrl)) (newTBQueue (max l 1))
@@ -143,31 +143,20 @@ devwriteIO dev = atomically . devwrite dev
 trydevread :: Device a -> STM (Maybe a)
 trydevread dev = fmap snd (select dev) >>= tryReadTBQueue
 
-trydevreadIO :: Device a -> IO (Maybe a)
-trydevreadIO = atomically . trydevread
-
-devread :: Device a -> STM (Maybe a)
+devread :: Device a -> STM (Maybe (a, Bool))
 devread dev = do
   (notok, q) <- select dev
   if notok
-    then tryReadTBQueue q
-    else fmap Just (readTBQueue q)
+    then do
+      v <- tryReadTBQueue q
+      e <- isEmptyTBQueue q
+      return (fmap (, not e) v)
+    else do
+      v <- readTBQueue q
+      return (Just (v, True))
 
-devreadIO :: Device a -> IO (Maybe a)
+devreadIO :: Device a -> IO (Maybe (a, Bool))
 devreadIO = atomically . devread
-
-blkreadIO :: Device a -> IO [a]
-blkreadIO dev = do
-  ma <- devreadIO dev
-  case ma of
-    Nothing -> return []
-    Just a  -> go [a]
-    where
-      go acc = do
-        ma <- trydevreadIO dev
-        case ma of
-          Nothing -> return (reverse acc)
-          Just a  -> go (a : acc)
 
 instance HasControl Control where
 

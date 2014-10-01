@@ -51,7 +51,7 @@ import           Leela.Data.Endpoint
 import           Leela.HZMQ.ZHelpers
 import qualified Data.ByteString.Lazy as L
 
-type JKey = Word32
+type JKey = Word16
 
 newtype Job = Job (JKey, MVar [B.ByteString])
 
@@ -94,7 +94,7 @@ request maxwait (ClientFH (client, _)) msg = bracket acquire release useFunc
 push :: ClientFH Push -> [L.ByteString] -> IO Bool
 push (ClientFH (client, _)) msg =
   case (pipeline client) of
-    Left poller -> sendMsg_ poller msg
+    Left poller -> sendMsg_ (logger client) poller msg
     _           -> return False
 
 pull (ClientFH (client, _)) =
@@ -105,12 +105,10 @@ pull (ClientFH (client, _)) =
 newJob :: Client -> [L.ByteString] -> IO (Maybe (Job, IO ()))
 newJob client msg = do
   key   <- next (counter client)
-  abort <- sendMsg (dealer client) (encodeLazy key : L.empty : msg)
+  abort <- sendMsg (logger client) (dealer client) (encodeLazy key : L.empty : msg)
   case abort of
-    Nothing -> do
-      warning (logger client) "dropping request [dealer#sndqueue full]"
-      return Nothing
-    Just func  -> do
+    Nothing   -> return Nothing
+    Just func -> do
       shmem <- newEmptyMVar
       let job = Job (key, shmem)
       modifyState (cstate client) (Just . M.insert key job)
@@ -147,14 +145,15 @@ createDealer syslog cfg ctx = do
   caps   <- fmap (max 1) getNumCapabilities
   fh     <- zmqSocket
   client <- Bidirectional syslog
-              <$> (newIOLoop_ "dealer" (caps * 100) (caps * 100) fh)
+              <$> (newIOLoop_ "dealer" (caps * 64) (caps * 32) fh)
               <*> (newIORef M.empty)
               <*> newCounter
   runClient syslog cfg client
     where
       zmqSocket = do
-        fh <- socket ctx Dealer
-        setHWM (100, 3) fh
+        fh   <- socket ctx Dealer
+        caps <- fmap (max 1) getNumCapabilities
+        setHWM (caps * 8, caps * 8) fh
         config fh
         return fh
 
@@ -165,12 +164,13 @@ createPush syslog cfg ctx = do
   fh     <- zmqSocket
   client <- Unidirectional syslog
               <$> Left
-              <$> (newIOLoop_ "pipeline" 0 (caps * 10) fh)
+              <$> (newIOLoop_ "pipeline" 0 (caps * 8) fh)
   runClient syslog cfg client
     where
       zmqSocket = do
-        fh <- socket ctx Push
-        setHWM (0, 100) fh
+        fh   <- socket ctx Push
+        caps <- fmap (max 1) getNumCapabilities
+        setHWM (caps * 8, caps * 8) fh
         config fh
         return fh
 
@@ -181,12 +181,13 @@ createPull syslog cfg ctx = do
   fh     <- zmqSocket
   client <- Unidirectional syslog
               <$> Right
-              <$> (newIOLoop_ "pipeline" (caps * 10) 0 fh)
+              <$> (newIOLoop_ "pipeline" (caps * 8) 0 fh)
   runClient syslog cfg client
     where
       zmqSocket = do
-        fh <- socket ctx Pull
-        setHWM (100, 0) fh
+        fh   <- socket ctx Pull
+        caps <- fmap (max 1) getNumCapabilities
+        setHWM (caps * 8, caps * 8) fh
         config fh
         return fh
 

@@ -50,7 +50,7 @@ readPeer (Request val _) = val
 reply :: Logger -> Poller Router -> Request -> [L.ByteString] -> IO ()
 reply syslog poller job msg = do
   let ans = (map L.fromStrict $ readPeer job) ++ (L.empty : msg)
-  sendMsg_ poller ans >>= flip unless (warning syslog "dropping msg [router#sndqueue full]")
+  void $ sendMsg_ syslog poller ans
 
 worker :: Logger -> Poller Router -> Request -> Worker -> IO ()
 worker syslog poller job action = do
@@ -81,9 +81,10 @@ startRouter :: Logger -> Endpoint -> Context -> Worker -> IO RouterFH
 startRouter syslog endpoint ctx action = do
   notice syslog (printf "starting zmq.router: %s" (dumpEndpointStr endpoint))
   ctrl <- newEmptyMVar
+  caps <- fmap (max 1) getNumCapabilities
   void $ flip forkFinally (\_ -> void $ putMVar ctrl ()) $
     withSocket ctx Router $ \fh -> do
-      setHWM (100, 100) fh
+      setHWM (caps * 8, caps * 8) fh
       configAndBind fh (dumpEndpointStr endpoint)
       go ctrl fh
   return (RouterFH ctrl)
@@ -98,7 +99,7 @@ startRouter syslog endpoint ctx action = do
       go ctrl fh = do
         warning syslog "router has started"
         caps   <- fmap (max 1) getNumCapabilities
-        poller <- newIOLoop_ "router" (caps * 100) (caps * 100) fh
+        poller <- newIOLoop_ "router" (caps * 64) (caps * 64) fh
         wait   <- newQSemN 0
         _      <- forkFinally (recvLoop poller) (const $ signalQSemN wait 1)
         _      <- forkFinally (pollLoop syslog poller) (const $ signalQSemN wait 1)

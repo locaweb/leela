@@ -105,26 +105,32 @@ recvMsg p = atomically $ do
    then liftM Just (readTBQueue (pollInQ p))
    else return Nothing
 
-sendMsg' :: (Sender a) => Poller a -> [B.ByteString] -> IO (Maybe (IO ()))
-sendMsg' p msg = do
+sendMsg' :: (Sender a) => Logger -> Poller a -> [B.ByteString] -> IO (Maybe (IO ()))
+sendMsg' syslog p msg = do
   mvar <- msg `deepseq` newMVar msg
   ok   <- atomically $ tryWriteTBQueue (pollOutQ p) mvar
-  return (if ok
-           then Just $ void $ tryTakeMVar mvar
-           else Nothing)
+  if ok
+   then return $ Just (dropMessage mvar)
+   else do
+     warning syslog (printf "dropping message [%s#no space left]" (pollName p))
+     return Nothing
+    where
+      dropMessage mvar = do
+        ok <- liftM isJust (tryTakeMVar mvar)
+        when ok (warning syslog (printf "dropping message [%s#cancel]" (pollName p)))
 
-sendMsg :: (Sender a) => Poller a -> [L.ByteString] -> IO (Maybe (IO ()))
-sendMsg p = sendMsg' p . map L.toStrict
+sendMsg :: (Sender a) => Logger -> Poller a -> [L.ByteString] -> IO (Maybe (IO ()))
+sendMsg syslog p = sendMsg' syslog p . map L.toStrict
 
-sendMsg_ :: (Sender a) => Poller a -> [L.ByteString] -> IO Bool
-sendMsg_ p = liftM isJust . sendMsg p
+sendMsg_ :: (Sender a) => Logger -> Poller a -> [L.ByteString] -> IO Bool
+sendMsg_ syslog p = liftM isJust . sendMsg syslog p
 
 readReq :: Logger -> String -> Either [B.ByteString] (MVar [B.ByteString]) -> IO (Maybe [B.ByteString])
 readReq _ _ (Left msg)           = return (Just msg)
 readReq syslog name (Right mvar) = do
   mmsg <- tryTakeMVar mvar
   when (isNothing mmsg) $
-    warning syslog (printf "dropping message [%s#cancel]" name)
+    warning syslog (printf "message has been dropped [%s#cancel]" name)
   return mmsg
 
 cancel :: Poller a -> IO ()
