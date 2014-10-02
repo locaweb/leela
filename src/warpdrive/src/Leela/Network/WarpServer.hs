@@ -57,16 +57,15 @@ import           Control.Parallel.Strategies
 data WarpServer = WarpServer { logger :: Logger
                              , stat   :: IORef [(String, [Endpoint])]
                              , passwd :: IORef P.Passwd
-                             , tick   :: Counter Tick
                              , fdseq  :: Counter FH
-                             , fdlist :: M.L2Map L.ByteString FH (TVar (Tick, Time, Device Reply))
+                             , fdlist :: M.L2Map L.ByteString FH (TVar (Double, Time, Device Reply))
                              }
 
 data Stream a = Chunk a
               | Error SomeException
               | EOF
 
-ttl :: Tick
+ttl :: Double
 ttl = 60
 
 readPasswd :: WarpServer -> IO P.Passwd
@@ -83,49 +82,10 @@ dumpStat core =
       showEndpoint k = toLazyByteString $ string7 "endpoint/" <> string7 k
 
 newWarpServer :: Logger -> IORef [(String, [Endpoint])] -> IORef P.Passwd -> IO WarpServer
-newWarpServer syslog statdb secretdb = do
-  state <- makeState
-  _     <- forkIO (supervise syslog "Core/gc" $ forever $ sleep 1 >> rungc syslog state)
-  return state
+newWarpServer syslog statdb secretdb = makeState
     where
       makeState =
-        liftM3 (WarpServer syslog statdb secretdb) newCounter newCounter M.empty
-
-rungc :: Logger -> WarpServer -> IO ()
-rungc syslog srv = do
-  at <- next (tick srv)
-  xs <- kill at
-  logmsg "PURGE" xs
-  mapM_ bury xs
-    where
-      elapsed :: Tick -> Tick -> Tick
-      elapsed curr at
-        | curr > at || overflow = curr - at
-        | otherwise             = 0
-          where
-            overflow = let diff = max at curr - min at curr
-                       in diff > ttl
-
-      logmsg :: String -> [a] -> IO ()
-      logmsg msg xs =
-        when (size > 10) $ warning syslog (printf "rungc: %s; %d items" msg size)
-          where
-            size = length xs
-
-      partition _ [] acc               = return acc
-      partition curr ((k, v) : xs) acc = do
-        (at, _, _) <- readTVarIO v
-        case (elapsed curr at) of
-          x
-            | x > ttl   -> partition curr xs (k : acc)
-            | otherwise -> partition curr xs acc
-
-      kill at =
-        M.toList (fdlist srv) (\xs acc -> logmsg "SCAN" xs >> partition at xs acc) []
-
-      bury (u, fh) = do
-        let k = (User u, fh)
-        void $ closeFD srv k
+        liftM2 (WarpServer syslog statdb secretdb) newCounter M.empty
 
 makeFD :: WarpServer -> User -> IO (Time, FH, Device Reply)
 makeFD srv (User u) = do
@@ -134,10 +94,25 @@ makeFD srv (User u) = do
     open ctrl 4
   time <- snapshot
   fd   <- next (fdseq srv)
-  at   <- peek (tick srv)
-  val  <- newTVarIO (at, time, dev)
+  val  <- newTVarIO (seconds time + ttl, time, dev)
   M.insert u fd val (fdlist srv)
+  _    <- forkFinally (killer fd $ seconds time) (finalizer fd)
   return (time, fd, dev)
+    where
+      finalizer fd (Left _)     = warning (logger srv) (printf "gc: PURGE %d" fd) >> closeFD srv (User u, fd)
+      finalizer fd (Right True) = warning (logger srv) (printf "gc: PURGE %d" fd) >> closeFD srv (User u, fd)
+      finalizer _ _             = return ()
+
+      killer fd time = do
+        threadDelay (1000 * 1000)
+        mv <- M.lookup u fd (fdlist srv)
+        case mv of
+          Nothing   -> return False
+          Just mvar -> do
+            (t0, _, _) <- readTVarIO mvar
+            if (time >= t0)
+              then return True
+              else killer fd (time + 1)
 
 withFD :: WarpServer -> (User, FH) -> (Maybe (Device Reply) -> IO b) -> IO b
 withFD srv ((User u), fh) action = do
@@ -145,14 +120,14 @@ withFD srv ((User u), fh) action = do
   case mvalue of
     Nothing    -> action Nothing
     Just value -> mask $ \restore -> do
-      dev <- setTick value (+ ttl)
-      restore (action $ Just dev) `finally` (setTick value (+ ttl))
+      dev <- setTick value
+      restore (action $ Just dev) `finally` (setTick value)
     where
-      setTick shmem f = do
-        at <- liftM f (peek (tick srv))
+      setTick shmem = do
+        tnow <- fmap seconds snapshot
         atomically $ do
           (_, time, dev) <- readTVar shmem
-          at `seq` writeTVar shmem (at, time, dev)
+          writeTVar shmem (tnow + ttl, time, dev)
           return dev
 
 closeFD :: WarpServer -> (User, FH) -> IO ()
@@ -161,7 +136,7 @@ closeFD srv ((User u), fh) = do
   case mvalue of
     Nothing    -> return ()
     Just value -> do
-      (_, t0, dev) <- atomically $ readTVar value
+      (_, t0, dev) <- readTVarIO value
       t1           <- snapshot
       closeIO dev
       notice (logger srv) (printf "CLOSE %d [%s ms]" fh (showDouble $ milliseconds (diff t1 t0)))
