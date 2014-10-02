@@ -80,11 +80,12 @@ stopRouter (RouterFH ctrl) = do
 startRouter :: Logger -> Endpoint -> Context -> Worker -> IO RouterFH
 startRouter syslog endpoint ctx action = do
   notice syslog (printf "starting zmq.router: %s" (dumpEndpointStr endpoint))
-  ctrl <- newEmptyMVar
-  caps <- fmap (max 1) getNumCapabilities
+  ctrl  <- newEmptyMVar
+  ionum <- fmap (fromIntegral . max 1) (ioThreads ctx)
+  caps  <- fmap (max 1) getNumCapabilities
   void $ flip forkFinally (\_ -> void $ putMVar ctrl ()) $
     withSocket ctx Router $ \fh -> do
-      setHWM (caps * 8, caps * 8) fh
+      setHWM (10 * caps * ionum, 10 * caps * ionum) fh
       configAndBind fh (dumpEndpointStr endpoint)
       go ctrl fh
   return (RouterFH ctrl)
@@ -99,7 +100,7 @@ startRouter syslog endpoint ctx action = do
       go ctrl fh = do
         warning syslog "router has started"
         caps   <- fmap (max 1) getNumCapabilities
-        poller <- newIOLoop_ "router" (caps * 64) (caps * 64) fh
+        poller <- newIOLoop_ "router" (caps * 128) (caps * 128) fh
         wait   <- newQSemN 0
         _      <- forkFinally (recvLoop poller) (const $ signalQSemN wait 1)
         _      <- forkFinally (pollLoop syslog poller) (const $ signalQSemN wait 1)

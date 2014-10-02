@@ -145,15 +145,16 @@ createDealer syslog cfg ctx = do
   caps   <- fmap (max 1) getNumCapabilities
   fh     <- zmqSocket
   client <- Bidirectional syslog
-              <$> (newIOLoop_ "dealer" (caps * 64) (caps * 32) fh)
+              <$> (newIOLoop_ "dealer" (caps * 256) (caps * 128) fh)
               <*> (newIORef M.empty)
               <*> newCounter
   runClient syslog cfg client
     where
       zmqSocket = do
-        fh   <- socket ctx Dealer
-        caps <- fmap (max 1) getNumCapabilities
-        setHWM (caps * 8, caps * 8) fh
+        fh    <- socket ctx Dealer
+        caps  <- fmap (max 1) getNumCapabilities
+        ionum <- fmap (fromIntegral . max 1) (ioThreads ctx)
+        setHWM (caps * ionum, caps * ionum) fh
         config fh
         return fh
 
@@ -164,7 +165,7 @@ createPush syslog cfg ctx = do
   fh     <- zmqSocket
   client <- Unidirectional syslog
               <$> Left
-              <$> (newIOLoop_ "pipeline" 0 (caps * 8) fh)
+              <$> (newIOLoop_ "pipeline" 0 (caps * 128) fh)
   runClient syslog cfg client
     where
       zmqSocket = do
@@ -181,7 +182,7 @@ createPull syslog cfg ctx = do
   fh     <- zmqSocket
   client <- Unidirectional syslog
               <$> Right
-              <$> (newIOLoop_ "pipeline" (caps * 8) 0 fh)
+              <$> (newIOLoop_ "pipeline" (caps * 128) 0 fh)
   runClient syslog cfg client
     where
       zmqSocket = do
