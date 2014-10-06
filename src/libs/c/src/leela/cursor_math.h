@@ -16,6 +16,8 @@
 #ifndef __cursor_math_h__
 #define __cursor_math_h__
 
+#include "lql.h"
+
 typedef struct { 
   lql_cursor_t *cursor1;
   lql_cursor_t *cursor2;
@@ -25,8 +27,8 @@ lql_meta_cursor_t *leela_new_meta_cursor(lql_cursor_t *cursor1, lql_cursor_t *cu
 
 leela_status leela_lql_meta_cursor_next (lql_meta_cursor_t *meta);
 
-lql_tattr_t *leela_fetch_meta_cursor(lql_meta_cursor_t *meta, aggr_tattr_f);
-
 typedef lql_value_t* (*aggr_tattr_f)(lql_value_t *, lql_value_t *);
+
+lql_tattr_t *leela_fetch_meta_cursor(lql_meta_cursor_t *meta, aggr_tattr_f);
 
 #endif
