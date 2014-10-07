@@ -1,14 +1,17 @@
 package leela
-// #cgo: LDFLAGS: -lleela
-// #include <leela/leela.h>
+// #cgo CFLAGS: -I ../c/src 
+// #cgo LDFLAGS: -lleela -L/tmp/leela/src/libs/c/
+// #include <leela/lql.h>
+// #include <leela/status.h>
+// #include <leela/endpoint.h>
 import "C"
 import "unsafe"
 
-type lql_context C.struct_lql_context_t
-type leela_endpoint C.struct_leela_endpoint_t
-type lql_cursor C.struct_lql_cursor_t
+type Lql_context C.struct_lql_context_t
+type Leela_endpoint C.struct_leela_endpoint_t
+type Lql_cursor C.struct_lql_cursor_t
 type leela_status C.enum_leela_status
-type lql_row_type C.enum_lql_row_type
+/*type lql_row_type C.enum_lql_row_type*/
 type lql_name C.struct_lql_name_t
 type lql_path C.struct_lql_path_t
 type lql_nattr C.struct_lql_nattr_t
@@ -42,40 +45,50 @@ type Leela_kattr struct {
 type Leela_tattr struct {
     guid   string
     name   string
-    series [][]double
+    series [][]Leela_timeserie
 }
 
 type Leela_timeserie struct {
-    timestamp double
+    timestamp float64
+    entry C.struct_lql_value_t
 }
 
-// leela_lql_context_init()
+func Leela_endpoint_load(endpoint string) *Leela_endpoint {
+    end := C.CString(endpoint)
+    defer C.free(unsafe.Pointer(end))
+    return (*Leela_endpoint)(C.leela_endpoint_load(end))
+}
 
-func Lql_new_context(endpoint leela_endpoint, username string, secret string, timeout int) lql_context {
+func Lql_new_context(endpoint Leela_endpoint, username string, secret string, timeout int) Lql_context {
     usr := C.CString(username)
     sec := C.CString(secret)
     defer C.free(unsafe.Pointer(usr))
     defer C.free(unsafe.Pointer(sec))
-    return C.leela_lql_context_init(leela_endpoint, usr, sec, timeout)
+    return C.leela_lql_context_init(endpoint, usr, sec, C.int(timeout))
 }
 
-func (ctx lql_context) Leela_lql_context_close() leela_status {
-    return C.leela_lql_context_close(ctx)
+func Leela_lql_context_close(ctx *C.struct_lql_context_t) C.enum_leela_status {
+    status := C.leela_lql_context_close(ctx)
+    return status
 }
 
-func (ctx lql_context) Leela_lql_cursor_init_default() lql_cursor {
-    return C.leela_lql_cursor_init_default(ctx)
+func (ctx Lql_context) Leela_lql_cursor_init_default() *Lql_cursor {
+    return (*Lql_cursor)(C.leela_lql_cursor_init_default(ctx))
 }
 
-func (cursor lql_cursor) leela_lql_cursor_execute(query string) leela_status {
+func (cursor Lql_cursor) leela_lql_cursor_execute(query string) leela_status {
     qry := C.CString(query)
-    status := C.leela_lql_cursor_execute(cursor, qry)
+    var status leela_status = C.leela_lql_cursor_execute(cursor, qry)
     C.free(unsafe.Pointer(qry))
     return status
 }
 
-func (cursor lql_cursor) Leela_fetch() {
-    row := leela_lql_fetch_type(cursor.cursor)
+func leela_lql_cursor_close(cursor *C.struct_lql_cursor_t) C.enum_leela_status {
+    return C.leela_lql_cursor_close(cursor)
+}
+
+func (cursor Lql_cursor) Leela_fetch() {
+    row := leela_lql_fetch_type(cursor)
     rowtype  := nil
     rowvalue := nil
     if row == nil {
@@ -87,7 +100,7 @@ func (cursor lql_cursor) Leela_fetch() {
             if name != nil {
                 rowtype  := "name"
                 rowvalue := make_name_msg(name)
-                C.leela_lql.name_free(name)
+                C.leela_lql_name_free(name)
             }
             break
         case row == C.LQL_PATH_MSG:
@@ -216,16 +229,18 @@ func make_tattr_msg(tattr C.struct_lql_tattr_t) {
 
 }
 
-func make_timeseries(size C.int) {
+func make_timeseries(size C.int, series C.struct_lql_tuple2_t) {
     result := make([][]Leela_timeserie, size)
     for k := 0;k < size; k += 1 {
-
+        result[k] = make([]Leela_timeserie, 2)
+        result[k][0] = series[k].fst
+        result[k][1] = make_govalue(series[k].snd)
     }
 }
 
-func (cursor lql_cursor) leela_lql_fetch_type() lql_row_type {
+func (cursor Lql_cursor) leela_lql_fetch_type() lql_row_type {
     return C.leela_lql_fetch_type(cursor)
 }
 
-func (cursor lql_cursor) leela_lql_fetch_fail() lql_fail {
+func (cursor Lql_cursor) leela_lql_fetch_fail() lql_fail {
 }
