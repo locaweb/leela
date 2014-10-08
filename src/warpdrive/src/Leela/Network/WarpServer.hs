@@ -191,9 +191,8 @@ evalLQL db core queue (x:xs) = do
       enumKAttrs db (devwriteIO queue . Item . NAttrs g) g a
     KAttrGetStmt g a _ ->
       getAttr db g a >>= devwriteIO queue . Item . KAttr g a
-    TAttrGetStmt g a (Range t0 t1) opts -> do
-      let mdpFunc = maybe id maxDataPoints (getMaxDataPoints opts)
-      loadTAttr db (devwriteIO queue . (Item . TAttr g a . mdpFunc)) g a t0 t1
+    TAttrGetStmt g a (Range t0 t1) pipeline -> do
+      loadTAttr db pipeline (onTimeseries (devwriteIO queue . (Item . TAttr g a))) g a t0 t1
       devwriteIO queue (Item $ TAttr g a [])
     TAttrLastStmt guid attr -> do
       let toTAttr (g, a, t, v) = TAttr g a [(t, v)]

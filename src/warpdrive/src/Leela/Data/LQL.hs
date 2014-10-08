@@ -22,10 +22,14 @@ module Leela.Data.LQL
     ) where
 
 import           Data.Maybe
+import qualified Data.Vector as V
 import qualified Data.Sequence as S
 import           Data.Foldable (toList)
 import qualified Data.Map.Strict as M
+import           Leela.Data.Time
 import           Leela.Data.Types
+import           Leela.Data.Pipeline
+import           Control.Monad.Identity
 
 targetUser :: Using -> User
 targetUser u = fromMaybe (uUser u) (uAsUser u)
@@ -38,8 +42,8 @@ data Using = Using { uUser   :: User
 
 data LQL = StatStmt
          | PathStmt (Matcher, [(GUID -> Matcher)])
-         | KAttrGetStmt GUID Attr [Option]
-         | TAttrGetStmt GUID Attr TimeRange [Option]
+         | KAttrGetStmt GUID Attr [Pipeline Identity (V.Vector (Time, Double))]
+         | TAttrGetStmt GUID Attr TimeRange [Pipeline Identity (V.Vector (Time, Double))]
          | KAttrListStmt GUID (Mode Attr)
          | TAttrListStmt GUID (Mode Attr)
          | TAttrLastStmt (Maybe GUID) Attr

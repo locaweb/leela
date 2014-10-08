@@ -16,14 +16,13 @@
 -- limitations under the License.
 
 module Leela.Data.TimeSeries
-       ( alignSeries
-       , maxDataPoints
+       ( onTimeseries
        ) where
 
 import qualified Data.Vector as V
 import           Leela.Data.Time
 import           Leela.Data.Types
-import           Statistics.Sample
+import           Leela.Data.Pipeline
 
 castToDouble :: Value -> Maybe Double
 castToDouble (Text _)   = Nothing
@@ -34,6 +33,21 @@ castToDouble (UInt32 v) = Just $ fromIntegral v
 castToDouble (UInt64 v) = Just $ fromIntegral v
 castToDouble (Double v) = Just v
 
+fromDouble :: Double -> Value
+fromDouble = Double
+
+onTimeseries :: ([(Time, Value)] -> IO ())
+              -> [Pipeline m (V.Vector (Time, Double))]
+              -> [(Time, Value)]
+              -> IO [Pipeline m (V.Vector (Time, Double))]
+onTimeseries write p xs
+  | null p    = write xs >> return p
+  | otherwise = case (onlyNumeric xs) of
+                  Nothing -> write xs >> return p
+                  Just ys -> runPipelineIO
+                               (write . V.toList . V.map (fmap fromDouble))
+                               (not . V.null) p (V.fromList ys)
+
 onlyNumeric :: [(Time, Value)] -> Maybe [(Time, Double)]
 onlyNumeric = go id
     where
@@ -42,23 +56,3 @@ onlyNumeric = go id
         case (castToDouble v) of
           Nothing -> Nothing
           Just v' -> go (acc . ((t,v'):)) xs
-
-groupBy :: Int -> [(Time, a)] -> [(Time, V.Vector a)]
-groupBy n = go
-    where
-      go [] = []
-      go xs = let (as, bs) = splitAt n xs
-              in (fst $ head as, V.fromList (map snd as)) : go bs
-
-maxDataPoints :: Int -> [(Time, Value)] -> [(Time, Value)]
-maxDataPoints maxPoints series
-  | maxPoints <= 0 = series
-  | otherwise      =
-      case (length series `divMod` maxPoints) of
-        (0,_) -> series
-        (1,0) -> series
-        (q,r) -> let summarize (t, v) = (t, Double $ mean v)
-                 in maybe series (map summarize . groupBy (q + min 1 r)) (onlyNumeric series)
-
-alignSeries :: Int -> [(Time, Value)] -> [(Time, Value)]
-alignSeries by = map (\(t, v) -> (alignBy by t, v))

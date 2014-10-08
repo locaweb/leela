@@ -1,5 +1,6 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE Rank2Types #-}
 
 -- Copyright 2014 (c) Diego Souza <dsouza@c0d3.xxx>
 --
@@ -25,6 +26,7 @@ module Leela.Data.LQL.Comp
     ) where
 
 import           Data.Word
+import qualified Data.Vector as V
 import           Data.Monoid (mconcat)
 import           Control.Monad
 import qualified Data.Sequence as S
@@ -32,9 +34,12 @@ import           Leela.Data.LQL
 import           Leela.Data.Time
 import qualified Data.ByteString as B
 import           Leela.Data.Types
+import           Leela.Data.Funclib
 import           Control.Applicative
+import           Leela.Data.Pipeline
 import qualified Data.ByteString.UTF8 as U
 import qualified Data.ByteString.Lazy as L
+import           Control.Monad.Identity
 import           Data.Attoparsec.ByteString as A
 import           Data.Attoparsec.ByteString.Char8 (decimal, signed, double)
 
@@ -45,6 +50,9 @@ data Direction a = L a
 class Source a where
 
     bytestring :: a -> B.ByteString
+
+fromInt :: Num b => Int -> b
+fromInt = fromIntegral
 
 isSpace :: Parser Bool
 isSpace = liftM (== Just 0x20) peekWord8
@@ -250,6 +258,191 @@ parseStmtGUID u = "guid " *> (GUIDStmt u <$> (S.singleton <$> parseNode))
 parseStmtStat :: Parser LQL
 parseStmtStat = "stat" *> return StatStmt
 
+parseArithOper :: Parser (Double -> Double -> Double)
+parseArithOper = do
+  c <- anyWord8
+  case c of
+    0x2b -> return (+)
+    0x2d -> return (-)
+    0x2a -> return (*)
+    0x2f -> return (/)
+    _    -> fail "parseArithOp: bad operator"
+
+parseCmpOper :: Parser (Double -> Double -> Bool)
+parseCmpOper = do
+  c1 <- anyWord8
+  case c1 of
+    0x3e -> (word8 0x3d >> return (>=)) <|> return (>)
+    0x3c -> (word8 0x3d >> return (<=)) <|> return (<)
+    0x3d -> word8 0x3d >> return (==)
+    _    -> fail "parseCmpOper: bad operator"
+
+parseFilterSection :: Parser (Func () (V.Vector (t, Double)) (V.Vector (t, Double)))
+parseFilterSection = liftFilter <$> (parseLeft <|> parseRight)
+    where
+      parseLeft = do
+        _ <- word8 0x28
+        f <- parseCmpOper
+        hardspace
+        v <- double
+        _ <- word8 0x29
+        return ((`f` v) . snd)
+
+      parseRight = do
+        _ <- word8 0x28
+        v <- double
+        hardspace
+        f <- parseCmpOper
+        _ <- word8 0x29
+        return ((v `f`) . snd)
+
+parseMapSection :: Parser (Func () (V.Vector (t, Double)) (V.Vector (t, Double)))
+parseMapSection = liftMapV <$> fmap <$> (parseLeft <|> parseRight)
+    where
+      parseLeft = do
+        _ <- word8 0x28
+        f <- parseArithOper
+        hardspace
+        v <- double
+        _ <- word8 0x29
+        return (`f` v)
+
+      parseRight = do
+        _ <- word8 0x28
+        v <- double
+        hardspace
+        f <- parseArithOper
+        _ <- word8 0x29
+        return (v `f`)
+
+parseMean :: Parser (Func (Maybe (Double, Double)) (V.Vector (t, Double)) (t, Double))
+parseMean = "mean" *> return (pairV mean)
+
+parseHMean :: Parser (Func (Maybe (Double, Double)) (V.Vector (t, Double)) (t, Double))
+parseHMean = "hmean" *> return (pairV hmean)
+
+parseEwma :: Parser (Func (Maybe Double) (V.Vector (t, Double)) (t, Double))
+parseEwma = "(ewma " *> go
+    where
+      go = do
+        f <- (pairV . ewma) <$> double
+        _ <- word8 0x29
+        return f
+
+parseCount :: Parser (Func Double (V.Vector (t, Double)) (t, Double))
+parseCount = "count" *> return (pairV countV)
+
+parseMax :: Parser (Func (Maybe Double) (V.Vector (t, Double)) (t, Double))
+parseMax = "max" *> return (pairV $ liftFoldV max id)
+
+parseSum :: Parser (Func (Maybe Double) (V.Vector (t, Double)) (t, Double))
+parseSum = "(+)" *> return (pairV $ liftFoldV (+) id)
+
+parseMul :: Parser (Func (Maybe Double) (V.Vector (t, Double)) (t, Double))
+parseMul = "(*)" *> return (pairV $ liftFoldV (*) id)
+
+parseMin :: Parser (Func (Maybe Double) (V.Vector (t, Double)) (t, Double))
+parseMin = "min" *> return (pairV $ liftFoldV min id)
+
+parseSqrt :: Parser (Func () (V.Vector (t, Double)) (V.Vector (t, Double)))
+parseSqrt = "sqrt" *> return (pairVV $ liftMapV sqrt)
+
+parseLog :: Parser (Func () (V.Vector (t, Double)) (V.Vector (t, Double)))
+parseLog = "log " *> (pairVV <$> liftMapV <$> logBase <$> double)
+
+parseAbs :: Parser (Func () (V.Vector (t, Double)) (V.Vector (t, Double)))
+parseAbs = "abs" *> return (pairVV $ liftMapV abs)
+
+parseCeil :: Parser (Func () (V.Vector (t, Double)) (V.Vector (t, Double)))
+parseCeil = "ceil" *> return (pairVV $ liftMapV (fromInt . ceiling))
+
+parseFloor :: Parser (Func () (V.Vector (t, Double)) (V.Vector (t, Double)))
+parseFloor = "floor" *> return (pairVV $ liftMapV (fromInt . floor))
+
+parseRound :: Parser (Func () (V.Vector (t, Double)) (V.Vector (t, Double)))
+parseRound = "round" *> return (pairVV $ liftMapV (fromInt . round))
+
+parseTruncate :: Parser (Func () (V.Vector (t, Double)) (V.Vector (t, Double)))
+parseTruncate = "truncate" *> return (pairVV $ liftMapV (fromInt . truncate))
+
+mkFilter :: (forall s. s -> Env m s)
+         -> Parser (Func s (V.Vector (t, Double)) (V.Vector (t, Double)))
+         -> Parser (Pipeline m (V.Vector (t, Double)))
+mkFilter mkEnv runParser = do
+  f <- runParser
+  return (Filter (mkEnv $ dump f) f)
+
+parseRFun :: (forall s. s -> Env m s)
+          -> (forall s. Func s (V.Vector (t, Double)) (t, Double) -> Func s (V.Vector (t, Double)) (V.Vector (t, Double)))
+          -> Parser (Pipeline m (V.Vector (t, Double)))
+parseRFun mkEnv mkFun =
+  mkFilter mkEnv (mkFun <$> parseMax)
+  <|> mkFilter mkEnv (mkFun <$> parseMin)
+  <|> mkFilter mkEnv (mkFun <$> parseEwma)
+  <|> mkFilter mkEnv (mkFun <$> parseMean)
+  <|> mkFilter mkEnv (mkFun <$> parseCount)
+  <|> mkFilter mkEnv (mkFun <$> parseHMean)
+
+parseMFun :: (forall s. s -> Env m s)
+          -> Parser (Pipeline m (V.Vector (t, Double)))
+parseMFun mkEnv =
+  mkFilter mkEnv parseAbs
+  <|> mkFilter mkEnv parseLog
+  <|> mkFilter mkEnv parseCeil
+  <|> mkFilter mkEnv parseSqrt
+  <|> mkFilter mkEnv parseFloor
+  <|> mkFilter mkEnv parseRound
+  <|> mkFilter mkEnv parseTruncate
+
+parseMap :: (forall s. s -> Env m s) -> Parser (Pipeline m (V.Vector (t, Double)))
+parseMap mkEnv = "map " *> (sectionFilter <|> parseRFun mkEnv iter <|> parseMFun mkEnv)
+    where
+      sectionFilter = do
+        f <- parseMapSection
+        return (Filter (mkEnv $ dump f) f)
+
+parseWindow :: (forall s. s -> Env m s) -> Parser (Pipeline m (V.Vector (t, Double)))
+parseWindow mkEnv = "window " *> mkFilter mkEnv winFun
+    where
+      winFun = (window <$> decimal <*> (hardspace >> parseMax))
+               <|> window <$> decimal <*> (hardspace >> parseMin)
+               <|> window <$> decimal <*> (hardspace >> parseMul)
+               <|> window <$> decimal <*> (hardspace >> parseSum)
+               <|> window <$> decimal <*> (hardspace >> parseEwma)
+               <|> window <$> decimal <*> (hardspace >> parseMean)
+               <|> window <$> decimal <*> (hardspace >> parseCount)
+               <|> window <$> decimal <*> (hardspace >> parseHMean)
+
+parseTimeWindow :: (forall s. s -> Env m s) -> Parser (Pipeline m (V.Vector (Time, Double)))
+parseTimeWindow mkEnv = "time-window " *> mkFilter mkEnv winFun
+    where
+      parseTimeCmp = do
+        t <- fromSeconds <$> double
+        return (\(a, _) (b, _) -> diff a b >= t)
+
+      winFun = (windowBy <$> parseTimeCmp <*> (hardspace >> parseMax))
+               <|> windowBy <$> parseTimeCmp <*> (hardspace >> parseMin)
+               <|> windowBy <$> parseTimeCmp <*> (hardspace >> parseMul)
+               <|> windowBy <$> parseTimeCmp <*> (hardspace >> parseSum)
+               <|> windowBy <$> parseTimeCmp <*> (hardspace >> parseEwma)
+               <|> windowBy <$> parseTimeCmp <*> (hardspace >> parseMean)
+               <|> windowBy <$> parseTimeCmp <*> (hardspace >> parseCount)
+               <|> windowBy <$> parseTimeCmp <*> (hardspace >> parseHMean)
+
+parseFilter :: (forall s. s -> Env m s) -> Parser (Pipeline m (V.Vector (t, Double)))
+parseFilter mkEnv = "filter " *> filterFun
+    where
+      filterFun = do
+        f <- parseFilterSection
+        return (Filter (mkEnv $ dump f) f)
+
+parseReduce :: (forall s. s -> Env m s) -> Parser (Pipeline m (V.Vector (t, Double)))
+parseReduce mkEnv = "reduce " *> (sectionFilter <|> parseRFun mkEnv (fmap V.singleton))
+    where
+      sectionFilter = do
+        f <- parseMul <|> parseSum
+        return (Filter (mkEnv $ dump f) (fmap V.singleton f))
+
 parseStmtKill :: Parser LQL
 parseStmtKill = "kill " *> doParse
     where
@@ -266,6 +459,18 @@ parseStmtKill = "kill " *> doParse
           (Just a, Just b, L l)  -> return $ AlterStmt (S.singleton $ DelLink b l (Just a))
           (Just a, Just b, B l)  -> return $ AlterStmt (S.fromList [DelLink a l (Just b), DelLink b l (Just a)])
           _                      -> fail "invalid kill command"
+
+parsePipeline :: Parser [Pipeline Identity (V.Vector (Time, Double))]
+parsePipeline = do
+  f  <- parseMap mkEnv
+        <|> parseFilter mkEnv
+        <|> parseReduce mkEnv
+        <|> parseWindow mkEnv
+        <|> parseTimeWindow mkEnv
+  fs <- option [] (" | " *> parsePipeline)
+  return (f : fs)
+    where
+      mkEnv s = Env (return s) (const $ return ())
 
 parseStmtAttr :: Parser LQL
 parseStmtAttr = "attr put " *> parsePutAttr
@@ -308,8 +513,8 @@ parseStmtAttr = "attr put " *> parsePutAttr
 
       parseGetAttr = do
         (g, a) <- parseGUIDAttr
-        (TAttrGetStmt g a <$> (hardspace >> parseTimeRange) <*> (option [] (hardspace >> parseWithStmt)))
-          <|> (KAttrGetStmt g a <$> (option [] (hardspace >> parseWithStmt)))
+        (TAttrGetStmt g a <$> (hardspace >> parseTimeRange) <*> (option [] (" | " *> parsePipeline)))
+          <|> (KAttrGetStmt g a <$> (option [] (hardspace >> parsePipeline)))
 
       parseListAttr kind = do
         (g, Attr a) <- parseGUIDAttr

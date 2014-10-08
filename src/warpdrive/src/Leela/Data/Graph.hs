@@ -95,21 +95,22 @@ buildQueue t0 t1 =
        else (t0, dlimit)
             : (whithin ++ [(fromDateTime d1 0, max 1 (ceiling s1))])
 
-loadTAttr :: (AttrBackend db) => db -> ([(Time, Value)] -> IO ()) -> GUID -> Attr -> Time -> Time -> IO ()
-loadTAttr db flush guid name t0 t1 = do
+loadTAttr :: (AttrBackend db) => db -> st -> (st -> [(Time, Value)] -> IO st) -> GUID -> Attr -> Time -> Time -> IO ()
+loadTAttr db st0 flush guid name t0 t1 = do
   caps   <- fmap (max 2) getNumCapabilities
-  memory <- newMVar (0, M.empty)
+  memory <- newMVar (0, M.empty, st0)
   void $ mapConcurrently (mapM_ (procData memory)) (chunkSplit caps $ zip [0..] (buildQueue t0 t1))
     where
-      flushQueue ix state =
+      flushQueue st ix state =
         case (M.lookup ix state) of
-          Nothing -> return (ix, state)
+          Nothing -> return (ix, state, st)
+          Just [] -> flushQueue st (ix + 1) (M.delete ix state)
           Just xs -> do
-            unless (null xs) (flush xs)
-            flushQueue (ix + 1) (M.delete ix state)
+            st' <- flush st xs
+            flushQueue st' (ix + 1) (M.delete ix state)
 
       enqueueFlush memory ix xs =
-        modifyMVar_ memory $ \(at, state) -> flushQueue at (M.insert ix xs state)
+        modifyMVar_ memory $ \(at, state, st) -> flushQueue st at (M.insert ix xs state)
 
       procData memory (ix, (t, l)) =
         enqueueFlush memory ix =<< getTAttr db guid name t l

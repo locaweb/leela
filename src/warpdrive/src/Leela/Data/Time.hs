@@ -70,7 +70,7 @@ dateTime (Time s) = let u                         = posixSecondsToUTCTime (realT
                     in (Date (fromIntegral year, month, dayOfMonth), time)
 
 diff :: Time -> Time -> Time
-diff (Time a) (Time b) = Time (a - b)
+diff (Time a) (Time b) = Time (abs $ a - b)
 
 fromSeconds :: Double -> Time
 fromSeconds = Time

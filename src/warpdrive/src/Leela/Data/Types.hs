@@ -200,7 +200,7 @@ glob s
 nextPage :: Mode a -> a -> Mode a
 nextPage (All _) l      = All (Just l)
 nextPage (Prefix _ b) l = Prefix l b
-nextPage _ _            = error "precise has no pagination"
+nextPage _ _            = throw (SystemExcept (Just "Types/nextPage: precise mode has no pagination"))
 
 instance Serialize Value where
 
