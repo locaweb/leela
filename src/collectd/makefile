@@ -4,11 +4,11 @@ CFLAGS               = -Wall
 
 build: poly1305aes.build compile
 
-compile: override CPPFLAGS += -D_POSIX_C_SOURCE=200112 -D__USE_XOPEN -D_XOPEN_SOURCE
+compile: override CPPFLAGS += -D_POSIX_C_SOURCE=199309L -D_XOPEN_SOURCE -D_BSD_SOURCE -DHAS_SYM_USLEEP
 compile: override CFLAGS += -Isrc -std=c99 -pedantic -fPIC -pthread -I$(poly1305aes.h)
 
 compile:
-	$(CC) $(CPPFLAGS) $(CFLAGS) -shared -I../c/src write_leela.c ../c/src/leela/*.c $(poly1305aes.a) -owrite_leela.so -Wl,-soname,write_leela -lzmq -lm
+	$(CC) $(CPPFLAGS) $(CFLAGS) -shared -I../libs/poly1305aes/src -I../libs/c/src write_leela.c ../libs/c/src/leela/*.c $(poly1305aes.a) -owrite_leela.so -Wl,-soname,write_leela -lzmq -lm
 
 clean: poly1305aes.clean
 	rm -f write_leela.so
