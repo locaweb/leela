@@ -1,5 +1,8 @@
 --*-- mode: text; --*--
 
+v6.6.0 | 2014-10-30
+  * no longer using thread local
+
 v6.5.0 | 2014-06-04
   * using hostname as the guid name
 
