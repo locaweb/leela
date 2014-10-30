@@ -15,6 +15,7 @@
 #ifndef __write_leela_h__
 #define __write_leela_h__
 
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
@@ -35,15 +36,16 @@
 
 #define WL_UNUSED(x) (void) x
 #ifndef WL_BUFFSZ
-# define WL_BUFFSZ 32768
+# define WL_BUFFSZ 24576
 #endif
 
 typedef struct
 {
-  char   *prefix;
-  char   *sndbuf;
-  size_t  sndbufoff;
-  size_t  sndbuflen;
+  char    *prefix;
+  char    *sndbuf;
+  size_t   sndbufoff;
+  size_t   sndbuflen;
+  cdtime_t ctime;
 } wl_buffer_t;
 
 typedef struct
@@ -54,8 +56,10 @@ typedef struct
   char              *tree;
   char              *prefix;
   int                timeout;
+  int                buffsz;
   cdtime_t           ctime;
-  pthread_key_t      key;
+  wl_buffer_t       *buff;
+  pthread_mutex_t    mutex;
   leela_endpoint_t **cluster;
 } wl_data_t;
 
@@ -114,11 +118,18 @@ char *wl_unquote (char *dst, size_t maxlen, const char *src)
 }
 
 static
+double wl_now ()
+{
+  cdtime_t now = cdtime();
+  return(CDTIME_T_TO_DOUBLE(now));
+}
+
+static
 int wl_send (wl_data_t *cfg, wl_buffer_t *buff)
 {
-  int rc          = -1;
-  size_t offset   = buff->sndbufoff;
-  int t0          = time(0);
+  int rc        = -1;
+  size_t offset = buff->sndbufoff;
+  double t0     = wl_now();
 
   if (offset < 2)
   { return(0); }
@@ -138,13 +149,39 @@ int wl_send (wl_data_t *cfg, wl_buffer_t *buff)
   leela_lql_cursor_close(cursor);
 
   if (rc != 0)
-  { ERROR("write_leela plugin: wl_send() != 0 [size:%zu, timing:%ds]", offset, (int) (time(0) - t0)); }
+  { ERROR("write_leela plugin: wl_send() != 0 [size:%zu, timing:%.4fs]", offset, (wl_now() - t0)); }
   else
   {
     buff->sndbufoff = 0;
-    INFO("write_leela plugin: wl_send() = 0 [size:%zu, timing:%ds]", offset, (int) (time(0) - t0));
+    INFO("write_leela plugin: wl_send() = 0 [size:%zu, timing:%.4fs]", offset, (wl_now() - t0));
   }
   return(rc);
+}
+
+static
+int wl_sendbuff (wl_data_t *cfg, wl_buffer_t *buff)
+{
+  int rc    = 0;
+  int wait  = 0;
+  int retry = 0;
+  do
+  {
+    rc   = wl_send(cfg, buff);
+    wait = wait <= 0 ? 1 : wait * 2;
+    if (rc == 0)
+    { break; }
+    INFO("write_leela plugin: waiting %d seconds...", wait);
+    sleep(wait);
+  } while (retry++ < 10);
+  return(rc);
+}
+
+static
+void wl_buffer_free (void *ptr)
+{
+  if (ptr != NULL)
+  { free(((wl_buffer_t *)ptr)->sndbuf); }
+  free(ptr);
 }
 
 static
@@ -153,8 +190,10 @@ void wl_data_free (void *ptr)
   wl_data_t *data = (wl_data_t *) ptr;
   if (ptr != NULL)
   {
+    pthread_mutex_destroy(&data->mutex);
     wl_cluster_free(data->cluster);
     leela_lql_context_close(data->ctx);
+    wl_buffer_free(data->buff);
     sfree(data->prefix);
     sfree(data->user);
     sfree(data->pass);
@@ -164,23 +203,16 @@ void wl_data_free (void *ptr)
 }
 
 static
-void wl_buffer_free(void *ptr)
-{
-  if (ptr != NULL)
-  { free(((wl_buffer_t *)ptr)->sndbuf); }
-  free(ptr);
-}
-
-static
 wl_buffer_t *wl_buffer_alloc (wl_data_t *cfg)
 {
   wl_buffer_t *buff = (wl_buffer_t *) malloc(sizeof(wl_buffer_t));
   if (buff != NULL)
   {
-    buff->sndbuflen = WL_BUFFSZ;
+    buff->sndbuflen = cfg->buffsz > 0 ? (cfg->buffsz * 1024) : WL_BUFFSZ;
     buff->sndbufoff = 0;
     buff->prefix    = cfg->prefix;
     buff->sndbuf    = (char *) malloc(buff->sndbuflen);
+    buff->ctime     = cdtime();
     if (buff->sndbuf == NULL)
     {
       wl_buffer_free(buff);
@@ -195,15 +227,18 @@ wl_buffer_t *wl_buffer_alloc (wl_data_t *cfg)
 }
 
 static
-wl_buffer_t *wl_get_buffer(wl_data_t *cfg)
+wl_buffer_t *wl_get_buffer_nolock (wl_data_t *cfg)
 {
-  wl_buffer_t *buff = (wl_buffer_t *) pthread_getspecific(cfg->key);
-  if (buff == NULL)
-  {
-    buff = wl_buffer_alloc(cfg);
-    if (buff != NULL)
-    { pthread_setspecific(cfg->key, (void *) buff); }
-  }
+  if (cfg->buff == NULL)
+  { cfg->buff = wl_buffer_alloc(cfg); }
+  return(cfg->buff);
+}
+
+static
+wl_buffer_t *wl_swap_buffer_nolock (wl_data_t *cfg)
+{
+  wl_buffer_t *buff = cfg->buff;
+  cfg->buff         = wl_buffer_alloc(cfg);
   return(buff);
 }
 
@@ -256,7 +291,7 @@ int wl_print_time (wl_buffer_t *buff, const cdtime_t cdtime)
 }
 
 static
-int wl_print_metric(const data_set_t *ds, const value_list_t *vl, wl_data_t *cfg, wl_buffer_t *buff, const gauge_t *rates, int index)
+int wl_print_metric (const data_set_t *ds, const value_list_t *vl, wl_data_t *cfg, wl_buffer_t *buff, const gauge_t *rates, int index)
 {
   if (leela_check_guid(vl->host) != 0)
   {
@@ -290,23 +325,54 @@ int wl_print_metric(const data_set_t *ds, const value_list_t *vl, wl_data_t *cfg
 }
 
 static
+int wl_buffer_metric (const data_set_t *ds, const value_list_t *vl, wl_data_t *cfg, const gauge_t *rates, int index)
+{
+  int rc = 0;
+  size_t state;
+  wl_buffer_t *buff = NULL;
+
+  if (pthread_mutex_lock(&cfg->mutex) != 0)
+  { return(-1); }
+
+  if (wl_get_buffer_nolock(cfg) == NULL)
+  {
+    pthread_mutex_unlock(&cfg->mutex);
+    return(-1);
+  }
+
+  state = cfg->buff->sndbufoff;
+  rc    = wl_print_metric(ds, vl, cfg, cfg->buff, rates, index);
+  if (rc > 0)
+  {
+    buff            = wl_swap_buffer_nolock(cfg);
+    buff->sndbufoff = state;
+    state           = cfg->buff->sndbufoff;
+    if ((rc = wl_print_metric(ds, vl, cfg, cfg->buff, rates, index)) != 0)
+    { cfg->buff->sndbufoff = state; }
+  }
+  pthread_mutex_unlock(&cfg->mutex);
+
+  if (buff != NULL)
+  {
+    wl_sendbuff(cfg, buff);
+    wl_buffer_free(buff);
+  }
+
+  return(rc);
+}
+
+static
 int wl_write (const data_set_t *ds, const value_list_t *vl, user_data_t *data)
 {
   int k, rc;
-  size_t state;
   wl_data_t *cfg;
   gauge_t *rates;
-  wl_buffer_t *buff;
 
   if (data == NULL)
   { return(-1); }
 
   cfg   = (wl_data_t *) data->data;
-  buff  = wl_get_buffer(cfg);
   rates = uc_get_rate(ds, vl);
-
-  if (buff == NULL)
-  { return(-1); }
 
   if (rates == NULL)
   {
@@ -316,21 +382,43 @@ int wl_write (const data_set_t *ds, const value_list_t *vl, user_data_t *data)
 
   for (k=0; k<ds->ds_num; k+=1)
   {
-    state = buff->sndbufoff;
-    rc    = wl_print_metric(ds, vl, cfg, buff, rates, k);
-    if (rc > 0)
-    {
-      k              -= 1;
-      buff->sndbufoff = state;
-      rc              = wl_send(cfg, buff);
-    }
-
+    rc = wl_buffer_metric(ds, vl, cfg, rates, k);
     if (rc != 0)
     { break; }
   }
 
   sfree(rates);
   return(rc != 0 ? -1 : 0);
+}
+
+static
+int wl_flush (cdtime_t timeout, const char *identifier, user_data_t *data)
+{
+  cdtime_t now   = cdtime();
+  wl_data_t *cfg = (wl_data_t *) data->data;
+  wl_buffer_t *buff;
+  int rc;
+
+  if (pthread_mutex_lock(&cfg->mutex) != 0)
+  {
+    ERROR("write_leela plugin: wl_flush: error acquiring lock");
+    return(-1);
+  }
+
+  INFO("write_leela plugin: wl_flush: timeout:%.3f; bufsize:%zu", (double) timeout, cfg->buff->sndbufoff);
+
+  if (cfg->buff != NULL && (timeout <= 0 || (timeout + cfg->buff->ctime) > now))
+  {
+    buff = wl_swap_buffer_nolock(cfg);
+    pthread_mutex_unlock(&cfg->mutex);
+    rc   = wl_sendbuff(cfg, buff);
+    wl_buffer_free(buff);
+    return(rc);
+  }
+  else
+  { pthread_mutex_unlock(&cfg->mutex); }
+
+  return(0);
 }
 
 static
@@ -363,17 +451,24 @@ int wl_init ()
   if (wl_leela_cfg == NULL)
   { return(-1); }
 
-  wl_leela_cfg->ctx = leela_lql_context_init((const leela_endpoint_t * const *) wl_leela_cfg->cluster, wl_leela_cfg->user, wl_leela_cfg->pass, wl_leela_cfg->timeout);
-  if (wl_leela_cfg->ctx == NULL)
+  do
   {
-    ERROR("write_leela plugin: error initializing leela context");
-    wl_data_free(wl_leela_cfg);
-    return(-1);
-  }
+    wl_leela_cfg->ctx = leela_lql_context_init((const leela_endpoint_t * const *) wl_leela_cfg->cluster, wl_leela_cfg->user, wl_leela_cfg->pass, wl_leela_cfg->timeout);
+    if (wl_leela_cfg->ctx == NULL)
+    {
+      ERROR("write_leela plugin: error initializing leela context");
+      wl_data_free(wl_leela_cfg);
+      sleep(1);
+      continue;
+    }
+    break;
+  } while (true);
 
   data.data      = wl_leela_cfg;
   data.free_func = wl_data_free;
   plugin_register_write("write_leela", wl_write, &data);
+  data.free_func = NULL;
+  plugin_register_flush("write_leela", wl_flush, &data);
   return(0);
 }
 
@@ -394,13 +489,22 @@ int wl_cfg (oconfig_item_t *cfg)
   leela_cfg->pass       = NULL;
   leela_cfg->tree       = NULL;
   leela_cfg->prefix     = NULL;
-  leela_cfg->timeout    = 60000;
+  leela_cfg->buffsz     = 0;
+  leela_cfg->timeout    = 180000;
+  leela_cfg->buff       = NULL;
   leela_cfg->ctime      = cdtime();
   leela_cfg->cluster    = NULL;
 
-  if (pthread_key_create(&leela_cfg->key, wl_buffer_free) != 0)
+  if (pthread_mutex_init(&leela_cfg->mutex, NULL) != 0)
   {
-    ERROR("write_leela plugin: error initializing thread local storage");
+    ERROR("write_leela plugin: error initializing mutex");
+    return(-1);
+  }
+
+  if ((leela_cfg->buff = wl_buffer_alloc(leela_cfg)) == NULL)
+  {
+    wl_data_free(leela_cfg);
+    ERROR("write_leela plugin: error allocating memory");
     return(-1);
   }
 
@@ -432,12 +536,8 @@ int wl_cfg (oconfig_item_t *cfg)
     { leela_cfg->timeout = (int) item->values[0].value.number; }
     else if (strcasecmp("prefix", item->key) == 0 && item->values[0].type == OCONFIG_TYPE_STRING)
     { leela_cfg->prefix = wl_strdup(item->values[0].value.string); }
-    else if (strcasecmp("guid", item->key) != 0) // ignoring obsolete guid parameter
-    {
-      ERROR("write_leela plugin: invalid config: %s", item->key);
-      wl_data_free(leela_cfg);
-      return(-1);
-    }
+    else if (strcasecmp("buffer_in_kb", item->key) == 0 && item->values[0].type == OCONFIG_TYPE_NUMBER)
+    { leela_cfg->buffsz = (int) item->values[0].value.number; }
   }
 
   if (leela_cfg->user == NULL
