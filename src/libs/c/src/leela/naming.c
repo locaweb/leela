@@ -21,7 +21,7 @@
 #  define SLEEP__(x) Sleep(x)
 #elif defined(HAS_SYM_SLEEP)
 #  include <unistd.h>
-#  defined SLEEP__(x) sleep(ceil(x/1000))
+#  define SLEEP__(x) sleep(ceil(x/1000))
 #else
 #  error "naming.c: no sleep function found"
 #endif
@@ -187,7 +187,7 @@ leela_naming_cluster_t *naming_discover__ (leela_naming_t *naming, const leela_n
 static
 void *naming_loop__ (void *data)
 {
-  int w_wait;
+  unsigned int w_wait;
   leela_naming_cluster_t *cluster = NULL;
   leela_naming_t *naming          = (leela_naming_t *) data;
   LEELA_DEBUG0(naming->context, "ENTER:naming loop");
@@ -215,7 +215,7 @@ void *naming_loop__ (void *data)
     { w_wait = (30 + (((unsigned int) rand()) % naming->maxdelay)) * 1000; }
     while (!naming->cancel && (w_wait > 0))
     {
-      SLEEP__(w_wait > 1000 ? w_wait : 1000);
+      SLEEP__(w_wait > 1000 ? 1000 : w_wait);
       w_wait -= 1000;
     }
   } while (! naming->cancel);
