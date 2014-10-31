@@ -1,5 +1,8 @@
 --*-- mode: text; --*--
 
+v6.6.2 | 2014-10-31
+  * bugfix: naming thread: must sleep random seconds
+
 v6.6.1 | 2014-10-30
   * bugfix: including correct headers for i386 architecture
 
