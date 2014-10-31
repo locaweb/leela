@@ -167,12 +167,13 @@ int wl_sendbuff (wl_data_t *cfg, wl_buffer_t *buff)
   do
   {
     rc   = wl_send(cfg, buff);
+    wait = wait % 600;
     wait = wait <= 0 ? 1 : wait * 2;
     if (rc == 0)
     { break; }
-    INFO("write_leela plugin: waiting %d seconds...", wait);
+    INFO("write_leela plugin: waiting %d seconds [attempt: %d]", wait, retry++);
     sleep(wait);
-  } while (retry++ < 10);
+  } while (true);
   return(rc);
 }
 
