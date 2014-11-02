@@ -36,10 +36,16 @@ toLazyBS lim = toLazyByteStringWith (untrimmedStrategy lim smallChunkSize) empty
 supervise :: Logger -> String -> IO () -> IO ()
 supervise syslog name io = io `catch` restart
     where
-      restart (SomeException e) = do
-        warning syslog (printf "%s: supervised function has died, restarting: %s" name (show e))
-        threadDelay (250 * 1000)
-        supervise syslog name io
+      restart e =
+        case (fromException e) of
+          Just ThreadKilled -> return ()
+          _                 -> do
+            warning syslog (printf "%s: supervised function has died, restarting: %s" name (show e))
+            threadDelay (250 * 1000)
+            supervise syslog name io
+
+supervise_ :: IO () -> IO ()
+supervise_ = supervise devNull ""
 
 sConcatMap :: (a -> [b]) -> [a] -> [b]
 sConcatMap f = toList . mconcat . map (fromList . f)
