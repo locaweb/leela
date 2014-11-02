@@ -101,17 +101,17 @@ readTime = fmap (fromSeconds . fromInt) . readDecimal
 whenValidSignature :: (Time, NominalDiffTime) -> (User -> Maybe Secret) -> Time -> User -> Nonce -> MAC -> B.ByteString -> a -> Either Reply a
 whenValidSignature now secLookup t u nonce sig msg =
   case (secLookup u) of
-    Nothing  -> const $ Left $ Fail 401 $ Just "signature error: unknown user"
+    Nothing  -> const $ Left $ Fail 401 $ Just "signature error: user"
     Just sec
-      | not $ verify sec nonce msg sig -> const $ Left $ Fail 403 $ Just "signature error: invalid secret"
+      | not $ verify sec nonce msg sig -> const $ Left $ Fail 403 $ Just "signature error: secret"
       | expired now t                  -> const $ Left $ Fail 403 $ Just "signature error: expired"
       | otherwise                      -> Right
 
 readNonce :: B.ByteString -> Either Reply Nonce
-readNonce = maybe (Left $ Fail 400 $ Just "signature error: invalid nonce") Right . initNonce . fst . B16.decode
+readNonce = maybe (Left $ Fail 400 $ Just "signature error: nonce") Right . initNonce . fst . B16.decode
 
 readMAC :: B.ByteString -> Either Reply MAC
-readMAC = maybe (Left $ Fail 400 (Just "signature error: invalid mac")) Right . initMAC . fst . B16.decode
+readMAC = maybe (Left $ Fail 400 (Just "signature error: mac")) Right . initMAC . fst . B16.decode
 
 readSignature :: (Time, NominalDiffTime) -> (User -> Maybe Secret) -> B.ByteString -> [B.ByteString] -> Either Reply Signature
 readSignature now users sig msg =
