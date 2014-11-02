@@ -21,7 +21,7 @@
 #  define SLEEP__(x) Sleep(x)
 #elif defined(HAS_SYM_SLEEP)
 #  include <unistd.h>
-#  define SLEEP__(x) sleep(ceil(x/1000))
+#  define SLEEP__(x) sleep(ceil(x/1000.0))
 #else
 #  error "naming.c: no sleep function found"
 #endif
@@ -213,6 +213,7 @@ void *naming_loop__ (void *data)
     { w_wait = 250; }
     else
     { w_wait = (30 + (((unsigned int) rand()) % naming->maxdelay)) * 1000; }
+    LEELA_DEBUG1(naming->context, "naming: waiting %d ms before next query", w_wait);
     while (!naming->cancel && (w_wait > 0))
     {
       SLEEP__(w_wait > 1000 ? 1000 : w_wait);
