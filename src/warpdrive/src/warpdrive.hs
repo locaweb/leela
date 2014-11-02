@@ -43,6 +43,7 @@ data Options = Options { optConsul       :: Endpoint
                        , optBufSize      :: Word
                        , optIoThreads    :: Word
                        , optSigTTL       :: Word
+                       , optLogFile      :: Maybe String
                        }
 
 defaultOptions :: Options
@@ -51,9 +52,10 @@ defaultOptions = Options { optEndpoint     = TCP "*" 4080 ""
                          , optConsul       = HTTP "127.0.0.1" 8500 ""
                          , optRedisSecret  = Nothing
                          , optPasswd       = "/etc/leela/passwd"
-                         , optBufSize      = 1024
+                         , optBufSize      = fromIntegral defaultBufSize
                          , optIoThreads    = 2
                          , optSigTTL       = 300
+                         , optLogFile      = Nothing
                          }
 
 setReadOpt :: (Read a) => (a -> Options -> Options) -> String -> Options -> Options
@@ -87,6 +89,9 @@ options =
   , Option [] ["signature-ttl"]
            (ReqArg (setReadOpt (\v opts -> opts { optSigTTL = v })) "SIGNATURE-TTL")
            (printf "time window for signatures to be valid [default: %d]" (optSigTTL defaultOptions))
+  , Option [] ["log-file"]
+           (ReqArg (\v opts -> opts { optLogFile = Just v }) "LOG-FILE")
+           (printf "path for the log file [default: %s]" (maybe "-" id $ optLogFile defaultOptions))
   ]
 
 readOpts :: [String] -> IO Options
@@ -117,13 +122,14 @@ main = do
   opts    <- getArgs >>= readOpts
   alive   <- newEmptyMVar
   naming  <- newIORef []
-  syslog  <- newLogger (fromIntegral $ max 1 (optBufSize opts)) (optDebugLevel opts)
+  syslog  <- newLogger (optLogFile opts) (fromIntegral $ max 1 (optBufSize opts)) (optDebugLevel opts)
   passwd  <- passwdWatcher syslog (optPasswd opts)
   warpsrv <- newWarpServer syslog naming passwd
   resolver syslog naming (show $ optConsul opts)
   _       <- forkIO (supervise syslog "main/resolver" $ forever $ sleep 5 >> resolver syslog naming (show $ optConsul opts))
   void $ installHandler sigTERM (Catch $ signal alive) Nothing
   void $ installHandler sigINT (Catch $ signal alive) Nothing
+  void $ installHandler sigHUP (Catch $ reopen syslog) Nothing
   warning syslog
     (printf "warpdrive: yo!yo!; endpoint=%s" (show $ optEndpoint opts))
   withContext $ \ctx -> do
