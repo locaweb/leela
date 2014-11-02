@@ -173,7 +173,7 @@ int wl_sendbuff (wl_data_t *cfg, wl_buffer_t *buff)
     { break; }
     INFO("write_leela plugin: waiting %d seconds [attempt: %d]", wait, retry++);
     sleep(wait);
-  } while (true);
+  } while (1);
   return(rc);
 }
 
@@ -463,7 +463,7 @@ int wl_init ()
       continue;
     }
     break;
-  } while (true);
+  } while (1);
 
   data.data      = wl_leela_cfg;
   data.free_func = wl_data_free;
