@@ -32,10 +32,10 @@ import           Leela.Storage.Graph
 import           Control.Concurrent.Async
 
 query :: (GraphBackend db) => db -> ([(GUID, Label, GUID)] -> IO ()) -> Matcher -> IO ()
-query db write (ByEdge a l b) = do
+query db write (ByEdge a l b)         = do
   ok <- hasLink db a l b
   when ok (write [(a, l, b)])
-query db write (ByNode a)     = query db write (ByLabel a (Label "*"))
+query db write (ByNode a)             = query db write (ByLabel a (Label "*"))
 query db write (ByLabel a (Label l0)) = loadLabels (Label <$> glob l0)
     where
       loadLabels page = do
@@ -120,7 +120,7 @@ exec db rt = do
   execute [ mkio (chunked 32 $ getPutLink rt) (mapM_ $ putLink db)
           , mkio (chunked 32 $ getPutLabel rt) (mapM_ $ putLabel db)
           , mkio (chunked 32 $ getDelLink rt) (mapM_ $ unlink db)
-          , mkio (chunked 32 $ getPutKAttr rt) (mapM_ $ putAttr db)
+          , mkio (chunked 4  $ getPutKAttr rt) (mapM_ $ putAttr db)
           , mkio (chunked 32 $ getDelKAttr rt) (mapM_ $ delAttr db)
           , mkio (chunked 32 $ getPutTAttr rt) (mapM_ $ putTAttr db)
           ]
