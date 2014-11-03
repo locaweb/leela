@@ -79,6 +79,14 @@ static
 wl_data_t *wl_leela_cfg;
 
 static
+void wl_logcallback (const char *fmt, va_list args)
+{
+  char buff[1024];
+  if (vsnprintf(buff, 1024, fmt, args) > 0)
+  { INFO("write_leela plugin: %s", buff); }
+}
+
+static
 char *wl_strdup (const char *src)
 {
   size_t len = strlen(src);
@@ -454,7 +462,7 @@ int wl_init ()
 
   do
   {
-    wl_leela_cfg->ctx = leela_lql_context_init((const leela_endpoint_t * const *) wl_leela_cfg->cluster, wl_leela_cfg->user, wl_leela_cfg->pass, wl_leela_cfg->timeout);
+    wl_leela_cfg->ctx = leela_lql_context_init2((const leela_endpoint_t * const *) wl_leela_cfg->cluster, wl_leela_cfg->user, wl_leela_cfg->pass, wl_leela_cfg->timeout, wl_logcallback, NULL);
     if (wl_leela_cfg->ctx == NULL)
     {
       ERROR("write_leela plugin: error initializing leela context");
