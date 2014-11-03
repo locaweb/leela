@@ -13,19 +13,6 @@
  * limitations under the License.
  */
 
-#if defined(HAS_SYM_USLEEP)
-#  include <unistd.h>
-#  define SLEEP__(x) usleep(x * 1000)
-#elif defined(HAS_SYM_WINSLEEP)
-#  include <windows.h>
-#  define SLEEP__(x) Sleep(x)
-#elif defined(HAS_SYM_SLEEP)
-#  include <unistd.h>
-#  define SLEEP__(x) sleep((unsigned int) ceil(x/1000.0))
-#else
-#  error "naming.c: no sleep function found"
-#endif
-
 #include <math.h>
 #include <time.h>
 #include <stdio.h>
@@ -38,6 +25,19 @@
 #include "string.h"
 #include "naming.h"
 #include "signature.h"
+
+#if defined(HAS_SYM_USLEEP)
+#  include <unistd.h>
+#  define SLEEP__(x) usleep(x * 1000)
+#elif defined(HAS_SYM_WINSLEEP)
+#  include <windows.h>
+#  define SLEEP__(x) Sleep(x)
+#elif defined(HAS_SYM_SLEEP)
+#  include <unistd.h>
+#  define SLEEP__(x) sleep((unsigned int) x/1000)
+#else
+#  error "naming.c: no sleep function found"
+#endif
 
 struct leela_naming_t
 {
@@ -187,7 +187,7 @@ leela_naming_cluster_t *naming_discover__ (leela_naming_t *naming, const leela_n
 static
 void *naming_loop__ (void *data)
 {
-  unsigned int w_wait;
+  unsigned int w_wait, tmp;
   leela_naming_cluster_t *cluster = NULL;
   leela_naming_t *naming          = (leela_naming_t *) data;
   LEELA_DEBUG0(naming->context, "ENTER:naming loop");
@@ -216,8 +216,9 @@ void *naming_loop__ (void *data)
     LEELA_DEBUG1(naming->context, "naming: waiting %d ms before next query", w_wait);
     while (!naming->cancel && w_wait > 0)
     {
-      SLEEP__(w_wait > 1000 ? 1000 : w_wait);
+      tmp     = w_wait > 1000 ? 1000 : w_wait;
       w_wait -= 1000;
+      SLEEP__(tmp);
     }
   } while (! naming->cancel);
   LEELA_DEBUG0(naming->context, "EXIT:naming loop");
