@@ -1,5 +1,4 @@
 {-# LANGUAGE TupleSections     #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 -- Copyright 2014 (c) Diego Souza <dsouza@c0d3.xxx>
 --
@@ -16,152 +15,68 @@
 -- limitations under the License.
 
 module Leela.Data.QDevice
-       ( Limit
-       , Device ()
-       , Control ()
-       , HasControl (..)
-       , open
+       ( QDevice ()
+       , qnew
        , copy
-       , close
-       , openIO
-       , closed
-       , control
-       , closeIO
-       , devnull
-       , devread
-       , closedIO
-       , devwrite
-       , devreadIO
-       , notClosed
-       , devwriteIO
-       , trydevread
-       , notClosedIO
-       , withControl
-       , addFinalizer
-       , runFinalizer
+       , qlink
+       , qread
+       , qwrite
+       , qclose
+       , qTryRead
+       , qTryWrite
        ) where
 
 import Control.Monad
-import Leela.Helpers
-import Control.Exception
 import Leela.Data.Excepts
+import Control.Applicative
 import Control.Concurrent.STM
 
-type Limit = Int
+data QDevice a = QDevice (TVar Bool) (TBQueue a)
 
-newtype Control = Control (TVar Bool, TVar [Finalizer])
+qnew :: Int -> IO (QDevice a)
+qnew size = do
+  s <- newTVarIO True
+  q <- newTBQueueIO size
+  return (QDevice s q)
 
-data Device a = Device Control (TBQueue a)
+qlink :: Int -> QDevice a -> IO (QDevice b)
+qlink size (QDevice s _) = do
+  q <- newTBQueueIO size
+  return (QDevice s q)
 
-class HasControl a where
-    ctrlof :: a -> Control
+qclose :: QDevice a -> IO ()
+qclose (QDevice s _) =
+  atomically $ writeTVar s False
 
-type Finalizer = IO ()
+qTryWrite :: QDevice a -> a -> IO ()
+qTryWrite (QDevice _ q) a = atomically $ do
+  writeTBQueue q a `orElse` return ()
 
-control :: STM Control
-control = do
-  tvar0 <- newTVar False
-  tvar1 <- newTVar []
-  return (Control (tvar0, tvar1))
+qwrite :: QDevice a -> a -> IO ()
+qwrite (QDevice s q) a = atomically $ do
+  open <- readTVar s
+  unless open (throwSTM $ BadDeviceExcept (Just "qwrite: device is closed"))
+  writeTBQueue q a
 
-addFinalizer :: (HasControl ctrl) => ctrl -> Finalizer -> IO ()
-addFinalizer target fin = do
-  let (Control (_, tvar)) = ctrlof target
-  atomically $ do
-    current <- readTVar tvar
-    writeTVar tvar (fin : current)
+qread :: QDevice a -> IO (Maybe a)
+qread (QDevice s q) = atomically $ do
+  open <- readTVar s
+  if (not open)
+    then tryReadTBQueue q
+    else Just <$> readTBQueue q
 
-devnull :: STM (Device a)
-devnull = do
-  ctrl <- control
-  fmap (Device ctrl) (newTBQueue 0)
+qTryRead :: QDevice a -> IO (Maybe a, Bool)
+qTryRead (QDevice s q) = atomically $ do
+  open <- readTVar s
+  mval <- tryReadTBQueue q
+  zero <- isEmptyTBQueue q
+  return (mval, open || not zero)
 
-withControl :: (Control -> IO a) -> IO ()
-withControl io = mask $ \restore -> do
-  ctrl <- atomically control
-  _    <- restore (io ctrl) `onException` closeIO ctrl
-  closeIO ctrl
-
-closed :: HasControl ctrl => ctrl -> STM Bool
-closed box = let Control ctrl = ctrlof box
-             in readTVar (fst ctrl)
-
-copy :: Device a -> (a -> Maybe b) -> Device b -> IO ()
-copy src f dst = do
-  mv <- devreadIO src
-  case (join $ fmap (f . fst) mv) of
+copy :: (a -> Maybe b) -> QDevice a -> QDevice b -> IO ()
+copy f src dst = do
+  mv <- qread src
+  case (mv >>= f) of
     Nothing -> return ()
-    Just v  -> devwriteIO dst v >> copy src f dst
-
-notClosed :: HasControl ctrl => ctrl -> STM Bool
-notClosed = fmap not . closed
-
-notClosedIO :: HasControl ctrl => ctrl -> IO Bool
-notClosedIO = atomically . notClosed
-
-closedIO :: HasControl ctrl => ctrl -> IO Bool
-closedIO box = let Control ctrl = ctrlof box
-               in readTVarIO (fst ctrl)
-
-open :: HasControl ctrl => ctrl -> Limit -> STM (Device a)
-open ctrl l = fmap (Device (ctrlof ctrl)) (newTBQueue (max l 1))
-
-openIO :: HasControl ctrl => ctrl -> Limit -> IO (Device a)
-openIO ctrl l = atomically $ open ctrl l
-
-close :: HasControl ctrl => ctrl -> STM ()
-close ctrl = let Control tvar = ctrlof ctrl
-             in writeTVar (fst tvar) True
-
-runFinalizer :: (HasControl ctrl) => ctrl -> IO ()
-runFinalizer target = do
-  fins <- atomically $ do
-    current <- readTVar tmvar
-    writeTVar tmvar []
-    return current
-  mapM_ (`catch` ignore) fins
-    where
-      Control (_, tmvar) = ctrlof target
-
-closeIO :: HasControl ctrl => ctrl -> IO ()
-closeIO ctrl = do
-  atomically (close ctrl)
-  runFinalizer ctrl `catch` ignore
-
-select :: Device a -> STM (Bool, TBQueue a)
-select (Device (Control (ctrl, _)) q) = fmap (, q) (readTVar ctrl)
-
-devwrite :: Device a -> a -> STM ()
-devwrite dev v = do
-  (notok, q) <- select dev
-  when notok (throwSTM (BadDeviceExcept (Just "QDevice/devwrite: device is closed")))
-  writeTBQueue q v
-
-devwriteIO :: Device a -> a -> IO ()
-devwriteIO dev = atomically . devwrite dev
-
-trydevread :: Device a -> STM (Maybe a)
-trydevread dev = fmap snd (select dev) >>= tryReadTBQueue
-
-devread :: Device a -> STM (Maybe (a, Bool))
-devread dev = do
-  (notok, q) <- select dev
-  if notok
-    then do
-      v <- tryReadTBQueue q
-      e <- isEmptyTBQueue q
-      return (fmap (, not e) v)
-    else do
-      v <- readTBQueue q
-      return (Just (v, True))
-
-devreadIO :: Device a -> IO (Maybe (a, Bool))
-devreadIO = atomically . devread
-
-instance HasControl Control where
-
-    ctrlof = id
-
-instance HasControl (Device a) where
-
-    ctrlof (Device ctrl _) = ctrl
+    Just v  -> do
+      qwrite dst v
+      copy f src dst

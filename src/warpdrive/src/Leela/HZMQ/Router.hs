@@ -21,6 +21,7 @@ module Leela.HZMQ.Router
        , startRouter
        ) where
 
+import           Data.List
 import           Data.Maybe
 import           System.ZMQ4
 import           Leela.Logger
@@ -35,11 +36,11 @@ import qualified Data.ByteString.Lazy as L
 
 data Request = Request [B.ByteString] [B.ByteString]
 
-data Worker = Worker { onJob :: [B.ByteString] -> IO [L.ByteString]
+data Worker = Worker { onJob :: [B.ByteString] -> ([L.ByteString] -> IO ()) -> IO ()
                      , onErr :: SomeException -> IO [L.ByteString]
                      }
 
-newtype RouterFH = RouterFH (MVar ())
+newtype RouterFH = RouterFH (Poller Router)
 
 readMsg :: Request -> [B.ByteString]
 readMsg (Request _ val) = val
@@ -54,15 +55,10 @@ reply syslog poller job msg = do
 
 worker :: Logger -> Poller Router -> Request -> Worker -> IO ()
 worker syslog poller job action = do
-  mmsg <- try (onJob action (readMsg job))
+  mmsg <- try (onJob action (readMsg job) (reply syslog poller job))
   case mmsg of
-    Left e    ->
-      onErr action e >>= reply syslog poller job
-    Right msg ->
-      reply syslog poller job msg
-
-forkWorker :: Logger -> Poller Router -> Request -> Worker -> IO ()
-forkWorker syslog poller job action = void (forkIO $ void $ worker syslog poller job action)
+    Left e   -> putStrLn (show e) >> onErr action e >>= reply syslog poller job
+    Right () -> return ()
 
 recvRequest :: [B.ByteString] -> (Maybe Request)
 recvRequest []   = Nothing
@@ -73,38 +69,48 @@ recvRequest mmsg = do
     _          -> Nothing
 
 stopRouter :: RouterFH -> IO ()
-stopRouter (RouterFH ctrl) = do
-  putMVar ctrl ()
-  takeMVar ctrl
+stopRouter (RouterFH p) = cancel p
 
 startRouter :: Logger -> Endpoint -> Context -> Worker -> IO RouterFH
 startRouter syslog endpoint ctx action = do
   notice syslog (printf "starting zmq.router: %s" (dumpEndpointStr endpoint))
-  ctrl  <- newEmptyMVar
-  ionum <- fmap (fromIntegral . max 1) (ioThreads ctx)
-  caps  <- fmap (max 1) getNumCapabilities
-  void $ flip forkFinally (\_ -> void $ putMVar ctrl ()) $
-    withSocket ctx Router $ \fh -> do
-      setHWM (10 * caps * ionum, 10 * caps * ionum) fh
-      configAndBind fh (dumpEndpointStr endpoint)
-      go ctrl fh
-  return (RouterFH ctrl)
+  fh     <- zmqSocket
+  poller <- newIOLoop_ "router" fh
+  _      <- forkFinally (go poller) (\_ -> close fh)
+  return (RouterFH poller)
     where
-      recvLoop poller = do
-        msg <- recvMsg poller
-        when (isJust msg) $ do
-          let mreq = recvRequest (fromJust msg)
-          when (isJust mreq) (forkWorker syslog poller (fromJust mreq) action)
-          recvLoop poller
+      zmqSocket = do
+        fh <- socket ctx Router
+        setHWM (1000, 1000) fh
+        configAndBind fh (dumpEndpointStr endpoint)
+        return fh
 
-      go ctrl fh = do
+      acceptReq poller msg = do
+        let mreq = recvRequest msg
+        when (isJust mreq) (worker syslog poller (fromJust mreq) action)
+
+      splitWorkload = go [] []
+        where
+          go small large []       = (small, large)
+          go small large (x : xs)
+            | sizeOf x < 1024     = go (x : small) large xs
+            | otherwise           = go small (x : large) xs
+            where
+              sizeOf = foldl' (+) 0 . map B.length
+
+      acceptReqs poller msg = do
+        let (small, large) = splitWorkload msg
+        mapM_ (acceptReq poller) small
+        if (length large > 4)
+          then void $ forkIO $ mapM_ (acceptReq poller) large
+          else mapM_ (acceptReq poller) large
+
+      recvLoop poller = do
+        recvMsg poller >>= acceptReqs poller
+        recvLoop poller
+
+      go poller = do
         warning syslog "router has started"
-        caps   <- fmap (max 1) getNumCapabilities
-        poller <- newIOLoop_ "router" (caps * 128) (caps * 128) fh
-        wait   <- newQSemN 0
-        _      <- forkFinally (recvLoop poller) (const $ signalQSemN wait 1)
-        _      <- forkFinally (pollLoop syslog poller) (const $ signalQSemN wait 1)
-        takeMVar ctrl
-        cancel poller
-        waitQSemN wait 2
+        t <- forkIO (recvLoop poller)
+        pollLoop syslog poller `finally` (killThread t)
         warning syslog "router has quit"

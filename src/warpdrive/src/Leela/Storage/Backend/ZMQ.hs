@@ -65,7 +65,7 @@ internalError m =
 
 send :: ClientFH Dealer -> Query -> IO Reply
 send pool req = let msg = (encode req) `using` (evalList rdeepseq)
-                in request 5000 pool msg >>= evaluate . recv
+                in request pool msg >>= evaluate . recv
 
 send_ :: ClientFH Dealer -> Query -> IO ()
 send_ pool req = do

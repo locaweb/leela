@@ -30,26 +30,26 @@ module Leela.HZMQ.Dealer
        ) where
 
 import           Data.Word
-import           Data.IORef
 import           Data.Maybe
 import           System.ZMQ4
 import           Leela.Logger
 import           Control.Monad
 import           Leela.Helpers
 import           Data.Serialize
-import           System.Timeout
 import qualified Data.ByteString as B
 import           Leela.Data.Pool
 import           Leela.Data.Time
-import qualified Data.HashMap.Lazy as M
 import           Leela.HZMQ.IOLoop
 import           Control.Exception
+import qualified STMContainers.Map as M
 import           Control.Concurrent
 import           Leela.Data.Counter
+import           Leela.Data.Timeout
 import           Control.Applicative
 import           Leela.Data.Endpoint
 import           Leela.HZMQ.ZHelpers
 import qualified Data.ByteString.Lazy as L
+import           Control.Concurrent.STM
 
 type JKey = Word16
 
@@ -58,15 +58,20 @@ newtype Job = Job (JKey, MVar [B.ByteString])
 data ClientConf a = ClientConf { resources :: IO [Endpoint] }
 
 data Client = Bidirectional { logger  :: Logger
+                            , manager :: Manager
                             , dealer  :: Poller Dealer
-                            , cstate  :: IORef (M.HashMap JKey Job)
+                            , cstate  :: M.Map JKey Job
                             , counter :: Counter JKey
                             }
             | Unidirectional { logger   :: Logger
+                             , manager  :: Manager
                              , pipeline :: Either (Poller Push) (Poller Pull)
                              }
 
-newtype ClientFH a = ClientFH (Client, IO ())
+newtype ClientFH a = ClientFH Client
+
+unit :: Int
+unit = 5
 
 readKey :: Job -> JKey
 readKey (Job (v, _)) = v
@@ -74,33 +79,37 @@ readKey (Job (v, _)) = v
 readJob :: Job -> MVar [B.ByteString]
 readJob (Job (_, v)) = v
 
-modifyState :: IORef a -> (a -> Maybe a) -> IO ()
-modifyState ioref f = atomicModifyIORef' ioref $ \state ->
-  case (f state) of
-   Nothing     -> (state, ())
-   Just state' -> (state', ())
-
-request :: Int -> ClientFH Dealer -> [L.ByteString] -> IO (Maybe [B.ByteString])
-request maxwait (ClientFH (client, _)) msg = bracket acquire release useFunc
+request :: ClientFH Dealer -> [L.ByteString] -> IO (Maybe [B.ByteString])
+request (ClientFH client) msg = bracket acquire release useFunc
     where
       acquire = newJob client msg
 
       useFunc Nothing         = return Nothing
-      useFunc (Just (job, _)) = timeout (maxwait * 1000) (takeMVar (readJob job))
+      useFunc (Just (job, _)) = do
+        withHandle (manager client) tryCancel (fmap build $ takeMVar ref)
+          where
+            ref = readJob job
+
+            tryCancel = do
+              warning (logger client) "Dealer#request: timeout"
+              void $ tryPutMVar ref []
+
+      build [] = Nothing
+      build xs = Just xs
 
       release Nothing             = return ()
       release (Just (job, abort)) = abort >> delJob client (readKey job)
 
 push :: ClientFH Push -> [L.ByteString] -> IO Bool
-push (ClientFH (client, _)) msg =
+push (ClientFH client) msg =
   case (pipeline client) of
     Left poller -> sendMsg_ (logger client) poller msg
     _           -> return False
 
-pull (ClientFH (client, _)) =
+pull (ClientFH client) =
   case (pipeline client) of
     Right poller -> recvMsg poller
-    _            -> return Nothing
+    _            -> return []
 
 newJob :: Client -> [L.ByteString] -> IO (Maybe (Job, IO ()))
 newJob client msg = do
@@ -111,11 +120,11 @@ newJob client msg = do
     Just func -> do
       shmem <- newEmptyMVar
       let job = Job (key, shmem)
-      modifyState (cstate client) (Just . M.insert key job)
+      atomically $ M.insert job key (cstate client)
       return (Just (job, func))
 
 delJob :: Client -> JKey -> IO ()
-delJob client key = modifyState (cstate client) (Just . M.delete key)
+delJob client key = atomically $ M.delete key (cstate client)
 
 reply :: Job -> [B.ByteString] -> IO ()
 reply (Job (_, mvar)) ans = void $ tryPutMVar mvar ans
@@ -142,98 +151,93 @@ createWorker syslog ioloop addr = do
 createDealer :: Logger -> ClientConf Dealer -> Context -> IO (ClientFH Dealer)
 createDealer syslog cfg ctx = do
   notice syslog "creating zmq.dealer"
-  caps   <- fmap (max 1) getNumCapabilities
   fh     <- zmqSocket
   client <- Bidirectional syslog
-              <$> (newIOLoop_ "dealer" (caps * 256) (caps * 128) fh)
-              <*> (newIORef M.empty)
+              <$> timeout unit
+              <*> (newIOLoop_ "dealer" fh)
+              <*> atomically M.new
               <*> newCounter
   runClient syslog cfg client
     where
       zmqSocket = do
         fh    <- socket ctx Dealer
-        caps  <- fmap (max 1) getNumCapabilities
-        ionum <- fmap (fromIntegral . max 1) (ioThreads ctx)
-        setHWM (caps * ionum, caps * ionum) fh
+        setHWM (5, 5) fh
         config fh
         return fh
 
 createPush :: Logger -> ClientConf Push -> Context -> IO (ClientFH Push)
 createPush syslog cfg ctx = do
   notice syslog "creating zmq.push"
-  caps   <- fmap (max 1) getNumCapabilities
   fh     <- zmqSocket
   client <- Unidirectional syslog
-              <$> Left
-              <$> (newIOLoop_ "pipeline" 0 (caps * 128) fh)
+              <$> timeout unit
+              <*> (Left <$> (newIOLoop_ "pipeline" fh))
   runClient syslog cfg client
     where
       zmqSocket = do
         fh   <- socket ctx Push
-        caps <- fmap (max 1) getNumCapabilities
-        setHWM (caps * 8, caps * 8) fh
+        setHWM (5, 5) fh
         config fh
         return fh
 
 createPull :: Logger -> ClientConf Pull -> Context -> IO (ClientFH Pull)
 createPull syslog cfg ctx = do
   notice syslog "creating zmq.pull"
-  caps   <- fmap (max 1) getNumCapabilities
   fh     <- zmqSocket
   client <- Unidirectional syslog
-              <$> Right
-              <$> (newIOLoop_ "pipeline" (caps * 128) 0 fh)
+              <$> timeout unit
+              <*> (Right <$> (newIOLoop_ "pipeline" fh))
   runClient syslog cfg client
     where
       zmqSocket = do
         fh   <- socket ctx Pull
-        caps <- fmap (max 1) getNumCapabilities
-        setHWM (caps * 8, caps * 8) fh
+        setHWM (5, 5) fh
         config fh
         return fh
 
 runClient :: Logger -> ClientConf a -> Client -> IO (ClientFH a)
 runClient syslog cfg client = do
-  qsem <- newQSemN 0
   pool <- createPool (onPoller (createWorker syslog)) (onPoller (destroyWorker syslog))
-  poolUpdate cfg pool
-  _    <- forkFinally
-            (supervise syslog "startDealer#poolUpdate" $ foreverWith (onPoller alive) (poolUpdate cfg pool >> sleep 1))
-            (const $ signalQSemN qsem 1)
-  _    <- forkFinally recvLoop (const $ signalQSemN qsem 1)
-
-  _    <- forkFinally ioloop (const $ signalQSemN qsem 1)
-  return (ClientFH (client, waitQSemN qsem 3 >> onPoller (`useSocket` close)))
+  forkFinally (go pool) (\_ -> onPoller (`useSocket` close))
+  return (ClientFH client)
     where
+      go pool = do
+        warning syslog "dealer has started"
+        poolUpdate cfg pool
+        t0   <- forkIO (supervise syslog "Dealer#poolUpdate" $
+                          foreverWith (onPoller alive) (poolUpdate cfg pool >> sleep 1))
+        t1   <- forkIO recvLoop
+        _    <- ioloop `finally` (mapM_ killThread [t0, t1])
+        warning syslog "dealer has quit"
+        
       recvAns msg =
         case (break B.null msg) of
           (key@(_:_), (_:ans)) -> do
-            state <- readIORef (cstate client)
-            case (decodeKey (last key) >>= flip M.lookup state) of
+            value <- atomically $ maybe (return Nothing) (flip M.lookup (cstate client)) (decodeKey $ last key)
+            case value of
               Just job -> reply job ans
               Nothing  -> return ()
           _                    -> return ()
 
       recvLoop =
         case client of
-          Bidirectional _ p _ _ -> do
-            msg <- recvMsg p
-            when (isJust msg) (recvAns (fromJust msg) >> recvLoop)
+          Bidirectional _ _ p _ _ -> do
+            recvMsg p >>= mapM_ recvAns
+            recvLoop
           _                     -> return ()
 
 
       onPoller :: forall b. (forall a. Poller a -> b) -> b
       onPoller f = case client of
-                     Bidirectional _ p _ _ -> f p
-                     Unidirectional _ p    -> either f f p
+                     Bidirectional _ _ p _ _ -> f p
+                     Unidirectional _ _ p    -> either f f p
 
       ioloop = case client of
-                 Bidirectional _ p _ _ -> pollLoop (logger client) p
-                 Unidirectional _ p    -> either (pollOutLoop (logger client)) (pollInLoop (logger client)) p
+                 Bidirectional _ _ p _ _ -> pollLoop (logger client) p
+                 Unidirectional _ _ p    -> either (pollOutLoop (logger client)) (pollInLoop (logger client)) p
 
 stopDealer :: ClientFH a -> IO ()
-stopDealer (ClientFH (client, waitStop)) = do
+stopDealer (ClientFH client) = do
   case client of
     Bidirectional {}  -> cancel (dealer client)
     Unidirectional {} -> either cancel cancel (pipeline client)
-  waitStop

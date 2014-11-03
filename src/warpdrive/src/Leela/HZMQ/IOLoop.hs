@@ -21,7 +21,6 @@ module Leela.HZMQ.IOLoop
        , sendMsg
        , recvMsg
        , sendMsg_
-       , aliveSTM
        , pollLoop
        , newIOLoop
        , useSocket
@@ -30,27 +29,25 @@ module Leela.HZMQ.IOLoop
        , pollOutLoop
        ) where
 
+import           Data.IORef
 import           Data.Maybe
 import           System.ZMQ4
 import           Leela.Logger
 import           Control.Monad
-import           Leela.Helpers
 import           Control.DeepSeq
 import qualified Data.ByteString as B
-import           Control.Exception
 import           Control.Concurrent
 import           Leela.HZMQ.ZHelpers
 import qualified Data.ByteString.Lazy as L
-import           Control.Concurrent.STM
 
 type SendCallback a = Socket a -> [B.ByteString] -> IO ()
 type RecvCallback a = Socket a -> IO [B.ByteString]
 
 data Poller a = Poller { pollName :: String
-                       , pollInQ  :: TBQueue [B.ByteString]
-                       , pollOutQ :: TBQueue (MVar [B.ByteString])
+                       , pollInQ  :: MVar [[B.ByteString]]
+                       , pollOutQ :: Chan (IORef [B.ByteString])
                        , pollLock :: MVar (Socket a)
-                       , pollCtrl :: TVar Bool
+                       , pollCtrl :: MVar Bool
                        }
 
 data PollMode = PollRdonlyMode
@@ -66,58 +63,53 @@ hasRead :: PollMode -> Bool
 hasRead PollWronlyMode = False
 hasRead _              = True
 
-newIOLoop :: String -> TBQueue [B.ByteString] -> TBQueue (MVar [B.ByteString]) -> Socket a -> IO (Poller a)
+newIOLoop :: String -> MVar [[B.ByteString]] -> Chan (IORef [B.ByteString]) -> Socket a -> IO (Poller a)
 newIOLoop name qsrc qdst fh = do
-  ctrl <- newTVarIO True
+  ctrl <- newEmptyMVar
   lock <- newMVar fh
   return (Poller name qsrc qdst lock ctrl)
 
-newIOLoop_ :: String -> Int -> Int -> Socket a -> IO (Poller a)
-newIOLoop_ name srcsz dstsz fh = do
-  qsrc <- newTBQueueIO srcsz
-  qdst <- newTBQueueIO dstsz
+newIOLoop_ :: String -> Socket a -> IO (Poller a)
+newIOLoop_ name fh = do
+  qsrc <- newMVar []
+  qdst <- newChan
   newIOLoop name qsrc qdst fh
 
-aliveSTM :: Poller a -> STM Bool
-aliveSTM = readTVar . pollCtrl
-
 alive :: Poller a -> IO Bool
-alive = atomically . aliveSTM
+alive p = liftM (maybe True id) (tryReadMVar (pollCtrl p))
 
-tryWriteTBQueue :: TBQueue a -> a -> STM Bool
-tryWriteTBQueue q a = (writeTBQueue q a >> return True) `orElse` (return False)
+enqueueD :: Poller a -> IORef [B.ByteString] -> IO Bool
+enqueueD p a = do
+  writeChan (pollOutQ p) a
+  return True
 
-enqueue :: Poller a -> [B.ByteString] -> STM Bool
-enqueue _ []  = return False
-enqueue p msg =
-  case (break B.null msg) of
-    (_, (_ : [])) -> return False
-    _             -> tryWriteTBQueue (pollInQ p) msg
+enqueueS :: Poller a -> [[B.ByteString]] -> IO Bool
+enqueueS _ []   = return False
+enqueueS p msgs = do
+  putMVar (pollInQ p) (filter checkMsg msgs)
+  return True
+    where
+      checkMsg msg =
+        case (break B.null msg) of
+          (_, (_ : [])) -> False
+          _             -> True
 
-dequeue :: Poller a -> Maybe [B.ByteString] -> STM (Either [B.ByteString] (MVar [B.ByteString]))
-dequeue _ (Just msg) = return (Left msg)
-dequeue p _          = liftM Right (readTBQueue (pollOutQ p))
+dequeue :: Poller a -> (Maybe [B.ByteString]) -> IO [B.ByteString]
+dequeue _ (Just acc) = return acc
+dequeue p _          = readChan (pollOutQ p) >>= readIORef
 
-recvMsg :: (Receiver a) => Poller a -> IO (Maybe [B.ByteString])
-recvMsg p = atomically $ do
-  ok <- aliveSTM p
-  if ok
-   then liftM Just (readTBQueue (pollInQ p))
-   else return Nothing
-
+recvMsg :: (Receiver a) => Poller a -> IO [[B.ByteString]]
+recvMsg p = takeMVar (pollInQ p)
+ 
 sendMsg' :: (Sender a) => Logger -> Poller a -> [B.ByteString] -> IO (Maybe (IO ()))
 sendMsg' syslog p msg = do
-  mvar <- msg `deepseq` newMVar msg
-  ok   <- atomically $ tryWriteTBQueue (pollOutQ p) mvar
+  ref <- msg `deepseq` newIORef msg
+  ok <- enqueueD p ref
   if ok
-   then return $ Just (dropMessage mvar)
+   then return $ Just (writeIORef ref [])
    else do
      warning syslog (printf "dropping message [%s#no space left]" (pollName p))
      return Nothing
-    where
-      dropMessage mvar = do
-        ok <- liftM isJust (tryTakeMVar mvar)
-        when ok (warning syslog (printf "dropping message [%s#cancel]" (pollName p)))
 
 sendMsg :: (Sender a) => Logger -> Poller a -> [L.ByteString] -> IO (Maybe (IO ()))
 sendMsg syslog p = sendMsg' syslog p . map L.toStrict
@@ -125,16 +117,8 @@ sendMsg syslog p = sendMsg' syslog p . map L.toStrict
 sendMsg_ :: (Sender a) => Logger -> Poller a -> [L.ByteString] -> IO Bool
 sendMsg_ syslog p = liftM isJust . sendMsg syslog p
 
-readReq :: Logger -> String -> Either [B.ByteString] (MVar [B.ByteString]) -> IO (Maybe [B.ByteString])
-readReq _ _ (Left msg)           = return (Just msg)
-readReq syslog name (Right mvar) = do
-  mmsg <- tryTakeMVar mvar
-  when (isNothing mmsg) $
-    warning syslog (printf "message has been dropped [%s#cancel]" name)
-  return mmsg
-
 cancel :: Poller a -> IO ()
-cancel = atomically . flip writeTVar False . pollCtrl
+cancel p = void $ tryPutMVar (pollCtrl p) True
 
 useSocket :: Poller a -> (Socket a -> IO b) -> IO b
 useSocket p = withMVar (pollLock p)
@@ -143,72 +127,52 @@ pollOutLoop :: (Sender a) => Logger -> Poller a -> IO ()
 pollOutLoop syslog = gpollLoop syslog PollWronlyMode (const $ return []) sendAll
 
 pollInLoop :: (Receiver a) => Logger -> Poller a -> IO ()
-pollInLoop syslog = gpollLoop syslog PollRdWrMode receiveMulti (\_ _ -> return ())
+pollInLoop syslog = gpollLoop syslog PollRdonlyMode receiveMulti (\_ _ -> return ())
 
 pollLoop :: (Receiver a, Sender a) => Logger -> Poller a -> IO ()
 pollLoop syslog = gpollLoop syslog PollRdWrMode receiveMulti sendAll
 
 gpollLoop :: Logger -> PollMode -> RecvCallback a -> SendCallback a -> Poller a -> IO ()
-gpollLoop syslog mode recvCallback sendCallback p = do
-  fd               <- useSocket p fileDescriptor
-  (waitW, cancelW) <- if (hasWrite mode)
-                       then waitFor (threadWaitWrite fd)
-                       else return (return (), return ())
-  (waitR, cancelR) <- if (hasRead mode)
-                       then waitFor (threadWaitRead fd)
-                       else return (return (), return ())
-  supervise syslog "ioloop" (go waitR waitW Nothing) `finally` (cancelR >> cancelW)
+gpollLoop _ mode recvCallback sendCallback p = go
     where
-      waitFor waitFunc = do
-        v <- newEmptyTMVarIO
-        t <- forkIO $ supervise syslog "ioloop/waitFor" $ forever $ do
-          _ <- waitFunc
-          atomically $ putTMVar v ()
-          atomically $ isEmptyTMVar v >>= flip unless retry
-        return (takeTMVar v, killThread t)
+      handleRecv acc = do
+        mmsg <- useSocket p readMsg
+        case mmsg of
+          Just msg ->
+            handleRecv (msg : acc)
+          Nothing  ->
+            enqueueS p (reverse acc)
+          where
+            readMsg fh = do
+              zready <- events fh
+              if (In `elem` zready)
+                then fmap Just $ recvCallback fh
+                else return Nothing
 
-      handleRecv fh = do
-        zready <- events fh
-        when (In `elem` zready) $ do
-          ok <- recvCallback fh >>= atomically . enqueue p
-          unless ok (warning syslog (printf "dropping message [%s#rcvqueue full]" (pollName p)))
-          handleRecv fh
+      handleSend state = do
+        msg  <- dequeue p state
+        rest <- useSocket p $ \fh -> do
+          zready <- events fh
+          if (Out `elem` zready)
+            then sendCallback fh msg >> return Nothing
+            else return $ Just msg
+        case rest of
+          Nothing -> handleSend rest
+          _       -> return rest
 
-      handleSend msg fh = do
-        zready <- events fh
-        if (Out `elem` zready)
-         then sendCallback fh msg >> return Nothing
-         else return (Just msg)
+      goWrite fh miss = do
+        threadWaitWrite fh
+        handleSend miss >>= goWrite fh
 
-      execPoll waitR waitW wMiss =
-        case mode of
-          PollRdonlyMode ->
-            waitR >> return (True, Nothing)
-          PollWronlyMode -> do
-            wready <- waitW >> liftM Just (dequeue p wMiss)
-            return (False, wready)
-          PollRdWrMode   -> do
-            wready <- (waitW >> liftM Just (dequeue p wMiss)) `orElse` (return Nothing)
-            rready <- (waitR >> return True) `orElse` (return False)
-            when (not rready && isNothing wready) retry
-            return (rready, wready)
+      goRead fh = do
+        threadWaitRead fh
+        handleRecv []
+        goRead fh
 
-      go waitR waitW wMiss = do
-        ready <- atomically $ do
-          ok <- readTVar (pollCtrl p)
-          if ok
-           then fmap Right (execPoll waitR waitW wMiss)
-           else return (Left ())
-        case ready of
-          Left ()                  -> return ()
-          Right (rready, Just req) -> do
-            when rready $ useSocket p handleRecv
-            mmsg <- readReq syslog (pollName p) req
-            case mmsg of
-              Nothing  -> go waitR waitW wMiss
-              Just msg -> do
-                wMiss' <- useSocket p (handleSend msg)
-                go waitR waitW wMiss'
-          Right (rready, Nothing)  -> do
-            when rready $ useSocket p handleRecv
-            go waitR waitW wMiss
+      go = do
+        fh  <- useSocket p fileDescriptor
+        t0  <- forkIO (when (hasRead mode) $ goRead fh)
+        t1  <- forkIO (when (hasWrite mode) $ goWrite fh Nothing)
+        modifyMVar_ (pollCtrl p) (\_ -> return False)
+        mapM_ killThread [t0, t1]
+
