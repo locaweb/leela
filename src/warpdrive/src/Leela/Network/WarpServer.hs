@@ -53,7 +53,6 @@ import           Leela.Data.TimeSeries
 import           Control.Concurrent.STM
 import           Leela.Network.Protocol
 import           Data.ByteString.Builder
-import           Control.Parallel.Strategies
 
 data WarpServer = WarpServer { logger   :: Logger
                              , stat     :: IORef [(String, [Endpoint])]
@@ -265,13 +264,10 @@ process _ srv (Close _ sig fh) flush = do
   closeFD srv (sigUser sig, fh)
   flush Last
 
-strictEncode :: Reply -> [L.ByteString]
-strictEncode = withStrategy (evalList rdeepseq) . encode
-
 warpServer :: (GraphBackend m, AttrBackend m) => WarpServer -> NominalDiffTime -> Endpoint -> Context -> m -> IO RouterFH
 warpServer core ttl addr ctx storage = startRouter (logger core) addr ctx (worker storage core ttl)
     where
-      worker db core ttl = Worker f (evaluate . strictEncode . encodeE)
+      worker db core ttl = Worker f (return . encode . encodeE)
         where
           f msg flush = do
             time     <- now
@@ -279,9 +275,9 @@ warpServer core ttl addr ctx storage = startRouter (logger core) addr ctx (worke
             case (decode (time, ttl) (readSecret secretdb) msg) of
               Left e@(Fail c m) -> do
                 notice (logger core) (printf "FAIL %d %s" c (maybe "" id m))
-                flush (strictEncode e)
-              Left e                 -> flush (strictEncode e)
-              Right q                -> process db core q (flush . strictEncode)
+                flush (encode e)
+              Left e            -> flush (encode e)
+              Right q           -> process db core q (flush . encode)
 
 warpLogServer :: (GraphBackend m, AttrBackend m) => ClientFH Push -> m -> LogBackend m
 warpLogServer _ db =

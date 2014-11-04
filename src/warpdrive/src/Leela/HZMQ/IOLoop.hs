@@ -104,7 +104,7 @@ recvMsg p = takeMVar (pollInQ p)
 sendMsg' :: (Sender a) => Logger -> Poller a -> [B.ByteString] -> IO (Maybe (IO ()))
 sendMsg' syslog p msg = do
   ref <- msg `deepseq` newIORef msg
-  ok <- enqueueD p ref
+  ok  <- enqueueD p ref
   if ok
    then return $ Just (writeIORef ref [])
    else do
@@ -135,13 +135,15 @@ pollLoop syslog = gpollLoop syslog PollRdWrMode receiveMulti sendAll
 gpollLoop :: Logger -> PollMode -> RecvCallback a -> SendCallback a -> Poller a -> IO ()
 gpollLoop _ mode recvCallback sendCallback p = go
     where
-      handleRecv acc = do
-        mmsg <- useSocket p readMsg
-        case mmsg of
-          Just msg ->
-            handleRecv (msg : acc)
-          Nothing  ->
-            enqueueS p (reverse acc)
+      handleRecv acc
+        | length acc == 32 = enqueueS p acc >> handleRecv []
+        | otherwise        = do
+          mmsg <- useSocket p readMsg
+          case mmsg of
+            Just msg ->
+              handleRecv (msg : acc)
+            Nothing  ->
+              enqueueS p acc
           where
             readMsg fh = do
               zready <- events fh
@@ -151,14 +153,16 @@ gpollLoop _ mode recvCallback sendCallback p = go
 
       handleSend state = do
         msg  <- dequeue p state
-        rest <- useSocket p $ \fh -> do
-          zready <- events fh
-          if (Out `elem` zready)
-            then sendCallback fh msg >> return Nothing
-            else return $ Just msg
+        rest <- useSocket p (sendMsg msg)
         case rest of
           Nothing -> handleSend rest
           _       -> return rest
+          where
+            sendMsg msg fh = do
+              zready <- events fh
+              if (Out `elem` zready)
+                then sendCallback fh msg >> return Nothing
+                else return $ Just msg
 
       goWrite fh miss = do
         threadWaitWrite fh
