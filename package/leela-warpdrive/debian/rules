@@ -20,6 +20,8 @@ override_dh_auto_build:
 	dh_testdir
 	cd ../../src/warpdrive; { \
           $(bin_cabal) update; \
+	  $(bin_cabal) install alex; \
+	  $(bin_cabal) install happy; \
           $(bin_cabal) sandbox init; \
           $(bin_cabal) install --only-dependencies --force-reinstalls; \
           $(bin_cabal) configure -O2; \
