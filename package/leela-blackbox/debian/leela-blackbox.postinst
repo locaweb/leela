@@ -1,6 +1,6 @@
 #!/bin/sh
 
-adduser --system --quiet --disabled-password --disable-login --no-create-home --group --shell /bin/false leela
+adduser --quiet --system --home /var/lib/leela --group --no-create-home --shell /bin/nologin leela
 
 #DEBHELPER#
 
