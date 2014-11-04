@@ -21,7 +21,6 @@ module Leela.HZMQ.Router
        , startRouter
        ) where
 
-import           Data.List
 import           Data.Maybe
 import           System.ZMQ4
 import           Leela.Logger
@@ -89,21 +88,7 @@ startRouter syslog endpoint ctx action = do
         let mreq = recvRequest msg
         when (isJust mreq) (worker syslog poller (fromJust mreq) action)
 
-      splitWorkload = go [] []
-        where
-          go small large []       = (small, large)
-          go small large (x : xs)
-            | sizeOf x < 1024     = go (x : small) large xs
-            | otherwise           = go small (x : large) xs
-            where
-              sizeOf = foldl' (+) 0 . map B.length
-
-      acceptReqs poller msg = do
-        let (small, large) = splitWorkload msg
-        mapM_ (acceptReq poller) small
-        if (length large > 4)
-          then void $ forkIO $ mapM_ (acceptReq poller) large
-          else mapM_ (acceptReq poller) large
+      acceptReqs poller = mapM_ (acceptReq poller)
 
       recvLoop poller = do
         recvMsg poller >>= acceptReqs poller
