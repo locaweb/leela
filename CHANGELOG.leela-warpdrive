@@ -1,5 +1,13 @@
 --*-- mode: text; --*--
 
+v5.10.0 | 2014-11-04
+
+  * performance improvements
+
+v5.9.0 | 2014-10-08
+
+  * new function syntax for attr get operations
+
 v5.8.0 | 2014-08-22
   * signature timestamp validation
   * use redis for caching and to avoid index option on every metric
