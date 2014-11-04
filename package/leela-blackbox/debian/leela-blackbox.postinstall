@@ -1,0 +1,5 @@
+#!/bin/sh
+
+adduser --system --quiet --disabled-password --disable-login --no-create-home --group --shell /bin/false leela
+
+exit 0
