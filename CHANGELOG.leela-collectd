@@ -1,5 +1,8 @@
 --*-- mode: text; --*--
 
+v6.7.1 | 2014-11-05
+  * bugfix: segfault initializing context
+
 v6.7.0 | 2014-11-03
   * provides a log function to leela context
 
