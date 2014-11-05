@@ -463,14 +463,11 @@ int wl_init ()
   do
   {
     wl_leela_cfg->ctx = leela_lql_context_init2((const leela_endpoint_t * const *) wl_leela_cfg->cluster, wl_leela_cfg->user, wl_leela_cfg->pass, wl_leela_cfg->timeout, wl_logcallback, NULL);
-    if (wl_leela_cfg->ctx == NULL)
-    {
-      ERROR("write_leela plugin: error initializing leela context");
-      wl_data_free(wl_leela_cfg);
-      sleep(1);
-      continue;
-    }
-    break;
+    if (wl_leela_cfg->ctx != NULL)
+    { break; }
+      
+    ERROR("write_leela plugin: error initializing leela context");
+    sleep(5);
   } while (1);
 
   data.data      = wl_leela_cfg;
