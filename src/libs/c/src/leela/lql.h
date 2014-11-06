@@ -213,6 +213,15 @@ LIBLEELA_API lql_cursor_t *leela_lql_cursor_init_default (lql_context_t *ctx);
  */
 LIBLEELA_API lql_cursor_t *leela_lql_cursor_init_on (lql_context_t *ctx, const leela_endpoint_t *endpoint, const char *username, const char *secret, int timeout_in_ms);
 
+/*! Repoen a cursor [the cursor must not be closed].
+ *
+ * /param cursor The cursor to reopen;
+ * 
+ * /return * 0 : sucess;
+ *         * x : an error has ocurred;
+ */
+LIBLEELA_API int leela_lql_cursor_restart (lql_cursor_t *cursor);
+
 /*! Executes a query. To consume the results use leela_cursor_next
  *
  *  \param cursor A valid cursor to use;

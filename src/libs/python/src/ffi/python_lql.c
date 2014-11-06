@@ -334,6 +334,9 @@ PyMethodDef pylql_cursor_methods[] = {
   {"fetch", pylql_cursor_fetch, METH_VARARGS,
    NULL,
   },
+  {"restart", pylql_cursor_restart, METH_VARARGS,
+   NULL,
+  },
   {NULL}
 };
 
@@ -493,6 +496,15 @@ PyObject *pylql_cursor_close(PyObject *self, PyObject *args)
   leela_lql_cursor_close(cursor->cursor);
   Py_END_ALLOW_THREADS
   cursor->cursor = NULL;
+  Py_RETURN_NONE;
+}
+
+PyObject *pylql_cursor_restart(PyObject *self, PyObject *args)
+{
+  (void) args;
+  pylql_cursor_t *cursor = (pylql_cursor_t *) self;
+  if (leela_lql_cursor_restart(cursor->cursor) != 0)
+  { PyErr_SetString(PyExc_RuntimeError, "error restarting cursor"); }
   Py_RETURN_NONE;
 }
 

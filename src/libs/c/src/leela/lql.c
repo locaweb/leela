@@ -511,6 +511,19 @@ handle_error:
   return(NULL);
 }
 
+int leela_lql_cursor_restart (lql_cursor_t *cursor)
+{
+  if (cursor == NULL)
+  { return(-1); }
+
+  free(cursor->channel);
+  cursor->channel  = NULL;
+  cursor->elems[0] = 0;
+  cursor->elems[1] = 0;
+  cursor->feedback = -1;
+  return(0);
+}
+
 lql_cursor_t *leela_lql_cursor_init_on (lql_context_t *ctx, const leela_endpoint_t *endpoint, const char *username, const char *secret, int timeout_in_ms)
 {
   int linger            = 0;
