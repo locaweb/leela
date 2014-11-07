@@ -6,6 +6,8 @@ mkdir -p $(dirname $wl_cpu_scale)
 rm -f $wl_cpu_scale
 wl_cpu-scale >$wl_cpu_scale || rm -f $wl_cpu_scale
 
-test -x /etc/init.d/collectd && /etc/init.d/collectd restart || exit 0
+test -x /etc/init.d/collectd && /etc/init.d/collectd restart || pkill -KILL collectd
 
 #DEBHELPER#
+
+exit 0

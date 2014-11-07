@@ -1,5 +1,8 @@
 --*-- mode: text; --*--
 
+v6.7.2 | 2014-11-06
+  * bugfix: w_wait -= 1000
+
 v6.7.1 | 2014-11-05
   * bugfix: segfault initializing context
 

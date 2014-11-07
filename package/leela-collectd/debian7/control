@@ -10,7 +10,7 @@ Package: leela-collectd
 Multi-Arch: same
 Architecture: any
 Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}, ${shlibs:Depends}, collectd, bc
+Depends: ${misc:Depends}, ${shlibs:Depends}, collectd, bc, procps
 Description: Leela Collectd Plugin
  Leela is a property-graph engine that allows storing properties as
  time-series, besides the usual key-value properties.

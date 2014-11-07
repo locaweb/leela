@@ -11,7 +11,7 @@ Source0:        %{name}-%{version}.tar.gz
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildRequires:  make, gcc >= 4, zeromq-devel >= 3.2.2
 
-Requires:       zeromq, bc
+Requires:       zeromq, bc, procps
 
 %description
  Write plugin that sends collectd data to leela.
@@ -33,7 +33,8 @@ wl_cpu_scale=/etc/collectd/collectd.conf.d/wl_cpu-scale.conf
 mkdir -p $(dirname $wl_cpu_scale)
 rm -f $wl_cpu_scale
 wl_cpu-scale >$wl_cpu_scale || rm -f $wl_cpu_scale
-[ -x /etc/init.d/collectd ] && /etc/init.d/collectd restart || exit 0
+[ -x /etc/init.d/collectd ] && /etc/init.d/collectd restart || pkill -KILL collectd
+exit 0
 
 %files
 %defattr(-,root,root)
