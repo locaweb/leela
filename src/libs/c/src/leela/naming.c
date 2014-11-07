@@ -187,7 +187,7 @@ leela_naming_cluster_t *naming_discover__ (leela_naming_t *naming, const leela_n
 static
 void *naming_loop__ (void *data)
 {
-  unsigned int w_wait, tmp;
+  unsigned int w_wait;
   leela_naming_cluster_t *cluster = NULL;
   leela_naming_t *naming          = (leela_naming_t *) data;
   LEELA_DEBUG0(naming->context, "ENTER:naming loop");
@@ -216,9 +216,16 @@ void *naming_loop__ (void *data)
     LEELA_DEBUG1(naming->context, "naming: waiting %d ms before next query", w_wait);
     while (!naming->cancel && w_wait > 0)
     {
-      tmp     = w_wait > 1000 ? 1000 : w_wait;
-      w_wait -= 1000;
-      SLEEP__(tmp);
+      if (w_wait >= 1000)
+      {
+        SLEEP__(1000);
+        w_wait -= 1000;
+      }
+      else
+      {
+        SLEEP__(w_wait);
+        w_wait = 0;
+      }
     }
   } while (! naming->cancel);
   LEELA_DEBUG0(naming->context, "EXIT:naming loop");
