@@ -56,7 +56,7 @@ worker :: Logger -> Poller Router -> Request -> Worker -> IO ()
 worker syslog poller job action = do
   mmsg <- try (onJob action (readMsg job) (reply syslog poller job))
   case mmsg of
-    Left e   -> putStrLn (show e) >> onErr action e >>= reply syslog poller job
+    Left e   -> onErr action e >>= reply syslog poller job
     Right () -> return ()
 
 recvRequest :: [B.ByteString] -> (Maybe Request)
@@ -80,7 +80,7 @@ startRouter syslog endpoint ctx action = do
     where
       zmqSocket = do
         fh <- socket ctx Router
-        setHWM (1000, 1000) fh
+        setHWM (5, 5) fh
         configAndBind fh (dumpEndpointStr endpoint)
         return fh
 
@@ -96,6 +96,7 @@ startRouter syslog endpoint ctx action = do
 
       go poller = do
         warning syslog "router has started"
-        t <- forkIO (recvLoop poller)
-        pollLoop syslog poller `finally` (killThread t)
+        caps <- getNumCapabilities
+        ts   <- replicateM caps (forkIO (recvLoop poller))
+        pollLoop syslog poller `finally` (mapM_ killThread ts)
         warning syslog "router has quit"

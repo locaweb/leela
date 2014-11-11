@@ -30,7 +30,6 @@ module Leela.HZMQ.Dealer
        ) where
 
 import           Data.Word
-import           Data.Maybe
 import           System.ZMQ4
 import           Leela.Logger
 import           Control.Monad
@@ -204,10 +203,11 @@ runClient syslog cfg client = do
       go pool = do
         warning syslog "dealer has started"
         poolUpdate cfg pool
+        caps <- getNumCapabilities
         t0   <- forkIO (supervise syslog "Dealer#poolUpdate" $
                           foreverWith (onPoller alive) (poolUpdate cfg pool >> sleep 1))
-        t1   <- forkIO recvLoop
-        _    <- ioloop `finally` (mapM_ killThread [t0, t1])
+        ts   <- replicateM caps (forkIO recvLoop)
+        _    <- ioloop `finally` (mapM_ killThread (t0 : ts))
         warning syslog "dealer has quit"
         
       recvAns msg =
