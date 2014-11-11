@@ -88,15 +88,34 @@ newWarpServer syslog statdb secretdb = makeState
       makeState =
         liftM3 (WarpServer syslog statdb secretdb) newCounter (timeout unit) M.empty
 
-makeFD :: WarpServer -> User -> IO (Time, Handle, FH, QDevice Reply)
-makeFD srv (User u) = do
-  dev  <- qnew 4
-  time <- snapshot
-  fd   <- next (fdseq srv)
-  th   <- open (tManager srv) (closeFDTimeout srv (User u, fd))
-  val  <- newTVarIO (th, time, dev)
-  M.insert u fd val (fdlist srv)
-  return (time, th, fd, dev)
+makeFD :: WarpServer -> User -> (Time -> Handle -> FH -> QDevice Reply -> IO ()) -> IO ()
+makeFD srv (User u) cc = do
+  caps         <- liftM (* 70) getNumCapabilities
+  fd           <- next (fdseq srv)
+  (active, th) <- open (tManager srv) (closeFDTimeout srv (User u, fd))
+  if (active < caps)
+    then void $ forkIO (continue fd active th)
+    else
+      if (active > 3 * caps)
+        then do
+          purge th
+          warning (logger srv) (printf "REJECT %d : %d/%d" fd active caps)
+        else void $ forkIO $ do
+          let waitfor = ceiling (delay * (fromIntegral active / fromIntegral caps))
+          warning (logger srv) (printf "DELAY %d : %d/%d" fd active caps)
+          threadDelay waitfor
+          continue fd active th
+    where
+      delay :: Double
+      delay = 0.1 * 1000 * 1000
+
+      continue fd active th = do
+        notice (logger srv) (printf "ACCEPT %d : %d" fd active)
+        dev          <- qnew 4
+        time         <- snapshot
+        val          <- newTVarIO (th, time, dev)
+        M.insert u fd val (fdlist srv)
+        cc time th fd dev
 
 withFD :: WarpServer -> (User, FH) -> (Maybe (QDevice Reply) -> IO b) -> IO b
 withFD srv ((User u), fh) action = do
@@ -128,7 +147,7 @@ closeFD srv (User u, fh) = do
 touchQWrite :: Handle -> QDevice a -> a -> IO ()
 touchQWrite th q a = touch th >> qwrite q a
 
-navigate :: (GraphBackend m) => m -> Handle -> QDevice Reply -> (Matcher, [(GUID -> Matcher)]) -> IO ()
+navigate :: (GraphBackend m) => m -> Handle -> QDevice Reply -> (Matcher, [(Bool, GUID -> Matcher)]) -> IO ()
 navigate db thandle queue (source, pipeline) = do
   srcpipe <- qlink 16 queue
   forkSource srcpipe
@@ -137,32 +156,42 @@ navigate db thandle queue (source, pipeline) = do
     where
       two (_, b, c) = (c, b)
 
-      asReply (Chunk (feed, path)) = Just (Item (List $ map (Path . (: path) . two) feed))
-      asReply EOF                  = Nothing
-      asReply (Error e)            = throw e
+      asReply (Chunk (feed, path))
+        | null feed && null path    = (True, Nothing)
+        | null feed                 = (True, Just $ Item (Path path))
+        | otherwise                 = (True, Just $ Item (List $ map (Path . (: path) . two) feed))
+      asReply EOF                   = (False, Nothing)
+      asReply (Error e)             = throw e
 
-      runFilter srcpipe f dstpipe = do
+      selectIf nilOk io xs
+        | nilOk || (not $ null xs) = io xs
+        | otherwise                = return ()
+
+      runFilter nilOk srcpipe f dstpipe = do
         mg <- qread srcpipe
         case mg of
           Nothing                   -> touch thandle
+          Just (Chunk ([], path))   -> do
+            unless (null path) (touchQWrite thandle queue $ Item $ Path path)
+            runFilter nilOk srcpipe f dstpipe
           Just (Chunk (feed, path)) -> do
             forM_ feed (\(_, b, c) ->
-              query db (touchQWrite thandle dstpipe . Chunk . (, (c, b) : path)) (f c))
-            runFilter srcpipe f dstpipe
+              query db (selectIf nilOk $ touchQWrite thandle dstpipe . Chunk . (, (c, b) : path)) (f c))
+            runFilter nilOk srcpipe f dstpipe
           Just chunk                -> touchQWrite thandle dstpipe chunk
 
       forkSource dstpipe =
         forkFinally
-          (query db (touchQWrite thandle dstpipe . Chunk . (, [])) source)
+          (query db (selectIf False $ touchQWrite thandle dstpipe . Chunk . (, [])) source)
           (onTerm dstpipe)
           where
             onTerm dstpipe (Left e) = qTryWrite dstpipe (Error e)
             onTerm dstpipe _        = touchQWrite thandle dstpipe EOF
 
-      forkFilter srcpipe f = do
+      forkFilter srcpipe (nilOk, f) = do
         dstpipe <- qlink 16 queue
         forkFinally
-          (runFilter srcpipe f dstpipe)
+          (runFilter nilOk srcpipe f dstpipe)
           (onTerm dstpipe)
         return dstpipe
           where
@@ -209,34 +238,26 @@ evalLQL db core thandle queue (x:xs) = do
 
 evalFinalizer :: Logger -> Time -> FH -> QDevice Reply -> Either SomeException () -> IO ()
 evalFinalizer syslog t0 chan dev (Left e)  = do
-  t <- fmap (`diff` t0) snapshot
+  t <- liftM (`diff` t0) snapshot
   warning syslog $ printf "FAILURE: %s %s [%s ms]" (show chan) (show e) (showDouble $ milliseconds t)
   qTryWrite dev (encodeE e)
   qclose dev
 evalFinalizer syslog t0 chan dev (Right _)   = do
-  t <- fmap (`diff` t0) snapshot
+  t <- liftM (`diff` t0) snapshot
   notice syslog $ printf "SUCCESS: %s [%s ms]" (show chan) (showDouble $ milliseconds t)
   qclose dev
-
-onlyStat :: [LQL] -> Bool
-onlyStat = and . map isStat
 
 process :: (GraphBackend m, AttrBackend m) => m -> WarpServer -> Query -> (Reply -> IO ()) -> IO ()
 process storage srv (Begin sig msg) flush =
   case (chkloads (parseLQL $ sigUser sig) msg) of
     Left _      -> flush $ Fail 400 (Just "syntax error")
-    Right stmts -> do
-      (time, thandle, fh, dev) <- makeFD srv (sigUser sig)
+    Right stmts -> makeFD srv (sigUser sig) $ \time thandle fh dev -> do
       if (level (logger srv) >= NOTICE)
-       then notice (logger srv) (printf "BEGIN %s %d" (lqlDescr stmts) fh)
-       else info (logger srv) (printf "BEGIN %s %d" (show msg) fh)
-      if (onlyStat stmts)
-       then do
-         result <- try $ evalLQL storage srv thandle dev stmts
-         evalFinalizer (logger srv) time fh dev result
-       else do
-         void $ forkFinally (evalLQL storage srv thandle dev stmts) (evalFinalizer (logger srv) time fh dev)
+        then notice (logger srv) (printf "BEGIN %s %d" (lqlDescr stmts) fh)
+        else info (logger srv) (printf "BEGIN %s %d" (show msg) fh)
       flush $ Done fh
+      result <- try $ evalLQL storage srv thandle dev stmts
+      evalFinalizer (logger srv) time fh dev result
 process _ srv (Fetch sig fh) flush = do
   let channel = (sigUser sig, fh)
   notice (logger srv) (printf "FETCH %d" fh)

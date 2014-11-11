@@ -32,27 +32,28 @@ import           Leela.Storage.Graph
 import           Control.Concurrent.Async
 
 query :: (GraphBackend db) => db -> ([(GUID, Label, GUID)] -> IO ()) -> Matcher -> IO ()
-query db write (ByEdge a l b)         = do
-  ok <- hasLink db a l b
-  when ok (write [(a, l, b)])
-query db write (ByNode a)             = query db write (ByLabel a (Label "*"))
-query db write (ByLabel a (Label l0)) = loadLabels (Label <$> glob l0)
+query db write (ByNode a)             = query db write (ByLabel (Label "*") a)
+query db write (ByLabel (Label l0) a) = loadLabels True (Label <$> glob l0)
     where
-      loadLabels page = do
+      loadLabels first page = do
         labels <- getLabel db a page defaultLimit
-        if (length labels < defaultLimit)
-          then mapM_ (`loadLinks` Nothing) labels
-          else do
-            mapM_ (`loadLinks` Nothing) (init labels)
-            loadLabels (nextPage page (last labels))
+        case (length labels) of
+          0 -> when first (write [])
+          n
+            | n < defaultLimit -> mapM_ (uncurry $ loadLinks Nothing) (zip (first : repeat False) labels)
+            | otherwise        -> do
+                mapM_ (uncurry $ loadLinks Nothing) (zip (first : repeat False) (init labels))
+                loadLabels False (nextPage page (last labels))
 
-      loadLinks l page = do
+      loadLinks page first l = do
         guids <- getLink db a l page defaultLimit
-        if (length guids < defaultLimit)
-          then write (map (\b -> (a, l, b)) guids)
-          else do
-            write (map (\b -> (a, l, b)) (init guids))
-            loadLinks l (Just $ last guids)
+        case (length guids) of
+          0 -> when first (write [])
+          n
+            | n < defaultLimit -> write (map (\b -> (a, l, b)) guids)
+            | otherwise        -> do
+                write (map (\b -> (a, l, b)) (init guids))
+                loadLinks (Just $ last guids) False l
 
 execute :: [Maybe (IO ())] -> IO ()
 execute []             = return ()

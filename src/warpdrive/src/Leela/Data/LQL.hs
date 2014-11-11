@@ -41,7 +41,7 @@ data Using = Using { uUser   :: User
            deriving (Eq)
 
 data LQL = StatStmt
-         | PathStmt (Matcher, [(GUID -> Matcher)])
+         | PathStmt (Matcher, [(Bool, GUID -> Matcher)])
          | KAttrGetStmt GUID Attr [Pipeline Identity (V.Vector (Time, Double))]
          | TAttrGetStmt GUID Attr TimeRange [Pipeline Identity (V.Vector (Time, Double))]
          | KAttrListStmt GUID (Mode Attr)

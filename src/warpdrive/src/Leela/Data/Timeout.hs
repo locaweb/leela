@@ -43,7 +43,7 @@ data ReaperState = Dead
 
 data Handle = Handle Int (IORef State) Finalizer
 
-data Manager = Manager Int (IORef ReaperState) (IORef [Handle])
+data Manager = Manager Int (IORef ReaperState) (IORef (Int, [Handle]))
 
 sleep :: Int -> IO ()
 sleep s = threadDelay (s * 1000 * 1000)
@@ -51,7 +51,7 @@ sleep s = threadDelay (s * 1000 * 1000)
 timeout :: Int -> IO Manager
 timeout step = do
   st  <- newIORef Inactive
-  ref <- newIORef []
+  ref <- newIORef (0, [])
   return (Manager step st ref)
 
 forkReaper :: Manager -> IO ()
@@ -71,57 +71,61 @@ stop (Manager _ state _) =
 
 destroy :: Manager -> IO ()
 destroy (Manager _ st ref) = do
-  writeIORef ref []
+  writeIORef ref (0, [])
   writeIORef st Dead
 
 inspectHandle :: Handle-> IO (Maybe Finalizer)
 inspectHandle (Handle _ ref fin) = atomicModifyIORef' ref update
     where
       update (Run x)
-        | x <= 0     = (Cancel, Just fin)
-        | otherwise  = (Run (x - 1), Nothing)
+        | x > 0      = (Run (x - 1), Nothing)
+        | otherwise  = (Cancel, Just fin)
       update Cancel  = (Cancel, Just (return ()))
 
-inspectList :: [Handle] -> [Handle] -> IO [Handle]
-inspectList acc []       = return acc
-inspectList acc (x : xs) = do
+inspectList :: Int -> [Handle] -> [Handle] -> IO (Int, [Handle])
+inspectList n acc []       = return (n, acc)
+inspectList n acc (x : xs) = do
   term <- inspectHandle x
   case term of
-    Just fin -> fin `catch` ignore >> inspectList acc xs
-    Nothing  -> inspectList (x : acc) xs
+    Just fin -> let n1 = n - 1
+                in n1 `seq` fin `catch` ignore >> inspectList n1 acc xs
+    Nothing  -> inspectList n (x : acc) xs
 
 killAll :: [Handle] -> IO ()
-killAll []                  = return ()
+killAll []                      = return ()
 killAll (Handle _ ref fin : xs) = do
   s <- readIORef ref
   when (s /= Cancel) (fin `catch` ignore)
   killAll xs
 
-reaperStep :: IORef [Handle] -> IO ()
+reaperStep :: IORef (Int, [Handle]) -> IO ()
 reaperStep ref = do
-  xs <- atomicModifyIORef' ref (\ys -> ([], ys))
-  ys <- inspectList [] xs
-  atomicModifyIORef' ref (\zs -> (ys ++ zs, ()))
+  (lx, xs) <- atomicModifyIORef' ref (\(ly, ys) -> ((0, []), (ly, ys)))
+  (ly, ys) <- inspectList lx [] xs
+  atomicModifyIORef' ref (\(lz, zs) -> ((ly + lz, ys ++ zs), ()))
 
-reaperCleanup :: IORef [Handle] -> IO ()
+reaperCleanup :: IORef (Int, [Handle]) -> IO ()
 reaperCleanup ref =
-  atomicModifyIORef' ref (\xs -> ([], xs)) >>= killAll
+  atomicModifyIORef' ref (\(_, xs) -> ((0, []), xs)) >>= killAll
 
-open :: Manager -> Finalizer -> IO Handle
+open :: Manager -> Finalizer -> IO (Int, Handle)
 open tm@(Manager ttl _ ref) fin = do
   forkReaper tm
   state <- newIORef (Run ttl)
   let h = Handle ttl state fin
-  atomicModifyIORef' ref (\xs -> (h : xs, h))
+  atomicModifyIORef' ref (\(lx, xs) -> let lx1 = lx + 1
+                                       in lx1 `seq` ((lx1, h : xs), (lx1, h)))
 
 touch :: Handle -> IO ()
 touch (Handle ttl ref _) = atomicModifyIORef' ref update
     where
-      update (Run _) = (Run ttl, ())
-      update x       = (x, ())
+      update (Run n)
+        | n > 0     = (Run ttl, ())
+        | otherwise = (Run n, ())
+      update x      = (x, ())
 
 purge :: Handle -> IO ()
 purge (Handle _ ref _) = writeIORef ref Cancel
 
 withHandle :: Manager -> Finalizer -> IO a -> IO a
-withHandle tm fin action = bracket (open tm fin) purge (const action)
+withHandle tm fin action = bracket (fmap snd $ open tm fin) purge (const action)

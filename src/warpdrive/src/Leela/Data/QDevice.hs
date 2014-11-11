@@ -67,16 +67,20 @@ qread (QDevice s q) = atomically $ do
 
 qTryRead :: QDevice a -> IO (Maybe a, Bool)
 qTryRead (QDevice s q) = atomically $ do
-  open <- readTVar s
   mval <- tryReadTBQueue q
-  zero <- isEmptyTBQueue q
-  return (mval, open || not zero)
+  case mval of
+    Nothing -> (Nothing,) <$> readTVar s
+    Just a  -> do
+      open <- readTVar s
+      if open
+        then return (Just a, True)
+        else (Just a,) <$> not <$> isEmptyTBQueue q
 
-copy :: (a -> Maybe b) -> QDevice a -> QDevice b -> IO ()
+copy :: (a -> (Bool, Maybe b)) -> QDevice a -> QDevice b -> IO ()
 copy f src dst = do
   mv <- qread src
-  case (mv >>= f) of
-    Nothing -> return ()
-    Just v  -> do
+  case (maybe (False, Nothing) f mv) of
+    (cont, Nothing) -> when cont (copy f src dst)
+    (cont, Just v)  -> do
       qwrite dst v
-      copy f src dst
+      when cont (copy f src dst)

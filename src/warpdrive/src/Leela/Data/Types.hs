@@ -93,9 +93,8 @@ data Value = Bool Bool
 data TimeRange = Range Time Time
                deriving (Eq)
 
-data Matcher = ByLabel GUID Label
+data Matcher = ByLabel Label GUID
              | ByNode GUID
-             | ByEdge GUID Label GUID
              deriving (Eq)
 
 data Journal = PutLink GUID Label GUID

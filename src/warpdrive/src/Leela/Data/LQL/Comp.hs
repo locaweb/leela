@@ -102,6 +102,9 @@ parseGUIDAttr = do
 parseMaybeGUID :: Parser (Maybe GUID)
 parseMaybeGUID = ("()" *> return Nothing) <|> (Just <$> parseGUID)
 
+parseNodeSelector :: Parser Bool
+parseNodeSelector = ("()" *> return False) <|> ("(++)" *> return True)
+
 qstring :: Int -> Word8 -> Word8 -> Parser L.ByteString
 qstring limit l r = word8 l >> anyWord8 >>= loop (limit - 1) []
     where
@@ -161,29 +164,27 @@ safeHead :: [a] -> Parser a
 safeHead [] = fail "parsing error"
 safeHead xs = return $ head xs
 
-parseQuery :: Parser (Matcher, [(GUID -> Matcher)])
+parseQuery :: Parser (Matcher, [(Bool, GUID -> Matcher)])
 parseQuery = do
   a  <- parseGUID
   ok <- isSpace
   if ok
     then do
-      q <- parseQuery1 []
+      q <- parseQuery1 False []
       f <- safeHead q
-      return (f a, tail q)
+      return (snd f a, tail q)
     else return (ByNode a, [])
 
-parseQuery1 :: [(GUID -> Matcher)] -> Parser [(GUID -> Matcher)]
-parseQuery1 acc = do
+parseQuery1 :: Bool -> [(Bool, GUID -> Matcher)] -> Parser [(Bool, GUID -> Matcher)]
+parseQuery1 nilOk acc = do
   ok <- isSpace
   if ok
     then do
       hardspace
-      l  <- parseRLink
+      l      <- parseRLink
       hardspace
-      mb <- parseMaybeGUID
-      case mb of
-        Nothing -> parseQuery1 ((flip ByLabel l) : acc)
-        Just b  -> parseQuery1 ((\a -> ByEdge a l b) : acc)
+      nilOk' <- parseNodeSelector
+      parseQuery1 nilOk' ((nilOk, ByLabel l) : acc)
     else
       return (reverse acc)
 
