@@ -53,7 +53,7 @@ defaultOptions = Options { optEndpoint     = TCP "*" 4080 ""
                          , optRedisSecret  = Nothing
                          , optPasswd       = "/etc/leela/passwd"
                          , optBufSize      = fromIntegral defaultBufSize
-                         , optIoThreads    = 2
+                         , optIoThreads    = 1
                          , optSigTTL       = 300
                          , optLogFile      = Nothing
                          }
