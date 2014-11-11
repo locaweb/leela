@@ -136,7 +136,7 @@ scanKeys syslog glob callback conn = go "0"
 
       go :: B.ByteString -> IO Bool
       go cursor = do
-        mkeyset <- runRedis conn $ sendRequest ["SCAN", cursor, "MATCH", glob, "COUNT", "4096"]
+        mkeyset <- runRedis conn $ sendRequest ["SCAN", cursor, "MATCH", glob, "COUNT", "10000"]
         case mkeyset of
           Left what                  -> do
             warning syslog ("scanKeys# error reading redis: " ++ show what)
