@@ -69,8 +69,8 @@ data Client = Bidirectional { logger  :: Logger
 
 newtype ClientFH a = ClientFH Client
 
-unit :: Int
-unit = 5
+defaultTimeout :: Int
+defaultTimeout = 5 * 1000 * 1000
 
 readKey :: Job -> JKey
 readKey (Job (v, _)) = v
@@ -85,7 +85,7 @@ request (ClientFH client) msg = bracket acquire release useFunc
 
       useFunc Nothing         = return Nothing
       useFunc (Just (job, _)) = do
-        withHandle (manager client) tryCancel (fmap build $ takeMVar ref)
+        withHandle (manager client) defaultTimeout tryCancel (fmap build $ takeMVar ref)
           where
             ref = readJob job
 
@@ -152,7 +152,7 @@ createDealer syslog cfg ctx = do
   notice syslog "creating zmq.dealer"
   fh     <- zmqSocket
   client <- Bidirectional syslog
-              <$> timeout unit
+              <$> timeoutManager
               <*> (newIOLoop_ "dealer" fh)
               <*> atomically M.new
               <*> newCounter
@@ -169,7 +169,7 @@ createPush syslog cfg ctx = do
   notice syslog "creating zmq.push"
   fh     <- zmqSocket
   client <- Unidirectional syslog
-              <$> timeout unit
+              <$> timeoutManager
               <*> (Left <$> (newIOLoop_ "pipeline" fh))
   runClient syslog cfg client
     where
@@ -184,7 +184,7 @@ createPull syslog cfg ctx = do
   notice syslog "creating zmq.pull"
   fh     <- zmqSocket
   client <- Unidirectional syslog
-              <$> timeout unit
+              <$> timeoutManager
               <*> (Right <$> (newIOLoop_ "pipeline" fh))
   runClient syslog cfg client
     where

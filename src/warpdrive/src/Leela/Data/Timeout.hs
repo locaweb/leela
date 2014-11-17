@@ -15,117 +15,57 @@
 module Leela.Data.Timeout
        ( Handle ()
        , Manager ()
-       , stop
-       , timeout
-       , destroy
+       , timeoutManager
        , open
        , touch
        , purge
        , withHandle
        ) where
 
+import GHC.Event
 import Data.IORef
 import Control.Monad
-import Leela.Helpers
 import Control.Exception
-import Control.Concurrent
 
 type Finalizer = IO ()
 
-data State = Run Int
-           | Cancel
-           deriving (Eq)
+data Handle = Handle Int TimeoutKey (IORef (IO ()))
 
-data ReaperState = Dead
-                 | Inactive
-                 | Active
-                 deriving (Eq)
+data Manager = Manager (IORef Int)
 
-data Handle = Handle Int (IORef State) Finalizer
+timeoutManager :: IO Manager
+timeoutManager = do
+  ref <- newIORef 0
+  return (Manager ref)
 
-data Manager = Manager Int (IORef ReaperState) (IORef (Int, [Handle]))
-
-sleep :: Int -> IO ()
-sleep s = threadDelay (s * 1000 * 1000)
-
-timeout :: Int -> IO Manager
-timeout step = do
-  st  <- newIORef Inactive
-  ref <- newIORef (0, [])
-  return (Manager step st ref)
-
-forkReaper :: Manager -> IO ()
-forkReaper (Manager _ s ref) = do
-  v <- atomicModifyIORef' s update
-  when (v == Inactive) $
-    void $ forkFinally (foreverWith continue (sleep 1 >> reaperStep ref)) (\_ -> reaperCleanup ref)
-    where
-      update Inactive = (Active, Inactive)
-      update x        = (x, x)
-
-      continue = fmap (== Active) (readIORef s)
-
-stop :: Manager -> IO ()
-stop (Manager _ state _) =
-  writeIORef state Dead
-
-destroy :: Manager -> IO ()
-destroy (Manager _ st ref) = do
-  writeIORef ref (0, [])
-  writeIORef st Dead
-
-inspectHandle :: Handle-> IO (Maybe Finalizer)
-inspectHandle (Handle _ ref fin) = atomicModifyIORef' ref update
-    where
-      update (Run x)
-        | x > 0      = (Run (x - 1), Nothing)
-        | otherwise  = (Cancel, Just fin)
-      update Cancel  = (Cancel, Just (return ()))
-
-inspectList :: Int -> [Handle] -> [Handle] -> IO (Int, [Handle])
-inspectList n acc []       = return (n, acc)
-inspectList n acc (x : xs) = do
-  term <- inspectHandle x
-  case term of
-    Just fin -> let n1 = n - 1
-                in n1 `seq` fin `catch` ignore >> inspectList n1 acc xs
-    Nothing  -> inspectList n (x : acc) xs
-
-killAll :: [Handle] -> IO ()
-killAll []                      = return ()
-killAll (Handle _ ref fin : xs) = do
-  s <- readIORef ref
-  when (s /= Cancel) (fin `catch` ignore)
-  killAll xs
-
-reaperStep :: IORef (Int, [Handle]) -> IO ()
-reaperStep ref = do
-  (lx, xs) <- atomicModifyIORef' ref (\(ly, ys) -> ((0, []), (ly, ys)))
-  (ly, ys) <- inspectList lx [] xs
-  atomicModifyIORef' ref (\(lz, zs) -> ((ly + lz, ys ++ zs), ()))
-
-reaperCleanup :: IORef (Int, [Handle]) -> IO ()
-reaperCleanup ref =
-  atomicModifyIORef' ref (\(_, xs) -> ((0, []), xs)) >>= killAll
-
-open :: Manager -> Finalizer -> IO (Int, Handle)
-open tm@(Manager ttl _ ref) fin = do
-  forkReaper tm
-  state <- newIORef (Run ttl)
-  let h = Handle ttl state fin
-  atomicModifyIORef' ref (\(lx, xs) -> let lx1 = lx + 1
-                                       in lx1 `seq` ((lx1, h : xs), (lx1, h)))
+open :: Manager -> (Int -> Bool) -> Int -> Finalizer -> IO (Maybe (Int, Handle))
+open (Manager ref) accept timeout fin = do
+  let tuple a b = a `seq` (a, b)
+  tm     <- getSystemTimerManager
+  active <- atomicModifyIORef' ref (\x -> if (accept x) then tuple (x + 1) x else (x, x))
+  if (accept active)
+    then do
+      ioref  <- newIORef (atomicModifyIORef' ref (\x -> tuple (x - 1) ()))
+      cookie <- registerTimeout tm timeout (executeOnce ioref >> fin)
+      return (Just (active + 1, Handle timeout cookie ioref))
+    else return Nothing
 
 touch :: Handle -> IO ()
-touch (Handle ttl ref _) = atomicModifyIORef' ref update
-    where
-      update (Run n)
-        | n > 0     = (Run ttl, ())
-        | otherwise = (Run n, ())
-      update x      = (x, ())
+touch (Handle timeout cookie _) = do
+  tm <- getSystemTimerManager
+  updateTimeout tm cookie timeout
 
 purge :: Handle -> IO ()
-purge (Handle _ ref _) = writeIORef ref Cancel
+purge (Handle _ cookie ioref) = do
+  tm <- getSystemTimerManager
+  unregisterTimeout tm cookie
+  executeOnce ioref
 
-withHandle :: Manager -> Finalizer -> IO a -> IO a
-withHandle tm fin action = bracket (fmap snd $ open tm fin) purge (const action)
+executeOnce :: IORef (IO ()) -> IO ()
+executeOnce ioref = do
+  join $ atomicModifyIORef' ioref (\io -> (return (), io))
+
+withHandle :: Manager -> Int -> Finalizer -> IO a -> IO a
+withHandle tm timeout fin action = bracket (open tm (const True) timeout fin)
+                                           (maybe (return ()) (purge . snd))
+                                           (const $ action)

@@ -36,6 +36,7 @@ import           Leela.Data.Time
 import           Leela.Data.Graph
 import           Leela.Data.Types
 import qualified Leela.Data.L2Map as M
+import           System.IO.Unsafe
 import           Control.Exception
 import           Leela.HZMQ.Dealer
 import           Leela.HZMQ.Router
@@ -66,8 +67,11 @@ data Stream a = Chunk a
               | Error SomeException
               | EOF
 
-unit :: Int
-unit = 30
+useTimeout :: Int
+useTimeout = 30 * 1000 * 1000
+
+serverLimit :: Int
+serverLimit = unsafePerformIO (liftM (* 100) getNumCapabilities)
 
 readPasswd :: WarpServer -> IO P.Passwd
 readPasswd = readIORef . passwd
@@ -86,36 +90,21 @@ newWarpServer :: Logger -> IORef [(String, [Endpoint])] -> IORef P.Passwd -> IO 
 newWarpServer syslog statdb secretdb = makeState
     where
       makeState =
-        liftM3 (WarpServer syslog statdb secretdb) newCounter (timeout unit) M.empty
-
+        liftM3 (WarpServer syslog statdb secretdb) newCounter timeoutManager M.empty
+    
 makeFD :: WarpServer -> User -> (Time -> Handle -> FH -> QDevice Reply -> IO ()) -> IO ()
 makeFD srv (User u) cc = do
-  caps         <- liftM (* 70) getNumCapabilities
-  fd           <- next (fdseq srv)
-  (active, th) <- open (tManager srv) (closeFDTimeout srv (User u, fd))
-  if (active < caps)
-    then void $ forkIO (continue fd active th)
-    else
-      if (active > 3 * caps)
-        then do
-          purge th
-          warning (logger srv) (printf "REJECT %d : %d/%d" fd active caps)
-        else void $ forkIO $ do
-          let waitfor = ceiling (delay * (fromIntegral active / fromIntegral caps))
-          warning (logger srv) (printf "DELAY %d : %d/%d" fd active caps)
-          threadDelay waitfor
-          continue fd active th
-    where
-      delay :: Double
-      delay = 0.1 * 1000 * 1000
-
-      continue fd active th = do
-        notice (logger srv) (printf "ACCEPT %d : %d" fd active)
-        dev          <- qnew 4
-        time         <- snapshot
-        val          <- newTVarIO (th, time, dev)
-        M.insert u fd val (fdlist srv)
-        cc time th fd dev
+  fd   <- next (fdseq srv)
+  mth  <- open (tManager srv) (<= serverLimit) useTimeout (closeFDTimeout srv (User u, fd))
+  case mth of
+    Nothing           -> warning (logger srv) (printf "REJECT %d : [server-limit:%d]" fd serverLimit)
+    Just (active, th) -> void $ forkIO $ do
+      notice (logger srv) (printf "ACCEPT %d : %d" fd active)
+      dev  <- qnew 4
+      time <- snapshot
+      val  <- newTVarIO (th, time, dev)
+      M.insert u fd val (fdlist srv)
+      cc time th fd dev
 
 withFD :: WarpServer -> (User, FH) -> (Maybe (QDevice Reply) -> IO b) -> IO b
 withFD srv ((User u), fh) action = do
