@@ -9,7 +9,7 @@ OBJ_FILES            = $(subst .c,.o,$(SRC_FILES))
 
 CFLAGS               = -Wall
 
-build: poly1305aes.build libleela.so.$(LEELA_LIB_VERSION)
+build: libleela.so.$(LEELA_LIB_VERSION)
 
 clean: cleanobj poly1305aes.clean
 
@@ -19,8 +19,9 @@ cleanobj:
 	rm -f libleela.so*
 	rm -f src/driver
 
-$(OBJ_FILES): override CPPFLAGS += -D_POSIX_C_SOURCE=200112 -D_XOPEN_SOURCE
-$(OBJ_FILES): override CFLAGS += -Isrc -pedantic -fPIC -pthread -I$(poly1305aes.h)
+$(OBJ_FILES): override CPPFLAGS += -D_POSIX_C_SOURCE=200112 -D_XOPEN_SOURCE -DHAS_SYM_USLEEP -DPOLY_USE_$(poly1305aes.impl)
+$(OBJ_FILES): override CFLAGS += -Isrc -pedantic -fPIC -pthread -I$(poly1305aes.h) -I../../libs/poly1305aes/src
+$(OBJ_FILES): poly1305aes.build
 
 libleela.so.$(LEELA_LIB_VERSION): $(OBJ_FILES)
 	$(CC) $(LDFLAGS) -pthread -shared -Wl,-soname,$(@) -o$(@) $(OBJ_FILES) $(LDLIBS) $(poly1305aes.a) -lzmq
@@ -29,7 +30,7 @@ libleela.so.$(LEELA_LIB_VERSION): $(OBJ_FILES)
 
 src/driver: $(OBJ_FILES)
 src/driver: override CPPFLAGS += -D_POSIX_SOURCE=200112 -D_XOPEN_SOURCE
-src/driver: override CFLAGS += -Wall -g -Isrc -std=c99 -pedantic -fPIC -pthread -I$(poly1305aes.h)
+src/driver: override CFLAGS += -Isrc -std=c99 -pedantic -fPIC -pthread -I$(poly1305aes.h)
 src/driver: override LDLIBS += -lpthread -lzmq -lm
 
 include $(poly1305aes.srcroot)/makefile

@@ -17,6 +17,6 @@ poly1305aes.build: $(poly1305aes.a)
 $(poly1305aes.a):
 	mkdir -p $(poly1305aes.h)/poly1305aes
 	tar -C $(poly1305aes.srcroot) -x -z -f $(poly1305aes.tar)
-	$(MAKE) CC="$(CC) $(CFLAGS) -fPIC" -C $(poly1305aes.srcroot)/poly1305aes-20050218
+	$(MAKE) CC="$(CC) -fPIC" -C $(poly1305aes.srcroot)/poly1305aes-20050218
 	cp $(poly1305aes.srcroot)/poly1305aes-20050218/poly1305aes.a $(poly1305aes.srcroot)/poly1305aes-20050218/libpoly1305aes.a
 	cd $(poly1305aes.srcroot)/poly1305aes-20050218 && cp `cat FILES.lib` poly1305aes.h $(poly1305aes.h)/poly1305aes
