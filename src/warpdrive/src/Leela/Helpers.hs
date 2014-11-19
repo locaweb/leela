@@ -77,6 +77,6 @@ chunked n xs = let (chunk, ys) = splitAt n xs
                in chunk : chunked n ys
 
 chunkSplit :: Int -> [a] -> [[a]]
-chunkSplit n xs = foldr zipList (replicate n []) (chunked n xs)
+chunkSplit n xs = filter (not . null) $ foldr zipList (replicate n []) (chunked n xs)
     where
       zipList ys = zipWith ($) (map (:) ys ++ repeat id)
