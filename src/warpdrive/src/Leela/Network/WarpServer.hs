@@ -104,7 +104,7 @@ makeFD srv (User u) cc = do
       time <- snapshot
       val  <- newTVarIO (th, time, dev)
       M.insert u fd val (fdlist srv)
-      cc time th fd dev
+      yield >> cc time th fd dev
 
 withFD :: WarpServer -> (User, FH) -> (Maybe (QDevice Reply) -> IO b) -> IO b
 withFD srv ((User u), fh) action = do
