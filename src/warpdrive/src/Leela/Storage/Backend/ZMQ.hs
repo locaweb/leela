@@ -127,7 +127,7 @@ instance (KeyValue a) => AttrBackend (ZMQBackend a) where
 
   getTAttr m g a time limit = scanTAttr [] time limit
       where
-        maxDataPoints = 2048
+        maxDataPoints = 5000
 
         scanTAttr acc t l
           | l <= 0    = return (reverse $ concat acc)
