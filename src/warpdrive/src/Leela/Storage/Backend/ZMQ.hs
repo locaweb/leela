@@ -93,9 +93,9 @@ instance (KeyValue a) => AttrBackend (ZMQBackend a) where
 
   putTAttr _ []    = return ()
   putTAttr m attrs = do
-    seenset <- liftM (S.fromList . concatMap (map fst . filter snd)) $ mapConcurrently (mapM seen) (chunkSplit 64 attrs)
+    seenset <- liftM (S.fromList . concatMap (map fst . filter snd)) $ mapConcurrently (mapM seen) (chunkSplit 10 attrs)
     send_ (dealer m) (MsgPutTAttr $ map (setIndexing seenset) attrs)
-    void $ mapConcurrently (mapM storeCache) (chunkSplit 64 attrs)
+    void $ mapConcurrently (mapM storeCache) (chunkSplit 10 attrs)
       where
         setIndexing seenset (g, a, t, v, o)
           | S.member (g, a) seenset = (g, a, t, v, o)
