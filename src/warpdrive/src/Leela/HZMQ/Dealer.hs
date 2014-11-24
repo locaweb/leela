@@ -83,8 +83,7 @@ request (ClientFH client) msg = bracket acquire release useFunc
     where
       acquire = newJob client msg
 
-      useFunc Nothing         = return Nothing
-      useFunc (Just (job, _)) = do
+      useFunc (job, _) = do
         withHandle (manager client) defaultTimeout tryCancel (fmap build $ takeMVar ref)
           where
             ref = readJob job
@@ -96,8 +95,7 @@ request (ClientFH client) msg = bracket acquire release useFunc
       build [] = Nothing
       build xs = Just xs
 
-      release Nothing             = return ()
-      release (Just (job, abort)) = abort >> delJob client (readKey job)
+      release (job, abort) = abort >> delJob client (readKey job)
 
 push :: ClientFH Push -> [L.ByteString] -> IO Bool
 push (ClientFH client) msg =
@@ -110,14 +108,14 @@ pull (ClientFH client) =
     Right poller -> recvMsg poller
     _            -> return []
 
-newJob :: Client -> [L.ByteString] -> IO (Maybe (Job, IO ()))
+newJob :: Client -> [L.ByteString] -> IO (Job, IO ())
 newJob client msg = do
   key   <- next (counter client)
   abort <- sendMsg (dealer client) (encodeLazy key : L.empty : msg)
   shmem <- newEmptyMVar
   let job = Job (key, shmem)
   atomically $ M.insert job key (cstate client)
-  return (Just (job, abort))
+  return (job, abort)
 
 delJob :: Client -> JKey -> IO ()
 delJob client key = atomically $ M.delete key (cstate client)
