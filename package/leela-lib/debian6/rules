@@ -5,7 +5,7 @@
 	dh $@
 
 pyleela_clean:
-	cd ../../src/python && { \
+	cd ../../src/libs/python && { \
 	  for bin_python in $$(pyversions -rs); \
 	  do \
 	    $$bin_python setup.py clean -a; \
@@ -14,7 +14,7 @@ pyleela_clean:
 	rm -f debian/*substvars
 
 pyleela_install:
-	cd ../../src/python && { \
+	cd ../../src/libs/python && { \
 	  for bin_python in $$(pyversions -rs); \
 	  do \
 	    $$bin_python setup.py clean -a; \
@@ -23,16 +23,16 @@ pyleela_install:
 	}
 
 cleela_clean:
-	$(MAKE) -C ../../src/c clean
+	$(MAKE) -C ../../src/libs/c clean
 
 cleela_install:
 	mkdir -p debian/leela-c/usr/include/leela
 	mkdir -p debian/leela-c/usr/lib/
-	cp -a ../../src/c/src/leela/*.h debian/leela-c/usr/include/leela/
-	cp -a ../../src/c/libleela.so* debian/leela-c/usr/lib/
+	cp -a ../../src/libs/c/src/leela/*.h debian/leela-c/usr/include/leela/
+	cp -a ../../src/libs/c/libleela.so* debian/leela-c/usr/lib/
 
 cleela_build:
-	$(MAKE) -C ../../src/c build
+	$(MAKE) -C ../../src/libs/c build
 
 override_dh_auto_clean: cleela_clean pyleela_clean
 	rm -f debian/*substvars

@@ -54,16 +54,16 @@ Requires:       leela-c
 %setup -q -n leela-lib-%{version}
 
 %build
-make -C src/c build
+make -C src/libs/c build
 
 %install
 mkdir -p $RPM_BUILD_ROOT/%{_libdir}
-cp -a src/c/libleela.so* $RPM_BUILD_ROOT/%{_libdir}
+cp -a src/libs/c/libleela.so* $RPM_BUILD_ROOT/%{_libdir}
 chmod 755 $RPM_BUILD_ROOT/%{_libdir}/libleela.so*
 mkdir -p $RPM_BUILD_ROOT/%{_includedir}/leela
-cp -a src/c/src/leela/*.h $RPM_BUILD_ROOT/%{_includedir}/leela
+cp -a src/libs/c/src/leela/*.h $RPM_BUILD_ROOT/%{_includedir}/leela
 chmod 644 $RPM_BUILD_ROOT/%{_includedir}/leela/*.h
-pushd src/python && {
+pushd src/libs/python && {
   for pyver in python2.7 python2.6
   do
     if command -v $pyver
