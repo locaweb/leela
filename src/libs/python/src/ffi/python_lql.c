@@ -334,9 +334,11 @@ PyMethodDef pylql_cursor_methods[] = {
   {"fetch", pylql_cursor_fetch, METH_VARARGS,
    NULL,
   },
+  /*
   {"restart", pylql_cursor_restart, METH_VARARGS,
    NULL,
   },
+  */
   {NULL}
 };
 
@@ -499,6 +501,7 @@ PyObject *pylql_cursor_close(PyObject *self, PyObject *args)
   Py_RETURN_NONE;
 }
 
+/* TO BE IMPLEMENTED
 PyObject *pylql_cursor_restart(PyObject *self, PyObject *args)
 {
   (void) args;
@@ -507,6 +510,7 @@ PyObject *pylql_cursor_restart(PyObject *self, PyObject *args)
   { PyErr_SetString(PyExc_RuntimeError, "error restarting cursor"); }
   Py_RETURN_NONE;
 }
+*/
 
 void pylql_cursor_free(PyObject *self)
 { self->ob_type->tp_free(self); }
