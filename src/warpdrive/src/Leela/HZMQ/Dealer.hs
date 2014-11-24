@@ -102,7 +102,7 @@ request (ClientFH client) msg = bracket acquire release useFunc
 push :: ClientFH Push -> [L.ByteString] -> IO Bool
 push (ClientFH client) msg =
   case (pipeline client) of
-    Left poller -> sendMsg_ (logger client) poller msg
+    Left poller -> sendMsg_ poller msg >> return True
     _           -> return False
 
 pull (ClientFH client) =
@@ -113,14 +113,11 @@ pull (ClientFH client) =
 newJob :: Client -> [L.ByteString] -> IO (Maybe (Job, IO ()))
 newJob client msg = do
   key   <- next (counter client)
-  abort <- sendMsg (logger client) (dealer client) (encodeLazy key : L.empty : msg)
-  case abort of
-    Nothing   -> return Nothing
-    Just func -> do
-      shmem <- newEmptyMVar
-      let job = Job (key, shmem)
-      atomically $ M.insert job key (cstate client)
-      return (Just (job, func))
+  abort <- sendMsg (dealer client) (encodeLazy key : L.empty : msg)
+  shmem <- newEmptyMVar
+  let job = Job (key, shmem)
+  atomically $ M.insert job key (cstate client)
+  return (Just (job, abort))
 
 delJob :: Client -> JKey -> IO ()
 delJob client key = atomically $ M.delete key (cstate client)
@@ -174,7 +171,7 @@ createPush syslog cfg ctx = do
   runClient syslog cfg client
     where
       zmqSocket = do
-        fh   <- socket ctx Push
+        fh <- socket ctx Push
         setHWM (5, 5) fh
         config fh
         return fh
@@ -189,7 +186,7 @@ createPull syslog cfg ctx = do
   runClient syslog cfg client
     where
       zmqSocket = do
-        fh   <- socket ctx Pull
+        fh <- socket ctx Pull
         setHWM (5, 5) fh
         config fh
         return fh
@@ -224,7 +221,7 @@ runClient syslog cfg client = do
           Bidirectional _ _ p _ _ -> do
             recvMsg p >>= mapM_ recvAns
             recvLoop
-          _                     -> return ()
+          _                       -> return ()
 
 
       onPoller :: forall b. (forall a. Poller a -> b) -> b

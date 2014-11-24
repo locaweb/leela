@@ -47,16 +47,16 @@ readMsg (Request _ val) = val
 readPeer :: Request -> [B.ByteString]
 readPeer (Request val _) = val
 
-reply :: Logger -> Poller Router -> Request -> [L.ByteString] -> IO ()
-reply syslog poller job msg = do
+reply :: Poller Router -> Request -> [L.ByteString] -> IO ()
+reply poller job msg = do
   let ans = (map L.fromStrict $ readPeer job) ++ (L.empty : msg)
-  void $ sendMsg_ syslog poller ans
+  sendMsg_ poller ans
 
-worker :: Logger -> Poller Router -> Request -> Worker -> IO ()
-worker syslog poller job action = do
-  mmsg <- try (onJob action (readMsg job) (reply syslog poller job))
+worker :: Poller Router -> Request -> Worker -> IO ()
+worker poller job action = do
+  mmsg <- try (onJob action (readMsg job) (reply poller job))
   case mmsg of
-    Left e   -> onErr action e >>= reply syslog poller job
+    Left e   -> onErr action e >>= reply poller job
     Right () -> return ()
 
 recvRequest :: [B.ByteString] -> (Maybe Request)
@@ -86,7 +86,7 @@ startRouter syslog endpoint ctx action = do
 
       acceptReq poller msg = do
         let mreq = recvRequest msg
-        when (isJust mreq) (worker syslog poller (fromJust mreq) action)
+        when (isJust mreq) (worker poller (fromJust mreq) action)
 
       acceptReqs poller = mapM_ (acceptReq poller)
 

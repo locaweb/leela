@@ -30,7 +30,6 @@ module Leela.HZMQ.IOLoop
        ) where
 
 import           Data.IORef
-import           Data.Maybe
 import           System.ZMQ4
 import           Leela.Logger
 import           Control.Monad
@@ -78,10 +77,8 @@ newIOLoop_ name fh = do
 alive :: Poller a -> IO Bool
 alive p = liftM (maybe True id) (tryReadMVar (pollCtrl p))
 
-enqueueD :: Poller a -> ([B.ByteString], IORef Bool) -> IO Bool
-enqueueD p a = do
-  writeChan (pollOutQ p) a
-  return True
+enqueueD :: Poller a -> ([B.ByteString], IORef Bool) -> IO ()
+enqueueD p a = writeChan (pollOutQ p) a
 
 enqueueS :: Poller a -> [[B.ByteString]] -> IO Bool
 enqueueS _ []   = return False
@@ -101,21 +98,17 @@ dequeue p _          = readChan (pollOutQ p)
 recvMsg :: (Receiver a) => Poller a -> IO [[B.ByteString]]
 recvMsg p = takeMVar (pollInQ p)
  
-sendMsg' :: (Sender a) => Logger -> Poller a -> [B.ByteString] -> IO (Maybe (IO ()))
-sendMsg' syslog p msg = do
+sendMsg' :: (Sender a) => Poller a -> [B.ByteString] -> IO (IO ())
+sendMsg' p msg = do
   ref <- newIORef True
-  ok  <- msg `deepseq` enqueueD p (msg, ref)
-  if ok
-   then return $ Just (atomicWriteIORef ref False)
-   else do
-     warning syslog (printf "dropping message [%s#no space left]" (pollName p))
-     return Nothing
+  msg `deepseq` enqueueD p (msg, ref)
+  return $ atomicWriteIORef ref False
 
-sendMsg :: (Sender a) => Logger -> Poller a -> [L.ByteString] -> IO (Maybe (IO ()))
-sendMsg syslog p = sendMsg' syslog p . map L.toStrict
+sendMsg :: (Sender a) => Poller a -> [L.ByteString] -> IO (IO ())
+sendMsg p = sendMsg' p . map L.toStrict
 
-sendMsg_ :: (Sender a) => Logger -> Poller a -> [L.ByteString] -> IO Bool
-sendMsg_ syslog p = liftM isJust . sendMsg syslog p
+sendMsg_ :: (Sender a) => Poller a -> [L.ByteString] -> IO ()
+sendMsg_ p = void . sendMsg p
 
 cancel :: Poller a -> IO ()
 cancel p = void $ tryPutMVar (pollCtrl p) True
@@ -153,12 +146,12 @@ gpollLoop logger mode recvCallback sendCallback p = go
 
       handleSend state = do
         msg  <- dequeue p state
-        rest <- useSocket p (sendMsg msg)
+        rest <- useSocket p (mySendMsg msg)
         case rest of
           Nothing -> handleSend rest
           _       -> return rest
           where
-            sendMsg (msg, ref) fh = do
+            mySendMsg (msg, ref) fh = do
               zready <- events fh
               if (Out `elem` zready)
                 then do
