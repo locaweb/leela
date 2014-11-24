@@ -40,7 +40,10 @@ import           Leela.HZMQ.ZHelpers
 import qualified Data.ByteString.Lazy as L
 
 type SendCallback a = Socket a -> [B.ByteString] -> IO ()
+
 type RecvCallback a = Socket a -> IO [B.ByteString]
+
+type CancelAction = IO ()
 
 data Poller a = Poller { pollName :: String
                        , pollInQ  :: MVar [[B.ByteString]]
@@ -98,13 +101,13 @@ dequeue p _          = readChan (pollOutQ p)
 recvMsg :: (Receiver a) => Poller a -> IO [[B.ByteString]]
 recvMsg p = takeMVar (pollInQ p)
  
-sendMsg' :: (Sender a) => Poller a -> [B.ByteString] -> IO (IO ())
+sendMsg' :: (Sender a) => Poller a -> [B.ByteString] -> IO CancelAction
 sendMsg' p msg = do
   ref <- newIORef True
   msg `deepseq` enqueueD p (msg, ref)
   return $ atomicWriteIORef ref False
 
-sendMsg :: (Sender a) => Poller a -> [L.ByteString] -> IO (IO ())
+sendMsg :: (Sender a) => Poller a -> [L.ByteString] -> IO CancelAction
 sendMsg p = sendMsg' p . map L.toStrict
 
 sendMsg_ :: (Sender a) => Poller a -> [L.ByteString] -> IO ()
