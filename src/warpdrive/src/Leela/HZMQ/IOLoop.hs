@@ -45,7 +45,7 @@ type RecvCallback a = Socket a -> IO [B.ByteString]
 
 data Poller a = Poller { pollName :: String
                        , pollInQ  :: MVar [[B.ByteString]]
-                       , pollOutQ :: Chan (IORef [B.ByteString])
+                       , pollOutQ :: Chan ([B.ByteString], IORef Bool)
                        , pollLock :: MVar (Socket a)
                        , pollCtrl :: MVar Bool
                        }
@@ -63,7 +63,7 @@ hasRead :: PollMode -> Bool
 hasRead PollWronlyMode = False
 hasRead _              = True
 
-newIOLoop :: String -> MVar [[B.ByteString]] -> Chan (IORef [B.ByteString]) -> Socket a -> IO (Poller a)
+newIOLoop :: String -> MVar [[B.ByteString]] -> Chan ([B.ByteString], IORef Bool) -> Socket a -> IO (Poller a)
 newIOLoop name qsrc qdst fh = do
   ctrl <- newEmptyMVar
   lock <- newMVar fh
@@ -78,7 +78,7 @@ newIOLoop_ name fh = do
 alive :: Poller a -> IO Bool
 alive p = liftM (maybe True id) (tryReadMVar (pollCtrl p))
 
-enqueueD :: Poller a -> IORef [B.ByteString] -> IO Bool
+enqueueD :: Poller a -> ([B.ByteString], IORef Bool) -> IO Bool
 enqueueD p a = do
   writeChan (pollOutQ p) a
   return True
@@ -94,19 +94,19 @@ enqueueS p msgs = do
           (_, (_ : [])) -> False
           _             -> True
 
-dequeue :: Poller a -> (Maybe [B.ByteString]) -> IO [B.ByteString]
+dequeue :: Poller a -> Maybe ([B.ByteString], IORef Bool) -> IO ([B.ByteString], IORef Bool)
 dequeue _ (Just acc) = return acc
-dequeue p _          = readChan (pollOutQ p) >>= readIORef
+dequeue p _          = readChan (pollOutQ p)
 
 recvMsg :: (Receiver a) => Poller a -> IO [[B.ByteString]]
 recvMsg p = takeMVar (pollInQ p)
  
 sendMsg' :: (Sender a) => Logger -> Poller a -> [B.ByteString] -> IO (Maybe (IO ()))
 sendMsg' syslog p msg = do
-  ref <- msg `deepseq` newIORef msg
-  ok  <- enqueueD p ref
+  ref <- newIORef True
+  ok  <- msg `deepseq` enqueueD p (msg, ref)
   if ok
-   then return $ Just (writeIORef ref [])
+   then return $ Just (atomicWriteIORef ref False)
    else do
      warning syslog (printf "dropping message [%s#no space left]" (pollName p))
      return Nothing
@@ -133,7 +133,7 @@ pollLoop :: (Receiver a, Sender a) => Logger -> Poller a -> IO ()
 pollLoop syslog = gpollLoop syslog PollRdWrMode receiveMulti sendAll
 
 gpollLoop :: Logger -> PollMode -> RecvCallback a -> SendCallback a -> Poller a -> IO ()
-gpollLoop _ mode recvCallback sendCallback p = go
+gpollLoop logger mode recvCallback sendCallback p = go
     where
       handleRecv acc
         | length acc == 32 = enqueueS p acc >> handleRecv []
@@ -158,11 +158,16 @@ gpollLoop _ mode recvCallback sendCallback p = go
           Nothing -> handleSend rest
           _       -> return rest
           where
-            sendMsg msg fh = do
+            sendMsg (msg, ref) fh = do
               zready <- events fh
               if (Out `elem` zready)
-                then sendCallback fh msg >> return Nothing
-                else return $ Just msg
+                then do
+                  live <- readIORef ref
+                  if live
+                    then sendCallback fh msg
+                    else warning logger (printf "dropping message [%s#cancel]" (pollName p))
+                  return Nothing
+                else return $ Just (msg, ref)
 
       goWrite fh miss = do
         threadWaitWrite fh
