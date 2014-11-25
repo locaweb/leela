@@ -83,19 +83,23 @@ request (ClientFH client) msg = bracket acquire release useFunc
     where
       acquire = newJob client msg
 
-      useFunc (job, _) = do
+      useFunc Nothing         = do
+        warning (logger client) "dealer: request queue full"
+        return Nothing
+      useFunc (Just (job, _)) = do
         withHandle (manager client) defaultTimeout tryCancel (fmap build $ takeMVar ref)
           where
             ref = readJob job
 
             tryCancel = do
-              warning (logger client) "Dealer#request: timeout"
+              warning (logger client) "dealer: request timeout"
               void $ tryPutMVar ref []
 
       build [] = Nothing
       build xs = Just xs
 
-      release (job, abort) = abort >> delJob client (readKey job)
+      release Nothing             = return ()
+      release (Just (job, abort)) = abort >> delJob client (readKey job)
 
 push :: ClientFH Push -> [L.ByteString] -> IO Bool
 push (ClientFH client) msg =
@@ -108,14 +112,17 @@ pull (ClientFH client) =
     Right poller -> recvMsg poller
     _            -> return []
 
-newJob :: Client -> [L.ByteString] -> IO (Job, IO ())
+newJob :: Client -> [L.ByteString] -> IO (Maybe (Job, IO ()))
 newJob client msg = do
-  key   <- next (counter client)
-  abort <- sendMsg (dealer client) (encodeLazy key : L.empty : msg)
-  shmem <- newEmptyMVar
-  let job = Job (key, shmem)
-  atomically $ M.insert job key (cstate client)
-  return (job, abort)
+  key         <- next (counter client)
+  (abort, ok) <- sendMsg (dealer client) (encodeLazy key : L.empty : msg)
+  shmem       <- newEmptyMVar
+  if ok
+    then do
+      let job = Job (key, shmem)
+      atomically $ M.insert job key (cstate client)
+      return $ Just (job, abort)
+    else return Nothing
 
 delJob :: Client -> JKey -> IO ()
 delJob client key = atomically $ M.delete key (cstate client)
@@ -148,7 +155,7 @@ createDealer syslog cfg ctx = do
   fh     <- zmqSocket
   client <- Bidirectional syslog
               <$> timeoutManager
-              <*> (newIOLoop_ "dealer" fh)
+              <*> (newIOLoop_ "dealer" fh 10000)
               <*> atomically M.new
               <*> newCounter
   runClient syslog cfg client
@@ -165,7 +172,7 @@ createPush syslog cfg ctx = do
   fh     <- zmqSocket
   client <- Unidirectional syslog
               <$> timeoutManager
-              <*> (Left <$> (newIOLoop_ "pipeline" fh))
+              <*> (Left <$> (newIOLoop_ "pipeline" fh 10000))
   runClient syslog cfg client
     where
       zmqSocket = do
@@ -180,7 +187,7 @@ createPull syslog cfg ctx = do
   fh     <- zmqSocket
   client <- Unidirectional syslog
               <$> timeoutManager
-              <*> (Right <$> (newIOLoop_ "pipeline" fh))
+              <*> (Right <$> (newIOLoop_ "pipeline" fh 10000))
   runClient syslog cfg client
     where
       zmqSocket = do

@@ -39,6 +39,7 @@ import qualified Data.ByteString as B
 import           Control.Concurrent
 import           Leela.HZMQ.ZHelpers
 import qualified Data.ByteString.Lazy as L
+import           Control.Concurrent.BoundedChan as C
 
 type SendCallback a = Socket a -> [B.ByteString] -> IO ()
 
@@ -46,11 +47,11 @@ type RecvCallback a = Socket a -> IO [B.ByteString]
 
 type CancelAction = IO ()
 
-data Poller a = Poller { pollName :: String
-                       , pollInQ  :: MVar [[B.ByteString]]
-                       , pollOutQ :: Chan ([B.ByteString], IORef Bool)
-                       , pollLock :: MVar (Socket a)
-                       , pollCtrl :: MVar ()
+data Poller a = Poller { pollName  :: String
+                       , pollInQ   :: MVar [[B.ByteString]]
+                       , pollOutQ  :: BoundedChan ([B.ByteString], IORef Bool)
+                       , pollLock  :: MVar (Socket a)
+                       , pollCtrl  :: MVar ()
                        }
 
 data PollMode = PollRdonlyMode
@@ -66,23 +67,23 @@ hasRead :: PollMode -> Bool
 hasRead PollWronlyMode = False
 hasRead _              = True
 
-newIOLoop :: String -> MVar [[B.ByteString]] -> Chan ([B.ByteString], IORef Bool) -> Socket a -> IO (Poller a)
+newIOLoop :: String -> MVar [[B.ByteString]] -> BoundedChan ([B.ByteString], IORef Bool) -> Socket a -> IO (Poller a)
 newIOLoop name qsrc qdst fh = do
-  ctrl <- newEmptyMVar
-  lock <- newMVar fh
+  ctrl  <- newEmptyMVar
+  lock  <- newMVar fh
   return (Poller name qsrc qdst lock ctrl)
 
-newIOLoop_ :: String -> Socket a -> IO (Poller a)
-newIOLoop_ name fh = do
+newIOLoop_ :: String -> Socket a -> Int -> IO (Poller a)
+newIOLoop_ name fh limit = do
   qsrc <- newMVar []
-  qdst <- newChan
+  qdst <- newBoundedChan limit
   newIOLoop name qsrc qdst fh
 
 alive :: Poller a -> IO Bool
 alive p = liftM isNothing (tryReadMVar (pollCtrl p))
 
-enqueueD :: Poller a -> ([B.ByteString], IORef Bool) -> IO ()
-enqueueD p a = writeChan (pollOutQ p) a
+enqueueD :: Poller a -> ([B.ByteString], IORef Bool) -> IO Bool
+enqueueD p a = tryWriteChan (pollOutQ p) a
 
 enqueueS :: Poller a -> [[B.ByteString]] -> IO Bool
 enqueueS _ []   = return False
@@ -97,18 +98,18 @@ enqueueS p msgs = do
 
 dequeue :: Poller a -> Maybe ([B.ByteString], IORef Bool) -> IO ([B.ByteString], IORef Bool)
 dequeue _ (Just acc) = return acc
-dequeue p _          = readChan (pollOutQ p)
+dequeue p _          = C.readChan (pollOutQ p)
 
 recvMsg :: (Receiver a) => Poller a -> IO [[B.ByteString]]
 recvMsg p = takeMVar (pollInQ p)
  
-sendMsg' :: (Sender a) => Poller a -> [B.ByteString] -> IO CancelAction
+sendMsg' :: (Sender a) => Poller a -> [B.ByteString] -> IO (CancelAction, Bool)
 sendMsg' p msg = do
   ref <- newIORef True
-  msg `deepseq` enqueueD p (msg, ref)
-  return $ atomicWriteIORef ref False
+  ok  <- msg `deepseq` enqueueD p (msg, ref)
+  return (when ok $ atomicWriteIORef ref False, ok)
 
-sendMsg :: (Sender a) => Poller a -> [L.ByteString] -> IO CancelAction
+sendMsg :: (Sender a) => Poller a -> [L.ByteString] -> IO (CancelAction, Bool)
 sendMsg p = sendMsg' p . map L.toStrict
 
 sendMsg_ :: (Sender a) => Poller a -> [L.ByteString] -> IO ()
@@ -137,10 +138,8 @@ gpollLoop logger mode recvCallback sendCallback p = go
         | otherwise        = do
           mmsg <- useSocket p readMsg
           case mmsg of
-            Just msg ->
-              handleRecv (msg : acc)
-            Nothing  ->
-              enqueueS p acc
+            Just msg -> handleRecv (msg : acc)
+            Nothing  -> enqueueS p acc
           where
             readMsg fh = do
               zready <- events fh

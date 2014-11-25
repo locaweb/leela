@@ -74,7 +74,7 @@ startRouter :: Logger -> Endpoint -> Context -> Worker -> IO RouterFH
 startRouter syslog endpoint ctx action = do
   notice syslog (printf "starting zmq.router: %s" (dumpEndpointStr endpoint))
   fh     <- zmqSocket
-  poller <- newIOLoop_ "router" fh
+  poller <- newIOLoop_ "router" fh 10000
   _      <- forkFinally (go poller) (\_ -> close fh)
   return (RouterFH poller)
     where
