@@ -29,6 +29,7 @@ module Leela.HZMQ.IOLoop
        , pollOutLoop
        ) where
 
+import           Data.Maybe
 import           Data.IORef
 import           System.ZMQ4
 import           Leela.Logger
@@ -49,7 +50,7 @@ data Poller a = Poller { pollName :: String
                        , pollInQ  :: MVar [[B.ByteString]]
                        , pollOutQ :: Chan ([B.ByteString], IORef Bool)
                        , pollLock :: MVar (Socket a)
-                       , pollCtrl :: MVar Bool
+                       , pollCtrl :: MVar ()
                        }
 
 data PollMode = PollRdonlyMode
@@ -78,7 +79,7 @@ newIOLoop_ name fh = do
   newIOLoop name qsrc qdst fh
 
 alive :: Poller a -> IO Bool
-alive p = liftM (maybe True id) (tryReadMVar (pollCtrl p))
+alive p = liftM isNothing (tryReadMVar (pollCtrl p))
 
 enqueueD :: Poller a -> ([B.ByteString], IORef Bool) -> IO ()
 enqueueD p a = writeChan (pollOutQ p) a
@@ -114,7 +115,7 @@ sendMsg_ :: (Sender a) => Poller a -> [L.ByteString] -> IO ()
 sendMsg_ p = void . sendMsg p
 
 cancel :: Poller a -> IO ()
-cancel p = void $ tryPutMVar (pollCtrl p) True
+cancel p = putMVar (pollCtrl p) ()
 
 useSocket :: Poller a -> (Socket a -> IO b) -> IO b
 useSocket p = withMVar (pollLock p)
@@ -178,6 +179,6 @@ gpollLoop logger mode recvCallback sendCallback p = go
         fh  <- useSocket p fileDescriptor
         t0  <- forkIO (when (hasRead mode) $ goRead fh)
         t1  <- forkIO (when (hasWrite mode) $ goWrite fh Nothing)
-        modifyMVar_ (pollCtrl p) (\_ -> return False)
+        readMVar (pollCtrl p)
         mapM_ killThread [t0, t1]
 
