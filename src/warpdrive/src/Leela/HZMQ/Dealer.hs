@@ -201,7 +201,7 @@ runClient syslog cfg client = do
         caps <- getNumCapabilities
         t0   <- forkIO (supervise syslog "Dealer#poolUpdate" $
                           foreverWith (onPoller alive) (poolUpdate cfg pool >> sleep 1))
-        ts   <- replicateM caps (forkIO recvLoop)
+        ts   <- mapM (\i -> forkOn i recvLoop) [0..caps-1]
         _    <- ioloop `finally` (mapM_ killThread (t0 : ts))
         warning syslog "dealer has quit"
         

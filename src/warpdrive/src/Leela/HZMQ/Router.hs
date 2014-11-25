@@ -97,6 +97,6 @@ startRouter syslog endpoint ctx action = do
       go poller = do
         warning syslog "router has started"
         caps <- getNumCapabilities
-        ts   <- replicateM caps (forkIO (recvLoop poller))
+        ts   <- mapM (\i -> forkOn i (recvLoop poller)) [0..caps-1]
         pollLoop syslog poller `finally` (mapM_ killThread ts)
         warning syslog "router has quit"
