@@ -27,7 +27,7 @@ newCounter :: (Integral a) => IO (Counter a)
 newCounter = fmap Counter (newIORef 0)
 
 next :: (Integral a) => Counter a -> IO a
-next (Counter ioref) = atomicModifyIORef' ioref (\a -> let b = a + 1 in (b, b))
+next (Counter ioref) = atomicModifyIORef' ioref (\a -> (a + 1, a + 1))
 
 peek :: Counter a -> IO a
 peek (Counter ioref) = readIORef ioref
