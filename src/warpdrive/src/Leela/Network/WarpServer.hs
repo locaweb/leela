@@ -237,10 +237,12 @@ evalFinalizer syslog t0 chan dev (Right _)   = do
   qclose dev
 
 process :: (GraphBackend m, AttrBackend m) => m -> WarpServer -> Query -> (Reply -> IO ()) -> IO ()
-process storage srv (Begin sig msg) flush =
+process storage srv (Begin sig msg) flush = makeFD srv (sigUser sig) $ \time thandle fh dev ->
   case (chkloads (parseLQL $ sigUser sig) msg) of
-    Left _      -> flush $ Fail 400 (Just "syntax error")
-    Right stmts -> makeFD srv (sigUser sig) $ \time thandle fh dev -> do
+    Left _      -> do
+      closeFD srv (sigUser sig, fh)
+      flush $ Fail 400 (Just "syntax error")
+    Right stmts -> do
       if (level (logger srv) >= NOTICE)
         then notice (logger srv) (printf "BEGIN %s %d" (lqlDescr stmts) fh)
         else info (logger srv) (printf "BEGIN %s %d" (show msg) fh)
