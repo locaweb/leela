@@ -29,37 +29,39 @@ module Leela.Storage.Graph
     ) where
 
 import Control.Monad
+import Data.Serialize
 import Leela.Data.Time
 import Leela.Data.Types
+import Control.Applicative
 
-data GraphEvent = MakeVertexEvent User Tree Kind Node GUID
+data GraphEvent = MakeVertexEvent Kind Node GUID
                 | KillVertexEvent GUID
                 | MakeLinkEvent GUID Label GUID
                 | KillLinkEvent GUID Label (Maybe GUID)
-                deriving (Eq)
+                deriving (Show, Eq)
 
 data AttrEvent = TAttrPutEvent GUID Attr Time Value [Option]
                | KAttrPutEvent GUID Attr Value [Option]
                | TAttrDelEvent GUID Attr (Maybe Time)
                | KAttrDelEvent GUID Attr
-               deriving (Eq)
+               deriving (Show, Eq)
 
 data LogBackend a = LogBackend { proxy    :: a
-                               , ghandler :: GraphEvent -> IO ()
-                               , ahandler :: AttrEvent -> IO ()
+                               , ghandler :: [GraphEvent] -> IO ()
+                               , ahandler :: [AttrEvent] -> IO ()
                                }
 
 type Page = Maybe
 
 type Limit = Int
 
-logGraphBackend :: (GraphBackend a) => (GraphEvent -> IO ()) -> a -> LogBackend a
+logGraphBackend :: (GraphBackend a) => ([GraphEvent] -> IO ()) -> a -> LogBackend a
 logGraphBackend handler db = LogBackend db handler (const $ return ())
 
-logAttrBackend :: (AttrBackend a) => (AttrEvent -> IO ()) -> a -> LogBackend a
+logAttrBackend :: (AttrBackend a) => ([AttrEvent] -> IO ()) -> a -> LogBackend a
 logAttrBackend handler db = LogBackend db (const $ return ()) handler
 
-logBackend :: (GraphBackend a, AttrBackend a) => (GraphEvent -> IO ()) -> (AttrEvent -> IO ()) -> a -> LogBackend a
+logBackend :: (GraphBackend a, AttrBackend a) => ([GraphEvent] -> IO ()) -> ([AttrEvent] -> IO ()) -> a -> LogBackend a
 logBackend ghandler ahandler db = LogBackend db ghandler ahandler
 
 defaultLimit :: Int
@@ -67,6 +69,12 @@ defaultLimit = 512
 
 uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
 uncurry3 f (a, b, c) = f a b c
+
+uncurry4 :: (a -> b -> c -> d -> e) -> (a, b, c, d) -> e
+uncurry4 f (a, b, c, d) = f a b c d
+
+uncurry5 :: (a -> b -> c -> d -> e -> f) -> (a, b, c, d, e) -> f
+uncurry5 f (a, b, c, d, e) = f a b c d e
 
 enumAttrs :: (AttrBackend db) => (db -> GUID -> Mode Attr -> Limit -> IO [Attr]) -> db -> ([Attr] -> IO ()) -> GUID -> Mode Attr -> IO ()
 enumAttrs listF db write g mode = do
@@ -138,16 +146,15 @@ instance (AttrBackend m) => AttrBackend (LogBackend m) where
 
   putAttr m values = do
     putAttr (proxy m) values
-    mapM_ (\(g, a, v, o) -> ahandler m $ KAttrPutEvent g a v o) values
+    ahandler m (map (uncurry4 KAttrPutEvent) values)
 
   putTAttr m values = do
     putTAttr (proxy m) values
-    mapM_ (\(g, a, t, v, o) -> ahandler m $ TAttrPutEvent g a t v o) values
+    ahandler m (map (uncurry5 TAttrPutEvent) values)
 
   delAttr m values = do
     delAttr (proxy m) values
-    mapM_ (\(g, a) -> ahandler m $ TAttrDelEvent g a Nothing) values
-    mapM_ (\(g, a) -> ahandler m $ KAttrDelEvent g a) values
+    ahandler m (concatMap (\(g, a) -> [TAttrDelEvent g a Nothing, KAttrDelEvent g a]) values)
 
 instance (GraphBackend m) => GraphBackend (LogBackend m) where
 
@@ -165,17 +172,91 @@ instance (GraphBackend m) => GraphBackend (LogBackend m) where
 
   putName m user tree kind node = do
     guid <- putName (proxy m) user tree kind node
-    ghandler m $ MakeVertexEvent user tree kind node guid
+    ghandler m [MakeVertexEvent kind node guid]
     return guid
 
   putLink m links = do
     putLink (proxy m) links
-    mapM_ (ghandler m . uncurry3 MakeLinkEvent) links
+    ghandler m (map (uncurry3 MakeLinkEvent) links)
 
   unlink m links = do
     unlink (proxy m) links
-    mapM_ (ghandler m . uncurry3 KillLinkEvent) links
+    ghandler m (map (uncurry3 KillLinkEvent) links)
 
   remove m guid = do
     remove (proxy m) guid
-    ghandler m $ KillVertexEvent guid
+    ghandler m [KillVertexEvent guid]
+
+getGraphEvent_v0 = getWord8 >>= \ty ->
+  case ty of
+    0 -> MakeVertexEvent <$> get <*> get <*> get
+    1 -> KillVertexEvent <$> get
+    2 -> MakeLinkEvent <$> get <*> get <*> get
+    3 -> KillLinkEvent <$> get <*> get <*> get
+    _ -> mzero
+
+putGraphEvent_v0 (MakeVertexEvent k n g) = do
+  putWord8 0
+  put k
+  put n
+  put g
+putGraphEvent_v0 (KillVertexEvent g) = do
+  putWord8 1
+  put g
+putGraphEvent_v0 (MakeLinkEvent ga l gb) = do
+  putWord8 2
+  put ga
+  put l
+  put gb
+putGraphEvent_v0 (KillLinkEvent ga l mgb) = do
+  putWord8 3
+  put ga
+  put l
+  put mgb
+
+putAttrEvent_v0 (TAttrPutEvent g a t v opts) = do
+  putWord8 0
+  put g
+  put a
+  put t
+  put v
+  put opts
+putAttrEvent_v0 (KAttrPutEvent g a v opts) = do
+  putWord8 1
+  put g
+  put a
+  put v
+  put opts
+putAttrEvent_v0 (TAttrDelEvent g a mt) = do
+  putWord8 2
+  put g
+  put a
+  put mt
+putAttrEvent_v0 (KAttrDelEvent g a) = do
+  putWord8 3
+  put g
+  put a
+
+getAttrEvent_v0 = getWord8 >>= \ty ->
+  case ty of
+    0 -> TAttrPutEvent <$> get <*> get <*> get <*> get <*> get
+    1 -> KAttrPutEvent <$> get <*> get <*> get <*> get
+    2 -> TAttrDelEvent <$> get <*> get <*> get
+    3 -> KAttrDelEvent <$> get <*> get
+    _ -> mzero
+
+instance Serialize GraphEvent where
+
+  get   = getWord8 >>= \ver ->
+    case ver of
+      0 -> getGraphEvent_v0
+      _ -> mzero
+  put e = putWord8 0 >> putGraphEvent_v0 e
+
+instance Serialize AttrEvent where
+
+  get   = getWord8 >>= \ver ->
+    case ver of
+      0 -> getAttrEvent_v0
+      _ -> mzero
+  put e = putWord8 0 >> putAttrEvent_v0 e
