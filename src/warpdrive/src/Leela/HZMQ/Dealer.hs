@@ -104,7 +104,7 @@ request (ClientFH client) msg = bracket acquire release useFunc
 push :: ClientFH Push -> [L.ByteString] -> IO Bool
 push (ClientFH client) msg =
   case (pipeline client) of
-    Left poller -> sendMsg_ poller msg >> return True
+    Left poller -> snd <$> sendMsg poller msg
     _           -> return False
 
 pull (ClientFH client) =
