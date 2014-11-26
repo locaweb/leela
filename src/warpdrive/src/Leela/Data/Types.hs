@@ -51,6 +51,7 @@ module Leela.Data.Types
 
 import           Data.Int
 import           Data.Word
+import           Control.Monad
 import           Data.Hashable
 import           Data.Serialize
 import           Control.DeepSeq
@@ -58,6 +59,7 @@ import qualified Data.ByteString as B
 import           Leela.Data.Time
 import           Control.Exception
 import           Leela.Data.Excepts
+import           Control.Applicative
 import qualified Data.ByteString.Lazy as L
 
 newtype GUID = GUID L.ByteString
@@ -112,7 +114,7 @@ data Option = TTL Int
             | Indexing
             | MaxDataPoints Int
             | Data L.ByteString L.ByteString
-            deriving (Eq)
+            deriving (Show, Eq)
 
 data Mode a = All (Maybe a)
             | Prefix a a
@@ -237,6 +239,46 @@ instance Serialize Value where
       5 -> fmap UInt64 getWord64be
       6 -> fmap Double getFloat64be
       _ -> throw (SystemExcept (Just "Types/get: error decoding Value type"))
+
+instance Serialize GUID where
+
+  get          = GUID <$> get
+  put (GUID g) = put g
+
+instance Serialize Label where
+
+  get           = Label <$> get
+  put (Label l) = put l
+
+instance Serialize Kind where
+
+  get          = Kind <$> get
+  put (Kind k) = put k
+
+instance Serialize Node where
+
+  get          = Node <$> get
+  put (Node n) = put n
+
+instance Serialize Attr where
+
+  get          = Attr <$> get
+  put (Attr a) = put a
+
+instance Serialize Option where
+
+  get = getWord8 >>= \ty ->
+    case ty of
+      0 -> TTL <$> get
+      1 -> return Indexing
+      2 -> MaxDataPoints <$> get
+      3 -> Data <$> get <*> get
+      _ -> mzero
+
+  put (TTL t)           = putWord8 0 >> put t
+  put Indexing          = putWord8 1
+  put (MaxDataPoints m) = putWord8 2 >> put m
+  put (Data k v)        = putWord8 3 >> put k >> put v
 
 instance Functor Mode where
 
