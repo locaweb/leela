@@ -29,7 +29,6 @@ module Leela.Network.Protocol
     , encode
     , encodeE
     , mapToLazyBS
-    , mergeRValue
     ) where
 
 import           Data.List (foldl')
@@ -76,12 +75,6 @@ data RValue = Path [(GUID, Label)]
             | TAttr GUID Attr [(Time, Value)]
             | NAttrs GUID [Attr]
             | Name User Tree Kind Node GUID
-
-mergeRValue :: RValue -> RValue -> RValue
-mergeRValue (List a) (List b) = List (a ++ b)
-mergeRValue (List a) b        = List (a ++ [b])
-mergeRValue a (List b)        = List (a : b)
-mergeRValue a b               = List [a, b]
 
 isEOF :: Reply -> Bool
 isEOF m = isLast m || isFail m
