@@ -172,7 +172,7 @@ createPush syslog cfg ctx = do
   fh     <- zmqSocket
   client <- Unidirectional syslog
               <$> timeoutManager
-              <*> (Left <$> (newIOLoop_ "pipeline" fh 10000))
+              <*> (Left <$> (newIOLoop_ "pipeline" fh 1000))
   runClient syslog cfg client
     where
       zmqSocket = do
