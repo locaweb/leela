@@ -140,13 +140,14 @@ main = do
     setIoThreads (optIoThreads opts) ctx
     secret     <- maybe (return Nothing) lookupEnv (optRedisSecret opts)
     cache      <- redisOpen syslog (redisRO, redisRW) secret
-    -- pusher     <- createPipeline syslog pushCfg ctx
+    pusher     <- createPush syslog pushCfg ctx
     dealer     <- createDealer syslog dealerCfg ctx
-    -- router     <- warpServer warpsrv (fromIntegral $ optSigTTL opts) (optEndpoint opts) ctx (warpLogServer pusher $ zmqbackend syslog dealer cache)
-    router     <- warpServer warpsrv (fromIntegral $ optSigTTL opts) (optEndpoint opts) ctx (zmqbackend syslog dealer cache)
+    router     <- warpServer warpsrv
+                    (fromIntegral $ optSigTTL opts) (optEndpoint opts) ctx
+                    (warpLogServer syslog pusher $ zmqbackend syslog dealer cache)
     takeMVar alive
     flushLogger syslog
-    -- stopDealer pusher
+    stopDealer pusher
     stopDealer dealer
     stopRouter router
   warning syslog "warpdrive: see ya!"

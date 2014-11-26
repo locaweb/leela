@@ -31,6 +31,7 @@ import           Leela.Logger
 import           Data.Foldable (toList)
 import           Leela.Helpers
 import           Control.Monad
+import qualified Data.Serialize as S
 import           Leela.Data.LQL
 import           Leela.Data.Time
 import           Leela.Data.Graph
@@ -291,10 +292,18 @@ warpServer core ttl addr ctx storage = startRouter (logger core) addr ctx (worke
               Left e            -> flush (encode e)
               Right q           -> process db core q (flush . encode)
 
-warpLogServer :: (GraphBackend m, AttrBackend m) => ClientFH Push -> m -> LogBackend m
-warpLogServer _ db =
-  logBackend handleAttrEvent handleGraphEvent db
+warpLogServer :: (GraphBackend m, AttrBackend m) => Logger -> ClientFH Push -> m -> LogBackend m
+warpLogServer syslog pipeline db =
+  logBackend handleGraphEvent handleAttrEvent db
     where
-      handleAttrEvent _ = return ()
+      handleAttrEvent :: [AttrEvent] -> IO ()
+      handleAttrEvent e = do
+        t  <- now
+        ok <- push pipeline (S.encodeLazy t : map S.encodeLazy e)
+        unless ok (warning syslog (printf "warpserver: dropping attr event [queue full]"))
 
-      handleGraphEvent _ = return ()
+      handleGraphEvent :: [GraphEvent] -> IO ()
+      handleGraphEvent e = do
+        t  <- now
+        ok <- push pipeline (S.encodeLazy t : map S.encodeLazy e)
+        unless ok (warning syslog (printf "warpserver: dropping graph event [queue full]"))
