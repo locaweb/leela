@@ -101,7 +101,7 @@ expired (t1, limit) t0 = (t1 < tMin || t1 > tMax)
       tMin = (negate pLim) `add` t0
 
 now :: IO Time
-now = fmap fromTimeSpec (getTime Realtime)
+now = fromTimeSpec <$> getTime Realtime
 
 instance Enum Date where
 
@@ -119,4 +119,4 @@ instance Serialize Time where
 
   put (Time t) = put t
 
-  get = fmap Time get
+  get = Time <$> get
