@@ -1,8 +1,7 @@
 (ns leela.blackbox.storage.cassandra-test
   (:use     [clojure.test]
             [clojurewerkz.cassaforte.query]
-            [clojurewerkz.cassaforte.embedded]
-            [clojurewerkz.cassaforte.multi.cql])
+            [clojurewerkz.cassaforte.cql])
   (:require [leela.blackbox.f :as f]
             [clojurewerkz.cassaforte.client :as client]
             [leela.blackbox.storage.cassandra :as storage]))
@@ -17,7 +16,7 @@
 (deftest test-get-gindex
   (let [node (f/uuid-1)
         table (rand-nth [:g_index :k_index])]
-    (storage/with-session [cluster ["127.0.0.1"] "leela"]
+    (storage/with-connection [cluster ["127.0.0.1"] "leela"]
 
       (truncate-n-test cluster "get-gindex with no data"
         (is (= [] (storage/get-index cluster table node))))
@@ -53,7 +52,7 @@
 
 (deftest test-put-tattr
   (let [node-a (f/uuid-from-time 1)]
-    (storage/with-session [cluster ["127.0.0.1"] "leela"]
+    (storage/with-connection [cluster ["127.0.0.1"] "leela"]
 
       (truncate-n-test cluster "put-tattr without index"
          (storage/put-tattr cluster [[{:key node-a
@@ -74,7 +73,7 @@
         node-b (f/uuid-from-time 2)
         node-c (f/uuid-from-time 3)
         node-d (f/uuid-from-time 4)]
-    (storage/with-session [cluster ["127.0.0.1"] "leela"]
+    (storage/with-connection [cluster ["127.0.0.1"] "leela"]
 
       (truncate-n-test cluster "getlink with no data"
         (is (= [] (storage/getlink cluster node-a "l" (f/uuid-from-time 0)))))
@@ -116,7 +115,7 @@
         node-b (f/uuid-from-time 2)
         node-c (f/uuid-from-time 3)
         node-d (f/uuid-from-time 4)]
-    (storage/with-session [cluster ["127.0.0.1"] "leela"]
+    (storage/with-connection [cluster ["127.0.0.1"] "leela"]
 
       (truncate-n-test cluster "get-tattr with no data"
         (is (= [] (storage/get-tattr cluster node-a "attr" 0))))
@@ -153,7 +152,7 @@
 
 (deftest test-put-kattr
   (let [node-a (f/uuid-from-time 1)]
-    (storage/with-session [cluster ["127.0.0.1"] "leela"]
+    (storage/with-connection [cluster ["127.0.0.1"] "leela"]
 
       (truncate-n-test cluster "put-kattr without index"
          (storage/put-kattr cluster [[{:key node-a
@@ -172,7 +171,7 @@
         node-b (f/uuid-from-time 2)
         node-c (f/uuid-from-time 3)
         node-d (f/uuid-from-time 4)]
-    (storage/with-session [cluster ["127.0.0.1"] "leela"]
+    (storage/with-connection [cluster ["127.0.0.1"] "leela"]
 
       (truncate-n-test cluster "get-kattr with no data"
         (is (= nil (storage/get-kattr cluster node-a "attr"))))
@@ -192,7 +191,7 @@
         (is (= nil (storage/get-kattr cluster node-a "attr#0")))))))
 
 (deftest test-naming
-  (storage/with-session [cluster ["127.0.0.1"] "leela"]
+  (storage/with-connection [cluster ["127.0.0.1"] "leela"]
     (truncate-n-test cluster "putguid register a new uuid"
       (is (not (= nil (storage/putguid cluster "leela" "leela" "foo" "bar")))))
 

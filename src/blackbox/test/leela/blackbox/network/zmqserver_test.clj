@@ -10,7 +10,7 @@
      ~@body))
 
 (deftest test-zmqserver-handle-put-name-msg
-  (storage/with-session [cluster ["127.0.0.1"] "leela"]
+  (storage/with-connection [cluster ["127.0.0.1"] "leela"]
 
     (truncate-n-test cluster "putname returns guid"
       (let [[msg user tree kind name guid] (server/handle-message cluster ["put" "name" "user" "tree" "kind" "foobar"])]
@@ -33,7 +33,7 @@
 
 (deftest test-zmqserver-handle-label-all-message
   (let [node (str (f/uuid-1))]
-    (storage/with-session [cluster ["127.0.0.1"] "leela"]
+    (storage/with-connection [cluster ["127.0.0.1"] "leela"]
 
       (truncate-n-test cluster "getlabel-all with no data"
         (is (= (server/msg-label []) (server/handle-message cluster ["get" "label" "all" node]))))
@@ -58,7 +58,7 @@
 
 (deftest test-zmqserver-handle-label-prefix-message
   (let [node (str (f/uuid-1))]
-    (storage/with-session [cluster ["127.0.0.1"] "leela"]
+    (storage/with-connection [cluster ["127.0.0.1"] "leela"]
 
       (truncate-n-test cluster "getlabel-prefix with no data"
         (is (= (server/msg-label []) (server/handle-message cluster ["get" "label" "pre" node "1" "2"]))))
@@ -96,7 +96,7 @@
 
 (deftest test-zmqserver-handle-label-exact-message
   (let [node (str (f/uuid-1))]
-    (storage/with-session [cluster ["127.0.0.1"] "leela"]
+    (storage/with-connection [cluster ["127.0.0.1"] "leela"]
 
       (truncate-n-test cluster "getlabel-exact with no data"
         (is (= (server/msg-label []) (server/handle-message cluster ["get" "label" "ext" node "foobar"]))))
@@ -111,7 +111,7 @@
         node-c (str (f/uuid-from-time 3))
         node-d (str (f/uuid-from-time 4))
         node-e (str (f/uuid-from-time 5))]
-    (storage/with-session [cluster ["127.0.0.1"] "leela"]
+    (storage/with-connection [cluster ["127.0.0.1"] "leela"]
 
       (truncate-n-test cluster "getlink with no data"
       (is (= (server/msg-link []) (server/handle-message cluster ["get" "link" node-a "l" ""]))))
@@ -141,7 +141,7 @@
 (deftest test-zmqserver-handle-t-attr-message
   (let [node (str (f/uuid-1))
         value (f/str-to-bytes "foobar")]
-    (storage/with-session [cluster ["127.0.0.1"] "leela"]
+    (storage/with-connection [cluster ["127.0.0.1"] "leela"]
 
       (truncate-n-test cluster "get-tattr with no data"
         (is (= (server/msg-tattr []) (server/handle-message cluster ["get" "t-attr" node "attr" "0"]))))
@@ -165,7 +165,7 @@
 (deftest test-zmqserver-handle-k-attr-message
   (let [node (str (f/uuid-1))
         value (f/str-to-bytes "foobar")]
-    (storage/with-session [cluster ["127.0.0.1"] "leela"]
+    (storage/with-connection [cluster ["127.0.0.1"] "leela"]
 
       (truncate-n-test cluster "get-kattr with no data"
         (is (= (server/msg-fail 404) (map f/bytes-to-str (server/handle-message cluster ["get" "k-attr" node "attr"])))))
@@ -186,7 +186,7 @@
 (deftest test-zmqserver-handle-attr-message
   (let [node (str (f/uuid-1))
         value (f/str-to-bytes "foobar")]
-    (storage/with-session [cluster ["127.0.0.1"] "leela"]
+    (storage/with-connection [cluster ["127.0.0.1"] "leela"]
 
       (truncate-n-test cluster "get-attr with no data"
         (is (= (server/msg-nattr []) (map f/bytes-to-str (server/handle-message cluster ["get" "attr" "k-attr" "all" node ""])))))
