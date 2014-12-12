@@ -10,6 +10,6 @@
                  [org.zeromq/jzmq "2.2.2"]
                  [org.clojure/clojure "1.5.1"]
                  [org.clojure/tools.cli "0.2.4"]
-                 [clojurewerkz/cassaforte "2.0.0-beta1"]
+                 [clojurewerkz/cassaforte "2.0.0-rc1"]
                  [org.clojure/tools.logging "0.2.6"]
-                 [org.apache.cassandra/cassandra-all "2.0.8"]])
+                 [org.apache.cassandra/cassandra-all "2.1.2"]])

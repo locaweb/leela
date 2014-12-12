@@ -68,7 +68,7 @@
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}})))
   (when-not (describe-table cluster keyspace :t_index)
     (warn "creating table t_index")
-    (create-table 
+    (create-table
     cluster :t_index
      (if-not-exists)
      (column-definitions {:key :uuid :name :varchar :primary-key [[:key] :name]})
@@ -123,7 +123,7 @@
      (info (format "cassandra/with-connection %s" (dissoc ~options :credentials)))
      (try
        ~@body
-       (finally (.shutdown ~conn)))))
+       (finally (.close ~conn)))))
 
 (defmacro with-consistency [tag & body]
   `(policies/with-consistency-level
@@ -148,15 +148,15 @@
 
 (defn fmt-del-index [table data]
   (let [value (:name data)]
-    [(delete-query table (where :key (:key data) :name value))]))
+    [(delete-query table (where [[= :key (:key data)] [= :name value]]))]))
 
 (defn fmt-put-link [data]
   (insert-query :graph data))
 
 (defn fmt-del-link [data]
   (if-let [b (:b data)]
-    (delete-query :graph (where :a (:a data) :l (:l data) :b b))
-    (delete-query :graph (where :a (:a data) :l (:l data)))))
+    (delete-query :graph (where [[= :a (:a data)] [= :l (:l data)] [= :b b]]))
+    (delete-query :graph (where [[= :a (:a data)] [= :l (:l data)]]))))
 
 (defn fmt-put-kattr [[data opts0]]
   (let [opts (flatten (seq (dissoc opts0 :index)))
@@ -193,7 +193,7 @@
                            (apply using opts)) idx))))
 
 (defn fmt-del-kattr [data]
-  (cons (delete-query :k_attr (where :key (:key data) :name (:name data)))
+  (cons (delete-query :k_attr (where [[= :key (:key data)] [= :name (:name data)]]))
         (fmt-del-index :k_index {:key (:key data)
                                  :name (:name data)})))
 
@@ -202,10 +202,10 @@
     (let [[bucket slot] (decode-time (:time data))]
       [(delete-query
         :t_attr
-        (where :key (:key data)
-               :name (:name data)
-               :bucket bucket
-               :slot slot))])
+        (where [[= :key (:key data)]
+                [= :name (:name data)]
+                [= :bucket bucket]
+                [= :slot slot]]))])
     (fmt-del-index :t_index {:key (:key data)
                              :name (:name data)})))
 
@@ -221,7 +221,7 @@
        (select cluster
                :n_naming
                (columns :node :guid)
-               (where :user user :tree tree :kind kind :node node))))
+               (where [[= :user user] [= :tree tree] [= :kind kind] [= :node node]]))))
 
 (defn getguid [cluster user tree kind node]
   (with-limit 1
@@ -233,7 +233,7 @@
               (select cluster
                       :g_naming
                       (columns :user :tree :kind :node)
-                      (where :guid guid)
+                      (where [[= :guid guid]])
                       (limit 1)))))
 
 (defn putguid [cluster user tree kind node]
@@ -254,16 +254,16 @@
                  table
                  (columns :name)
                  (case [(boolean start) (boolean finish)]
-                   [true true] (where :key k :name [:>= start] :name [:< finish])
-                   [true false] (where :key k :name [:>= start])
-                   (where :key k))
+                   [true true] (where [[= :key k] [>= :name start] [< :name finish]])
+                   [true false] (where [[= :key k] [>= :name start]])
+                   (where [[= :key k]]))
                  (limit +limit+)))))
 
 (defn has-index [cluster table k name]
   (map #(:name %) (select cluster
                           table
                           (columns :name)
-                          (where :key k :name name)
+                          (where [[= :key k] [= :name name]])
                           (limit 1))))
 
 (defn putlink [cluster links]
@@ -285,8 +285,8 @@
                        :graph
                        (columns :b)
                        (if (seq page)
-                         (where :a k :l l :b [:>= (first page)])
-                         (where :a k :l l))
+                         (where [[= :a k] [= :l l] [>= :b (first page)]])
+                         (where [[= :a k] [= :l l]]))
                        (limit +limit+))))
 
 (defn put-tattr [cluster attrs]
@@ -304,7 +304,7 @@
      (select cluster
              :t_attr
              (columns :slot :data)
-             (where :key k :name name :bucket bucket :slot [:>= slot])))))
+             (where [[= :key k] [= :name name] [= :bucket bucket] [>= :slot slot]])))))
 
 (defn del-tattr [cluster attrs]
   (let [query (->> attrs
@@ -327,7 +327,7 @@
         (select cluster
                 :k_attr
                 (columns :value)
-                (where :key k :name name)
+                (where [[= :key k] [= :name name]])
                 (limit 1)))))
 
 (defn del-kattr [cluster attrs]
