@@ -63,6 +63,6 @@
       (f/supervise
        (storage/with-connection [attr-cluster (:cassandra options) cassandra-args]
          (storage/with-connection [graph-cluster (:cassandra options) cassandra-args]
-           (storage/check-attr-schema attr-cluster (:attr-keyspace options))
-           (storage/check-graph-schema graph-cluster (:graph-keyspace options))
+           (storage/use-attr-schema attr-cluster (:attr-keyspace options))
+           (storage/use-graph-schema graph-cluster (:graph-keyspace options))
            (zserver/server-start (ZMQ/context 1) attr-cluster graph-cluster (assoc options :endpoint endpoint))))))))

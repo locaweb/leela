@@ -35,7 +35,7 @@
 (defn encode-time [bucket slot]
   (+ bucket slot))
 
-(defn check-attr-schema [cluster keyspace]
+(defn use-attr-schema [cluster keyspace]
   (when-not (describe-keyspace cluster keyspace)
     (warn (format "creating keyspace %s [simplestrategy, rf=1]" keyspace))
     (create-keyspace
@@ -74,7 +74,7 @@
      (column-definitions {:key :uuid :name :varchar :primary-key [[:key] :name]})
      (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}}))))
 
-(defn check-graph-schema [cluster keyspace]
+(defn use-graph-schema [cluster keyspace]
   (when-not (describe-keyspace cluster keyspace)
     (warn (format "creating keyspace %s [simplestrategy, rf=1]" keyspace))
     (create-keyspace
