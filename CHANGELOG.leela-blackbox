@@ -1,5 +1,11 @@
 --*-- mode: text; --*--
 
+v6.2.0 | 2014-12-13
+  * jzmq 3.1.0
+  * clojure 1.6.0
+  * javadriver 2.1
+  * cassaforte 2.0.0-rc1
+
 v6.1.0 | 2014-08-22
   * ability to use different namespaces for graph and properties
 

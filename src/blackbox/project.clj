@@ -1,4 +1,4 @@
-(defproject blackbox "6.1.0"
+(defproject blackbox "6.2.0"
   :url          "http://leela.rtfd.org"
   :aot          [leela.blackbox.blackbox]
   :main         leela.blackbox.blackbox
@@ -7,7 +7,7 @@
   :description  "Leela: scalable metrics monitoring engine [storage component]"
   :dependencies [[pandect "0.3.0"]
                  [clj-time "0.6.0"]
-                 [org.zeromq/jzmq "2.2.2"]
+                 [org.zeromq/jzmq "3.1.0"]
                  [org.clojure/clojure "1.6.0"]
                  [org.clojure/tools.cli "0.2.4"]
                  [clojurewerkz/cassaforte "2.0.0-rc1"]
