@@ -30,10 +30,13 @@
   (let [time (from-long (* 1000 time-in-sec))
         bucket (quot (to-long (date-time (year time) (month time) (day time))) 1000)
         slot (- time-in-sec bucket)]
-    [bucket slot]))
+    [(month time) bucket slot]))
 
 (defn encode-time [bucket slot]
   (+ bucket slot))
+
+(defn t-attr-colfam [month]
+  (keyword (format "t_attr_%02d" month)))
 
 (defn use-attr-schema [cluster keyspace]
   (when-not (describe-keyspace cluster keyspace)
@@ -45,13 +48,15 @@
      (with {:replication {:class "SimpleStrategy" :replication_factor 1}})))
   (info (format "connecting to keyspace %s" keyspace))
   (use-keyspace cluster keyspace)
-  (when-not (describe-table cluster keyspace :t_attr)
-    (warn "creating table t_attr")
-    (create-table
-     cluster :t_attr
-     (if-not-exists)
-     (column-definitions {:key :uuid :name :varchar :bucket :bigint :slot :int :data :blob :primary-key [[:key :name :bucket] :slot]})
-     (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}})))
+  (dotimes [m 12]
+    (let [colfam (t-attr-colfam (+ 1 m))]
+      (when-not (describe-table cluster keyspace colfam)
+        (warn (format "creating table %s" colfam)
+              (create-table
+               cluster colfam
+               (if-not-exists)
+               (column-definitions {:key :uuid :name :varchar :bucket :bigint :slot :int :data :blob :primary-key [[:key :name :bucket] :slot]})
+               (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}}))))))
   (when-not (describe-table cluster keyspace :k_attr)
     (warn "creating table k_attr")
     (create-table
@@ -134,7 +139,9 @@
      ~@body))
 
 (defn truncate-all [cluster]
-  (doseq [t [:graph :g_index :k_index :t_index :t_attr :k_attr :n_naming :g_naming]]
+  (dotimes [m 12]
+    (truncate cluster (t-attr-colfam (+ 1 m))))
+  (doseq [t [:graph :g_index :k_index :t_index :k_attr :n_naming :g_naming]]
     (truncate cluster t)))
 
 (defn fmt-put-index-opts [table data opts]
@@ -171,20 +178,20 @@
 
 (defn fmt-put-tattr [[data opts0]]
   (let [opts (flatten (seq (dissoc opts0 :index)))
-        [bucket slot] (decode-time (:time data))
+        [month bucket slot] (decode-time (:time data))
         idx (if (:index opts0)
               [(fmt-put-index-opts :t_index
                                    {:key (:key data)
                                     :name (:name data)} opts)]
               [])]
     (if (empty? opts)
-      (cons (insert-query :t_attr
+      (cons (insert-query (t-attr-colfam month)
                           {:data (:value data)
                            :key (:key data)
                            :name (:name data)
                            :bucket bucket
                            :slot slot}) idx)
-      (cons (insert-query :t_attr
+      (cons (insert-query (t-attr-colfam month)
                           {:data (:value data)
                            :key (:key data)
                            :name (:name data)
@@ -199,9 +206,9 @@
 
 (defn fmt-del-tattr [data]
   (if (contains? data :time)
-    (let [[bucket slot] (decode-time (:time data))]
+    (let [[month bucket slot] (decode-time (:time data))]
       [(delete-query
-        :t_attr
+        (t-attr-colfam month)
         (where [[= :key (:key data)]
                 [= :name (:name data)]
                 [= :bucket bucket]
@@ -297,12 +304,12 @@
     (client/execute cluster (client/render-query query))))
 
 (defn get-tattr [cluster k name time]
-  (let [[bucket slot] (decode-time time)]
+  (let [[month bucket slot] (decode-time time)]
     (map
      (fn [row]
        [(encode-time bucket (:slot row)) (f/binary-to-bytes (:data row))])
      (select cluster
-             :t_attr
+             (t-attr-colfam month)
              (columns :slot :data)
              (where [[= :key k] [= :name name] [= :bucket bucket] [>= :slot slot]])))))
 
