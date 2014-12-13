@@ -8,7 +8,7 @@
   :dependencies [[pandect "0.3.0"]
                  [clj-time "0.6.0"]
                  [org.zeromq/jzmq "2.2.2"]
-                 [org.clojure/clojure "1.5.1"]
+                 [org.clojure/clojure "1.6.0"]
                  [org.clojure/tools.cli "0.2.4"]
                  [clojurewerkz/cassaforte "2.0.0-rc1"]
                  [org.clojure/tools.logging "0.2.6"]
