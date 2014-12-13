@@ -80,6 +80,11 @@
 (defn maybe-bytes-to-str [bytes]
   (when bytes (bytes-to-str bytes)))
 
+(defn parse-int [val]
+  (if (integer? val)
+    val
+    (Integer/parseInt val)))
+
 (defn binary-to-bytes [b]
   (let [buffer (byte-array (.remaining b))]
     (.get b buffer)

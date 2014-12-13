@@ -45,6 +45,7 @@
   (try
     ((:onjob worker) msg)
     (catch Exception e
+      (error e "error evaluating request")
       (:onerr worker))))
 
 (defn run-worker [ctx myid endpoint queue worker]

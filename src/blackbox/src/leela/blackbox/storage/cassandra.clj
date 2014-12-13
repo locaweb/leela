@@ -135,7 +135,7 @@
      (policies/consistency-level ~tag) ~@body))
 
 (defmacro with-limit [lim & body]
-  `(with-redefs [+limit+ (or ~lim +limit+)]
+  `(with-redefs [+limit+ (f/parse-int (or ~lim +limit+))]
      ~@body))
 
 (defn truncate-all [cluster]
