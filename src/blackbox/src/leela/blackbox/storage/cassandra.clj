@@ -56,7 +56,7 @@
                cluster colfam
                (if-not-exists)
                (column-definitions {:key :uuid :name :varchar :bucket :bigint :slot :int :data :blob :primary-key [[:key :name :bucket] :slot]})
-               (with {:compaction {:class "LeveledCompactionStrategy" :sstable_size_in_mb "256"}}))))))
+               (with {:compaction {:class "SizeTieredCompactionStrategy" :min_threshold "6"}}))))))
   (when-not (describe-table cluster keyspace :k_attr)
     (warn "creating table k_attr")
     (create-table
