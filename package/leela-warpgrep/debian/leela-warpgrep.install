@@ -1,0 +1,3 @@
+../../src/warpdrive/dist/build/warpgrep/warpgrep /usr/bin
+../../src/scripts/leela-warpgrep-watchdog.sh /usr/bin
+../../etc/security/limits.d/warpgrep.conf /etc/security/limits.d

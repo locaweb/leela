@@ -22,10 +22,11 @@ import System.ZMQ4
 import Leela.Logger
 import Leela.Naming
 import Control.Monad
-import Leela.Helpers
 import Leela.Data.Time
+import Leela.HZMQ.Pipe
 import Leela.HZMQ.Dealer
 import Control.Concurrent
+import Leela.MonadHelpers
 import System.Environment
 import Leela.Data.Endpoint
 import System.Posix.Signals
@@ -53,7 +54,7 @@ defaultOptions = Options { optEndpoint     = TCP "*" 4080 ""
                          , optRedisSecret  = Nothing
                          , optPasswd       = "/etc/leela/passwd"
                          , optBufSize      = fromIntegral defaultBufSize
-                         , optIoThreads    = 1
+                         , optIoThreads    = 2
                          , optSigTTL       = 300
                          , optLogFile      = Nothing
                          }
@@ -130,25 +131,27 @@ main = do
   void $ installHandler sigTERM (Catch $ signal alive) Nothing
   void $ installHandler sigINT (Catch $ signal alive) Nothing
   void $ installHandler sigHUP (Catch $ reopen syslog) Nothing
-  warning syslog
-    (printf "warpdrive: yo!yo!; endpoint=%s" (show $ optEndpoint opts))
+  warning syslog (printf "warpdrive: yo!yo!; endpoint=%s" (show $ optEndpoint opts))
   withContext $ \ctx -> do
     let dealerCfg = ClientConf (fmap (fromMaybe [] . lookup "blackbox") (readIORef naming))
-        pushCfg   = ClientConf (fmap (fromMaybe [] . lookup "warpgrep") (readIORef naming))
+        pipeCfg   = PipeConf (fmap (fromMaybe [] . lookup "warpgrep") (readIORef naming))
         redisRW   = fmap (fromMaybe [] . lookup "redis") (readIORef naming)
         redisRO   = fmap (maybe [] (map (portMap (+1))) . lookup "redis") (readIORef naming)
     setIoThreads (optIoThreads opts) ctx
-    secret     <- maybe (return Nothing) lookupEnv (optRedisSecret opts)
-    cache      <- redisOpen syslog (redisRO, redisRW) secret
-    pusher     <- createPush syslog pushCfg ctx
-    dealer     <- createDealer syslog dealerCfg ctx
-    router     <- warpServer warpsrv
-                    (fromIntegral $ optSigTTL opts) (optEndpoint opts) ctx
-                    (warpLogServer syslog pusher $ zmqbackend syslog dealer cache)
+    secret <- maybe (return Nothing) lookupEnv (optRedisSecret opts)
+    cache  <- redisOpen syslog (redisRO, redisRW) secret
+    pipe   <- createPushPipe ctx syslog
+    dealer <- createDealer syslog ctx
+    pipeConnect pipe pipeCfg
+    dealerConnect syslog dealer dealerCfg
+    tcache <- timeCache
+    router <- warpServer warpsrv
+                (fromIntegral $ optSigTTL opts) tcache (optEndpoint opts) ctx
+                (warpLogServer syslog tcache pipe $ zmqbackend syslog dealer cache)
     takeMVar alive
     flushLogger syslog
-    stopDealer pusher
-    stopDealer dealer
     stopRouter router
+    stopDealer dealer
+    stopPipe pipe
   warning syslog "warpdrive: see ya!"
   closeLogger syslog

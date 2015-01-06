@@ -1,13 +1,13 @@
-#! /bin/bash
+#! /bin/sh
 
 ### BEGIN INIT INFO
-# Provides:          leela-warpdrive
+# Provides:          leela-warpgrep
 # Required-Start:    $local_fs $remote_fs $network $syslog
 # Required-Stop:     $local_fs $remote_fs $network $syslog
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Leela - Scalable metrics monitoring engine (server module)
-# Description:       Leela - Scalable metrics monitoring engine (server module)
+# Short-Description: Leela - Scalable metrics monitoring engine (monitor module)
+# Description:       Leela - Scalable metrics monitoring engine (monitor module)
 ### END INIT INFO
 
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
@@ -15,13 +15,13 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 USER=leela
 GROUP=leela
 
-LOGDIR=/var/log/leela/warpdrive
-RUNDIR=/var/run/leela/warpdrive
-HOMEDIR=/var/run/leela/warpdrive
+LOGDIR=/var/log/leela/warpgrep
+RUNDIR=/var/run/leela/warpgrep
+HOMEDIR=/var/run/leela/warpgrep
 
 . /lib/lsb/init-functions
 [ -x /usr/bin/daemon                ] || exit 1
-[ -r "/etc/default/leela-warpdrive" ] && . /etc/default/leela-warpdrive
+[ -r "/etc/default/leela-warpgrep" ] && . /etc/default/leela-warpgrep
 
 leela_grantaccess () {
   mkdir -p $LOGDIR
@@ -51,16 +51,16 @@ leela_wait4 () {
 
 leela_watchdog_start () {
   leela_grantaccess
-  [ ! -r /etc/consul/conf.d/warpdrive.json ] && {
-    ln -s -f /etc/consul/conf.d/warpdrive.service /etc/consul/conf.d/warpdrive.json
+  [ ! -r /etc/consul/conf.d/warpgrep.json ] && {
+    ln -s -f /etc/consul/conf.d/warpgrep.service /etc/consul/conf.d/warpgrep.json
     /etc/init.d/consul reload
   }
 }
 
 leela_watchdog_stop () {
   leela_grantaccess
-  [ -r /etc/consul/conf.d/warpdrive.json ] && {
-    rm -f /etc/consul/conf.d/warpdrive.json
+  [ -r /etc/consul/conf.d/warpgrep.json ] && {
+    rm -f /etc/consul/conf.d/warpgrep.json
     /etc/init.d/consul reload
   }
 }
@@ -71,18 +71,17 @@ leela_daemon_start () {
   ulimit -n 100000
   daemon --delay 10 -r -o $LOGDIR/daemon.log \
     -u $USER:$GROUP -D $HOMEDIR -P $RUNDIR -n daemon \
-    -e LEELA_WARPDRIVE_REDIS_SECRET=$LEELA_WARPDRIVE_REDIS_SECRET \
-    -- numactl --interleave=all warpdrive \
-      --endpoint=${LEELA_WARPDRIVE_ENDPOINT:-tcp://localhost:4080} \
-      --redis-secret-env=LEELA_WARPDRIVE_REDIS_SECRET \
-      $LEELA_WARPDRIVE_OPTS
+    -- numactl --interleave=all warpgrep \
+      --endpoint=${LEELA_WARPGREP_ENDPOINT:-tcp://localhost:8040} \
+      --bus-endpoint=${LEELA_WARPGREP_BUS_ENDPOINT:-tcp://localhost:6969} \
+      $LEELA_WARPGREP_OPTS
 }
 
 leela_daemon_stop () {
   leela_grantaccess
   daemon --stop -P $RUNDIR -n daemon
   leela_wait4 $RUNDIR/daemon.pid
-  pkill -u $USER --signal KILL warpdrive
+  pkill -u $USER --signal KILL warpgrep
   leela_wait4 $RUNDIR/daemon.pid
   echo
 }

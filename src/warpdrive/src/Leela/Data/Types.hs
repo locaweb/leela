@@ -62,7 +62,7 @@ import           Leela.Data.Excepts
 import           Control.Applicative
 import qualified Data.ByteString.Lazy as L
 
-newtype GUID = GUID L.ByteString
+newtype GUID = GUID { unGUID :: L.ByteString }
              deriving (Eq, Ord, Show)
 
 newtype Label = Label L.ByteString
@@ -244,6 +244,16 @@ instance Serialize GUID where
 
   get          = GUID <$> get
   put (GUID g) = put g
+
+instance Serialize User where
+
+  get          = User <$> get
+  put (User g) = put g
+
+instance Serialize Tree where
+
+  get          = Tree <$> get
+  put (Tree g) = put g
 
 instance Serialize Label where
 

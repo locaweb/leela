@@ -13,6 +13,9 @@ images:
 warpdrive:
 	$(MAKE) leela-warpdrive.debian
 
+warpgrep:
+	$(MAKE) leela-warpgrep.debian
+
 blackbox:
 	$(MAKE) leela-blackbox.debian
 

@@ -29,17 +29,17 @@ import           Data.Monoid ((<>))
 import           System.ZMQ4
 import           Leela.Logger
 import           Data.Foldable (toList)
-import           Leela.Helpers
 import           Control.Monad
+import qualified Data.Sequence as Sq
 import qualified Data.Serialize as S
 import           Leela.Data.LQL
 import           Leela.Data.Time
+import           Leela.HZMQ.Pipe
 import           Leela.Data.Graph
 import           Leela.Data.Types
 import qualified Leela.Data.L2Map as M
 import           System.IO.Unsafe
 import           Control.Exception
-import           Leela.HZMQ.Dealer
 import           Leela.HZMQ.Router
 import           Control.Concurrent
 import           Leela.Data.Counter
@@ -51,16 +51,18 @@ import           Leela.Storage.Graph
 import qualified Leela.Storage.Passwd as P
 import qualified Data.ByteString.Lazy as L
 import           Leela.Storage.Passwd
+import           Data.ByteString.Char8 (unpack)
 import           Leela.Data.TimeSeries
 import           Control.Concurrent.STM
 import           Leela.Network.Protocol
 import           Data.ByteString.Builder
+import           Data.Double.Conversion.ByteString
 
 data WarpServer = WarpServer { logger   :: Logger
                              , stat     :: IORef [(String, [Endpoint])]
                              , passwd   :: IORef P.Passwd
                              , fdseq    :: Counter FH
-                             , tManager :: Manager
+                             , tManager :: TimeoutManager
                              , fdlist   :: M.L2Map L.ByteString FH (TVar (Handle, Time, QDevice Reply))
                              }
 
@@ -68,11 +70,14 @@ data Stream a = Chunk a
               | Error SomeException
               | EOF
 
-useTimeout :: Int
-useTimeout = 30 * 1000 * 1000
+showDouble :: Double -> String
+showDouble = unpack . toShortest
 
 serverLimit :: Int
-serverLimit = unsafePerformIO (liftM (* 100) getNumCapabilities)
+serverLimit = 128 * (unsafePerformIO getNumCapabilities)
+
+useTimeout :: Int
+useTimeout = 30 * 1000 * 1000
 
 readPasswd :: WarpServer -> IO P.Passwd
 readPasswd = readIORef . passwd
@@ -95,17 +100,19 @@ newWarpServer syslog statdb secretdb = makeState
     
 makeFD :: WarpServer -> User -> (Time -> Handle -> FH -> QDevice Reply -> IO ()) -> IO ()
 makeFD srv (User u) cc = do
-  fd   <- next (fdseq srv)
-  mth  <- open (tManager srv) (<= serverLimit) useTimeout (closeFDTimeout srv (User u, fd))
-  case mth of
-    Nothing           -> warning (logger srv) (printf "REJECT %d : [server-limit:%d]" fd serverLimit)
-    Just (active, th) -> void $ forkIO $ do
+  fd           <- next (fdseq srv)
+  (active, th) <- open (tManager srv) useTimeout (closeFDTimeout srv (User u, fd))
+  if (active > serverLimit)
+    then do
+      purge th
+      warning (logger srv) (printf "REJECT %d" active)
+    else do
       notice (logger srv) (printf "ACCEPT %d : %d" fd active)
       dev  <- qnew 4
       time <- snapshot
       val  <- newTVarIO (th, time, dev)
       M.insert u fd val (fdlist srv)
-      yield >> cc time th fd dev
+      cc time th fd dev
 
 withFD :: WarpServer -> (User, FH) -> (Maybe (QDevice Reply) -> IO b) -> IO b
 withFD srv ((User u), fh) action = do
@@ -213,9 +220,12 @@ evalLQL db core thandle queue (x:xs) = do
     StatStmt          -> do
       state <- dumpStat core
       touchQWrite thandle queue (Item $ Stat state)
-    AlterStmt journal -> do
-      names <- exec db (toList journal)
-      mapM_ (\(u, t, k, n, g) -> touchQWrite thandle queue (Item $ Name u t k n g)) names
+    AlterStmt journal
+      | Sq.length journal > 1000 ->
+        touchQWrite thandle queue (Fail 413 (Just $ printf "too many write requests [%d > 1000]" (Sq.length journal)))
+      | otherwise                -> do
+        names <- exec db (toList journal)
+        mapM_ (\(u, t, k, n, g) -> touchQWrite thandle queue (Item $ Name u t k n g)) names
     NameStmt _ guids  -> do
       names <- getName db (toList guids)
       forM_ names (\(u, t, k, n, g) ->
@@ -238,52 +248,41 @@ evalFinalizer syslog t0 chan dev (Right _)   = do
   qclose dev
 
 process :: (GraphBackend m, AttrBackend m) => m -> WarpServer -> Query -> (Reply -> IO ()) -> IO ()
-process storage srv (Begin sig msg) flush = makeFD srv (sigUser sig) $ \time thandle fh dev ->
+process storage srv (Begin sig msg) flush =
   case (chkloads (parseLQL $ sigUser sig) msg) of
-    Left _      -> do
-      closeFD srv (sigUser sig, fh)
-      flush $ Fail 400 (Just "syntax error")
-    Right stmts -> do
+    Left _      -> flush $ Fail 400 (Just "syntax error")
+    Right stmts -> yield >> makeFD srv (sigUser sig) (\time thandle fh dev -> void $ forkIO $ do
       if (level (logger srv) >= NOTICE)
         then notice (logger srv) (printf "BEGIN %s %d" (lqlDescr stmts) fh)
         else info (logger srv) (printf "BEGIN %s %d" (show msg) fh)
       flush $ Done fh
       result <- try $ evalLQL storage srv thandle dev stmts
-      evalFinalizer (logger srv) time fh dev result
+      evalFinalizer (logger srv) time fh dev result)
 process _ srv (Fetch sig fh) flush = do
   let channel = (sigUser sig, fh)
   notice (logger srv) (printf "FETCH %d" fh)
   withFD srv channel $ \mdev ->
     case mdev of
       Nothing  -> flush $ Fail 404 $ Just "no such channel"
-      Just dev -> qTryRead dev >>= \msg ->
+      Just dev -> void $ forkIO $ qread dev >>= \msg ->
         case msg of
-          (Nothing, True)  -> do
-            void $ forkIO (qread dev >>= \msg ->
-              case msg of
-                Just r   -> do
-                  when (isEOF r) (closeFD srv (sigUser sig, fh))
-                  flush r
-                Nothing  -> do
-                  closeFD srv (sigUser sig, fh)
-                  flush Last)
-          (Nothing, False) -> do
+          Just r   -> do
+            when (isEOF r) (closeFD srv (sigUser sig, fh))
+            flush r
+          Nothing  -> do
             closeFD srv (sigUser sig, fh)
             flush Last
-          (Just r, hasMore)   -> do
-            when (not hasMore) (closeFD srv (sigUser sig, fh))
-            flush r
 process _ srv (Close _ sig fh) flush = do
   closeFD srv (sigUser sig, fh)
   flush Last
 
-warpServer :: (GraphBackend m, AttrBackend m) => WarpServer -> NominalDiffTime -> Endpoint -> Context -> m -> IO RouterFH
-warpServer core ttl addr ctx storage = startRouter (logger core) addr ctx (worker storage core ttl)
+warpServer :: (GraphBackend m, AttrBackend m) => WarpServer -> NominalDiffTime -> TimeCache -> Endpoint -> Context -> m -> IO RouterFH
+warpServer core ttl tcache addr ctx storage = startRouter (logger core) addr ctx (worker storage core ttl)
     where
       worker db core ttl = Worker f (return . encode . encodeE)
         where
           f msg flush = do
-            time     <- now
+            time     <- readCache tcache
             secretdb <- readPasswd core
             case (decode (time, ttl) (readSecret secretdb) msg) of
               Left e@(Fail c m) -> do
@@ -292,18 +291,17 @@ warpServer core ttl addr ctx storage = startRouter (logger core) addr ctx (worke
               Left e            -> flush (encode e)
               Right q           -> process db core q (flush . encode)
 
-warpLogServer :: (GraphBackend m, AttrBackend m) => Logger -> ClientFH Push -> m -> LogBackend m
-warpLogServer syslog pipeline db =
-  logBackend handleGraphEvent handleAttrEvent db
+warpLogServer :: (GraphBackend m, AttrBackend m) => Logger -> TimeCache -> Pipe Push -> m -> LogBackend m
+warpLogServer syslog tcache pipe db = logBackend db handleGraphEvent handleAttrEvent
     where
       handleAttrEvent :: [AttrEvent] -> IO ()
       handleAttrEvent e = do
-        t  <- now
-        ok <- push pipeline (S.encodeLazy t : map S.encodeLazy e)
-        unless ok (warning syslog (printf "warpserver: dropping attr event [queue full]"))
+        t  <- readCache tcache
+        ok <- push pipe ("a" : S.encodeLazy t : map S.encodeLazy e)
+        unless ok $ debug syslog (printf "warpserver: dropping attr event [queue full]")
 
       handleGraphEvent :: [GraphEvent] -> IO ()
       handleGraphEvent e = do
-        t  <- now
-        ok <- push pipeline (S.encodeLazy t : map S.encodeLazy e)
-        unless ok (warning syslog (printf "warpserver: dropping graph event [queue full]"))
+        t  <- readCache tcache
+        ok <- push pipe ("g" : S.encodeLazy t : map S.encodeLazy e)
+        unless ok $ debug syslog (printf "warpserver: dropping graph event [queue full]")

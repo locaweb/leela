@@ -18,6 +18,7 @@ module Leela.Data.Time
        ( Time
        , Date (..)
        , TimeSpec (..)
+       , TimeCache
        , NominalDiffTime
        , add
        , now
@@ -28,18 +29,24 @@ module Leela.Data.Time
        , seconds
        , dateTime
        , snapshot
+       , timeCache
+       , readCache
        , fromSeconds
        , fromDateTime
        , milliseconds
        ) where
 
 import Data.Time
+import Data.IORef
 import System.Clock
+import Control.Monad
 import Data.Serialize
 import Control.DeepSeq
 import Control.Concurrent
 import Control.Applicative
 import Data.Time.Clock.POSIX
+
+newtype TimeCache = TimeCache (IORef Time)
 
 newtype Time = Time { unTime :: Double }
              deriving (Show, Eq, Ord)
@@ -102,6 +109,15 @@ expired (t1, limit) t0 = (t1 < tMin || t1 > tMax)
 
 now :: IO Time
 now = fromTimeSpec <$> getTime Realtime
+
+timeCache :: IO TimeCache
+timeCache = do
+  cache <- now >>= newIORef
+  _     <- forkIO (forever $ sleep 1 >> now >>= atomicWriteIORef cache)
+  return (TimeCache cache)
+
+readCache :: TimeCache -> IO Time
+readCache (TimeCache cache) = readIORef cache
 
 instance Enum Date where
 

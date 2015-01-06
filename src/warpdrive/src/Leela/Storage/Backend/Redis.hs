@@ -27,7 +27,6 @@ import           Data.Maybe
 import           Leela.Logger
 import           Control.Monad
 import           Data.Hashable
-import           Leela.Helpers
 import           Database.Redis as Redis
 import qualified Data.ByteString as B
 import           Leela.Data.Time
@@ -35,6 +34,7 @@ import           Leela.Data.Pool
 import           Control.Exception
 import           Control.Concurrent
 import           Leela.Data.Excepts
+import           Leela.MonadHelpers
 import           Control.Applicative
 import           Control.Monad.Trans
 import           Leela.Data.Endpoint

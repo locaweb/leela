@@ -15,7 +15,7 @@
 -- limitations under the License.
 
 module Leela.HZMQ.IOLoop
-       ( Poller ()
+       ( IOLoop ()
        , alive
        , cancel
        , sendMsg
@@ -27,6 +27,8 @@ module Leela.HZMQ.IOLoop
        , newIOLoop_
        , pollInLoop
        , pollOutLoop
+       , sendMsgWithCtrl
+       , sendMsgWithCtrl'
        ) where
 
 import           Data.Maybe
@@ -47,9 +49,9 @@ type RecvCallback a = Socket a -> IO [B.ByteString]
 
 type CancelAction = IO ()
 
-data Poller a = Poller { pollName  :: String
+data IOLoop a = IOLoop { pollName  :: String
                        , pollInQ   :: MVar [[B.ByteString]]
-                       , pollOutQ  :: BoundedChan ([B.ByteString], IORef Bool)
+                       , pollOutQ  :: BoundedChan ([B.ByteString], IO Bool)
                        , pollLock  :: MVar (Socket a)
                        , pollCtrl  :: MVar ()
                        }
@@ -67,25 +69,25 @@ hasRead :: PollMode -> Bool
 hasRead PollWronlyMode = False
 hasRead _              = True
 
-newIOLoop :: String -> MVar [[B.ByteString]] -> BoundedChan ([B.ByteString], IORef Bool) -> Socket a -> IO (Poller a)
+newIOLoop :: String -> MVar [[B.ByteString]] -> BoundedChan ([B.ByteString], IO Bool) -> Socket a -> IO (IOLoop a)
 newIOLoop name qsrc qdst fh = do
   ctrl  <- newEmptyMVar
   lock  <- newMVar fh
-  return (Poller name qsrc qdst lock ctrl)
+  return (IOLoop name qsrc qdst lock ctrl)
 
-newIOLoop_ :: String -> Socket a -> Int -> IO (Poller a)
+newIOLoop_ :: String -> Socket a -> Int -> IO (IOLoop a)
 newIOLoop_ name fh limit = do
   qsrc <- newMVar []
   qdst <- newBoundedChan limit
   newIOLoop name qsrc qdst fh
 
-alive :: Poller a -> IO Bool
+alive :: IOLoop a -> IO Bool
 alive p = liftM isNothing (tryReadMVar (pollCtrl p))
 
-enqueueD :: Poller a -> ([B.ByteString], IORef Bool) -> IO Bool
+enqueueD :: IOLoop a -> ([B.ByteString], IO Bool) -> IO Bool
 enqueueD p a = tryWriteChan (pollOutQ p) a
 
-enqueueS :: Poller a -> [[B.ByteString]] -> IO Bool
+enqueueS :: IOLoop a -> [[B.ByteString]] -> IO Bool
 enqueueS _ []   = return False
 enqueueS p msgs = do
   putMVar (pollInQ p) (filter checkMsg msgs)
@@ -96,41 +98,47 @@ enqueueS p msgs = do
           (_, (_ : [])) -> False
           _             -> True
 
-dequeue :: Poller a -> Maybe ([B.ByteString], IORef Bool) -> IO ([B.ByteString], IORef Bool)
+dequeue :: IOLoop a -> Maybe ([B.ByteString], IO Bool) -> IO ([B.ByteString], IO Bool)
 dequeue _ (Just acc) = return acc
 dequeue p _          = C.readChan (pollOutQ p)
 
-recvMsg :: (Receiver a) => Poller a -> IO [[B.ByteString]]
+recvMsg :: (Receiver a) => IOLoop a -> IO [[B.ByteString]]
 recvMsg p = takeMVar (pollInQ p)
  
-sendMsg' :: (Sender a) => Poller a -> [B.ByteString] -> IO (CancelAction, Bool)
+sendMsg' :: (Sender a) => IOLoop a -> [B.ByteString] -> IO (CancelAction, Bool)
 sendMsg' p msg = do
-  ref <- newIORef True
-  ok  <- msg `deepseq` enqueueD p (msg, ref)
-  return (when ok $ atomicWriteIORef ref False, ok)
+  ctrl <- newIORef True
+  ok   <- sendMsgWithCtrl' p (readIORef ctrl) msg
+  return (writeIORef ctrl False, ok)
 
-sendMsg :: (Sender a) => Poller a -> [L.ByteString] -> IO (CancelAction, Bool)
+sendMsg :: (Sender a) => IOLoop a -> [L.ByteString] -> IO (CancelAction, Bool)
 sendMsg p = sendMsg' p . map L.toStrict
 
-sendMsg_ :: (Sender a) => Poller a -> [L.ByteString] -> IO ()
-sendMsg_ p = void . sendMsg p
+sendMsg_ :: (Sender a) => IOLoop a -> [L.ByteString] -> IO Bool
+sendMsg_ p = sendMsgWithCtrl p (return True)
 
-cancel :: Poller a -> IO ()
+sendMsgWithCtrl' :: (Sender a) => IOLoop a -> IO Bool -> [B.ByteString] -> IO Bool
+sendMsgWithCtrl' p ctrl msg = msg `deepseq` enqueueD p (msg, ctrl)
+
+sendMsgWithCtrl :: (Sender a) => IOLoop a -> IO Bool -> [L.ByteString] -> IO Bool
+sendMsgWithCtrl p ctrl = sendMsgWithCtrl' p ctrl . map L.toStrict
+
+cancel :: IOLoop a -> IO ()
 cancel p = putMVar (pollCtrl p) ()
 
-useSocket :: Poller a -> (Socket a -> IO b) -> IO b
+useSocket :: IOLoop a -> (Socket a -> IO b) -> IO b
 useSocket p = withMVar (pollLock p)
 
-pollOutLoop :: (Sender a) => Logger -> Poller a -> IO ()
+pollOutLoop :: (Sender a) => Logger -> IOLoop a -> IO ()
 pollOutLoop syslog = gpollLoop syslog PollWronlyMode (const $ return []) sendAll
 
-pollInLoop :: (Receiver a) => Logger -> Poller a -> IO ()
+pollInLoop :: (Receiver a) => Logger -> IOLoop a -> IO ()
 pollInLoop syslog = gpollLoop syslog PollRdonlyMode receiveMulti (\_ _ -> return ())
 
-pollLoop :: (Receiver a, Sender a) => Logger -> Poller a -> IO ()
+pollLoop :: (Receiver a, Sender a) => Logger -> IOLoop a -> IO ()
 pollLoop syslog = gpollLoop syslog PollRdWrMode receiveMulti sendAll
 
-gpollLoop :: Logger -> PollMode -> RecvCallback a -> SendCallback a -> Poller a -> IO ()
+gpollLoop :: Logger -> PollMode -> RecvCallback a -> SendCallback a -> IOLoop a -> IO ()
 gpollLoop logger mode recvCallback sendCallback p = go
     where
       handleRecv acc
@@ -148,26 +156,28 @@ gpollLoop logger mode recvCallback sendCallback p = go
                 else return Nothing
 
       handleSend state = do
-        msg  <- dequeue p state
-        rest <- useSocket p (mySendMsg msg)
+        (msg, readStatus) <- dequeue p state
+        live              <- readStatus
+        rest              <- if live
+                               then useSocket p (mySendMsg msg readStatus)
+                               else do
+                                 warning logger (printf "dropping message [%s#cancel]" (pollName p))
+                                 return Nothing
         case rest of
           Nothing -> handleSend rest
           _       -> return rest
           where
-            mySendMsg (msg, ref) fh = do
+            mySendMsg msg ctrl fh = do
               zready <- events fh
               if (Out `elem` zready)
-                then do
-                  live <- readIORef ref
-                  if live
-                    then sendCallback fh msg
-                    else warning logger (printf "dropping message [%s#cancel]" (pollName p))
-                  return Nothing
-                else return $ Just (msg, ref)
+                then sendCallback fh msg >> return Nothing
+                else return $ Just (msg, ctrl)
 
       goWrite fh miss = do
-        threadWaitWrite fh
-        handleSend miss >>= goWrite fh
+        miss' <- handleSend miss
+        case miss' of
+          Nothing -> goWrite fh miss'
+          _       -> threadWaitWrite fh >> goWrite fh miss'
 
       goRead fh = do
         threadWaitRead fh

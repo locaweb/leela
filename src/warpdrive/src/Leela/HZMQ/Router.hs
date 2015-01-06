@@ -21,7 +21,6 @@ module Leela.HZMQ.Router
        , startRouter
        ) where
 
-import           Data.Maybe
 import           System.ZMQ4
 import           Leela.Logger
 import           Control.Monad
@@ -39,7 +38,7 @@ data Worker = Worker { onJob :: [B.ByteString] -> ([L.ByteString] -> IO ()) -> I
                      , onErr :: SomeException -> IO [L.ByteString]
                      }
 
-newtype RouterFH = RouterFH (Poller Router)
+newtype RouterFH = RouterFH (IOLoop Router)
 
 readMsg :: Request -> [B.ByteString]
 readMsg (Request _ val) = val
@@ -47,17 +46,18 @@ readMsg (Request _ val) = val
 readPeer :: Request -> [B.ByteString]
 readPeer (Request val _) = val
 
-reply :: Poller Router -> Request -> [L.ByteString] -> IO ()
+reply :: IOLoop Router -> Request -> [L.ByteString] -> IO ()
 reply poller job msg = do
   let ans = (map L.fromStrict $ readPeer job) ++ (L.empty : msg)
-  sendMsg_ poller ans
+  void $ sendMsg_ poller ans
 
-worker :: Poller Router -> Request -> Worker -> IO ()
-worker poller job action = do
-  mmsg <- try (onJob action (readMsg job) (reply poller job))
-  case mmsg of
-    Left e   -> onErr action e >>= reply poller job
-    Right () -> return ()
+runJob :: IOLoop Router -> Request -> Worker -> IO ()
+runJob poller job action = do
+  ans <- try (onJob action (readMsg job) (reply poller job))
+  atEnd ans
+    where
+      atEnd (Right _) = return ()
+      atEnd (Left e)  = onErr action e >>= reply poller job
 
 recvRequest :: [B.ByteString] -> (Maybe Request)
 recvRequest []   = Nothing
@@ -76,7 +76,7 @@ startRouter syslog endpoint ctx action = do
   fh     <- zmqSocket
   poller <- newIOLoop_ "router" fh 10000
   _      <- forkFinally (go poller) (\_ -> close fh)
-  return (RouterFH poller)
+  return (RouterFH (poller))
     where
       zmqSocket = do
         fh <- socket ctx Router
@@ -85,8 +85,9 @@ startRouter syslog endpoint ctx action = do
         return fh
 
       acceptReq poller msg = do
-        let mreq = recvRequest msg
-        when (isJust mreq) (worker poller (fromJust mreq) action)
+        case (recvRequest msg) of
+          Nothing  -> return ()
+          Just req -> runJob poller req action
 
       acceptReqs poller = mapM_ (acceptReq poller)
 
@@ -97,6 +98,6 @@ startRouter syslog endpoint ctx action = do
       go poller = do
         warning syslog "router has started"
         caps <- getNumCapabilities
-        ts   <- mapM (\i -> forkOn i (recvLoop poller)) [0..caps-1]
-        pollLoop syslog poller `finally` (mapM_ killThread ts)
+        pids <- replicateM caps (forkIO (recvLoop poller))
+        pollLoop syslog poller `finally` (mapM_ killThread pids)
         warning syslog "router has quit"

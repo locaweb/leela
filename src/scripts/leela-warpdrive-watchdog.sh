@@ -21,6 +21,9 @@ def health_check ():
       return(True)
     except: time.sleep(1 << at)
 
-ok = health_check()
-sys.exit(0 if ok else 1)
+try:
+  rc = 0 if health_check() else 2
+except:
+  rc = 1
+sys.exit(rc)
 EOF

@@ -14,7 +14,8 @@
 
 module Leela.Data.Timeout
        ( Handle ()
-       , Manager ()
+       , TimeoutInUs
+       , TimeoutManager ()
        , timeoutManager
        , open
        , touch
@@ -27,28 +28,24 @@ import Data.IORef
 import Control.Monad
 import Control.Exception
 
+type TimeoutInUs = Int
+
 type Finalizer = IO ()
 
 data Handle = Handle Int TimeoutKey (IORef (IO ()))
 
-data Manager = Manager (IORef Int)
+data TimeoutManager = TimeoutManager (IORef Int)
 
-timeoutManager :: IO Manager
-timeoutManager = do
-  ref <- newIORef 0
-  return (Manager ref)
+timeoutManager :: IO TimeoutManager
+timeoutManager = liftM TimeoutManager (newIORef 0)
 
-open :: Manager -> (Int -> Bool) -> Int -> Finalizer -> IO (Maybe (Int, Handle))
-open (Manager ref) accept timeout fin = do
-  let tuple a b = a `seq` (a, b)
+open :: TimeoutManager -> TimeoutInUs -> Finalizer -> IO (Int, Handle)
+open (TimeoutManager ref) timeout fin = do
   tm     <- getSystemTimerManager
-  active <- atomicModifyIORef' ref (\x -> if (accept x) then tuple (x + 1) x else (x, x))
-  if (accept active)
-    then do
-      ioref  <- newIORef (atomicModifyIORef' ref (\x -> tuple (x - 1) ()))
-      cookie <- registerTimeout tm timeout (executeOnce ioref >> fin)
-      return (Just (active + 1, Handle timeout cookie ioref))
-    else return Nothing
+  active <- atomicModifyIORef' ref (\x -> (x + 1, x + 1))
+  ioref  <- newIORef (atomicModifyIORef' ref (\x -> (x - 1, ())))
+  cookie <- registerTimeout tm timeout (executeOnce ioref >> fin)
+  return (active, Handle timeout cookie ioref)
 
 touch :: Handle -> IO ()
 touch (Handle timeout cookie _) = do
@@ -65,7 +62,7 @@ executeOnce :: IORef (IO ()) -> IO ()
 executeOnce ioref = do
   join $ atomicModifyIORef' ioref (\io -> (return (), io))
 
-withHandle :: Manager -> Int -> Finalizer -> IO a -> IO a
-withHandle tm timeout fin action = bracket (open tm (const True) timeout fin)
-                                           (maybe (return ()) (purge . snd))
+withHandle :: TimeoutManager -> Int -> Finalizer -> IO a -> IO a
+withHandle tm timeout fin action = bracket (open tm timeout fin)
+                                           (purge . snd)
                                            (const $ action)

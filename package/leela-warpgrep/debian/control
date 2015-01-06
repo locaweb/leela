@@ -1,4 +1,4 @@
-Source: leela-warpdrive
+Source: leela-warpgrep
 Section: net
 Priority: optional
 Maintainer: Diego Souza <dsouza@c0d3.xxx>
@@ -6,7 +6,7 @@ Build-Depends: debhelper (>= 7.0), devscripts, libncursesw5-dev, libffi-dev, zli
 Standards-Version: 3.9.1
 Homepage: https://github.com/locaweb/leela
 
-Package: leela-warpdrive
+Package: leela-warpgrep
 Multi-Arch: same
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}, libffi5, zlib1g, daemon, numactl

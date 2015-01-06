@@ -16,24 +16,20 @@
 -- limitations under the License.
 
 module Leela.HZMQ.Dealer
-       ( ClientFH ()
+       ( Client ()
        , ClientConf (..)
        , Push
        , Dealer
-       , push
-       , pull
        , request
        , stopDealer
        , createDealer
-       , createPush
-       , createPull
+       , dealerConnect
        ) where
 
 import           Data.Word
 import           System.ZMQ4
 import           Leela.Logger
 import           Control.Monad
-import           Leela.Helpers
 import           Data.Serialize
 import qualified Data.ByteString as B
 import           Leela.Data.Pool
@@ -44,6 +40,7 @@ import qualified STMContainers.Map as M
 import           Control.Concurrent
 import           Leela.Data.Counter
 import           Leela.Data.Timeout
+import           Leela.MonadHelpers
 import           Control.Applicative
 import           Leela.Data.Endpoint
 import           Leela.HZMQ.ZHelpers
@@ -54,23 +51,17 @@ type JKey = Word16
 
 newtype Job = Job (JKey, MVar [B.ByteString])
 
-data ClientConf a = ClientConf { resources :: IO [Endpoint] }
+data ClientConf = ClientConf { resources :: IO [Endpoint] }
 
-data Client = Bidirectional { logger  :: Logger
-                            , manager :: Manager
-                            , dealer  :: Poller Dealer
-                            , cstate  :: M.Map JKey Job
-                            , counter :: Counter JKey
-                            }
-            | Unidirectional { logger   :: Logger
-                             , manager  :: Manager
-                             , pipeline :: Either (Poller Push) (Poller Pull)
-                             }
-
-newtype ClientFH a = ClientFH Client
+data Client = Client { logger  :: Logger
+                     , manager :: TimeoutManager
+                     , engine  :: IOLoop Dealer
+                     , cstate  :: M.Map JKey Job
+                     , counter :: Counter JKey
+                     }
 
 defaultTimeout :: Int
-defaultTimeout = 5 * 1000 * 1000
+defaultTimeout = 10 * 1000 * 1000
 
 readKey :: Job -> JKey
 readKey (Job (v, _)) = v
@@ -78,8 +69,8 @@ readKey (Job (v, _)) = v
 readJob :: Job -> MVar [B.ByteString]
 readJob (Job (_, v)) = v
 
-request :: ClientFH Dealer -> [L.ByteString] -> IO (Maybe [B.ByteString])
-request (ClientFH client) msg = bracket acquire release useFunc
+request :: Client -> [L.ByteString] -> IO (Maybe [B.ByteString])
+request client msg = bracket acquire release useFunc
     where
       acquire = newJob client msg
 
@@ -101,21 +92,10 @@ request (ClientFH client) msg = bracket acquire release useFunc
       release Nothing             = return ()
       release (Just (job, abort)) = abort >> delJob client (readKey job)
 
-push :: ClientFH Push -> [L.ByteString] -> IO Bool
-push (ClientFH client) msg =
-  case (pipeline client) of
-    Left poller -> snd <$> sendMsg poller msg
-    _           -> return False
-
-pull (ClientFH client) =
-  case (pipeline client) of
-    Right poller -> recvMsg poller
-    _            -> return []
-
 newJob :: Client -> [L.ByteString] -> IO (Maybe (Job, IO ()))
 newJob client msg = do
   key         <- next (counter client)
-  (abort, ok) <- sendMsg (dealer client) (encodeLazy key : L.empty : msg)
+  (abort, ok) <- sendMsg (engine client) (encodeLazy key : L.empty : msg)
   shmem       <- newEmptyMVar
   if ok
     then do
@@ -133,32 +113,30 @@ reply (Job (_, mvar)) ans = void $ tryPutMVar mvar ans
 decodeKey :: B.ByteString -> Maybe JKey
 decodeKey = either (const Nothing) Just . decode
 
-poolUpdate :: ClientConf a -> Pool Endpoint () -> IO ()
+poolUpdate :: ClientConf -> Pool Endpoint () -> IO ()
 poolUpdate cfg pool =
   resources cfg >>= updatePool pool
 
-destroyWorker :: Logger -> Poller a -> Endpoint -> b -> IO ()
+destroyWorker :: Logger -> IOLoop a -> Endpoint -> b -> IO ()
 destroyWorker syslog ioloop addr _ = do
   let addrStr = dumpEndpointStr addr
   useSocket ioloop (`disconnect` addrStr)
   warning syslog (printf "dealer: disconnect %s" addrStr)
 
-createWorker :: Logger -> Poller a -> Endpoint -> IO ()
+createWorker :: Logger -> IOLoop a -> Endpoint -> IO ()
 createWorker syslog ioloop addr = do
   let addrStr = dumpEndpointStr addr
   useSocket ioloop (`connect` addrStr)
   warning syslog (printf "dealer: connect %s" addrStr)
 
-createDealer :: Logger -> ClientConf Dealer -> Context -> IO (ClientFH Dealer)
-createDealer syslog cfg ctx = do
+createDealer :: Logger -> Context -> IO Client
+createDealer syslog ctx = do
   notice syslog "creating zmq.dealer"
-  fh     <- zmqSocket
-  client <- Bidirectional syslog
-              <$> timeoutManager
-              <*> (newIOLoop_ "dealer" fh 10000)
-              <*> atomically M.new
-              <*> newCounter
-  runClient syslog cfg client
+  fh <- zmqSocket
+  Client syslog <$> timeoutManager
+                <*> (newIOLoop_ "dealer" fh 10000)
+                <*> atomically M.new
+                <*> newCounter
     where
       zmqSocket = do
         fh    <- socket ctx Dealer
@@ -166,52 +144,20 @@ createDealer syslog cfg ctx = do
         config fh
         return fh
 
-createPush :: Logger -> ClientConf Push -> Context -> IO (ClientFH Push)
-createPush syslog cfg ctx = do
-  notice syslog "creating zmq.push"
-  fh     <- zmqSocket
-  client <- Unidirectional syslog
-              <$> timeoutManager
-              <*> (Left <$> (newIOLoop_ "pipeline" fh 1000))
-  runClient syslog cfg client
-    where
-      zmqSocket = do
-        fh <- socket ctx Push
-        setHWM (5, 5) fh
-        config fh
-        return fh
-
-createPull :: Logger -> ClientConf Pull -> Context -> IO (ClientFH Pull)
-createPull syslog cfg ctx = do
-  notice syslog "creating zmq.pull"
-  fh     <- zmqSocket
-  client <- Unidirectional syslog
-              <$> timeoutManager
-              <*> (Right <$> (newIOLoop_ "pipeline" fh 10000))
-  runClient syslog cfg client
-    where
-      zmqSocket = do
-        fh <- socket ctx Pull
-        setHWM (5, 5) fh
-        config fh
-        return fh
-
-runClient :: Logger -> ClientConf a -> Client -> IO (ClientFH a)
-runClient syslog cfg client = do
-  pool <- createPool (onPoller (createWorker syslog)) (onPoller (destroyWorker syslog))
-  forkFinally (go pool) (\_ -> onPoller (`useSocket` close))
-  return (ClientFH client)
+dealerConnect :: Logger -> Client -> ClientConf -> IO ()
+dealerConnect syslog client cfg = do
+  pool <- createPool (createWorker syslog (engine client)) (destroyWorker syslog (engine client))
+  void $ forkFinally (go pool) (\_ -> engine client `useSocket` close)
     where
       go pool = do
         warning syslog "dealer has started"
         poolUpdate cfg pool
         caps <- getNumCapabilities
-        t0   <- forkIO (supervise syslog "Dealer#poolUpdate" $
-                          foreverWith (onPoller alive) (poolUpdate cfg pool >> sleep 1))
-        ts   <- mapM (\i -> forkOn i recvLoop) [0..caps-1]
-        _    <- ioloop `finally` (mapM_ killThread (t0 : ts))
+        pid  <- forkIO (foreverWith (alive $ engine client) (sleep 1 >> poolUpdate cfg pool))
+        pids <- replicateM caps (forkIO (forever $ recvLoop))
+        _    <- ioloop `finally` (mapM_ killThread (pid : pids))
         warning syslog "dealer has quit"
-        
+
       recvAns msg =
         case (break B.null msg) of
           (key@(_:_), (_:ans)) -> do
@@ -221,25 +167,9 @@ runClient syslog cfg client = do
               Nothing  -> return ()
           _                    -> return ()
 
-      recvLoop =
-        case client of
-          Bidirectional _ _ p _ _ -> do
-            recvMsg p >>= mapM_ recvAns
-            recvLoop
-          _                       -> return ()
+      recvLoop = recvMsg (engine client) >>= mapM_ recvAns
 
+      ioloop = pollLoop (logger client) (engine client)
 
-      onPoller :: forall b. (forall a. Poller a -> b) -> b
-      onPoller f = case client of
-                     Bidirectional _ _ p _ _ -> f p
-                     Unidirectional _ _ p    -> either f f p
-
-      ioloop = case client of
-                 Bidirectional _ _ p _ _ -> pollLoop (logger client) p
-                 Unidirectional _ _ p    -> either (pollOutLoop (logger client)) (pollInLoop (logger client)) p
-
-stopDealer :: ClientFH a -> IO ()
-stopDealer (ClientFH client) = do
-  case client of
-    Bidirectional {}  -> cancel (dealer client)
-    Unidirectional {} -> either cancel cancel (pipeline client)
+stopDealer :: Client -> IO ()
+stopDealer client = cancel (engine client)

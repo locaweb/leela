@@ -31,11 +31,11 @@ import           Data.List (intersperse)
 import           Data.Maybe
 import           Data.Monoid ((<>), mconcat)
 import           Control.Monad
-import           Leela.Helpers
 import qualified Data.Serialize as E
 import qualified Data.ByteString as B
 import           Leela.Data.Time
 import           Leela.Data.Types
+import           Leela.DataHelpers
 import           Control.Applicative
 import           Leela.Storage.Graph (Limit)
 import qualified Data.ByteString.Lazy as L

@@ -22,7 +22,7 @@ module Leela.Data.Graph
     ) where
 
 import qualified Data.IntMap as M
-import           Leela.Helpers
+import           Leela.DataHelpers
 import           Control.Monad
 import           Leela.Data.Time
 import           Leela.Data.Types

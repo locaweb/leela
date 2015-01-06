@@ -15,8 +15,6 @@
 module Leela.Storage.Graph
     ( Page
     , Limit
-    , AttrEvent (..)
-    , GraphEvent (..)
     , LogBackend ()
     , AttrBackend (..)
     , GraphBackend (..)
@@ -30,21 +28,10 @@ module Leela.Storage.Graph
 
 import Control.Monad
 import Data.Serialize
+import Leela.Data.LQL
 import Leela.Data.Time
 import Leela.Data.Types
 import Control.Applicative
-
-data GraphEvent = MakeVertexEvent Kind Node GUID
-                | KillVertexEvent GUID
-                | MakeLinkEvent GUID Label GUID
-                | KillLinkEvent GUID Label (Maybe GUID)
-                deriving (Show, Eq)
-
-data AttrEvent = TAttrPutEvent GUID Attr Time Value [Option]
-               | KAttrPutEvent GUID Attr Value [Option]
-               | TAttrDelEvent GUID Attr (Maybe Time)
-               | KAttrDelEvent GUID Attr
-               deriving (Show, Eq)
 
 data LogBackend a = LogBackend { proxy    :: a
                                , ghandler :: [GraphEvent] -> IO ()
@@ -61,8 +48,8 @@ logGraphBackend handler db = LogBackend db handler (const $ return ())
 logAttrBackend :: (AttrBackend a) => ([AttrEvent] -> IO ()) -> a -> LogBackend a
 logAttrBackend handler db = LogBackend db (const $ return ()) handler
 
-logBackend :: (GraphBackend a, AttrBackend a) => ([GraphEvent] -> IO ()) -> ([AttrEvent] -> IO ()) -> a -> LogBackend a
-logBackend ghandler ahandler db = LogBackend db ghandler ahandler
+logBackend :: (GraphBackend a, AttrBackend a) => a -> ([GraphEvent] -> IO ()) -> ([AttrEvent] -> IO ()) -> LogBackend a
+logBackend = LogBackend
 
 defaultLimit :: Int
 defaultLimit = 512
@@ -172,7 +159,7 @@ instance (GraphBackend m) => GraphBackend (LogBackend m) where
 
   putName m user tree kind node = do
     guid <- putName (proxy m) user tree kind node
-    ghandler m [MakeVertexEvent kind node guid]
+    ghandler m [MakeVertexEvent user tree kind node guid]
     return guid
 
   putLink m links = do
@@ -186,77 +173,3 @@ instance (GraphBackend m) => GraphBackend (LogBackend m) where
   remove m guid = do
     remove (proxy m) guid
     ghandler m [KillVertexEvent guid]
-
-getGraphEvent_v0 = getWord8 >>= \ty ->
-  case ty of
-    0 -> MakeVertexEvent <$> get <*> get <*> get
-    1 -> KillVertexEvent <$> get
-    2 -> MakeLinkEvent <$> get <*> get <*> get
-    3 -> KillLinkEvent <$> get <*> get <*> get
-    _ -> mzero
-
-putGraphEvent_v0 (MakeVertexEvent k n g) = do
-  putWord8 0
-  put k
-  put n
-  put g
-putGraphEvent_v0 (KillVertexEvent g) = do
-  putWord8 1
-  put g
-putGraphEvent_v0 (MakeLinkEvent ga l gb) = do
-  putWord8 2
-  put ga
-  put l
-  put gb
-putGraphEvent_v0 (KillLinkEvent ga l mgb) = do
-  putWord8 3
-  put ga
-  put l
-  put mgb
-
-putAttrEvent_v0 (TAttrPutEvent g a t v opts) = do
-  putWord8 0
-  put g
-  put a
-  put t
-  put v
-  put opts
-putAttrEvent_v0 (KAttrPutEvent g a v opts) = do
-  putWord8 1
-  put g
-  put a
-  put v
-  put opts
-putAttrEvent_v0 (TAttrDelEvent g a mt) = do
-  putWord8 2
-  put g
-  put a
-  put mt
-putAttrEvent_v0 (KAttrDelEvent g a) = do
-  putWord8 3
-  put g
-  put a
-
-getAttrEvent_v0 = getWord8 >>= \ty ->
-  case ty of
-    0 -> TAttrPutEvent <$> get <*> get <*> get <*> get <*> get
-    1 -> KAttrPutEvent <$> get <*> get <*> get <*> get
-    2 -> TAttrDelEvent <$> get <*> get <*> get
-    3 -> KAttrDelEvent <$> get <*> get
-    _ -> mzero
-
-instance Serialize GraphEvent where
-
-  get   = getWord8 >>= \ver ->
-    case ver of
-      0 -> getGraphEvent_v0
-      _ -> mzero
-  put e = putWord8 0 >> putGraphEvent_v0 e
-
-instance Serialize AttrEvent where
-
-  get   = getWord8 >>= \ver ->
-    case ver of
-      0 -> getAttrEvent_v0
-      _ -> mzero
-  put e = putWord8 0 >> putAttrEvent_v0 e

@@ -1,0 +1,13 @@
+# The endpoint to bind to
+LEELA_WARPGREP_ENDPOINT=tcp://localhost:8040
+
+# The endpoint to bind the bus service to
+LEELA_WARPGREP_BUS_ENDPOINT=tcp://localhost:6969
+
+# The time to wait for a safe shutdown [do not change this unless you know what you are doing]
+LEELA_WARPGREP_MAXWAIT=30
+
+# Extra options for warpgrep
+LEELA_WARPGREP_OPTS="--debug-level=NOTICE --log-file=/var/log/leela/warpgrep/warpgrep.log +RTS -N -A8m -H -M4g -qa -RTS"
+
+export MALLOC_ARENA_MAX=4

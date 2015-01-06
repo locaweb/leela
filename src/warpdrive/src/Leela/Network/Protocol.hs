@@ -29,16 +29,19 @@ module Leela.Network.Protocol
     , encode
     , encodeE
     , mapToLazyBS
+    , encodeAEvent
+    , encodeGEvent
     ) where
 
 import           Data.List (foldl')
 import           Data.Word
-import           Leela.Helpers
 import           Control.Monad
+import           Leela.Data.LQL
 import qualified Data.ByteString as B
 import           Leela.Data.Time
-import           Control.Exception
 import           Leela.Data.Types
+import           Control.Exception
+import           Leela.DataHelpers
 import           Leela.Data.Excepts
 import           Leela.Data.Signature
 import qualified Data.ByteString.Lazy as L
@@ -185,6 +188,36 @@ encodeRValue (NAttrs g names)     =   "n-attr"
                                     : toLazyBS 32 (intDec (length names))
                                     : asLazyByteString g
                                     : (map asLazyByteString names)
+
+encodeAEvent :: GUID -> AttrEvent -> [L.ByteString]
+encodeAEvent guid (TAttrPutEvent g a t v opts) = asLazyByteString guid
+                                                 : "attr"
+                                                 : "put"
+                                                 : asLazyByteString g
+                                                 : asLazyByteString a
+                                                 : encodeDouble (seconds t)
+                                                 : encodeValue v
+encodeAEvent guid (TAttrDelEvent g a mt)       = [ asLazyByteString guid
+                                                 , "attr"
+                                                 , "del"
+                                                 , asLazyByteString g
+                                                 , asLazyByteString a
+                                                 , maybe "" (encodeDouble . seconds) mt
+                                                 ]
+encodeAEvent guid (KAttrPutEvent g a v opts)   = asLazyByteString guid
+                                                 : "attr"
+                                                 : "put"
+                                                 : asLazyByteString g
+                                                 : asLazyByteString a
+                                                 : encodeValue v
+encodeAEvent guid (KAttrDelEvent g a)          = [ asLazyByteString guid
+                                                 , "attr"
+                                                 , "del"
+                                                 , asLazyByteString g
+                                                 , asLazyByteString a
+                                                 ]
+
+encodeGEvent guid _                            = [ asLazyByteString guid ]
 
 encode :: Reply -> [L.ByteString]
 encode (Done fh)              = [ "done"

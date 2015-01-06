@@ -34,7 +34,6 @@ module Leela.Logger
 import Data.Time
 import Data.Monoid
 import Text.Printf
-import System.Locale
 import Data.ByteString (ByteString)
 import System.Log.FastLogger
 import Data.ByteString.Lazy.UTF8 (toString)

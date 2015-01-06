@@ -1,14 +1,19 @@
-# The endpoint to bind to [do not use *, other services use this]
-LEELA_WARPDRIVE_ENDPOINT=tcp://localhost:50021
+# The endpoint to bind to
+LEELA_WARPDRIVE_ENDPOINT=tcp://localhost:4080
 
-# The path to register on zookeeper [make sure they this name is unique]
-LEELA_WARPDRIVE_WATCHDOG_PATH=/naming/warpdrive/$(uuid)
+# The redis password to use when connecting to redis
+LEELA_WARPDRIVE_REDIS_SECRET=
 
-# The zookeeper cluster to connect to [for discovering blackbox instances and reporting itself]
-LEELA_WARPDRIVE_ZOOKEEPER=tcp://localhost:2181/leela
+# The username to use when testing the service
+LEELA_WARPDRIVE_WATCHDOG_USER=system
 
-# Extra options for blackbox
-LEELA_WARPDRIVE_OPTS="+RTS -N -RTS"
+# The password to use when testing the service
+LEELA_WARPDRIVE_WATCHDOG_PASS=
 
-# Extra options for watchdog
-# LEELA_WARPDRIVE_WATCHDOG_OPTS=
+# The time to wait for a safe shutdown [do not change this unless you know what you are doing]
+LEELA_WARPDRIVE_MAXWAIT=180
+
+# Extra options for warpdrive
+LEELA_WARPDRIVE_OPTS="--debug-level=NOTICE --log-file=/var/log/leela/warpdrive/warpdrive.log --consul-endpoint=http://127.0.0.1:8500 +RTS -N -A8m -H -M4g -qa -RTS"
+
+export MALLOC_ARENA_MAX=4

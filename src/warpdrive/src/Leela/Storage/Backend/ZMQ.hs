@@ -23,23 +23,24 @@ import qualified Data.Set as S
 import           Data.Maybe
 import           Leela.Logger
 import           Control.Monad
-import           Leela.Helpers
+import qualified Data.ByteString as B
 import           Leela.Data.Time
 import           Leela.Data.Types
 import           Control.Exception
+import           Leela.DataHelpers
 import           Leela.HZMQ.Dealer
 import           Leela.Data.Excepts
+import           Leela.MonadHelpers
 import           Control.Applicative
 import           Leela.Storage.Graph
-import qualified Data.ByteString as B
 import           Leela.Storage.KeyValue
 import           Control.Concurrent.Async
 import           Control.Parallel.Strategies
 import           Leela.Storage.Backend.ZMQ.Protocol
 
-newtype ZMQBackend cache = ZMQBackend (Logger, ClientFH Dealer, cache)
+newtype ZMQBackend cache = ZMQBackend (Logger, Client, cache)
 
-dealer :: ZMQBackend a -> ClientFH Dealer
+dealer :: ZMQBackend a -> Client
 dealer (ZMQBackend (_, v, _)) = v
 
 cachedb :: ZMQBackend a -> a
@@ -48,7 +49,7 @@ cachedb (ZMQBackend (_, _, v)) = v
 syslog :: ZMQBackend a -> Logger
 syslog (ZMQBackend (v, _, _)) = v
 
-zmqbackend :: (KeyValue cache) => Logger -> ClientFH Dealer -> cache -> ZMQBackend cache
+zmqbackend :: (KeyValue cache) => Logger -> Client -> cache -> ZMQBackend cache
 zmqbackend a b c = ZMQBackend (a, b, c)
 
 recv :: Maybe [B.ByteString] -> Reply
@@ -63,11 +64,11 @@ internalError :: String -> IO a
 internalError m =
   throwIO (SystemExcept (Just m))
 
-send :: ClientFH Dealer -> Query -> IO Reply
+send :: Client -> Query -> IO Reply
 send pool req = let msg = (encode req) `using` (evalList rdeepseq)
                 in request pool msg >>= evaluate . recv
 
-send_ :: ClientFH Dealer -> Query -> IO ()
+send_ :: Client -> Query -> IO ()
 send_ pool req = do
   reply <- send pool req
   case reply of
