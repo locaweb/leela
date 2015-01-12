@@ -17,7 +17,8 @@
   (:require [clojure.string :as s]
             [leela.blackbox.f :as f]
             [leela.blackbox.czmq.router :as router]
-            [leela.blackbox.storage.cassandra :as storage]))
+            [leela.blackbox.storage.cassandra :as storage]
+            [leela.blackbox.storage.s3 :as s3]))
 
 (defn msg-fail [status]
   ["fail" (str status)])
@@ -120,6 +121,24 @@
       (storage/with-limit (f/maybe-bytes-to-str (first limit))
         (msg-tattr (storage/get-tattr cluster k n t))))))
 
+(defn exec-get-archived-tattr [s3-cred [b a]]
+  (let [b (f/bytes-to-str b)
+        a (f/bytes-to-str a)]
+    (f/stream-to-bytes (s3/get-archived-tattr s3-cred b a))))
+
+(defn exec-put-archived-tattr [s3-cred [b a v]]
+  (let [b (f/bytes-to-str b)
+        a (f/bytes-to-str a)]
+    (let [v (s3/put-archived-tattr s3-cred b a v)]
+      (if-not (:errorcode v)
+        (msg-done)
+        (msg-fail (:statuscode v))))))
+
+(defn exec-put-archived-bucket [s3-cred [b]]
+  (let [b (f/bytes-to-str b)]
+    (s3/create-bucket s3-cred b))
+  (msg-done))
+
 (defn exec-put-tattr [cluster attrs]
   (storage/with-consistency :one
     (storage/put-tattr
@@ -217,7 +236,7 @@
           (partition 2 labels))))
   (msg-done))
 
-(defn handle-get [attr-cluster graph-cluster msg]
+(defn handle-get [attr-cluster graph-cluster s3-cred msg]
   (case (f/bytes-to-str (first msg))
     "name" (exec-getname graph-cluster (drop 1 msg))
     "guid" (exec-getguid graph-cluster (drop 1 msg))
@@ -225,36 +244,39 @@
     "label" (exec-getlabel graph-cluster (drop 1 msg))
     "attr" (exec-listattr attr-cluster (drop 1 msg))
     "t-attr" (exec-get-tattr attr-cluster (drop 1 msg))
+    "at-attr" (exec-get-archived-tattr s3-cred (drop 1 msg))
     "k-attr" (exec-get-kattr attr-cluster (drop 1 msg))
     (msg-fail 400)))
 
-(defn handle-put [attr-cluster graph-cluster msg]
+(defn handle-put [attr-cluster graph-cluster s3-cred msg]
   (case (f/bytes-to-str (first msg))
     "name" (exec-putname graph-cluster (drop 1 msg))
     "link" (exec-putlink graph-cluster (drop 1 msg))
     "label" (exec-putlabel graph-cluster (drop 1 msg))
     "t-attr" (exec-put-tattr attr-cluster (drop 1 msg))
+    "at-attr" (exec-put-archived-tattr s3-cred (drop 1 msg))
+    "at-bucket" (exec-put-archived-bucket s3-cred (drop 1 msg))
     "k-attr" (exec-put-kattr attr-cluster (drop 1 msg))
     (msg-fail 400)))
 
-(defn handle-del [attr-cluster graph-cluster msg]
+(defn handle-del [attr-cluster graph-cluster s3-cred msg]
   (case (f/bytes-to-str (first msg))
     "link" (exec-dellink graph-cluster (drop 1 msg))
     "t-attr" (exec-del-tattr attr-cluster (drop 1 msg))
     "k-attr" (exec-del-kattr attr-cluster (drop 1 msg))
     (msg-fail 400)))
 
-(defn handle-message [attr-cluster graph-cluster msg]
+(defn handle-message [attr-cluster graph-cluster s3-cred msg]
   (if (< (count msg) 1)
     (msg-fail 400)
     (case (f/bytes-to-str (first msg))
-      "get" (handle-get attr-cluster graph-cluster (drop 1 msg))
-      "put" (handle-put attr-cluster graph-cluster (drop 1 msg))
-      "del" (handle-del attr-cluster graph-cluster (drop 1 msg))
+      "get" (handle-get attr-cluster graph-cluster s3-cred (drop 1 msg))
+      "put" (handle-put attr-cluster graph-cluster s3-cred (drop 1 msg))
+      "del" (handle-del attr-cluster graph-cluster s3-cred (drop 1 msg))
       (msg-fail 400))))
 
-(defn zmqworker [attr-cluster graph-cluster]
-  {:onjob #(handle-message attr-cluster graph-cluster %) :onerr (msg-fail 500)})
+(defn zmqworker [attr-cluster graph-cluster s3-cred]
+  {:onjob #(handle-message attr-cluster graph-cluster s3-cred %) :onerr (msg-fail 500)})
 
-(defn server-start [ctx attr-cluster graph-cluster options]
-  (router/router-start ctx (zmqworker attr-cluster graph-cluster) options))
+(defn server-start [ctx attr-cluster graph-cluster s3-cred options]
+  (router/router-start ctx (zmqworker attr-cluster graph-cluster s3-cred) options))

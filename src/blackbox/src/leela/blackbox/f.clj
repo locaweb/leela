@@ -16,7 +16,9 @@
   (:use     [clojure.tools.logging :only [error]]
             [clojure.inspector])
   (:import  java.util.UUID
-            com.datastax.driver.core.utils.UUIDs))
+            java.io.ByteArrayOutputStream
+            com.datastax.driver.core.utils.UUIDs)
+  (:require [clojure.java.io :refer [input-stream copy]]))
 
 (defmacro forever [& body]
   `(while true ~@body))
@@ -89,6 +91,13 @@
   (let [buffer (byte-array (.remaining b))]
     (.get b buffer)
     buffer))
+
+(defn stream-to-bytes [data]
+  (if-not (= data nil)
+    (with-open [out (ByteArrayOutputStream.)]
+      (copy (input-stream data) out)
+      (.toByteArray out))
+    data))
 
 (defmacro str-to-uuid [s]
   `(UUID/fromString ~s))

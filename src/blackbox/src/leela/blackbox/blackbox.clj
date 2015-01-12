@@ -19,7 +19,9 @@
   (:require [clojure.string :as string]
             [leela.blackbox.f :as f]
             [leela.blackbox.network.zmqserver :as zserver]
-            [leela.blackbox.storage.cassandra :as storage])
+            [leela.blackbox.storage.cassandra :as storage]
+            [leela.blackbox.storage.s3 :as s3]
+  )
   (:gen-class))
 
 (defn maybe-getenv [u]
@@ -43,6 +45,12 @@
                                     :default "$LEELA_CASSANDRA_USERNAME"]
                                    ["--password" "the password to use when connecting to cassandra"
                                     :default "$LEELA_CASSANDRA_PASSWORD"]
+                                   ["--s3url" "the url to use when connecting to s3"
+                                    :default "$S3_URL"]
+                                   ["--s3accesskey" "the accesskey to use when connecting to s3"
+                                    :default "$S3_ACCESS_KEY"]
+                                   ["--s3secretkey" "the secretkey to use when connecting to s3"
+                                    :default "$S3_SECRET_KEY"]
                                    ["--capabilities" "the number of workers to fork"
                                     :default 256
                                     :parse-fn #(Integer/parseInt %)]
@@ -60,9 +68,12 @@
                           :max-connections 64
                           :connections 1}
           endpoint       (:endpoint options)]
+    (let [s3cred         {:access-key (maybe-getenv (:s3accesskey options))
+                          :secret-key (maybe-getenv (:s3secretkey options))
+                          :endpoint (maybe-getenv (:s3url options))}]
       (f/supervise
        (storage/with-connection [attr-cluster (:cassandra options) cassandra-args]
          (storage/with-connection [graph-cluster (:cassandra options) cassandra-args]
            (storage/use-attr-schema attr-cluster (:attr-keyspace options))
            (storage/use-graph-schema graph-cluster (:graph-keyspace options))
-           (zserver/server-start (ZMQ/context 1) attr-cluster graph-cluster (assoc options :endpoint endpoint))))))))
+           (zserver/server-start (ZMQ/context 1) attr-cluster graph-cluster s3cred (assoc options :endpoint endpoint)))))))))

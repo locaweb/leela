@@ -3,7 +3,17 @@
             [clojure.tools.logging :only [trace debug info error]])
   (:require [leela.blackbox.f :as f]
             [leela.blackbox.storage.cassandra :as storage]
+            [leela.blackbox.storage.s3 :as s3]
             [leela.blackbox.network.zmqserver :as server]))
+
+(defn maybe-getenv [u]
+  (if (.startsWith u "$")
+    (System/getenv (subs u 1))
+    u))
+
+(def cred {:access-key (maybe-getenv "$S3_ACCESS_KEY")
+           :secret-key (maybe-getenv "$S3_SECRET_KEY")
+           :endpoint (maybe-getenv "$S3_URL")})
 
 (defmacro truncate-n-test [cluster name & body]
   `(testing ~name
@@ -14,7 +24,7 @@
   (map #(f/str-to-bytes %) data))
 
 (defmacro handle-message-macro [cluster msg]
-  `(server/handle-message ~cluster ~cluster (encode-str ~msg)))
+ `(server/handle-message ~cluster ~cluster cred (encode-str ~msg)))
 
 (deftest test-zmqserver-handle-put-name-msg
   (storage/with-connection [cluster ["127.0.0.1"] {}]
@@ -182,6 +192,15 @@
         (is (= (server/msg-done) (handle-message-macro cluster ["del" "t-attr" node "name" "0"])))
         (is (= (server/msg-tattr [[1 "foobar"]]) (map f/bytes-to-str (handle-message-macro cluster ["get" "t-attr" node "name" "0"]))))))))
 
+(deftest test-zmqserver-handle-at-attr-message
+  (let [attr-a (str (f/uuid-1) "/CPU")
+        value (f/str-to-bytes "foobar2222")]
+        (is (= (server/msg-done) (handle-message-macro nil ["put" "at-bucket" "201411"])))
+        (is (= (server/msg-done) (handle-message-macro nil ["put" "at-attr" "201411" attr-a value])))
+        (is (= (server/msg-fail 404) (handle-message-macro nil ["put" "at-attr" "20141" attr-a value])))
+        (is (= "foobar2222" (f/bytes-to-str (handle-message-macro nil ["get" "at-attr" "201411" attr-a]))))
+        (is (= nil (handle-message-macro nil ["get" "at-attr" "000000" attr-a])))))
+
 (deftest test-zmqserver-handle-k-attr-message
   (let [node (str (f/uuid-1))
         value (f/str-to-bytes "foobar")]
@@ -234,5 +253,5 @@
 
 (deftest test-zmqserver-zmqworker-interface
   (testing "just checks the interface"
-    (is (:onjob (server/zmqworker nil nil)))
-    (is (:onerr (server/zmqworker nil nil)))))
+    (is (:onjob (server/zmqworker nil nil nil)))
+    (is (:onerr (server/zmqworker nil nil nil)))))
