@@ -303,6 +303,25 @@
                    (batch-query (logged false)))]
     (client/execute cluster (client/render-query query))))
 
+(defn enum-tattr
+  ([cluster t l]
+   (let [[month _ _] (decode-time t)
+         l (f/parse-int l)]
+    (select cluster
+            (t-attr-colfam month)
+            (columns :key :name :bucket)
+            (limit l))))
+  ([cluster t l & attrs]
+   (let [[month _ _] (decode-time t)
+         l (f/parse-int l)
+         [k n b] attrs]
+    (select cluster
+            (t-attr-colfam month)
+            (columns :key :name :bucket)
+            (where [[> (token :key :name :bucket) (token k n b)]])
+            (limit l))))
+)
+
 (defn get-tattr [cluster k name time]
   (let [[month bucket slot] (decode-time time)]
     (map

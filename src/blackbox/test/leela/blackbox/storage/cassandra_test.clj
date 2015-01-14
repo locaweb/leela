@@ -158,6 +158,42 @@
                                                     :time 0}])
                        (is (= [] (storage/get-tattr cluster node-c "attr" 0)))))))
 
+
+(deftest test-enum-tattr
+  (let [node-a (f/uuid-from-time 1)
+        node-b (f/uuid-from-time 2)
+        node-c (f/uuid-from-time 3)
+        node-d (f/uuid-from-time 4)]
+    (storage/with-connection [cluster ["127.0.0.1"] {}]
+      (storage/use-attr-schema cluster "leela")
+      (storage/use-graph-schema cluster "leela")
+
+      (truncate-n-test cluster "get-tattr after put-tattr (overwrite)"
+                       (storage/put-tattr cluster [[{:key node-a
+                                                     :name "attr0"
+                                                     :time 0
+                                                     :value (f/str-to-bytes "foobar")} {}]
+                                                   [{:key node-a
+                                                     :name "attr1"
+                                                     :time 0
+                                                     :value (f/str-to-bytes "foobar")} {}]
+                                                   [{:key node-a
+                                                     :name "attr2"
+                                                     :time 0
+                                                     :value (f/str-to-bytes "foobar")} {}]
+                                                   [{:key node-a
+                                                     :name "attr3"
+                                                     :time 0
+                                                     :value (f/str-to-bytes "foobaz")} {}]])
+                       (let [results (storage/enum-tattr cluster 0 1)]
+                         (is (= [[[:key node-a] [:name "attr3"] [:bucket 0]]] (map (partial map f/bytes-to-str) results))))
+
+                       (let [results (storage/enum-tattr cluster 0 2)]
+                         (is (= [[[:key node-a] [:name "attr3"] [:bucket 0]] [[:key node-a] [:name "attr2"] [:bucket 0]]] (map (partial map f/bytes-to-str) results))))
+
+                       (let [results (storage/enum-tattr cluster 0 1 node-a "attr3" 0)]
+                         (is (= [[[:key node-a] [:name "attr2"] [:bucket 0]]] (map (partial map f/bytes-to-str) results))))))))
+
 (deftest test-put-kattr
   (let [node-a (f/uuid-from-time 1)]
     (storage/with-connection [cluster ["127.0.0.1"] {}]

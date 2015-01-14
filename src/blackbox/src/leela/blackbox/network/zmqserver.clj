@@ -219,6 +219,17 @@
     "ext" (msg-label (exec-getindex-exact cluster :g_index (drop 1 msg)))
     (msg-fail 400)))
 
+(defn exec-enum [cluster [t l & attrs]]
+    (let [t (Long. (f/bytes-to-str t))
+          l (f/bytes-to-str l)]
+      (if-let [[k n b] attrs]
+        (do
+          (let [k (f/bytes-to-uuid k)
+                n (f/bytes-to-str n)
+                b (f/bytes-to-str b)]
+          (storage/enum-tattr cluster t l k n b)))
+        (storage/enum-tattr cluster t l))))
+
 (defn exec-listattr [cluster msg]
   (let [table (get {"k-attr" :k_index
                     "t-attr" :t_index} (f/bytes-to-str (first msg)))]
@@ -242,6 +253,7 @@
     "guid" (exec-getguid graph-cluster (drop 1 msg))
     "link" (exec-getlink graph-cluster (drop 1 msg))
     "label" (exec-getlabel graph-cluster (drop 1 msg))
+    "enum" (exec-enum graph-cluster (drop 1 msg))
     "attr" (exec-listattr attr-cluster (drop 1 msg))
     "t-attr" (exec-get-tattr attr-cluster (drop 1 msg))
     "at-attr" (exec-get-archived-tattr s3-cred (drop 1 msg))

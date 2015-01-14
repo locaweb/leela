@@ -192,6 +192,24 @@
         (is (= (server/msg-done) (handle-message-macro cluster ["del" "t-attr" node "name" "0"])))
         (is (= (server/msg-tattr [[1 "foobar"]]) (map f/bytes-to-str (handle-message-macro cluster ["get" "t-attr" node "name" "0"]))))))))
 
+(deftest test-zmqserver-handle-enum-message
+  (let [node (str (f/uuid-from-time 1))
+        uuid (f/uuid-from-time 1)
+        value (f/str-to-bytes "foobar")]
+    (storage/with-connection [cluster ["127.0.0.1"] {}]
+     (storage/use-attr-schema cluster "leela")
+     (storage/use-graph-schema cluster "leela")
+
+      (truncate-n-test cluster "enum t-attr"
+        (handle-message-macro cluster ["put" "t-attr"
+                                        node "name" "0" value ""
+                                        node "name1" "0" value ""
+                                        node "name2" "0" value ""
+                                        node "name3" "0" value ""])
+        (is (= [{:key uuid, :name "name1", :bucket 0}] (handle-message-macro cluster ["get" "enum" "0" "1"])))
+        (is (= [{:key uuid, :name "name1", :bucket 0} {:key uuid, :name "name3", :bucket 0}] (handle-message-macro cluster ["get" "enum" "0" "2"])))
+        (is (= [{:key uuid, :name "name3", :bucket 0}] (handle-message-macro cluster ["get" "enum" "0" "1" node "name1" 0])))))))
+
 (deftest test-zmqserver-handle-at-attr-message
   (let [attr-a (str (f/uuid-1) "/CPU")
         value (f/str-to-bytes "foobar2222")]
