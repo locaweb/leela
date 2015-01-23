@@ -330,7 +330,8 @@
      (select cluster
              (t-attr-colfam month)
              (columns :slot :data)
-             (where [[= :key k] [= :name name] [= :bucket bucket] [>= :slot slot]])))))
+             (where [[= :key k] [= :name name] [= :bucket bucket] [>= :slot slot]])
+             (limit +limit+)))))
 
 (defn del-tattr [cluster attrs]
   (let [query (->> attrs

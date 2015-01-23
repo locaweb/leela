@@ -25,6 +25,14 @@
 (defn make-queue [size]
   (java.util.concurrent.LinkedBlockingQueue. size))
 
+(defmacro measure-time [name mtime & body]
+  `(let [t0# (System/currentTimeMillis)
+         ans# ~@body
+         delta# (- (System/currentTimeMillis) t0#)]
+     (if (< ~mtime delta#)
+       (warn (format "MEASURE-TIME: %s %d" ~name delta#)))
+     ans#))
+
 (defn enqueue [fh queue worker]
   (let [[peer [blank & msg]] (split-with #(not (empty? %)) (z/recvmulti fh))
         time                 (System/currentTimeMillis)]
@@ -35,11 +43,12 @@
           (z/sendmulti fh (concat peer (cons nilarr (:onerr worker)))))))))
 
 (defn routing-loop [ifh ofh queue worker]
-  (let [[ifh-info ofh-info] (z/poll -1 [ifh [ZMQ$Poller/POLLIN] ofh [ZMQ$Poller/POLLIN]])]
-    (when (.isReadable ifh-info)
-      (enqueue ifh queue worker))
-    (when (.isReadable ofh-info)
-      (z/sendmulti ifh (z/recvmulti ofh)))))
+  (f/forever
+   (let [[ifh-info ofh-info] (z/poll -1 [ifh [ZMQ$Poller/POLLIN] ofh [ZMQ$Poller/POLLIN]])]
+     (when (.isReadable ifh-info)
+       (measure-time "recv" 100 (enqueue ifh queue worker)))
+     (when (.isReadable ofh-info)
+       (measure-time "send" 100 (z/sendmulti ifh (z/recvmulti ofh)))))))
 
 (defn evaluate [worker msg]
   (try
@@ -55,10 +64,9 @@
     (f/forever
      (let [[time peer msg] (.take queue)
            reply           (evaluate worker msg)
-           req-id          (pr-str (map f/bytes-to-str-unsafe (take 2 msg)))
-           rep-id          (pr-str (take 1 reply))]
-       (z/sendmulti fh (concat peer (cons nilarr reply)))
-       (info (format "WORKER[%04d] %s ~ %s [%d ms]" myid req-id rep-id (- (System/currentTimeMillis) time)))))))
+           rinfo           (pr-str (first reply))]
+       (z/sendmulti fh (concat peer (cons nilarr (second reply))))
+       (info (format "WORKER[%04d] %s [%d ms]" myid rinfo (- (System/currentTimeMillis) time)))))))
 
 (defn fork-worker [ctx myid endpoint queue worker]
   (.start (Thread. #(f/supervise (run-worker ctx myid endpoint queue worker)))))
@@ -68,12 +76,8 @@
   (with-open [ifh (.socket ctx ZMQ/ROUTER)
               ofh (.socket ctx ZMQ/PULL)]
     (let [queue       (make-queue (:queue-size cfg))
-          ipcendpoint (format "inproc://blackbox-router-%s" (f/uuid-1))]
+          ipcendpoint (format "inproc:///tmp/blackbox-router-%s" (f/uuid-1))]
       (info (format "router-start1; config=%s" cfg))
-      (.setSndHWM ofh 0)
-      (.setSndHWM ifh 0)
-      (.setRcvHWM ofh 0)
-      (.setRcvHWM ifh 0)
       (.bind (z/setup-socket ofh) ipcendpoint)
       (.bind (z/setup-socket ifh) (:endpoint cfg))
       (dotimes [myid (:capabilities cfg)] (fork-worker ctx myid ipcendpoint queue worker))

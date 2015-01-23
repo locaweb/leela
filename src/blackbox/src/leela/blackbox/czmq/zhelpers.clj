@@ -13,13 +13,22 @@
 ;; limitations under the License.
 
 (ns leela.blackbox.czmq.zhelpers
+  (:use     [clojure.tools.logging :only [warn]])
   (:import [org.zeromq ZMQ ZMQ$PollItem ZMQ$Socket]))
+
+(defmacro measure-time [name mtime & body]
+  `(let [t0# (System/currentTimeMillis)
+         ans# ~@body
+         delta# (- (System/currentTimeMillis) t0#)]
+     (if (< ~mtime delta#)
+       (warn (format "MEASURE-TIME: %s %d" ~name delta#)))
+     ans#))
 
 (defn recvmulti [fh]
   (loop [acc [(.recv fh)]]
     (if-not (.hasReceiveMore fh)
-      acc
-      (recur (conj acc (.recv fh))))))
+      (reverse acc)
+      (recur (cons (.recv fh) acc)))))
 
 (defn sendmulti [fh frame]
   (loop [msg  (first frame)
