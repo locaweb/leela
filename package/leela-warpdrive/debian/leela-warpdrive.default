@@ -1,19 +1,16 @@
-# The endpoint to bind to
-LEELA_WARPDRIVE_ENDPOINT=tcp://localhost:4080
-
 # The redis password to use when connecting to redis
 LEELA_WARPDRIVE_REDIS_SECRET=
 
+# The endpoint to bind to
+LEELA_WARPDRIVE_ENDPOINT=tcp://127.0.0.1:4080
+
 # The username to use when testing the service
-LEELA_WARPDRIVE_WATCHDOG_USER=system
+LEELA_WARPDRIVE_WATCHDOG_USER=leela
 
 # The password to use when testing the service
 LEELA_WARPDRIVE_WATCHDOG_PASS=
 
-# The time to wait for a safe shutdown [do not change this unless you know what you are doing]
-LEELA_WARPDRIVE_MAXWAIT=180
-
 # Extra options for warpdrive
-LEELA_WARPDRIVE_OPTS="--debug-level=NOTICE --log-file=/var/log/leela/warpdrive/warpdrive.log --consul-endpoint=http://127.0.0.1:8500 +RTS -N -A8m -H -M4g -qa -RTS"
+LEELA_WARPDRIVE_OPTS="--debug-level=NOTICE --log-file=/var/log/leela/warpdrive/warpdrive.log --consul-endpoint=http://127.0.0.1:8500 +RTS -N -A8m -H -M4g -qa -RTS $LEELA_WARPDRIVE_EXTRAOPTS"
 
 export MALLOC_ARENA_MAX=4
