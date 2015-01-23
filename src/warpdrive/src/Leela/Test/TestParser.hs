@@ -17,10 +17,10 @@ module Leela.Test.TestParser
        ) where
 
 import           Test.Tasty
+import qualified Data.ByteString as B
 import           Test.Tasty.HUnit
 import           Leela.Data.Types
-import           Leela.Data.LQL.Comp
-import qualified Data.ByteString as B
+import           Leela.Data.LQL.Read
 
 count :: String -> Int
 count = either (const 0) length . loads (parseLQL $ User B.empty)

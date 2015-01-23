@@ -27,9 +27,6 @@ mapToLazyBS lim = map (toLazyBS lim)
 toLazyBS :: Int -> Builder -> ByteString
 toLazyBS lim = toLazyByteStringWith (untrimmedStrategy lim smallChunkSize) empty
 
-sConcatMap :: (a -> [b]) -> [a] -> [b]
-sConcatMap f = toList . mconcat . map (fromList . f)
-
 chunked :: Int -> [a] -> [[a]]
 chunked _ [] = []
 chunked n xs = let (chunk, ys) = splitAt n xs

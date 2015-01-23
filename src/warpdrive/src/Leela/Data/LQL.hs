@@ -56,7 +56,7 @@ data Grep = GrepTAttr (Maybe GUID) Attr
           | GrepKAttr (Maybe GUID) Attr
           | GrepMakeLink (Maybe GUID) Label (Maybe GUID)
           | GrepKillLink (Maybe GUID) Label (Maybe GUID)
-          | GrepMakeVertex (Maybe User) (Maybe Tree) Kind Node
+          | GrepMakeVertex Kind Node
           | GrepKillVertex (Maybe GUID)
 
 data LQL = StatStmt
@@ -69,7 +69,7 @@ data LQL = StatStmt
          | NameStmt Using (S.Seq GUID)
          | GUIDStmt Using (S.Seq (Kind, Node))
          | AlterStmt (S.Seq Journal)
-         | GrepStmt Grep
+         | GrepStmt Using Grep
 
 data GraphEvent = MakeVertexEvent User Tree Kind Node GUID
                 | KillVertexEvent GUID
@@ -92,33 +92,31 @@ hashlazy' = L.fromStrict . digestToHexByteString . hashAlgo
 grepID :: Grep -> GUID
 grepID grepExpr =
   case grepExpr of
-    GrepKillVertex guidQ                                 -> GUID $ hashlazy' $ L.intercalate "0" [ "kill"
-                                                                                                 , maybe "*" (\(GUID g) -> g) guidQ
-                                                                                                 ]      
-    GrepTAttr guidQ (Attr attrQ)                         -> GUID $ hashlazy' $ L.intercalate "0" ["t-attr"
-                                                                                                 , maybe "*" (\(GUID g) -> g) guidQ
-                                                                                                 , attrQ
-                                                                                                 ]      
-    GrepKAttr guidQ (Attr attrQ)                         -> GUID $ hashlazy' $ L.intercalate "0" ["k-attr"
-                                                                                                 , maybe "*" (\(GUID g) -> g) guidQ
-                                                                                                 , attrQ
-                                                                                                 ]      
-    GrepMakeLink aguidQ (Label labelQ) bguidQ            -> GUID $ hashlazy' $ L.intercalate "0" ["link"
-                                                                                                 , maybe "*" (\(GUID g) -> g) aguidQ
-                                                                                                 , maybe "*" (\(GUID g) -> g) bguidQ
-                                                                                                 , labelQ
-                                                                                                 ]      
-    GrepKillLink aguidQ (Label labelQ) bguidQ            -> GUID $ hashlazy' $ L.intercalate "0" [ "unlink"
-                                                                                                 , maybe "*" (\(GUID g) -> g) aguidQ
-                                                                                                 , maybe "*" (\(GUID g) -> g) bguidQ
-                                                                                                 , labelQ
-                                                                                                 ]      
-    GrepMakeVertex userQ treeQ (Kind kindQ) (Node nodeQ) -> GUID $ hashlazy' $ L.intercalate "0" [ "make"
-                                                                                                 , maybe "*" (\(User u) -> u) userQ
-                                                                                                 , maybe "*" (\(Tree t) -> t) treeQ
-                                                                                                 , kindQ
-                                                                                                 , nodeQ
-                                                                                                 ]      
+    GrepKillVertex guidQ                      -> GUID $ hashlazy' $ L.intercalate "0" [ "kill"
+                                                                                      , maybe "*" (\(GUID g) -> g) guidQ
+                                                                                      ]      
+    GrepTAttr guidQ (Attr attrQ)              -> GUID $ hashlazy' $ L.intercalate "0" ["t-attr"
+                                                                                      , maybe "*" (\(GUID g) -> g) guidQ
+                                                                                      , attrQ
+                                                                                      ]      
+    GrepKAttr guidQ (Attr attrQ)              -> GUID $ hashlazy' $ L.intercalate "0" ["k-attr"
+                                                                                      , maybe "*" (\(GUID g) -> g) guidQ
+                                                                                      , attrQ
+                                                                                      ]      
+    GrepMakeLink aguidQ (Label labelQ) bguidQ -> GUID $ hashlazy' $ L.intercalate "0" ["link"
+                                                                                      , maybe "*" (\(GUID g) -> g) aguidQ
+                                                                                      , maybe "*" (\(GUID g) -> g) bguidQ
+                                                                                      , labelQ
+                                                                                      ]      
+    GrepKillLink aguidQ (Label labelQ) bguidQ -> GUID $ hashlazy' $ L.intercalate "0" [ "unlink"
+                                                                                      , maybe "*" (\(GUID g) -> g) aguidQ
+                                                                                      , maybe "*" (\(GUID g) -> g) bguidQ
+                                                                                      , labelQ
+                                                                                      ]      
+    GrepMakeVertex (Kind kindQ) (Node nodeQ)  -> GUID $ hashlazy' $ L.intercalate "0" [ "make"
+                                                                                      , kindQ
+                                                                                      , nodeQ
+                                                                                      ]
 
 grep :: Grep -> Either (GraphEvent -> Bool) (AttrEvent -> Bool)
 grep (GrepTAttr guidQ (Attr exprQ)) =
@@ -155,17 +153,15 @@ grep (GrepKillLink aguidQ (Label labelQ) bguidQ) =
                                                          , match regex labelV
                                                          ]
          _                                        -> False
-grep (GrepMakeVertex userQ treeQ (Kind kindQ) (Node nodeQ)) =
+grep (GrepMakeVertex (Kind kindQ) (Node nodeQ)) =
   let kRegex = makeRegex kindQ :: Regex
       nRegex = makeRegex nodeQ :: Regex
   in Left $ \e ->
        case e of
-         MakeVertexEvent user tree (Kind kind) (Node node) _ -> and [ maybe True (user ==) userQ
-                                                                    , maybe True (tree ==) treeQ
-                                                                    , match kRegex kind
-                                                                    , match nRegex node
-                                                                    ]
-         _                                                   -> False
+         MakeVertexEvent _ _ (Kind kind) (Node node) _ -> and [ match kRegex kind
+                                                              , match nRegex node
+                                                              ]
+         _                                             -> False
 grep (GrepKillVertex guidQ) =
   Left $ \e ->
     case e of
@@ -263,6 +259,33 @@ getAttrEvent_v0 = getWord8 >>= \ty ->
     2 -> TAttrDelEvent <$> get <*> get <*> get
     3 -> KAttrDelEvent <$> get <*> get
     _ -> mzero
+
+putGrep_v0 :: Grep -> Put
+putGrep_v0 (GrepTAttr g a)       = putWord8 0 >> sequence_ [put g, put a]
+putGrep_v0 (GrepKAttr g a)       = putWord8 1 >> sequence_ [put g, put a]
+putGrep_v0 (GrepMakeLink a l b)  = putWord8 2 >> sequence_ [put a, put l, put b]
+putGrep_v0 (GrepKillLink a l b)  = putWord8 3 >> sequence_ [put a, put l, put b]
+putGrep_v0 (GrepMakeVertex k n)  = putWord8 4 >> sequence_ [put k, put n]
+putGrep_v0 (GrepKillVertex n)    = putWord8 5 >> put n
+
+getGrep_v0 :: Get Grep
+getGrep_v0 = getWord8 >>= \code ->
+  case code of
+    0 -> GrepTAttr <$> get <*> get
+    1 -> GrepKAttr <$> get <*> get
+    2 -> GrepMakeLink <$> get <*> get <*> get
+    3 -> GrepKillLink <$> get <*> get <*> get
+    4 -> GrepMakeVertex <$> get <*> get
+    5 -> GrepKillVertex <$> get
+    _ -> mzero
+
+instance Serialize Grep where
+
+  get   = getWord8 >>= \ver ->
+    case ver of
+      0 -> getGrep_v0
+      _ -> mzero
+  put e = putWord8 0 >> putGrep_v0 e
 
 instance Serialize GraphEvent where
 

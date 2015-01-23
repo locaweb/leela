@@ -86,12 +86,6 @@ readOpts argv =
 signal :: MVar () -> IO ()
 signal x = void $ tryPutMVar x ()
 
-zmqPubSocket :: Context -> IO (Socket Pub)
-zmqPubSocket ctx = do
-  fh <- socket ctx Pub
-  setHWM (1000, 1000) fh
-  return fh
-
 main :: IO ()
 main = do
   hSetBuffering stdout NoBuffering
@@ -105,14 +99,16 @@ main = do
   warning syslog (printf "warpgrep: yo!yo!; endpoint=%s; bus-endpoint=%s" (show $ optEndpoint opts) (show $ optBusEndpoint opts))
   withContext $ \ctx -> do
     setIoThreads (optIoThreads opts) ctx
-    pub     <- zmqPubSocket ctx
-    warpsrv <- newWarpGrepServer syslog (socketAdapter pub)
-    pipe    <- warpGrepServer warpsrv ctx
-    configAndBind pub (dumpEndpointStr $ optBusEndpoint opts)
-    pipeBind pipe (optEndpoint opts)
-    forkIO (forever $ registerOrRefresh warpsrv (GrepKAttr Nothing (Attr "audit")) >> sleep 30) -- TODO:remove 
-    takeMVar alive
-    stopPipe pipe
+    withSocket ctx Pub $ \pub -> do
+      config pub
+      setHWM (1000, 1000) pub
+      warpsrv <- newWarpGrepServer syslog (socketAdapter pub)
+      pipe    <- warpGrepServer warpsrv ctx
+      configAndBind pub (dumpEndpointStr $ optBusEndpoint opts)
+      pipeBind pipe (optEndpoint opts)
+      forkIO (forever $ registerOrRefresh warpsrv (GrepKAttr Nothing (Attr "audit")) >> sleep 30) -- TODO:remove
+      takeMVar alive
+      stopPipe pipe
     flushLogger syslog
   warning syslog "warpgrep: see ya!"
   closeLogger syslog

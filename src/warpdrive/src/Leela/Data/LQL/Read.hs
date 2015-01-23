@@ -16,7 +16,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-module Leela.Data.LQL.Comp
+module Leela.Data.LQL.Read
     ( Source (..)
     , parseLQL
     , parseLQL1
@@ -91,6 +91,9 @@ parseAttr = Attr <$> qstring 512 0x22 0x22
 
 parseGUID :: Parser GUID
 parseGUID = guidFromBS <$> (A.take 36)
+
+parseGUIDOrStar :: Parser (Maybe GUID)
+parseGUIDOrStar = (Just <$> parseGUID) <|> ("*" *> return Nothing)
 
 parseGUIDAttr :: Parser (GUID, Attr)
 parseGUIDAttr = do
@@ -182,8 +185,7 @@ parseQuery1 nilOk acc = do
     then do
       hardspace
       l      <- parseRLink
-      hardspace
-      nilOk' <- parseNodeSelector
+      nilOk' <- hardspace >> parseNodeSelector
       parseQuery1 nilOk' ((nilOk, ByLabel l) : acc)
     else
       return (reverse acc)
@@ -284,16 +286,14 @@ parseFilterSection = liftFilter <$> (parseLeft <|> parseRight)
       parseLeft = do
         _ <- word8 0x28
         f <- parseCmpOper
-        hardspace
-        v <- double
+        v <- hardspace >> double
         _ <- word8 0x29
         return ((`f` v) . snd)
 
       parseRight = do
         _ <- word8 0x28
         v <- double
-        hardspace
-        f <- parseCmpOper
+        f <- hardspace >> parseCmpOper
         _ <- word8 0x29
         return ((v `f`) . snd)
 
@@ -303,16 +303,14 @@ parseMapSection = liftMapV <$> fmap <$> (parseLeft <|> parseRight)
       parseLeft = do
         _ <- word8 0x28
         f <- parseArithOper
-        hardspace
-        v <- double
+        v <- hardspace >> double
         _ <- word8 0x29
         return (`f` v)
 
       parseRight = do
         _ <- word8 0x28
         v <- double
-        hardspace
-        f <- parseArithOper
+        f <- hardspace >> parseArithOper
         _ <- word8 0x29
         return (v `f`)
 
@@ -449,10 +447,8 @@ parseStmtKill = "kill " *> doParse
     where
       doParse = do
         ma <- parseMaybeGUID
-        hardspace
-        dl  <- parseLink
-        hardspace
-        mb <- parseMaybeGUID
+        dl <- hardspace >> parseLink
+        mb <- hardspace >> parseMaybeGUID
         case (ma, mb, dl) of
           (Just a, Nothing, R l) -> return $ AlterStmt (S.singleton $ DelLink a l Nothing)
           (Just a, Just b, R l)  -> return $ AlterStmt (S.singleton $ DelLink a l (Just b))
@@ -473,6 +469,45 @@ parsePipeline = do
     where
       mkEnv s = Env (return s) (const $ return ())
 
+parseGrepAttr :: Parser Grep
+parseGrepAttr = do
+  guid     <- parseGUIDOrStar
+  attr     <- hardspace >> parseAttr
+  next     <- peekWord8
+  case next of
+    Just 0x20 -> " []" *> return (GrepTAttr guid attr)
+    _         -> return $ GrepKAttr guid attr
+
+parseGrepMake :: Parser Grep
+parseGrepMake = do
+  next <- hardspace >> peekWord8
+  case next of
+    Just 0x28 -> do
+      kind <- Kind <$> qstring 512 0x22 0x22
+      node <- Node <$> qstring 512 0x22 0x22
+      return $ GrepMakeVertex kind node
+    _         -> do
+      guid  <- parseGUIDOrStar
+      label <- Label <$> qstring 512 0x22 0x22
+      guidB <- parseGUIDOrStar
+      return $ GrepMakeLink guid label guidB
+
+parseGrepKill :: Parser Grep
+parseGrepKill = do
+  guid <- parseGUIDOrStar
+  next <- peekWord8
+  case next of
+    Just 0x20 -> do
+      re    <- hardspace >> parseLabel
+      guidB <- hardspace >> parseGUIDOrStar
+      return $ GrepKillLink guid re guidB
+    _         -> return $ GrepKillVertex guid
+
+parseGrepStmt :: Using -> Parser LQL
+parseGrepStmt u = "grep attr " *> (GrepStmt u <$> parseGrepAttr)
+                  <|> "grep make " *> (GrepStmt u <$> parseGrepMake)
+                  <|> "grep kill " *> (GrepStmt u <$> parseGrepKill)
+
 parseStmtAttr :: Parser LQL
 parseStmtAttr = "attr put " *> parsePutAttr
                 <|> "attr last * " *> parseLastAttrAll
@@ -484,8 +519,7 @@ parseStmtAttr = "attr put " *> parsePutAttr
     where
       parsePutAttr = do
         (g, k) <- parseGUIDAttr
-        hardspace
-        token <- peekWord8
+        token <- hardspace >> peekWord8
         case token of
           Just 0x5b -> parsePutTAttr g k
           _         -> parsePutKAttr g k
@@ -496,8 +530,7 @@ parseStmtAttr = "attr put " *> parsePutAttr
 
       parseLastAttrOn = do
         g <- parseGUID
-        hardspace
-        a <- parseAttr
+        a <- hardspace >> parseAttr
         return (TAttrLastStmt (Just g) a)
 
       parsePutKAttr g k = do
@@ -507,8 +540,7 @@ parseStmtAttr = "attr put " *> parsePutAttr
 
       parsePutTAttr g k = do
         t <- parseTimePoint
-        hardspace
-        v <- parseValue
+        v <- hardspace >> parseValue
         w <- option [] (hardspace >> parseWithStmt)
         return (AlterStmt (S.singleton $ PutTAttr g k t v w))
 
@@ -531,7 +563,7 @@ parseStmt u = do
   w <- peekWord8
   case w of
     Just 0x6d -> parseStmtMake u
-    Just 0x67 -> parseStmtGUID u
+    Just 0x67 -> parseStmtGUID u <|> parseGrepStmt u
     Just 0x70 -> parseStmtPath
     Just 0x6e -> parseStmtName u
     Just 0x6b -> parseStmtKill

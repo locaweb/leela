@@ -38,6 +38,7 @@ import Leela.Storage.Backend.Redis
 
 data Options = Options { optConsul       :: Endpoint
                        , optPasswd       :: String
+                       , optBlackbox     :: String
                        , optEndpoint     :: Endpoint
                        , optDebugLevel   :: Priority
                        , optRedisSecret  :: Maybe String
@@ -51,6 +52,7 @@ defaultOptions :: Options
 defaultOptions = Options { optEndpoint     = TCP "*" 4080 ""
                          , optDebugLevel   = NOTICE
                          , optConsul       = HTTP "127.0.0.1" 8500 ""
+                         , optBlackbox     = "blackbox"
                          , optRedisSecret  = Nothing
                          , optPasswd       = "/etc/leela/passwd"
                          , optBufSize      = fromIntegral defaultBufSize
@@ -72,6 +74,9 @@ options =
   , Option [] ["consul-endpoint"]
            (ReqArg (setReadOpt (\v opts -> opts { optConsul = v })) "CONSUL-ENDPOINT")
            (printf "the consul endpoint to find leela services [default: %s]" (show $ optConsul defaultOptions))
+  , Option [] ["blackbox-resource"]
+           (ReqArg (\v opts -> opts { optBlackbox = v }) "BLACKBOX-RESOURCE")
+           (printf "the name of the blackbox resource on consul to connect to [default: %s]" (optBlackbox defaultOptions))
   , Option [] ["debug-level"]
            (ReqArg (setReadOpt (\v opts -> opts { optDebugLevel = v })) "DEBUG|INFO|NOTICE|WARNING|ERROR")
            (printf "logging level [default: %s]" (show $ optDebugLevel defaultOptions))
@@ -125,7 +130,6 @@ main = do
   naming  <- newIORef []
   syslog  <- newLogger (optLogFile opts) (fromIntegral $ max 1 (optBufSize opts)) (optDebugLevel opts)
   passwd  <- passwdWatcher syslog (optPasswd opts)
-  warpsrv <- newWarpServer syslog naming passwd
   resolver syslog naming (show $ optConsul opts)
   _       <- forkIO (supervise syslog "main/resolver" $ forever $ sleep 5 >> resolver syslog naming (show $ optConsul opts))
   void $ installHandler sigTERM (Catch $ signal alive) Nothing
@@ -133,7 +137,7 @@ main = do
   void $ installHandler sigHUP (Catch $ reopen syslog) Nothing
   warning syslog (printf "warpdrive: yo!yo!; endpoint=%s" (show $ optEndpoint opts))
   withContext $ \ctx -> do
-    let dealerCfg = ClientConf (fmap (fromMaybe [] . lookup "blackbox") (readIORef naming))
+    let dealerCfg = ClientConf (fmap (fromMaybe [] . lookup (optBlackbox opts)) (readIORef naming))
         pipeCfg   = PipeConf (fmap (fromMaybe [] . lookup "warpgrep") (readIORef naming))
         redisRW   = fmap (fromMaybe [] . lookup "redis") (readIORef naming)
         redisRO   = fmap (maybe [] (map (portMap (+1))) . lookup "redis") (readIORef naming)
@@ -144,10 +148,11 @@ main = do
     dealer <- createDealer syslog ctx
     pipeConnect pipe pipeCfg
     dealerConnect syslog dealer dealerCfg
-    tcache <- timeCache
-    router <- warpServer warpsrv
-                (fromIntegral $ optSigTTL opts) tcache (optEndpoint opts) ctx
-                (warpLogServer syslog tcache pipe $ zmqbackend syslog dealer cache)
+    tcache  <- timeCache
+    warpsrv <- newWarpServer syslog pipe naming passwd
+    router  <- warpServer warpsrv
+                 (fromIntegral $ optSigTTL opts) tcache (optEndpoint opts) ctx
+                 (zmqbackend syslog dealer cache)
     takeMVar alive
     flushLogger syslog
     stopRouter router

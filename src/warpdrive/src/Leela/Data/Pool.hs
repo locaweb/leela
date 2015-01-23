@@ -119,8 +119,8 @@ rr pool apply = bracket acquire release (apply . snd)
       release (a, _) = atomically $
         modifyTVar' (using pool) (M.insertWith (-) a 1)
 
-useAll :: (Ord a) => Pool a b -> ([b] -> IO c) -> IO c
-useAll pool apply = bracket acquire release (apply . snd)
+useAll :: (Ord a) => Pool a b -> ([(a, b)] -> IO c) -> IO c
+useAll pool apply = bracket acquire release (apply . uncurry zip)
     where
       acquire = do
         m <- atomically $ readTVar (state pool)

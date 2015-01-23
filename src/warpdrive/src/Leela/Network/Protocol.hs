@@ -28,15 +28,16 @@ module Leela.Network.Protocol
     , decode
     , encode
     , encodeE
+    , mergeReply
     , mapToLazyBS
-    , encodeAEvent
-    , encodeGEvent
+    , encodeValue
+    , mergeReplies
+    , encodeDouble
     ) where
 
 import           Data.List (foldl')
 import           Data.Word
 import           Control.Monad
-import           Leela.Data.LQL
 import qualified Data.ByteString as B
 import           Leela.Data.Time
 import           Leela.Data.Types
@@ -89,6 +90,26 @@ isLast _    = False
 isFail :: Reply -> Bool
 isFail (Fail _ _) = True
 isFail _          = False
+
+mergeReply :: Reply -> Reply -> Maybe Reply
+mergeReply Last b              = Just $ b
+mergeReply a Last              = Just $ a
+mergeReply _ b@(Fail {})       = Just $ b
+mergeReply a@(Fail {}) _       = Just $ a
+mergeReply (Item x) (Item y)   = Just $ Item $ mergeRValue x y
+mergeReply (Done _) _          = Nothing
+mergeReply _ (Done _)          = Nothing
+
+mergeRValue :: RValue -> RValue -> RValue
+mergeRValue (List xs) (List ys) = List (xs ++ ys)
+mergeRValue (List xs) y         = List (xs ++ [y])
+mergeRValue x (List ys)         = List (x : ys)
+mergeRValue x y                 = List [x, y]
+
+mergeReplies :: [Reply] -> Maybe Reply
+mergeReplies []           = Nothing
+mergeReplies [x]          = Just x
+mergeReplies (x : y : xs) = maybe Nothing (mergeReplies . (: xs)) (mergeReply x y)
 
 readDecimal :: (Integral n) => B.ByteString -> Either Reply n
 readDecimal s = case (B8.readInteger s) of
@@ -150,7 +171,7 @@ encodeValue (UInt64 v)   = ["5", toLazyBS 32 $ word64Dec v]
 encodeValue (Double v)   = ["6", encodeDouble v]
 
 encodeTimeSeries :: [(Time, Value)] -> [L.ByteString]
-encodeTimeSeries = sConcatMap (\(t, v) -> (encodeDouble (seconds t)) : encodeValue v)
+encodeTimeSeries = concatMap (\(t, v) -> (encodeDouble (seconds t)) : encodeValue v)
 
 encodeRValue :: RValue -> [L.ByteString]
 encodeRValue (Name u t k n g)     = [ "name"
@@ -165,10 +186,10 @@ encodeRValue (Path p)             =   "path"
                                     : (foldl' (\acc (g, l) -> asLazyByteString l : asLazyByteString g : acc) [] p)
 encodeRValue (List v)             =   "list"
                                     : toLazyBS 32 (intDec (length v))
-                                    : sConcatMap encodeRValue v
+                                    : concatMap encodeRValue v
 encodeRValue (Stat prop)          =   "stat"
                                     : toLazyBS 32 (intDec (length prop))
-                                    : sConcatMap (\(a, b) -> [a, b]) prop
+                                    : concatMap (\(a, b) -> [a, b]) prop
 encodeRValue (TAttr g a v)        =   "t-attr"
                                     : toLazyBS 32 (intDec (length v))
                                     : asLazyByteString g
@@ -188,36 +209,6 @@ encodeRValue (NAttrs g names)     =   "n-attr"
                                     : toLazyBS 32 (intDec (length names))
                                     : asLazyByteString g
                                     : (map asLazyByteString names)
-
-encodeAEvent :: GUID -> AttrEvent -> [L.ByteString]
-encodeAEvent guid (TAttrPutEvent g a t v opts) = asLazyByteString guid
-                                                 : "attr"
-                                                 : "put"
-                                                 : asLazyByteString g
-                                                 : asLazyByteString a
-                                                 : encodeDouble (seconds t)
-                                                 : encodeValue v
-encodeAEvent guid (TAttrDelEvent g a mt)       = [ asLazyByteString guid
-                                                 , "attr"
-                                                 , "del"
-                                                 , asLazyByteString g
-                                                 , asLazyByteString a
-                                                 , maybe "" (encodeDouble . seconds) mt
-                                                 ]
-encodeAEvent guid (KAttrPutEvent g a v opts)   = asLazyByteString guid
-                                                 : "attr"
-                                                 : "put"
-                                                 : asLazyByteString g
-                                                 : asLazyByteString a
-                                                 : encodeValue v
-encodeAEvent guid (KAttrDelEvent g a)          = [ asLazyByteString guid
-                                                 , "attr"
-                                                 , "del"
-                                                 , asLazyByteString g
-                                                 , asLazyByteString a
-                                                 ]
-
-encodeGEvent guid _                            = [ asLazyByteString guid ]
 
 encode :: Reply -> [L.ByteString]
 encode (Done fh)              = [ "done"

@@ -20,6 +20,7 @@ module Leela.HZMQ.Pipe
        , stopPipe
        , push
        , pull
+       , broadcast
        , pipeBind
        , pipeConnect
        ) where
@@ -45,7 +46,8 @@ data ValveST = OnState
              | FailState !Int !Int
              deriving (Eq)
 
-data Pipe a = Pipe { valve :: IORef ValveST
+data Pipe a = Pipe { pPool  :: Pool Endpoint ()
+                   , valve  :: IORef ValveST
                    , logger :: Logger
                    , engine :: IOLoop a
                    }
@@ -56,10 +58,11 @@ createPushPipe ctx syslog = do
   fh     <- zmqSocket
   ioloop <- newIOLoop_ "pipe#push" fh 100
   _      <- forkFinally (pollOutLoop syslog ioloop) (\_ -> close fh)
-  return $ Pipe active syslog ioloop
+  pool   <- createPool (connectTo syslog ioloop) (\e -> const $ disconnectFrom syslog ioloop e)
+  return $ Pipe pool active syslog ioloop
     where
       zmqSocket = do
-        fh    <- socket ctx Push
+        fh <- socket ctx Push
         setHWM (100, 100) fh
         config fh
         return fh
@@ -70,7 +73,8 @@ createPullPipe ctx syslog = do
   fh     <- zmqSocket
   ioloop <- newIOLoop_ "pipe#pull" fh 0
   _      <- forkFinally (pollInLoop syslog ioloop) (\_ -> close fh)
-  return $ Pipe active syslog ioloop
+  pool   <- createPool (connectTo syslog ioloop) (\e -> const $ disconnectFrom syslog ioloop e)
+  return $ Pipe pool active syslog ioloop
     where
       zmqSocket = do
         fh    <- socket ctx Pull
@@ -78,29 +82,28 @@ createPullPipe ctx syslog = do
         config fh
         return fh
 
-connectTo :: Pipe a -> Endpoint -> IO ()
-connectTo pipe endpoint = do
+connectTo :: Logger -> IOLoop a -> Endpoint -> IO ()
+connectTo syslog ioloop endpoint = do
   let addr = dumpEndpointStr endpoint
-  warning (logger pipe) (printf "pipe: connecting to: %s" addr)
-  useSocket (engine pipe) (flip connect addr)
+  warning syslog (printf "pipe: connecting to: %s" addr)
+  useSocket ioloop (flip connect addr)
 
-disconnectFrom :: Pipe a -> Endpoint -> IO ()
-disconnectFrom pipe endpoint = do
+disconnectFrom :: Logger -> IOLoop a -> Endpoint -> IO ()
+disconnectFrom syslog ioloop endpoint = do
   let addr = dumpEndpointStr endpoint
-  warning (logger pipe) (printf "pipe: disconnecting from: %s" addr)
-  useSocket (engine pipe) (flip disconnect addr)
+  warning syslog (printf "pipe: disconnecting from: %s" addr)
+  useSocket ioloop (flip disconnect addr)
 
 pipeConnect :: Pipe a -> PipeConf -> IO ()
 pipeConnect pipe cfg = do
-  pool <- createPool (connectTo pipe) (\e -> const $ disconnectFrom pipe e)
-  resources cfg >>= updatePool pool
+  resources cfg >>= updatePool (pPool pipe)
   void $ forkIO (foreverWith (alive $ engine pipe)
                              (do sleep 1
                                  items <- resources cfg
                                  if (length items == 0)
                                    then disableWrite pipe
                                    else enableWrite pipe
-                                 updatePool pool items))
+                                 updatePool (pPool pipe) items))
 
 pipeBind :: Pipe a -> Endpoint -> IO ()
 pipeBind pipe endpoint = do
@@ -122,6 +125,17 @@ push pipe msg = do
       handle True  = return True
       handle False = atomicModifyIORef' (valve pipe) (\v -> (moveToFailure v, False))
 
+broadcast :: Context -> Timeout -> Pipe Push -> [L.ByteString] -> IO ()
+broadcast ctx maxwait pipe msg = whenEnabled pipe $ useAll (pPool pipe) (mapM_ (flip sendCtrl msg . fst))
+    where
+      sendCtrl endpoint msg = do
+        withSocket ctx Push $ \fh -> do
+          configAndConnect fh (dumpEndpointStr endpoint)
+          ans <- poll maxwait [Sock fh [Out] Nothing]
+          case ans of
+            [[Out]] -> void $ sendAll' fh msg
+            _       -> return ()
+
 pull :: Pipe Pull -> IO [[B.ByteString]]
 pull pipe = recvMsg (engine pipe)
 
@@ -136,6 +150,11 @@ enableWrite pipe = do
   state <- readIORef (valve pipe)
   unless (state == OnState) (warning (logger pipe) "pipe: enabling writes")
   atomicWriteIORef (valve pipe) OnState
+
+whenEnabled :: Pipe a -> IO () -> IO ()
+whenEnabled pipe action = do
+  state <- readIORef (valve pipe)
+  when (state == OnState) action
 
 moveToFailure :: ValveST -> ValveST
 moveToFailure OffState        = OffState

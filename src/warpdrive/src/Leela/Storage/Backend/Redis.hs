@@ -172,7 +172,7 @@ instance KeyValue RedisBackend where
     useAll ropool action
       where
         action conns = do
-          results <- mapConcurrently (scanKeys syslog glob callback) conns
+          results <- mapConcurrently (scanKeys syslog glob callback . snd) conns
           unless (and results) (callback Nothing)
 
 instance (Monad m) => Monad (AnswerT m) where

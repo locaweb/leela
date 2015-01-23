@@ -27,11 +27,9 @@ module Leela.Storage.Graph
     ) where
 
 import Control.Monad
-import Data.Serialize
 import Leela.Data.LQL
 import Leela.Data.Time
 import Leela.Data.Types
-import Control.Applicative
 
 data LogBackend a = LogBackend { proxy    :: a
                                , ghandler :: [GraphEvent] -> IO ()

@@ -27,15 +27,12 @@ import qualified Data.ByteString as B
 import           Leela.Data.Time
 import           Leela.Data.Types
 import           Control.Exception
-import           Leela.DataHelpers
 import           Leela.HZMQ.Dealer
 import           Leela.Data.Excepts
 import           Leela.MonadHelpers
 import           Control.Applicative
 import           Leela.Storage.Graph
 import           Leela.Storage.KeyValue
-import           Control.Concurrent.Async
-import           Control.Parallel.Strategies
 import           Leela.Storage.Backend.ZMQ.Protocol
 
 newtype ZMQBackend cache = ZMQBackend (Logger, Client, cache)
@@ -54,7 +51,7 @@ zmqbackend a b c = ZMQBackend (a, b, c)
 
 recv :: Maybe [B.ByteString] -> Reply
 recv Nothing    = FailMsg 500
-recv (Just msg) = decode msg
+recv (Just msg) = decodeStrict msg
 
 notFoundError :: String -> IO a
 notFoundError m =
@@ -65,7 +62,7 @@ internalError m =
   throwIO (SystemExcept (Just m))
 
 send :: Client -> Query -> IO Reply
-send pool req = let msg = (encode req) `using` (evalList rdeepseq)
+send pool req = let msg = encodeLazy req
                 in request pool msg >>= evaluate . recv
 
 send_ :: Client -> Query -> IO ()
@@ -94,9 +91,9 @@ instance (KeyValue a) => AttrBackend (ZMQBackend a) where
 
   putTAttr _ []    = return ()
   putTAttr m attrs = do
-    seenset <- liftM (S.fromList . concatMap (map fst . filter snd)) $ mapConcurrently (mapM seen) (chunkSplit 10 attrs)
+    seenset <- liftM (S.fromList . map fst . filter snd) $ mapM seen attrs
     send_ (dealer m) (MsgPutTAttr $ map (setIndexing seenset) attrs)
-    void $ mapConcurrently (mapM storeCache) (chunkSplit 10 attrs)
+    void $ mapM storeCache attrs
       where
         setIndexing seenset (g, a, t, v, o)
           | S.member (g, a) seenset = (g, a, t, v, o)
@@ -128,7 +125,7 @@ instance (KeyValue a) => AttrBackend (ZMQBackend a) where
 
   getTAttr m g a time limit = scanTAttr [] time limit
       where
-        maxDataPoints = 5000
+        maxDataPoints = 4000
 
         scanTAttr acc t l
           | l <= 0    = return (reverse $ concat acc)

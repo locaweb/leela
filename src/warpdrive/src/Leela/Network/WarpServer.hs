@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections     #-}
-{-# LANGUAGE Rank2Types        #-}
 
 -- Copyright 2014 (c) Diego Souza <dsouza@c0d3.xxx>
 --
@@ -21,7 +20,6 @@ module Leela.Network.WarpServer
        , warpServer
        , stopRouter
        , newWarpServer
-       , warpLogServer
        ) where
 
 import           Data.IORef
@@ -31,7 +29,6 @@ import           Leela.Logger
 import           Data.Foldable (toList)
 import           Control.Monad
 import qualified Data.Sequence as Sq
-import qualified Data.Serialize as S
 import           Leela.Data.LQL
 import           Leela.Data.Time
 import           Leela.HZMQ.Pipe
@@ -46,8 +43,9 @@ import           Leela.Data.Counter
 import           Leela.Data.QDevice
 import           Leela.Data.Timeout
 import           Leela.Data.Endpoint
-import           Leela.Data.LQL.Comp
 import           Leela.Storage.Graph
+import           Leela.Data.LQL.Read
+import           Leela.Data.LQL.Show
 import qualified Leela.Storage.Passwd as P
 import qualified Data.ByteString.Lazy as L
 import           Leela.Storage.Passwd
@@ -56,11 +54,13 @@ import           Leela.Data.TimeSeries
 import           Control.Concurrent.STM
 import           Leela.Network.Protocol
 import           Data.ByteString.Builder
+import           Leela.Network.GrepProtocol
 import           Data.Double.Conversion.ByteString
 
 data WarpServer = WarpServer { logger   :: Logger
                              , stat     :: IORef [(String, [Endpoint])]
                              , passwd   :: IORef P.Passwd
+                             , warpGrep :: Pipe Push
                              , fdseq    :: Counter FH
                              , tManager :: TimeoutManager
                              , fdlist   :: M.L2Map L.ByteString FH (TVar (Handle, Time, QDevice Reply))
@@ -92,11 +92,11 @@ dumpStat core =
 
       showEndpoint k = toLazyByteString $ string7 "endpoint/" <> string7 k
 
-newWarpServer :: Logger -> IORef [(String, [Endpoint])] -> IORef P.Passwd -> IO WarpServer
-newWarpServer syslog statdb secretdb = makeState
+newWarpServer :: Logger -> Pipe Push -> IORef [(String, [Endpoint])] -> IORef P.Passwd -> IO WarpServer
+newWarpServer syslog pipe statdb secretdb = makeState
     where
       makeState =
-        liftM3 (WarpServer syslog statdb secretdb) newCounter timeoutManager M.empty
+        liftM3 (WarpServer syslog statdb secretdb pipe) newCounter timeoutManager M.empty
     
 makeFD :: WarpServer -> User -> (Time -> Handle -> FH -> QDevice Reply -> IO ()) -> IO ()
 makeFD srv (User u) cc = do
@@ -108,7 +108,7 @@ makeFD srv (User u) cc = do
       warning (logger srv) (printf "REJECT %d" active)
     else do
       notice (logger srv) (printf "ACCEPT %d : %d" fd active)
-      dev  <- qnew 4
+      dev  <- qnew 16
       time <- snapshot
       val  <- newTVarIO (th, time, dev)
       M.insert u fd val (fdlist srv)
@@ -195,9 +195,9 @@ navigate db thandle queue (source, pipeline) = do
             onTerm dstpipe (Left e) = qTryWrite dstpipe (Error e)
             onTerm _ _              = return ()
 
-evalLQL :: (GraphBackend m, AttrBackend m) => m -> WarpServer -> Handle -> QDevice Reply -> [LQL] -> IO ()
-evalLQL _ _ thandle queue []         = touchQWrite thandle queue Last
-evalLQL db core thandle queue (x:xs) = do
+evalLQL :: (GraphBackend m, AttrBackend m) => Context -> m -> WarpServer -> Handle -> QDevice Reply -> [LQL] -> IO ()
+evalLQL _ _ _ thandle queue []           = touchQWrite thandle queue Last
+evalLQL ctx db core thandle queue (x:xs) = do
   case x of
     PathStmt q         ->
       navigate db thandle queue q
@@ -234,7 +234,11 @@ evalLQL db core thandle queue (x:xs) = do
       guids <- getGUID db [(targetUser user, uTree user, k, n) | (k, n) <- toList names]
       forM_ guids (\(u, t, k, n, g) ->
         touchQWrite thandle queue (Item $ Name u t k n g))
-  evalLQL db core thandle queue xs
+    GrepStmt u query     -> do
+      t <- now
+      broadcast ctx 1000 (warpGrep core) [encodeEventMessage $ ControlMsg t query]
+      touchQWrite thandle queue (Item $ Name (uUser u) (uTree u) (Kind "lql/grep") (Node $ renderGrep query) (grepID query))
+  evalLQL ctx db core thandle queue xs
 
 evalFinalizer :: Logger -> Time -> FH -> QDevice Reply -> Either SomeException () -> IO ()
 evalFinalizer syslog t0 chan dev (Left e)  = do
@@ -247,24 +251,24 @@ evalFinalizer syslog t0 chan dev (Right _)   = do
   notice syslog $ printf "SUCCESS: %s [%s ms]" (show chan) (showDouble $ milliseconds t)
   qclose dev
 
-process :: (GraphBackend m, AttrBackend m) => m -> WarpServer -> Query -> (Reply -> IO ()) -> IO ()
-process storage srv (Begin sig msg) flush =
+process :: (GraphBackend m, AttrBackend m) => Context -> m -> WarpServer -> Query -> (Reply -> IO ()) -> IO ()
+process ctx storage srv (Begin sig msg) flush = void $ forkIO $ yield >>
   case (chkloads (parseLQL $ sigUser sig) msg) of
     Left _      -> flush $ Fail 400 (Just "syntax error")
-    Right stmts -> yield >> makeFD srv (sigUser sig) (\time thandle fh dev -> void $ forkIO $ do
+    Right stmts -> makeFD srv (sigUser sig) (\time thandle fh dev -> do
       if (level (logger srv) >= NOTICE)
         then notice (logger srv) (printf "BEGIN %s %d" (lqlDescr stmts) fh)
         else info (logger srv) (printf "BEGIN %s %d" (show msg) fh)
       flush $ Done fh
-      result <- try $ evalLQL storage srv thandle dev stmts
+      result <- try $ evalLQL ctx storage srv thandle dev stmts
       evalFinalizer (logger srv) time fh dev result)
-process _ srv (Fetch sig fh) flush = do
+process _ _ srv (Fetch sig fh) flush          = void $ forkIO $ do
   let channel = (sigUser sig, fh)
   notice (logger srv) (printf "FETCH %d" fh)
   withFD srv channel $ \mdev ->
     case mdev of
       Nothing  -> flush $ Fail 404 $ Just "no such channel"
-      Just dev -> void $ forkIO $ qread dev >>= \msg ->
+      Just dev -> qread dev >>= \msg ->
         case msg of
           Just r   -> do
             when (isEOF r) (closeFD srv (sigUser sig, fh))
@@ -272,12 +276,13 @@ process _ srv (Fetch sig fh) flush = do
           Nothing  -> do
             closeFD srv (sigUser sig, fh)
             flush Last
-process _ srv (Close _ sig fh) flush = do
+process _ _ srv (Close _ sig fh) flush        = do
   closeFD srv (sigUser sig, fh)
   flush Last
 
 warpServer :: (GraphBackend m, AttrBackend m) => WarpServer -> NominalDiffTime -> TimeCache -> Endpoint -> Context -> m -> IO RouterFH
-warpServer core ttl tcache addr ctx storage = startRouter (logger core) addr ctx (worker storage core ttl)
+warpServer core ttl tcache addr ctx storage =
+  startRouter (logger core) addr ctx (worker (logBackend storage handleGraphEvent handleAttrEvent) core ttl)
     where
       worker db core ttl = Worker f (return . encode . encodeE)
         where
@@ -289,19 +294,16 @@ warpServer core ttl tcache addr ctx storage = startRouter (logger core) addr ctx
                 notice (logger core) (printf "FAIL %d %s" c (maybe "" id m))
                 flush (encode e)
               Left e            -> flush (encode e)
-              Right q           -> process db core q (flush . encode)
+              Right q           -> process ctx db core q (flush . encode)
 
-warpLogServer :: (GraphBackend m, AttrBackend m) => Logger -> TimeCache -> Pipe Push -> m -> LogBackend m
-warpLogServer syslog tcache pipe db = logBackend db handleGraphEvent handleAttrEvent
-    where
       handleAttrEvent :: [AttrEvent] -> IO ()
       handleAttrEvent e = do
         t  <- readCache tcache
-        ok <- push pipe ("a" : S.encodeLazy t : map S.encodeLazy e)
-        unless ok $ debug syslog (printf "warpserver: dropping attr event [queue full]")
+        ok <- push (warpGrep core) [encodeEventMessage $ AttrDataMsg t e]
+        unless ok $ debug (logger core) (printf "warpserver: dropping attr event [queue full]")
 
       handleGraphEvent :: [GraphEvent] -> IO ()
       handleGraphEvent e = do
         t  <- readCache tcache
-        ok <- push pipe ("g" : S.encodeLazy t : map S.encodeLazy e)
-        unless ok $ debug syslog (printf "warpserver: dropping graph event [queue full]")
+        ok <- push (warpGrep core) [encodeEventMessage $ GraphDataMsg t e]
+        unless ok $ debug (logger core) (printf "warpserver: dropping graph event [queue full]")

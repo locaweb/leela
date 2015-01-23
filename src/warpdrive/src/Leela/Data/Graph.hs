@@ -22,10 +22,10 @@ module Leela.Data.Graph
     ) where
 
 import qualified Data.IntMap as M
-import           Leela.DataHelpers
 import           Control.Monad
 import           Leela.Data.Time
 import           Leela.Data.Types
+import           Leela.DataHelpers
 import           Control.Concurrent
 import           Control.Applicative
 import           Leela.Storage.Graph
@@ -98,9 +98,8 @@ buildQueue t0 t1 =
 
 loadTAttr :: (AttrBackend db) => db -> st -> (st -> [(Time, Value)] -> IO st) -> GUID -> Attr -> Time -> Time -> IO ()
 loadTAttr db st0 flush guid name t0 t1 = do
-  caps   <- fmap (max 2) getNumCapabilities
   memory <- newMVar (0, M.empty, st0)
-  void $ mapConcurrently (mapM_ (procData memory)) (chunkSplit caps $ zip [0..] (buildQueue t0 t1))
+  void $ mapConcurrently (mapM_ (procData memory)) (chunkSplit 4 $ zip [0..] (buildQueue t0 t1))
     where
       flushQueue st ix state =
         case (M.lookup ix state) of
@@ -118,16 +117,15 @@ loadTAttr db st0 flush guid name t0 t1 = do
 
 exec :: (GraphBackend db, AttrBackend db) => db -> [Journal] -> IO [(User, Tree, Kind, Node, GUID)]
 exec db rt = do
-  execute [ mkio (chunked 32 $ getPutLink rt) (mapM_ $ putLink db)
-          , mkio (chunked 32 $ getPutLabel rt) (mapM_ $ putLabel db)
-          , mkio (chunked 32 $ getDelLink rt) (mapM_ $ unlink db)
-          , mkio (chunked 4  $ getPutKAttr rt) (mapM_ $ putAttr db)
-          , mkio (chunked 32 $ getDelKAttr rt) (mapM_ $ delAttr db)
-          , mkio (chunked 32 $ getPutTAttr rt) (mapM_ $ putTAttr db)
+  execute [ mkio (chunked 128 $ getPutLink rt) (mapM_ $ putLink db)
+          , mkio (chunked 128 $ getPutLabel rt) (mapM_ $ putLabel db)
+          , mkio (chunked 128 $ getDelLink rt) (mapM_ $ unlink db)
+          , mkio (chunked 2  $ getPutKAttr rt) (mapM_ $ putAttr db)
+          , mkio (chunked 128 $ getDelKAttr rt) (mapM_ $ delAttr db)
+          , mkio (chunked 128 $ getPutTAttr rt) (mapM_ $ putTAttr db)
           ]
   mapM register (getPutNode rt)
     where
       register (u, t, k, n) = do
         g <- putName db u t k n
         return (u, t, k, n, g)
-

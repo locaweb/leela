@@ -24,6 +24,7 @@ module Leela.Data.QDevice
        , qclose
        , qTryRead
        , qTryWrite
+       , qBulkRead
        ) where
 
 import Control.Monad
@@ -31,42 +32,56 @@ import Leela.Data.Excepts
 import Control.Applicative
 import Control.Concurrent.STM
 
-data QDevice a = QDevice (TVar Bool) (TBQueue a)
+data QDevice a = QDevice Int (TVar Bool) (TBQueue a)
 
 qnew :: Int -> IO (QDevice a)
 qnew size = do
   s <- newTVarIO True
   q <- newTBQueueIO size
-  return (QDevice s q)
+  return (QDevice size s q)
 
 qlink :: Int -> QDevice a -> IO (QDevice b)
-qlink size (QDevice s _) = do
+qlink size (QDevice _ s _) = do
   q <- newTBQueueIO size
-  return (QDevice s q)
+  return (QDevice size s q)
 
 qclose :: QDevice a -> IO ()
-qclose (QDevice s _) =
+qclose (QDevice _ s _) =
   atomically $ writeTVar s False
 
 qTryWrite :: QDevice a -> a -> IO ()
-qTryWrite (QDevice _ q) a = atomically $ do
+qTryWrite (QDevice _ _ q) a = atomically $ do
   writeTBQueue q a `orElse` return ()
 
 qwrite :: QDevice a -> a -> IO ()
-qwrite (QDevice s q) a = atomically $ do
+qwrite (QDevice _ s q) a = atomically $ do
   open <- readTVar s
   unless open (throwSTM $ BadDeviceExcept (Just "qwrite: device is closed"))
   writeTBQueue q a
 
 qread :: QDevice a -> IO (Maybe a)
-qread (QDevice s q) = atomically $ do
+qread (QDevice _ s q) = atomically $ do
   open <- readTVar s
   if (not open)
     then tryReadTBQueue q
     else Just <$> readTBQueue q
 
+qBulkRead :: QDevice a -> IO [a]
+qBulkRead dev@(QDevice size _ q) = do
+  ans <- qread dev
+  case ans of
+    Nothing -> return []
+    Just x  -> go size [x]
+    where
+      go 0 acc = return (reverse acc)
+      go n acc = do
+        ans <- atomically $ tryReadTBQueue q
+        case ans of
+          Nothing -> return (reverse acc)
+          Just x  -> go (n - 1) (x : acc)
+
 qTryRead :: QDevice a -> IO (Maybe a, Bool)
-qTryRead (QDevice s q) = atomically $ do
+qTryRead (QDevice _ s q) = atomically $ do
   mval <- tryReadTBQueue q
   case mval of
     Nothing -> (Nothing,) <$> readTVar s

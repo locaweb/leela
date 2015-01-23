@@ -25,13 +25,10 @@ module Leela.Network.WarpGrepServer
        ) where
 
 import qualified Data.Map as M
-import           Data.Maybe
 import           System.ZMQ4 (Pull, Context, Sender, Socket)
 import           Leela.Logger
 import           Control.Monad
-import           Data.Serialize
 import           Leela.Data.LQL
-import qualified Data.ByteString as B
 import           Leela.HZMQ.Pipe
 import           Leela.Data.Types
 import           Control.Exception
@@ -41,7 +38,7 @@ import           Control.Applicative
 import           Leela.HZMQ.ZHelpers
 import           Leela.Data.EventTree
 import           Control.Concurrent.STM
-import           Leela.Network.Protocol (encodeGEvent, encodeAEvent)
+import           Leela.Network.GrepProtocol
 
 data Connection = Connection { connCount   :: TVar Int
                              , connEvent   :: Either (Distribution [GraphEvent] [GraphEvent]) (Distribution [AttrEvent] [AttrEvent])
@@ -49,9 +46,8 @@ data Connection = Connection { connCount   :: TVar Int
                              , connThread  :: MVar (Handle, ThreadId)
                              }
 
-data EventTree = EventTree { tip   :: Distribution [B.ByteString] [Either GraphEvent AttrEvent]
-                           , aTree :: Distribution [Either GraphEvent AttrEvent] [AttrEvent]
-                           , gTree :: Distribution [Either GraphEvent AttrEvent] [GraphEvent]
+data EventTree = EventTree { aTree :: Distribution [AttrEvent] [AttrEvent]
+                           , gTree :: Distribution [GraphEvent] [GraphEvent]
                            }
 
 data WarpGrepServer = WarpGrepServer { wgsLogger            :: Logger
@@ -74,33 +70,34 @@ selectList :: [a] -> Maybe [a]
 selectList [] = Nothing
 selectList xs = Just xs
 
-rootDecode :: IO (Distribution [B.ByteString] [Either GraphEvent AttrEvent])
-rootDecode = makeStartDistribution selector
-  where
-    selector ("g" : _ : events) = selectList $ mapMaybe (either (const Nothing) (Just . Left) . decode) events
-    selector ("a" : _ : events) = selectList $ mapMaybe (either (const Nothing) (Just . Right) . decode) events
-    selector _                  = Nothing
+graphBranch :: IO (Distribution [GraphEvent] [GraphEvent])
+graphBranch = makeStartDistribution selectList
 
-graphBranch :: IO (Distribution [Either GraphEvent AttrEvent] [GraphEvent])
-graphBranch = makeStartDistribution (selectList . mapMaybe (either Just (const Nothing)))
-
-attrBranch :: IO (Distribution [Either GraphEvent AttrEvent] [AttrEvent])
-attrBranch = makeStartDistribution (selectList . mapMaybe (either (const Nothing) Just))
-
-feed :: WarpGrepServer -> [B.ByteString] -> IO ()
-feed srv = publish (tip $ wgsEventTree srv)
+attrBranch :: IO (Distribution [AttrEvent] [AttrEvent])
+attrBranch = makeStartDistribution selectList
 
 pipeFeed :: WarpGrepServer -> Pipe Pull -> IO ()
-pipeFeed srv pipe = mapM_ (feed srv) =<< pull pipe
+pipeFeed srv pipe = do
+  (dataMsgs, ctrlMsgs) <- liftM (selectMsgs ([], [])) (pull pipe)
+  mapM_ (registerOrRefresh srv) ctrlMsgs
+  mapM_ (either (publish (gTree etree)) (publish (aTree etree))) dataMsgs
+    where
+      etree = wgsEventTree srv
+
+      selectMsgs (dataAcc, ctrlAcc) ([x] : xs) =
+        case (decodeEventMessage x) of
+          Just (ControlMsg _ ctrlMsg)   -> selectMsgs (dataAcc, ctrlMsg : ctrlAcc) xs
+          Just (AttrDataMsg _ dataMsg)  -> selectMsgs (Right dataMsg : dataAcc, ctrlAcc) xs
+          Just (GraphDataMsg _ dataMsg) -> selectMsgs (Left dataMsg : dataAcc, ctrlAcc) xs
+          _                             -> selectMsgs (dataAcc, ctrlAcc) xs
+      selectMsgs acc (_ : xs)                  = selectMsgs acc xs
+      selectMsgs acc []                        = acc
 
 eventTree :: IO EventTree
 eventTree = do
-  root    <- rootDecode   
   abranch <- attrBranch
   gbranch <- graphBranch
-  attach root abranch
-  attach root gbranch
-  return $ EventTree root abranch gbranch
+  return $ EventTree abranch gbranch
 
 registerConn :: WarpGrepServer -> GUID -> Connection -> IO Connection
 registerConn srv guid newConn = atomically $ do

@@ -88,10 +88,10 @@ enqueueD :: IOLoop a -> ([B.ByteString], IO Bool) -> IO Bool
 enqueueD p a = tryWriteChan (pollOutQ p) a
 
 enqueueS :: IOLoop a -> [[B.ByteString]] -> IO Bool
-enqueueS _ []   = return False
-enqueueS p msgs = do
-  putMVar (pollInQ p) (filter checkMsg msgs)
-  return True
+enqueueS p msgs =
+  case (filter checkMsg msgs) of
+    []    -> return False
+    msgs' -> putMVar (pollInQ p) msgs' >> return True
     where
       checkMsg msg =
         case (break B.null msg) of
@@ -142,8 +142,8 @@ gpollLoop :: Logger -> PollMode -> RecvCallback a -> SendCallback a -> IOLoop a 
 gpollLoop logger mode recvCallback sendCallback p = go
     where
       handleRecv acc
-        | length acc == 32 = enqueueS p acc >> handleRecv []
-        | otherwise        = do
+        | length acc == 4 = enqueueS p acc >> handleRecv []
+        | otherwise       = do
           mmsg <- useSocket p readMsg
           case mmsg of
             Just msg -> handleRecv (msg : acc)

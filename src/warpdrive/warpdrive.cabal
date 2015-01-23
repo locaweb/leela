@@ -44,9 +44,11 @@ executable warpdrive
                   , hashable             (>= 1.2      && < 2)
                   , parallel             (>= 3        && < 4)
                   , hashable             (>= 1.2      && < 2)
+-- XXX: TESTING
+                  , messagepack
 --- https://github.com/informatikr/hedis/issues/16
 --- https://github.com/informatikr/hedis/issues/15
-                  , attoparsec           (== 0.11.3.4)
+                  , attoparsec           (>= 0.12.1.2 && < 1)
                   , bytestring           (>= 0.10.4   && < 1)
                   , containers           (>= 0.5      && < 1)
                   , cryptohash           (>= 0.11.6   && < 2)
@@ -94,7 +96,7 @@ executable warpgrep
                   , hashable             (>= 1.2      && < 2)
 --- https://github.com/informatikr/hedis/issues/16
 --- https://github.com/informatikr/hedis/issues/15
-                  , attoparsec           (== 0.11.3.4)
+                  , attoparsec           (>= 0.12.1.2 && < 1)
                   , bytestring           (>= 0.10.4   && < 1)
                   , containers           (>= 0.5      && < 1)
                   , cryptohash           (>= 0.11.6   && < 2)
@@ -139,7 +141,7 @@ test-suite test-warpdrive
                      , entropy              (>= 0.0.2   && < 1)
                      , parallel             (>= 3       && < 4)
                      , hashable             (>= 1.2     && < 2)
-                     , attoparsec           (>= 0.10    && < 1)
+                     , attoparsec           (== 0.11.3.4)
                      , bytestring           (>= 0.10.4  && < 1)
                      , containers           (>= 0.5     && < 1)
                      , semigroups           (>= 0.11    && < 1)
