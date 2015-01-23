@@ -32,14 +32,16 @@ leela_grantaccess () {
 leela_wait4 () {
   for _ in $(seq 0 10)
   do
-    if pgrep -u $USER -x $1 >/dev/null
-    then
-      sleep 1
-    else
-      return 0
+    if pgrep -u $USER -f $1 >/dev/null
+    then echo -n .; sleep 1
+    else return 0
     fi
   done
-  return 1
+  leela_wait4=$(pgrep -u $USER -f $1)
+  if [ $? -eq 0 ]
+  then echo fail; return 1
+  else echo done; return 0
+  fi
 }
 
 leela_watchdog_start () {
@@ -77,7 +79,8 @@ leela_daemon_start () {
 leela_daemon_stop () {
   leela_grantaccess
   daemon --stop -P $RUNDIR -n daemon
-  leela_wait4 java || pkill -u $USER --signal KILL java
+  leela_wait4 ^daemon.*/usr/lib/blackbox.jar || { kill --signal KILL $leela_wait4; sleep 1; }
+  leela_wait4 ^java.*/usr/lib/blackbox.jar || { kill --signal KILL $leela_wait4; sleep 1; }
 }
 
 case "$1" in
@@ -93,11 +96,10 @@ case "$1" in
 
   (restart)
     leela_watchdog_stop
-    echo "waiting 60 seconds to allow clients to disconnect ..."; sleep 60
+    echo "waiting ${LEELA_BLACKBOX_MAXWAIT:-15} seconds to allow clients to disconnect ..."; sleep ${LEELA_BLACKBOX_MAXWAIT:-15}
     leela_daemon_stop
-    leela_watchdog_start
-    sleep 1
     leela_daemon_start
+    leela_watchdog_start
     ;;
 
   (watchdog-stop)
