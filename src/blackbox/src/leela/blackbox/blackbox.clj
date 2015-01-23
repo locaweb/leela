@@ -76,4 +76,4 @@
          (storage/with-connection [graph-cluster (:cassandra options) cassandra-args]
            (storage/use-attr-schema attr-cluster (:attr-keyspace options))
            (storage/use-graph-schema graph-cluster (:graph-keyspace options))
-           (zserver/server-start (ZMQ/context 1) attr-cluster graph-cluster s3cred (assoc options :endpoint endpoint)))))))))
+           (zserver/server-start (ZMQ/context 1) attr-cluster graph-cluster (assoc options :endpoint endpoint)))))))))
