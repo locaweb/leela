@@ -1,5 +1,14 @@
 --*-- mode: text; --*--
 
+v5.11.0 | 2015-01-23
+
+NEW FEATURES
+  * warpdrive message bus: every write is broadcast to interested peers
+
+IMPROVEMENTS
+  * use msgpack to serialize data when communicating with blackbox
+  * reduce the number of threads that queries redis
+
 v5.10.0 | 2014-11-04
 
   * performance improvements

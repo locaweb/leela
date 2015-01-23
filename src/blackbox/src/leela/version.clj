@@ -18,9 +18,9 @@
 
 (def major 6)
 
-(def minor 2)
+(def minor 3)
 
-(def patch 1)
+(def patch 0)
 
-(def version "6.2.1")
+(def version "6.3.0")
 

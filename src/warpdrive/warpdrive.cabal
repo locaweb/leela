@@ -1,7 +1,7 @@
 name:          warpdrive
 author:        DiegoSouza
 license:       Apache-2.0
-version:       5.10.0
+version:       5.11.0
 synopsis:      leela property-graph engine
 homepage:      http://github.com/locaweb/leela
 category:      Monitoring
