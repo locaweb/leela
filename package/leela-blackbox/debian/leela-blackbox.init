@@ -67,13 +67,14 @@ leela_daemon_start () {
     LEELA_BLACKBOX_USERNAME="$LEELA_BLACKBOX_USERNAME" \
     LEELA_BLACKBOX_PASSWORD="$LEELA_BLACKBOX_PASSWORD" \
     daemon --delay 10 -r -o $LOGDIR/daemon.log \
-      -u $USER:$GROUP -P $RUNDIR -n daemon -- \
-      java -jar $LEELA_BLACKBOX_JVMOPTS /usr/lib/blackbox.jar \
-      --cassandra ${LEELA_BLACKBOX_CASSANDRA:-localhost} \
-      --username '$LEELA_BLACKBOX_USERNAME' \
-      --password '$LEELA_BLACKBOX_PASSWORD' \
-      --endpoint ${LEELA_BLACKBOX_ENDPOINT:-tcp://localhost:50023} \
-      $LEELA_BLACKBOX_OPTS
+      -u $USER:$GROUP -P $RUNDIR -n daemon \
+      -- numactl --interleave=all java \
+        -jar $LEELA_BLACKBOX_JVMOPTS /usr/lib/blackbox.jar \
+        --cassandra ${LEELA_BLACKBOX_CASSANDRA:-localhost} \
+        --username '$LEELA_BLACKBOX_USERNAME' \
+        --password '$LEELA_BLACKBOX_PASSWORD' \
+        --endpoint ${LEELA_BLACKBOX_ENDPOINT:-tcp://localhost:50023} \
+        $LEELA_BLACKBOX_OPTS
 }
 
 leela_daemon_stop () {

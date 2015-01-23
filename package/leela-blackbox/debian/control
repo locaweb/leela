@@ -9,7 +9,7 @@ Homepage: https://github.com/locaweb/leela
 Package: leela-blackbox
 Multi-Arch: same
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}, libffi5, zlib1g, java8-runtime
+Depends: ${misc:Depends}, ${shlibs:Depends}, libffi5, zlib1g, numactl, java8-runtime
 Description: Leela storage server
  Leela is a property-graph engine that allows storing properties as
  time-series, besides the usual key-value properties.
