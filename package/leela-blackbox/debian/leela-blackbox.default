@@ -1,26 +1,26 @@
+LEELA_CAPABILITIES=256
+
+if [ $(nproc) -lt 2 ]
+then
+  leela_nproc=1
+else
+  leela_nproc=$(( $(nproc) / 2 ))
+fi
+
 # The username to connect to cassandra
-LEELA_BLACKBOX_USERNAME=leela
+LEELA_BLACKBOX_USERNAME=cassandra
 
 # The password to connect to cassandra
 LEELA_BLACKBOX_PASSWORD=
 
 # The cassandra cluster to connect to [use multiple nodes to increase availability]
-LEELA_BLACKBOX_CASSANDRA=localhost
+LEELA_BLACKBOX_CASSANDRA=127.0.0.1
 
 # The endpoint to bind to [do not use *, other services use this]
-LEELA_BLACKBOX_ENDPOINT=tcp://localhost:50023
-
-# The path to register on zookeeper [make sure they this name is unique]
-LEELA_BLACKBOX_WATCHDOG_PATH=/naming/blackbox/$(uuid)
-
-# The zookeeper cluster to connect to
-LEELA_BLACKBOX_WATCHDOG_ZOOKEEPER=tcp://localhost:2181/leela
+LEELA_BLACKBOX_ENDPOINT=tcp://127.0.0.1:50023
 
 # Extra options for JVM
-LEELA_BLACKBOX_JVMOPTS="-XX:+UseThreadPriorities -XX:ThreadPriorityPolicy=42 -Xms4G -Xmx4G -Xmn1G -Xss256k -XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:+CMSParallelRemarkEnabled -XX:SurvivorRatio=8 -XX:MaxTenuringThreshold=1 -XX:CMSInitiatingOccupancyFraction=75 -XX:+UseCMSInitiatingOccupancyOnly -XX:+UseTLAB -XX:+UseCondCardMark -Djava.net.preferIPv4Stack=true -Dcom.sun.management.jmxremote.port=7199 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false"
+LEELA_BLACKBOX_JVMOPTS="-XX:+UseThreadPriorities -XX:ThreadPriorityPolicy=42 -Xms4G -Xmx4G -Xss256k -XX:+UseG1GC -XX:MaxGCPauseMillis=150 -XX:+UseTLAB -XX:+ResizeTLAB -Dcom.datastax.driver.NON_BLOCKING_EXECUTOR_SIZE=$leela_nproc -Dcom.datastax.driver.NEW_NODE_DELAY_SECONDS=60 -Djava.net.preferIPv4Stack=true -Dcom.sun.management.jmxremote.port=7299 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false"
 
 # Extra options for blackbox
-# LEELA_BLACKBOX_OPTS=
-
-# Extra options for watchdog
-# LEELA_BLACKBOX_WATCHDOG_OPTS=
+LEELA_BLACKBOX_OPTS="--capabilities $LEELA_CAPABILITIES"
