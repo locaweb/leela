@@ -110,13 +110,13 @@ stage1_installghc () {
   ln -s libgmp.so.10 /usr/lib/x86_64-linux-gnu/libgmp.so.3
   ln -s libgmp.so.10 /usr/lib/x86_64-linux-gnu/libgmp.so
 
-  wget -O - --progress=dot:mega https://www.haskell.org/ghc/dist/7.8.3/ghc-7.8.3-x86_64-unknown-linux-deb7.tar.bz2 | tar -x -j -C /opt
-  cd /opt/ghc-7.8.3
+  wget -O - --progress=dot:mega https://www.haskell.org/ghc/dist/7.8.4/ghc-7.8.4-x86_64-unknown-linux-deb7.tar.bz2 | tar -x -j -C /opt
+  cd /opt/ghc-7.8.4
   ./configure
   make install
 
-  wget -O - --progress=dot http://www.haskell.org/cabal/release/cabal-install-1.18.0.4/cabal-install-1.18.0.4.tar.gz | tar -x -z -C /opt
-  cd /opt/cabal-install-1.18.0.4
+  wget -O - --progress=dot http://www.haskell.org/cabal/release/cabal-install-1.22.0.0/cabal-install-1.22.0.0.tar.gz | tar -x -z -C /opt
+  cd /opt/cabal-install-1.22.0.0
   ./bootstrap.sh --global
 
   cabal update
