@@ -94,7 +94,7 @@ case "$1" in
 
   (restart)
     leela_watchdog_stop
-    echo "waiting ${LEELA_WARPDRIVE_MAXWAIT:120} seconds to allow clients to disconnect ..."; sleep ${LEELA_WARPDRIVE_MAXWAIT:120}
+    echo "waiting ${LEELA_WARPDRIVE_MAXWAIT:-120} seconds to allow clients to disconnect ..."; sleep ${LEELA_WARPDRIVE_MAXWAIT:-120}
     leela_daemon_stop
     leela_daemon_start
     leela_watchdog_start
