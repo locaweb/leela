@@ -113,16 +113,16 @@ loadTAttr db st0 flush guid name t0 t1 = do
         modifyMVar_ memory $ \(at, state, st) -> flushQueue st at (M.insert ix xs state)
 
       procData memory (ix, (t, l)) =
-        enqueueFlush memory ix =<< getTAttr db guid name t l
+        enqueueFlush memory ix =<< loadTAttrs db guid name t l
 
 exec :: (GraphBackend db, AttrBackend db) => db -> [Journal] -> IO [(User, Tree, Kind, Node, GUID)]
 exec db rt = do
-  execute [ mkio (chunked 128 $ getPutLink rt) (mapM_ $ putLink db)
-          , mkio (chunked 128 $ getPutLabel rt) (mapM_ $ putLabel db)
-          , mkio (chunked 128 $ getDelLink rt) (mapM_ $ unlink db)
+  execute [ mkio (chunked 64 $ getPutLink rt) (mapM_ $ putLink db)
+          , mkio (chunked 64 $ getPutLabel rt) (mapM_ $ putLabel db)
+          , mkio (chunked 64 $ getDelLink rt) (mapM_ $ unlink db)
           , mkio (chunked 2  $ getPutKAttr rt) (mapM_ $ putAttr db)
-          , mkio (chunked 128 $ getDelKAttr rt) (mapM_ $ delAttr db)
-          , mkio (chunked 128 $ getPutTAttr rt) (mapM_ $ putTAttr db)
+          , mkio (chunked 64 $ getDelKAttr rt) (mapM_ $ delAttr db)
+          , mkio (chunked 64 $ getPutTAttr rt) (mapM_ $ putTAttr db)
           ]
   mapM register (getPutNode rt)
     where

@@ -123,20 +123,12 @@ instance (KeyValue a) => AttrBackend (ZMQBackend a) where
       FailMsg 404 -> return Nothing
       _           -> internalError "ZMQ/getAttr: backend error"
 
-  getTAttr m g a time limit = scanTAttr [] time limit
-      where
-        maxDataPoints = 4000
-
-        scanTAttr acc t l
-          | l <= 0    = return (reverse $ concat acc)
-          | otherwise = do
-              reply <- send (dealer m) (MsgGetTAttr g a t (min l maxDataPoints))
-              case reply of
-                TAttrMsg v
-                  | length v == maxDataPoints -> scanTAttr (tail v : acc) (fst $ head v) (l - maxDataPoints)
-                  | otherwise                 -> return (reverse $ concat (v : acc))
-                FailMsg 404                   -> return (reverse $ concat acc)
-                _                             -> internalError "ZMQ/getTAttr: backend error"
+  getTAttr m g a t l = do
+    reply <- send (dealer m) (MsgGetTAttr g a t l)
+    case reply of
+      TAttrMsg v  -> return v
+      FailMsg 404 -> notFoundError "ZMQ/getTAttr: not values found"
+      _           -> internalError "ZMQ/getTAttr: backend error"
 
   listAttr m g page limit = do
     reply <- send (dealer m) (MsgListAttr g page limit)

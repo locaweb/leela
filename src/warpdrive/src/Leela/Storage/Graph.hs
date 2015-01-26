@@ -18,6 +18,7 @@ module Leela.Storage.Graph
     , LogBackend ()
     , AttrBackend (..)
     , GraphBackend (..)
+    , loadTAttrs
     , enumKAttrs
     , enumTAttrs
     , defaultLimit
@@ -50,7 +51,7 @@ logBackend :: (GraphBackend a, AttrBackend a) => a -> ([GraphEvent] -> IO ()) ->
 logBackend = LogBackend
 
 defaultLimit :: Int
-defaultLimit = 512
+defaultLimit = 2048
 
 uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
 uncurry3 f (a, b, c) = f a b c
@@ -76,6 +77,20 @@ enumKAttrs = enumAttrs listAttr
 
 enumTAttrs :: (AttrBackend db) => db -> ([Attr] -> IO ()) -> GUID -> Mode Attr -> IO ()
 enumTAttrs = enumAttrs listTAttr
+
+loadTAttrs :: (AttrBackend db) => db -> GUID -> Attr -> Time -> Limit -> IO [(Time, Value)]
+loadTAttrs db g a = scan []
+    where
+      finalize = concat . reverse
+
+      scan acc t l
+        | l > 0     = do
+          let limit = min l defaultLimit
+          values <- getTAttr db g a t (min l limit)
+          if (length values == limit)
+            then scan (init values : acc) (fst $ last values) (l - limit)
+            else return $ finalize (values : acc)
+        | otherwise = return $ finalize acc
 
 class GraphBackend m where
 
