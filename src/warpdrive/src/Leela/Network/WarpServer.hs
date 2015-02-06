@@ -77,7 +77,7 @@ serverLimit :: Int
 serverLimit = 128 * (unsafePerformIO getNumCapabilities)
 
 useTimeout :: Int
-useTimeout = 30 * 1000 * 1000
+useTimeout = 90 * 1000 * 1000
 
 readPasswd :: WarpServer -> IO P.Passwd
 readPasswd = readIORef . passwd
