@@ -55,15 +55,6 @@ query db write (ByLabel (Label l0) a) = loadLabels True (Label <$> glob l0)
                 write (map (\b -> (a, l, b)) (init guids))
                 loadLinks (Just $ last guids) False l
 
-execute :: [Maybe (IO ())] -> IO ()
-execute []             = return ()
-execute (Nothing : xs) = execute xs
-execute (Just a : xs)  = a >> execute xs
-
-mkio :: [a] -> ([a] -> IO b) -> Maybe (IO b)
-mkio [] _ = Nothing
-mkio v f  = Just (f v)
-
 getPutNode :: [Journal] -> [(User, Tree, Kind, Node)]
 getPutNode = map (\(PutNode u t k n) -> (u, t, k, n)) . filter isPutNode
 
@@ -117,15 +108,22 @@ loadTAttr db st0 flush guid name t0 t1 = do
 
 exec :: (GraphBackend db, AttrBackend db) => db -> [Journal] -> IO [(User, Tree, Kind, Node, GUID)]
 exec db rt = do
-  execute [ mkio (chunked 64 $ getPutLink rt) (mapM_ $ putLink db)
-          , mkio (chunked 64 $ getPutLabel rt) (mapM_ $ putLabel db)
-          , mkio (chunked 64 $ getDelLink rt) (mapM_ $ unlink db)
-          , mkio (chunked 2  $ getPutKAttr rt) (mapM_ $ putAttr db)
-          , mkio (chunked 64 $ getDelKAttr rt) (mapM_ $ delAttr db)
-          , mkio (chunked 64 $ getPutTAttr rt) (mapM_ $ putTAttr db)
-          ]
+  caps <- liftM (max 2) getNumCapabilities
+  runExec caps 32 (putLink db) (getPutLink rt)
+  runExec caps 32 (putLabel db) (getPutLabel rt)
+  runExec caps 32 (unlink db) (getDelLink rt)
+  runExec caps 32 (delAttr db) (getDelKAttr rt)
+  runExec caps 32 (putAttr db) (getPutKAttr rt)
+  runExec caps 32 (putTAttr db) (getPutTAttr rt)
   mapM register (getPutNode rt)
     where
+      runExec _ _ _ []       = return ()
+      runExec caps size f xs = do
+        let factor = length xs `div` size
+        if factor < 2
+          then mapM_ f [xs]
+          else void $ mapConcurrently f (chunkSplit (min caps factor) xs)
+
       register (u, t, k, n) = do
         g <- putName db u t k n
         return (u, t, k, n, g)
