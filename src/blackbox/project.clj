@@ -9,7 +9,7 @@
                  [clj-time "0.6.0"]
                  [clojure-msgpack "0.1.0-SNAPSHOT"]
                  [org.zeromq/jzmq "3.1.0"]
-                 [clj-aws-s3 "0.3.10"]
+                 [clj-aws-s3 "0.3.10" :exclusions [joda-time]]
                  [org.clojure/clojure "1.6.0"]
                  [org.clojure/tools.cli "0.2.4"]
                  [clojurewerkz/cassaforte "2.0.0"]
