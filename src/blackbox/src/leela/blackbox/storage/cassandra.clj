@@ -217,10 +217,7 @@
                              :name (:name data)})))
 
 (defn put-index [cluster table indexes]
-  (let [query (->> indexes
-                   (map (partial fmt-put-index table))
-                   (apply queries)
-                   (batch-query (logged false)))]
+  (doseq [query (map (partial fmt-put-index table) indexes)]
     (client/execute cluster (client/render-query query))))
 
 (defn getguid0 [cluster user tree kind node]
@@ -274,17 +271,11 @@
                           (limit 1))))
 
 (defn putlink [cluster links]
-  (let [query (->> links
-                   (map fmt-put-link)
-                   (apply queries)
-                   (batch-query (logged false)))]
+  (doseq [query (map fmt-put-link links)]
     (client/execute cluster (client/render-query query))))
 
 (defn dellink [cluster links]
-  (let [query (->> links
-                   (map fmt-del-link)
-                   (apply queries)
-                   (batch-query (logged false)))]
+  (doseq [query (map fmt-del-link links)]
     (client/execute cluster (client/render-query query))))
 
 (defn getlink [cluster k l & page]
@@ -297,10 +288,7 @@
                        (limit +limit+))))
 
 (defn put-tattr [cluster attrs]
-  (let [query (->> attrs
-                   (mapcat fmt-put-tattr)
-                   (apply queries)
-                   (batch-query (logged false)))]
+  (doseq [query (mapcat fmt-put-tattr attrs)]
     (client/execute cluster (client/render-query query))))
 
 (defn enum-tattr
@@ -319,8 +307,7 @@
             (t-attr-colfam month)
             (columns :key :name :bucket)
             (where [[> (token :key :name :bucket) (token k n b)]])
-            (limit l))))
-)
+            (limit l)))))
 
 (defn get-tattr [cluster k name time]
   (let [[month bucket slot] (decode-time time)]
@@ -334,18 +321,11 @@
              (limit +limit+)))))
 
 (defn del-tattr [cluster attrs]
-  (let [query (->> attrs
-                   (mapcat fmt-del-tattr)
-                   (apply queries)
-                   (batch-query (logged false))
-                   client/render-query)]
-    (client/execute cluster query)))
+  (doseq [query (mapcat fmt-del-tattr attrs)]
+    (client/execute cluster (client/render-query query))))
 
 (defn put-kattr [cluster attrs]
-  (let [query (->> attrs
-                   (mapcat fmt-put-kattr)
-                   (apply queries)
-                   (batch-query (logged false)))]
+  (doseq [query (mapcat fmt-put-kattr attrs)]
     (client/execute cluster (client/render-query query))))
 
 (defn get-kattr [cluster k name]
@@ -358,8 +338,5 @@
                 (limit 1)))))
 
 (defn del-kattr [cluster attrs]
-  (let [query (->> attrs
-                   (mapcat fmt-del-kattr)
-                   (apply queries)
-                   (batch-query (logged false)))]
+  (doseq [query (mapcat fmt-del-kattr attrs)]
     (client/execute cluster (client/render-query query))))
