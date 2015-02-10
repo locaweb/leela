@@ -18,6 +18,7 @@ module Leela.Data.Timeout
        , TimeoutManager ()
        , timeoutManager
        , open
+       , creat
        , touch
        , purge
        , withHandle
@@ -46,6 +47,11 @@ open (TimeoutManager ref) timeout fin = do
   ioref  <- newIORef (atomicModifyIORef' ref (\x -> (x - 1, ())))
   cookie <- registerTimeout tm timeout (executeOnce ioref >> fin)
   return (active, Handle timeout cookie ioref)
+
+creat :: TimeoutManager -> TimeoutInUs -> Finalizer -> IO ()
+creat _ timeout fin = do
+  tm <- getSystemTimerManager
+  void $ registerTimeout tm timeout fin
 
 touch :: Handle -> IO ()
 touch (Handle timeout cookie _) = do
