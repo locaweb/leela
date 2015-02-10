@@ -57,13 +57,14 @@ import           Data.ByteString.Builder
 import           Leela.Network.GrepProtocol
 import           Data.Double.Conversion.ByteString
 
-data WarpServer = WarpServer { logger   :: Logger
-                             , stat     :: IORef [(String, [Endpoint])]
-                             , passwd   :: IORef P.Passwd
-                             , warpGrep :: Pipe Push
-                             , fdseq    :: Counter FH
-                             , tManager :: TimeoutManager
-                             , fdlist   :: M.L2Map L.ByteString FH (TVar (Handle, Time, QDevice Reply))
+data WarpServer = WarpServer { logger     :: Logger
+                             , stat       :: IORef [(String, [Endpoint])]
+                             , passwd     :: IORef P.Passwd
+                             , warpGrep   :: Pipe Push
+                             , fdseq      :: Counter FH
+                             , tManager   :: TimeoutManager
+                             , fdlist     :: M.L2Map L.ByteString FH (TVar (Handle, Time, QDevice Reply))
+                             , checkpoint :: IORef (Time, FH)
                              }
 
 data Stream a = Chunk a
@@ -76,8 +77,8 @@ showDouble = unpack . toShortest
 serverLimit :: Int
 serverLimit = 128 * (unsafePerformIO getNumCapabilities)
 
-useTimeout :: Int
-useTimeout = 90 * 1000 * 1000
+useTimeoutInMs :: Num a => a
+useTimeoutInMs = 90 * 1000
 
 readPasswd :: WarpServer -> IO P.Passwd
 readPasswd = readIORef . passwd
@@ -95,13 +96,27 @@ dumpStat core =
 newWarpServer :: Logger -> Pipe Push -> IORef [(String, [Endpoint])] -> IORef P.Passwd -> IO WarpServer
 newWarpServer syslog pipe statdb secretdb = makeState
     where
-      makeState =
-        liftM3 (WarpServer syslog statdb secretdb pipe) newCounter timeoutManager M.empty
-    
+      makeState = do
+        time <- now
+        liftM4 (WarpServer syslog statdb secretdb pipe)
+          newCounter timeoutManager M.empty (newIORef (time, 0))
+
+makeCheckpoint :: WarpServer -> Time -> FH -> IO ()
+makeCheckpoint srv t1 fh1 = do
+  new <- atomicModifyIORef' (checkpoint srv) (uncurry modify)
+  when new (notice (logger srv) (printf "creating checkpoint: %f:%d" (seconds t1) fh1))
+    where
+      elapsed t1 t0 = milliseconds $ diff t1 t0
+
+      modify t0 fh0 =
+        if (elapsed t1 t0 > useTimeoutInMs)
+          then ((t1, fh1), True)
+          else ((t0, fh0), False)
+
 makeFD :: WarpServer -> User -> (Time -> Handle -> FH -> QDevice Reply -> IO ()) -> IO ()
 makeFD srv (User u) cc = do
   fd           <- next (fdseq srv)
-  (active, th) <- open (tManager srv) useTimeout (closeFDTimeout srv (User u, fd))
+  (active, th) <- open (tManager srv) (useTimeoutInMs * 1000) (closeFDTimeout srv (User u, fd))
   if (active > serverLimit)
     then do
       purge th
@@ -112,13 +127,16 @@ makeFD srv (User u) cc = do
       time <- snapshot
       val  <- newTVarIO (th, time, dev)
       M.insert u fd val (fdlist srv)
+      makeCheckpoint srv time fd
       cc time th fd dev
 
-withFD :: WarpServer -> (User, FH) -> (Maybe (QDevice Reply) -> IO b) -> IO b
+withFD :: WarpServer -> (User, FH) -> (Maybe (QDevice Reply) -> IO ()) -> IO ()
 withFD srv ((User u), fh) action = do
   mvalue <- M.lookup u fh (fdlist srv)
   case mvalue of
-    Nothing   -> action Nothing
+    Nothing   -> do
+      (_, fh0) <- readIORef (checkpoint srv)
+      when (fh >= fh0) (action Nothing)
     Just tvar -> do
       (th, _, dev) <- readTVarIO tvar
       touch th
