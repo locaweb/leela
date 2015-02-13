@@ -7,9 +7,11 @@
 extern "C" {
 #endif
 
+#ifndef ASMFILE__
 # include "poly1305aes-20050218/aes_big.h"
 # include "poly1305aes-20050218/poly1305_53.h"
 # include "poly1305aes-20050218/poly1305aes_53.h"
+#endif
 
 #ifdef __cplusplus
 }
@@ -34,9 +36,19 @@ extern "C" {
 
 #elif defined(POLY_USE_athlon)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifndef ASMFILE__
 # include "poly1305aes-20050218/aes_athlon.h"
 # include "poly1305aes-20050218/poly1305_athlon.h"
 # include "poly1305aes-20050218/poly1305aes_athlon.h"
+#endif
+
+#ifdef __cplusplus
+}
+#endif
 
 # define poly1305aes_auto_aes_c                      "empty.c"
 # define poly1305aes_auto_aes_s                      "poly1305aes-20050218/aes_athlon.s"
@@ -57,9 +69,19 @@ extern "C" {
 
 #elif defined(POLY_USE_ppro) || ((!defined(POLY_USE_53) && !defined(POLY_USE_athlon)) && (defined(__i386__) || defined(_WIN32)))
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifndef ASMFILE__
 # include "poly1305aes-20050218/aes_ppro.h"
 # include "poly1305aes-20050218/poly1305_ppro.h"
 # include "poly1305aes-20050218/poly1305aes_ppro.h"
+#endif
+
+#ifdef __cplusplus
+}
+#endif
 
 # define poly1305aes_auto_aes_c                      "empty.c"
 # define poly1305aes_auto_aes_s                      "poly1305aes-20050218/aes_ppro.s"

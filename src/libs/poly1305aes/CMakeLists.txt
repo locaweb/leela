@@ -9,7 +9,9 @@ endif(LIBPOLY1305AES_BUILD_SO)
 
 file(GLOB LIBPOLY1305AES_PUB_HEADERS "src/poly1305aes/*.h")
 file(GLOB LIBPOLY1305AES_SEC_HEADERS "src/poly1305aes/poly1305aes-20050218/*.h")
-file(GLOB LIBPOLY1305AES_FILES "src/poly1305aes/*.[cs]")
+file(GLOB LIBPOLY1305AES_FILES "src/poly1305aes/*.[cS]")
+file(GLOB LIBPOLY1305AES_ASMFILES "src/poly1305aes/*.S")
+set_source_files_properties(${LIBPOLY1305AES_ASMFILES} PROPERTIES COMPILE_FLAGS "-DASMFILE__")
 
 add_library(libpoly1305aes ${LIBPOLY1305AES_TYPE}
                            ${LIBPOLY1305AES_PUB_HEADERS}

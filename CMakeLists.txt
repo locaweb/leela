@@ -1,9 +1,13 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.0)
 
 include(CheckSymbolExists)
 include(CheckCCompilerFlag)
 
 project(leela)
+
+enable_language(C ASM)
+
+set(ZMQ_BUILD_TESTS OFF CACHE INTERNAL "nil")
 
 option(LEELA_BUILD_LIB_C      "builds the c library" ON)
 option(LEELA_BUILD_LIB_PYTHON "builds the python library" OFF)
