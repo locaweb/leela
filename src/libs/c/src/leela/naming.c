@@ -26,12 +26,12 @@
 #include "naming.h"
 #include "signature.h"
 
-#if defined(HAS_SYM_USLEEP)
-#  include <unistd.h>
-#  define SLEEP__(x) usleep(x * 1000)
-#elif defined(HAS_SYM_WINSLEEP)
+#if defined(HAS_SYM_WINSLEEP)
 #  include <windows.h>
 #  define SLEEP__(x) Sleep(x)
+#elif defined(HAS_SYM_USLEEP)
+#  include <unistd.h>
+#  define SLEEP__(x) usleep(x * 1000)
 #elif defined(HAS_SYM_SLEEP)
 #  include <unistd.h>
 #  define SLEEP__(x) sleep((unsigned int) x/1000)
