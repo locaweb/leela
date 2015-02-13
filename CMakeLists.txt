@@ -7,8 +7,6 @@ project(leela)
 
 enable_language(C ASM)
 
-set(ZMQ_BUILD_TESTS OFF CACHE INTERNAL "nil")
-
 option(LEELA_BUILD_LIB_C      "builds the c library" ON)
 option(LEELA_BUILD_LIB_PYTHON "builds the python library" OFF)
 option(LEELA_BUILD_LIB_RUBY   "builds the ruby library" OFF)
