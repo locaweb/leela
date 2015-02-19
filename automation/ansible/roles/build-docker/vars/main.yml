@@ -1,3 +1,0 @@
----
-# file: roles/common/vars/main.yml
-ansible_python_interpreter: /usr/bin/env python2

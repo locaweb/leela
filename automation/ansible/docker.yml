@@ -1,5 +1,0 @@
-# file: docker.yml
----
-- hosts: docker
-  roles:
-    - build-docker

@@ -1,1 +1,0 @@
-../../../../../package/docker-images/centos6-i386.dockerfile

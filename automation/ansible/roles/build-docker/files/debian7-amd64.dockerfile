@@ -1,1 +1,0 @@
-../../../../../package/docker-images/debian7-amd64.dockerfile

@@ -1,1 +1,0 @@
-../../../../../package/docker-images/debian6-amd64.dockerfile

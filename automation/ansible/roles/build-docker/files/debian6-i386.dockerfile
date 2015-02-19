@@ -1,1 +1,0 @@
-../../../../../package/docker-images/debian6-i386.dockerfile
