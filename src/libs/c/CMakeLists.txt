@@ -27,7 +27,7 @@ add_library(libleela ${LIBLEELA_TYPE}
             ${LIBLEELA_FILES})
 target_include_directories(libleela PUBLIC src)
 target_include_directories(libleela PRIVATE ../../../lib/libzmq/include)
-target_link_libraries(libleela PUBLIC libpoly1305aes libzmq ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(libleela libpoly1305aes ${libzmq} ${CMAKE_THREAD_LIBS_INIT})
 set_target_properties(libleela PROPERTIES PUBLIC_HEADER "${LIBLEELA_HEADERS}")
 set_target_properties(libleela PROPERTIES OUTPUT_NAME leela)
 set_target_properties(libleela PROPERTIES VERSION ${LIBLEELA_VERSION} SOVERSION ${LIBLEELA_VERSION})
