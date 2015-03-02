@@ -2,17 +2,17 @@
 
 set -e
 
-ghcurl=${ghcurl:-https://www.haskell.org/ghc/dist/7.8.4/ghc-7.8.4-x86_64-unknown-linux-deb7.tar.bz2}
-cabalurl=${cabalurl:-https://www.haskell.org/cabal/release/cabal-install-1.22.0.0/cabal-install-1.22.0.0.tar.gz}
+haskell_ghcurl=${haskell_ghcurl:-https://www.haskell.org/ghc/dist/7.8.4/ghc-7.8.4-x86_64-unknown-linux-deb7.tar.bz2}
+haskell_cabalurl=${haskell_cabalurl:-https://www.haskell.org/cabal/release/cabal-install-1.22.0.0/cabal-install-1.22.0.0.tar.gz}
 
 srcroot=${srcroot:-$(dirname $(readlink -f "$0"))}
 
 . "$srcroot/bootstrap-lib.sh"
 
 haskell_idd () {
-  debian_apt_get tar bzip2 wget
-  debian_apt_get libgmp-dev zlib1g-dev
-  debian_apt_get make gcc g++
+  deb_install tar bzip2
+  deb_install libgmp-dev zlib1g-dev
+  deb_install make gcc g++
 }
 
 haskell_cabal_update () {
@@ -27,7 +27,7 @@ haskell_icabal () {
   if ! has_command cabal
   then
     msg_info "INSTALL cabal"
-    fetch_url "$cabalurl" | tar -x -z -C "$buildroot"
+    fetch_url "$haskell_cabalurl" | tar -x -z -C "$buildroot"
     cd "$cabaldir" && {
       run_cmd_echo ./bootstrap.sh --sandbox "$distroot/cabal"
       run_cmd_echo ln -s "$distroot/cabal/bin/cabal" "/usr/local/bin/cabal"
@@ -64,7 +64,7 @@ haskell_ighc () {
   if ! has_command ghc
   then
     msg_info "INSTALL ghc-$arch"
-    fetch_url "$ghcurl" | tar -x -j -C "$buildroot"
+    fetch_url "$haskell_ghcurl" | tar -x -j -C "$buildroot"
     cd "$ghcdir" && {
       run_cmd_echo ./configure --prefix="$distroot"
       run_cmd_echo make install
@@ -72,7 +72,7 @@ haskell_ighc () {
   fi
 }
 
-show_self ghcurl="\"$ghcurl\"" cabalurl="\"$cabalurl\""
+show_self haskell_ghcurl="\"$haskell_ghcurl\"" haskell_cabalurl="\"$haskell_cabalurl\""
 if has_command dpkg apt-get
 then haskell_idd; fi
 check_command tar bzip2 wget make gcc g++

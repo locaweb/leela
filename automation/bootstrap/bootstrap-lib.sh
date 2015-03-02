@@ -69,29 +69,47 @@ has_file () {
   return $ans
 }
 
-debian_apt_update () {
+deb_update () {
   run_cmd_once "apt-get update" run_cmd_echo apt-get update -qq
 }
 
-debian_apt_get1 () {
+deb_install () {
   for pkg in "$@"
   do
     if ! run_cmd_quiet dpkg -s "$pkg"
     then
-      msg_info "INSTALL $pkg"
-      debian_apt_update
-      run_cmd_echo apt-get install -qq --yes --force-yes "$pkg"
+      msg_info "INSTALL[$deb_install_args] $pkg"
+      deb_update
+      run_cmd_echo apt-get install $deb_install_args -qq --yes --force-yes "$pkg"
     fi
   done
 }
 
-debian_bootstrap () {
-  debian_apt_get1 apt-utils ca-certificates wget
+rpm_install () {
+  for pkg in "$@"
+  do
+    if ! run_cmd_quiet rpm -qi "$pkg"
+    then
+      msg_info "INSTALL $pkg"
+      run_cmd_echo yum install -y "$pkg"
+    fi
+  done
 }
 
-debian_apt_get () {
-  debian_bootstrap
-  debian_apt_get1 "$@"
+
+rpm_install_url () {
+  local rpmfile
+
+  if ! run_cmd_quiet rpm -qi "$1"
+  then
+    rpmfile=$(mktemp) && {
+      trap "rm -f \"$rpmfile\"" INT QUIT TERM EXIT
+      msg_info "INSTALL $2"
+      run_cmd wget -O"$rpmfile" "$2"
+      run_cmd rpm -Uvh "$rpmfile"
+      run_cmd_quiet rm -f "$rpmfile"
+    }
+  fi
 }
 
 ubuntu_apt_key () {
@@ -99,8 +117,12 @@ ubuntu_apt_key () {
   then run_cmd_echo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys "$1"; fi
 }
 
-debian_add_repo () {
-  run_cmd_echo sh -c "echo \"$2\" | tee /etc/apt/sources.list.d/$1.list"
+deb_add_repo () {
+  if [ ! -e "/etc/apt/sources.list.d/$1.list" ]
+  then
+    run_cmd_echo sh -c "echo \"$2\" | tee /etc/apt/sources.list.d/$1.list"
+    run_cmd_echo apt-get update -qq
+  fi
 }
 
 run_installer () {

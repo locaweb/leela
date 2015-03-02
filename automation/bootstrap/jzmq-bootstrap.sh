@@ -9,8 +9,8 @@ srcroot=${srcroot:-$(dirname $(readlink -f "$0"))}
 jzmq_jzmqurl=${jzmq_jzmqurl:-https://github.com/zeromq/jzmq/archive/v3.1.0.tar.gz}
 
 jzmq_idd () {
-  debian_apt_get tar gzip wget
-  debian_apt_get make gcc g++ libtool autoconf automake
+  deb_install tar gzip
+  deb_install make gcc g++ libtool autoconf automake
 }
 
 jzmq_ijzmq () {

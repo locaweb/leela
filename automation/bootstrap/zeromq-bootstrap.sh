@@ -9,8 +9,16 @@ srcroot=${srcroot:-$(dirname $(readlink -f "$0"))}
 zeromq_zmqurl=${zeromq_zmqurl:-http://download.zeromq.org/zeromq-4.0.5.tar.gz}
 
 zeromq_idd () {
-  debian_apt_get tar gzip wget
-  debian_apt_get make gcc g++ pkg-config
+  case "$1" in
+    deb)
+      deb_install tar gzip
+      deb_install make gcc g++ pkg-config
+      ;;
+    rpm)
+      rpm_install tar gzip
+      rpm_install make gcc gcc-c++ pkgconfig
+      ;;
+  esac
 }
 
 zeromq_izmq () {
@@ -23,7 +31,7 @@ zeromq_izmq () {
     msg_info "INSTALL zmq4"
     fetch_url "$zeromq_zmqurl" | tar -x -z -C "$buildroot"
     cd "$zmqdir" && {
-      run_cmd_echo env CC=g++ CFLAGS=-fPIC CXXFLAGS=-fPIC ./configure --prefix="$distroot" --disable-shared --enable-static
+      run_cmd_echo env CC=g++ CFLAGS="$CFLAGS -fPIC" CXXFLAGS="$CXXFLAGS -fPIC" ./configure --prefix="$distroot" --disable-shared --enable-static
       run_cmd_echo make
       run_cmd_echo make install
     }
@@ -31,7 +39,10 @@ zeromq_izmq () {
 }
 
 if has_command dpkg apt-get
-then zeromq_idd; fi
+then zeromq_idd deb
+elif has_command rpm yum
+then zeromq_idd rpm
+fi
 check_command tar gzip make gcc g++ pkg-config
 
 show_self zeromq_zmqurl="\"$zeromq_zmqurl\""
