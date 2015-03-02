@@ -1,0 +1,47 @@
+leela-c (6.3.0-1) stable; urgency=low
+
+  * new feature release
+
+ -- Diego Souza <dsouza@c0d3.xxx>  Wed, 04 Jun 2014 13:33:48 -0300
+
+leela-c (6.2.0-1) stable; urgency=low
+
+  * new feature release
+
+ -- Diego Souza <dsouza@c0d3.xxx>  Wed, 28 May 2014 20:39:17 -0300
+
+leela-c (6.1.0-1) stable; urgency=low
+
+  * new feature release
+
+ -- Diego Souza <dsouza@c0d3.xxx>  Sat, 17 May 2014 17:22:30 -0300
+
+leela-c (6.0.1-1) stable; urgency=low
+
+  * bugfix release
+
+ -- Diego Souza <dsouza@c0d3.xxx>  Fri, 16 May 2014 17:59:43 -0300
+
+leela-c (6.0.0-2) stable; urgency=low
+
+  * new feature release
+
+ -- Diego Souza <dsouza@c0d3.xxx>  Wed, 14 May 2014 20:49:06 -0300
+
+leela-c (5.2.1-1) stable; urgency=low
+
+  * bugfix release
+
+ -- Diego Souza <dsouza@c0d3.xxx>  Wed, 14 May 2014 17:16:26 -0300
+
+leela-c (5.2.0-3) stable; urgency=low
+
+  * new feature release
+
+ -- Diego Souza <dsouza@c0d3.xxx>  Wed, 14 May 2014 10:34:07 -0300
+
+leela-c (4.0.0-21) stable; urgency=low
+
+  * debian package
+
+ -- Diego Souza <dsouza@c0d3.xxx>  Fri, 17 Jan 2014 16:26:58 -0200

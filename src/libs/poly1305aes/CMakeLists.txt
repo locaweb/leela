@@ -16,7 +16,6 @@ set_source_files_properties(${LIBPOLY1305AES_ASMFILES} PROPERTIES COMPILE_FLAGS 
 add_library(libpoly1305aes ${LIBPOLY1305AES_TYPE}
                            ${LIBPOLY1305AES_PUB_HEADERS}
                            ${LIBPOLY1305AES_FILES})
-target_include_directories(libpoly1305aes PUBLIC src)
 
 set_target_properties(libpoly1305aes PROPERTIES OUTPUT_NAME poly1305aes)
 set_target_properties(libpoly1305aes PROPERTIES PUBLIC_HEADER "${LIBPOLY1305AES_PUB_HEADERS}")
@@ -24,8 +23,8 @@ set_target_properties(libpoly1305aes PROPERTIES PRIVATE_HEADER "${LIBPOLY1305AES
 set_target_properties(libpoly1305aes PROPERTIES VERSION ${LIBPOLY1305AES_VERSION} SOVERSION ${LIBPOLY1305AES_VERSION})
 
 install(TARGETS libpoly1305aes
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION "${LEELA_INSTALL_BINDIR}"
+        LIBRARY DESTINATION "${LEELA_INSTALL_LIBDIR}"
+        ARCHIVE DESTINATION "${LEELA_INSTALL_LIBDIR}"
         PUBLIC_HEADER DESTINATION include/poly1305aes
         PRIVATE_HEADER DESTINATION include/poly1305aes/poly1305aes-20050218)

@@ -20,7 +20,12 @@ read_version () {
     patch=$(sed -r '/^v/ba; d; :a s/v[0-9]+\.[0-9]+\.([0-9]+).*/\1/; q' "$curdir/../../${f}")
   fi
 
-  version="$major.$minor.$patch"
+  if [ -n "$format" ]
+  then
+    version=$(eval echo "$format")
+  else
+    version="$major.$minor.$patch"
+  fi
   echo "reading file: $f : $version" >&2
 }
 

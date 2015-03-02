@@ -1,0 +1,18 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+%:
+	dh $@ -Dsource -Scmake
+
+override_dh_auto_clean:
+	rm -rf source/
+	dh_clean
+
+leela_get_source:
+	mkdir -p source
+	find ../.. -maxdepth 1 -mindepth 1 \! -name package -exec cp -a {} source/ \;
+
+override_dh_auto_configure: leela_get_source
+	dh_auto_configure
+
+.PHONY: leela_get_source

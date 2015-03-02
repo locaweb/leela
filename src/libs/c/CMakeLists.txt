@@ -25,15 +25,16 @@ leela_check_symbol_append(CryptGenRandom "windows.h;wincrypt.h" WINCRYPT)
 add_library(libleela ${LIBLEELA_TYPE}
             ${LIBLEELA_HEADERS}
             ${LIBLEELA_FILES})
-target_include_directories(libleela PUBLIC src)
-target_include_directories(libleela PRIVATE ../../../lib/libzmq/include)
+
 target_link_libraries(libleela libpoly1305aes ${libzmq} ${CMAKE_THREAD_LIBS_INIT})
+
+set_target_properties(libleela PROPERTIES INCLUDE_DIRECTORIES ${CMAKE_SOURCE_DIR}/src/libs/poly1305aes/src)
 set_target_properties(libleela PROPERTIES PUBLIC_HEADER "${LIBLEELA_HEADERS}")
 set_target_properties(libleela PROPERTIES OUTPUT_NAME leela)
-set_target_properties(libleela PROPERTIES VERSION ${LIBLEELA_VERSION} SOVERSION ${LIBLEELA_VERSION})
+set_target_properties(libleela PROPERTIES VERSION ${LIBLEELA_VERSION} SOVERSION ${LIBLEELA_SOVERSION})
 
 install(TARGETS libleela
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION "${LEELA_INSTALL_BINDIR}"
+        LIBRARY DESTINATION "${LEELA_INSTALL_LIBDIR}"
+        ARCHIVE DESTINATION "${LEELA_INSTALL_LIBDIR}"
         PUBLIC_HEADER DESTINATION include/leela)
