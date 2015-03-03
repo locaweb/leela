@@ -1,6 +1,6 @@
 Name:           leela-c
 Group:          libs
-Version:        %(env component=.leela-c ./src/scripts/read-version.sh)
+Version:        %(env component=.leela-c ../../../src/scripts/read-version.sh)
 Release:        1%{?dist}
 Summary:        A client library for leela
 

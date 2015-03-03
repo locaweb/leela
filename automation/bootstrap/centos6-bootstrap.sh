@@ -11,4 +11,4 @@ centos6_bootstrap () {
 }
 
 centos6_bootstrap
-rpm_install cmake rpmdevtools
+rpm_install cmake git rpmdevtools

@@ -13,4 +13,4 @@ debian6_bootstrap () {
 
 debian6_bootstrap
 (deb_install_args="-t squeeze-backports" deb_install cmake)
-deb_install devscripts
+deb_install git devscripts

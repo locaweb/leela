@@ -11,4 +11,4 @@ debian7_bootstrap () {
 }
 
 debian7_bootstrap
-deb_install cmake devscripts
+deb_install cmake git devscripts

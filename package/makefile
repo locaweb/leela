@@ -35,43 +35,25 @@ collectd:
 
 %.debian: dist=debian7
 %.debian: arch=amd64
-%.debian: component=.$(basename $@)
+%.debian: package=$(basename $@)
+%.debian: component=.$(package)
 %.debian:
-	@echo $(MAKE) $(basename $@) dist=$(dist) arch=$(arch)
-	$(maybesudo) docker run \
-	  -i -t -v $(srcroot):/target \
-	  -e HOME=/home/leela \
-	  -e package="$(basename $@)" \
-	  -e version=$(version) \
-	  -e distdir=$(distdir) \
-	  -w /target/package \
-	  -u leela \
-	  leela/$(dist)-$(arch) /bin/bash -l -c " \
-	    ./mksource.sh | tar -x -z -C \$$HOME; \
-	    cd \$$HOME/\$$package-\$$version/package/\$$package; \
-	    [ -d \"$(dist)\" ] && ln -s $(dist) debian; \
-	    dpkg-buildpackage -us -uc; \
-	    /target/package/collect.sh ../*.{deb,gz,changes,dsc}"
+	@echo $(MAKE) $@ dist=$(dist) arch=$(arch)
+	env dist=$(dist) \
+	    version=$(version) \
+	    package=$(package) \
+	    ./makepkg.sh debian $(srcroot)/package/dist
 
 %.centos: dist=centos6
 %.centos: arch=amd64
-%.centos: component=.$(basename $@)
+%.centos: package=$(basename $@)
+%.centos: component=.$(package)
 %.centos:
-	@echo $(MAKE) $(basename $@) dist=$(dist) arch=$(arch)
-	$(maybesudo) docker run \
-	  -i -t -v $(srcroot):/target \
-	  -e HOME=/home/leela \
-	  -e package="$(basename $@)" \
-	  -e version=$(version) \
-	  -e distdir=$(distdir) \
-	  -w /target/package \
-	  -u leela \
-	  leela/$(dist)-$(arch) /bin/bash -l -c " \
-	    rpmdev-setuptree; \
-	    ./mksource.sh >\$$HOME/rpmbuild/SOURCES/\$$package-\$$version.tar.gz; \
-	    cp /target/package/\$$package/$(dist)/\$$package.spec /tmp/package.spec; \
-	    rpmbuild -ba /tmp/package.spec; \
-	    /target/package/collect.sh \$$HOME/rpmbuild/SRPMS/* \$$HOME/rpmbuild/RPMS/*/*"
+	@echo $(MAKE) $@ dist=$(dist) arch=$(arch)
+	env dist=$(dist) \
+	    version=$(version) \
+	    package=$(package) \
+	    ./makepkg.sh centos $(srcroot)/package/dist
 
 clean:
 	rm -rf $(srcroot)/package/dist

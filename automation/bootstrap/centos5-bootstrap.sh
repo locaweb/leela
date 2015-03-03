@@ -12,4 +12,4 @@ centos5_bootstrap () {
 }
 
 centos5_bootstrap
-rpm_install cmake28 rpmdevtools
+rpm_install cmake28 git rpmdevtools
