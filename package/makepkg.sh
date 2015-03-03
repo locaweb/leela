@@ -26,6 +26,19 @@ makepkg_centos () {
   rpmbuild -ba "$package.spec"
 }
 
+makepkg_boostrap () {
+  if echo "$dist" | grep -qE '^debian[67]$|^centos[567]$'
+  then "$srcroot/../automation/bootstrap/$dist-bootstrap.sh"; fi
+  case "$package" in
+    leela-c)
+      "$srcroot/../automation/bootstrap/zeromq-bootstrap.sh"
+      ;;
+  esac
+}
+
+if [ -n "$bootstrap" ]
+then makepkg_bootstrap; fi
+
 case "$1" in
   debian)
     makepkg_debian
