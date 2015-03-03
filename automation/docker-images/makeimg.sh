@@ -2,7 +2,7 @@
 
 set -x
 
-target=leela-stage0-$RANDOM
+target=leela-docker-$RANDOM
 
 mount_target ()
 {
@@ -28,7 +28,7 @@ make_debian ()
   env DEBOOTSTRAP_DIR="$target/debootstrap" debootstrap --second-stage --second-stage-target="$target"
   umount_target
 
-  tar -C "$target" -c . | docker import - leela/stage0-debian-$dist-$arch
+  tar -C "$target" -c . | docker import - leela/debian-$dist-$arch
   rm -rf "$target"
 }
 
@@ -76,12 +76,13 @@ make_centos ()
   echo "NETWORKING=yes" | tee "$target/etc/sysconfig/network" >/dev/null
   umount_target
 
-  tar -C "$target" -c . | docker import - leela/stage0-centos-$dist-$arch
+  tar -C "$target" -c . | docker import - leela/centos-$dist-$arch
   rm -rf "$target"
 }
 
 make_centos i386 6
 make_centos i386 5
+make_centos amd64 7
 make_centos amd64 6
 make_centos amd64 5
 make_debian i386 wheezy

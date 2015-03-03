@@ -9,12 +9,9 @@ try_leela.stderr
 /tmp/
 /tags
 /TAGS
-/build/
 /dist/
 /package/dist
 /doc/build/
-/lib/poly1305aes/dist
-/lib/poly1305aes/poly1305aes-20050218
 /src/warpdrive/src/warpdrive
 /src/warpdrive/src/test-warpdrive
 /src/warpdrive/src/Leela/warpdrive
@@ -23,10 +20,6 @@ try_leela.stderr
 /src/warpdrive/.cabal-sandbox
 /src/warpdrive/cabal.sandbox.config
 /src/c/try_leela
-/src/c/libleela.so*
 /src/python/build
-/src/c/libleela4.0.0.so
 /src/c/src/driver
-/package/leela-lib/debian
-automation/ansible/leela-*
-automation/ansible/hosts
+/automation/docker-images/leela-docker-*/
