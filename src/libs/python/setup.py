@@ -5,10 +5,8 @@ from distutils.core import Extension
 
 ffi_lql = Extension("_leela_lql",
                     sources             = ["src/ffi/python_lql.c"],
-                    include_dirs        = ["../c/src"],
                     libraries           = ["leela"],
-                    library_dirs        = ["../c"],
-                    extra_compile_args  = ["-std=c99", "-Wall"])
+                    extra_compile_args  = ["-Wall"])
 
 setup(name="leela",
       version      = "6.3.0",
