@@ -1,10 +1,7 @@
 --*-- mode: text; --*--
 
 v6.4.0 | 2014-08-22
-  * add leela_lql_context_init2 which allows defining the logger function
-  * add mingw support; we now are able to compile for windows :)
-  * use cmake, drop handwritten make files
-  * code compiles with c89 std; no longer depending on c99 std
+  * splitting changelogs
 
 v6.3.0 | 2014-06-04
   * leela_check_guid function
