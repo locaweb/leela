@@ -1,3 +1,3 @@
-usr/include/leela/         usr/include/leela/
-usr/include/poly1305aes/   usr/include/poly1305aes/
 usr/lib/*.a                usr/lib/
+usr/include/leela          usr/include/
+usr/include/poly1305aes    usr/include/
