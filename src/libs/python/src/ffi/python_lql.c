@@ -49,9 +49,6 @@ static
 PyObject *pylql_cursor_init(PyTypeObject *, PyObject *, PyObject *);
 
 static
-PyObject *pylql_cursor_init_on(PyTypeObject *, PyObject *, PyObject *);
-
-static
 PyObject *pylql_cursor_close(PyObject *, PyObject *);
 
 static
@@ -69,6 +66,7 @@ void pylql_context_free(PyObject *);
 static
 void pylql_cursor_free(PyObject *);
 
+static
 void pylql_logwrapper__ (void *pyfun, const char *fmt, va_list args)
 {
   if (pyfun != NULL)
@@ -102,6 +100,7 @@ PyObject *__make_name_msg(lql_name_t *name)
 static
 PyObject *__make_nattr_msg(lql_nattr_t *nattr)
 {
+  int k, rc;
   PyObject *list  = PyTuple_New(nattr->size);
   PyObject *tuple = PyTuple_New(2);
   if (list == NULL || tuple == NULL)
@@ -111,9 +110,9 @@ PyObject *__make_nattr_msg(lql_nattr_t *nattr)
     return(NULL);
   }
 
-  int rc = PyTuple_SetItem(tuple, 0, PyString_FromString(nattr->guid))
-         | PyTuple_SetItem(tuple, 1, list);
-  for (int k=0; k<nattr->size; k+=1)
+  rc = PyTuple_SetItem(tuple, 0, PyString_FromString(nattr->guid))
+     | PyTuple_SetItem(tuple, 1, list);
+  for (k=0; k<nattr->size; k+=1)
   { rc = rc | PyTuple_SetItem(list, k, PyString_FromString(nattr->names[k])); }
 
   if (rc != 0)
@@ -169,13 +168,15 @@ PyObject *__make_pyvalue(const lql_value_t *value)
 static
 PyObject *__make_list_of_tuples(int size, lql_tuple2_t *entries, to_python_f parse_fst, to_python_f parse_snd)
 {
+  int k;
+  PyObject *entry;
   PyObject *tuple = PyTuple_New(size);
   if (tuple == NULL)
   { return(NULL); }
 
-  for (int k=0; k<size; k+=1)
+  for (k=0; k<size; k+=1)
   {
-    PyObject *entry = PyTuple_New(2);
+    entry = PyTuple_New(2);
     if (entry == NULL)
     {
       Py_DECREF(tuple);
@@ -389,9 +390,11 @@ PyObject *pylql_context_init(PyTypeObject *type, PyObject *args, PyObject *kwarg
   int timeout                   = 0;
   char *secret                  = NULL;
   char *username                = NULL;
+  size_t k;
+  PyObject *item;
+  PyObject *debug_fun;
+  PyObject *trace_fun;
   leela_endpoint_t **cendpoints = NULL;
-  PyObject *debug_fun           = NULL;
-  PyObject *trace_fun           = NULL;
 
   pylql_context_t *self = (pylql_context_t *) type->tp_alloc(type, 0);
   if (self != NULL)
@@ -407,10 +410,10 @@ PyObject *pylql_context_init(PyTypeObject *type, PyObject *args, PyObject *kwarg
       goto handle_error;
     }
 
-    for (size_t k=0; k<PyList_Size(pyendpoints); k+=1)
+    for (k=0; k<PyList_Size(pyendpoints); k+=1)
     {
+      item           = PyList_GetItem(pyendpoints, k);
       cendpoints[k]  = NULL;
-      PyObject *item = PyList_GetItem(pyendpoints, k);
       if (PyString_Check(item) == 0)
       {
         PyErr_SetString(PyExc_TypeError, "list members must be str");
@@ -435,14 +438,14 @@ PyObject *pylql_context_init(PyTypeObject *type, PyObject *args, PyObject *kwarg
     }
   }
 
-  for (size_t k=0; cendpoints != NULL && cendpoints[k] != NULL; k+=1)
+  for (k=0; cendpoints != NULL && cendpoints[k] != NULL; k+=1)
   { leela_endpoint_free(cendpoints[k]); }
   free(cendpoints);
 
   return((PyObject *) self);
 
 handle_error:
-  for (size_t k=0; cendpoints != NULL && cendpoints[k] != NULL; k+=1)
+  for (k=0; cendpoints != NULL && cendpoints[k] != NULL; k+=1)
   { leela_endpoint_free(cendpoints[k]); }
   free(cendpoints);
   Py_DECREF(self);
