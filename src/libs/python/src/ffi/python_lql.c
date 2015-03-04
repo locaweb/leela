@@ -69,6 +69,16 @@ void pylql_context_free(PyObject *);
 static
 void pylql_cursor_free(PyObject *);
 
+void pylql_logwrapper__ (void *pyfun, const char *fmt, va_list args)
+{
+  if (pyfun != NULL)
+  {
+    PyObject *str = PyString_FromFormatV(fmt, args);
+    PyObject_CallObject((PyObject *) pyfun, str);
+    Py_DECREF(str);
+  }
+}
+
 static
 PyObject *__make_name_msg(lql_name_t *name)
 {
@@ -380,12 +390,14 @@ PyObject *pylql_context_init(PyTypeObject *type, PyObject *args, PyObject *kwarg
   char *secret                  = NULL;
   char *username                = NULL;
   leela_endpoint_t **cendpoints = NULL;
+  PyObject *debug_fun           = NULL;
+  PyObject *trace_fun           = NULL;
 
   pylql_context_t *self = (pylql_context_t *) type->tp_alloc(type, 0);
   if (self != NULL)
   {
     self->context = NULL;
-    if (! PyArg_ParseTuple(args, "O!ssi", &PyList_Type, &pyendpoints, &username, &secret, &timeout))
+    if (! PyArg_ParseTuple(args, "O!ssi|O:set_callbackO:set_callback", &PyList_Type, &pyendpoints, &username, &secret, &timeout, &debug_fun, &trace_fun))
     { goto handle_error; }
 
     cendpoints = (leela_endpoint_t **) malloc((PyList_Size(pyendpoints) + 1) * sizeof(leela_endpoint_t *));
@@ -414,7 +426,7 @@ PyObject *pylql_context_init(PyTypeObject *type, PyObject *args, PyObject *kwarg
     cendpoints[PyList_Size(pyendpoints)] = NULL;
 
     Py_BEGIN_ALLOW_THREADS
-    self->context = leela_lql_context_init((const leela_endpoint_t * const *) cendpoints, username, secret, timeout);
+    self->context = leela_lql_context_init2((const leela_endpoint_t * const *) cendpoints, username, secret, timeout, pylql_logwrapper__, debug_fun, pylql_logwrapper__, trace_fun);
     Py_END_ALLOW_THREADS
     if (self->context == NULL)
     {
