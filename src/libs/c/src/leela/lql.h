@@ -30,15 +30,15 @@
 LIBLEELA_HEAD
 
 #define LEELA_FILE__ (strrchr(__FILE__, 0x2f) != NULL ? strrchr(__FILE__, 0x2f) + 1 : __FILE__)
-#define LEELA_DEBUG0(ctx, fmt) lql_debug(ctx, "[debug] %s:%d: " #fmt , LEELA_FILE__, __LINE__)
-#define LEELA_DEBUG1(ctx, fmt, arg0) lql_debug(ctx, "[debug] %s:%d: " #fmt , LEELA_FILE__, __LINE__, arg0)
-#define LEELA_DEBUG2(ctx, fmt, arg0, arg1) lql_debug(ctx, "[debug] %s:%d: " #fmt , LEELA_FILE__, __LINE__, arg0, arg1)
-#define LEELA_DEBUG3(ctx, fmt, arg0, arg1, arg2) lql_debug(ctx, "[debug] %s:%d: " #fmt , LEELA_FILE__, __LINE__, arg0, arg1, arg2)
+#define LEELA_DEBUG0(ctx, fmt) lql_debug(ctx, "%s:%d: " #fmt , LEELA_FILE__, __LINE__)
+#define LEELA_DEBUG1(ctx, fmt, arg0) lql_debug(ctx, "%s:%d: " #fmt , LEELA_FILE__, __LINE__, arg0)
+#define LEELA_DEBUG2(ctx, fmt, arg0, arg1) lql_debug(ctx, "%s:%d: " #fmt , LEELA_FILE__, __LINE__, arg0, arg1)
+#define LEELA_DEBUG3(ctx, fmt, arg0, arg1, arg2) lql_debug(ctx, "%s:%d: " #fmt , LEELA_FILE__, __LINE__, arg0, arg1, arg2)
 
-#define LEELA_TRACE0(ctx, fmt) lql_trace(ctx, "[trace] %s:%d: " #fmt, LEELA_FILE__, __LINE__)
-#define LEELA_TRACE1(ctx, fmt, arg0) lql_trace(ctx, "[trace] %s:%d: " #fmt, LEELA_FILE__, __LINE__, arg0)
-#define LEELA_TRACE2(ctx, fmt, arg0, arg1) lql_trace(ctx, "[trace] %s:%d: " #fmt, LEELA_FILE__, __LINE__, arg0, arg1)
-#define LEELA_TRACE3(ctx, fmt, arg0, arg1, arg2) lql_trace(ctx, "[trace] %s:%d: " #fmt, LEELA_FILE__, __LINE__, arg0, arg1, arg2)
+#define LEELA_TRACE0(ctx, fmt) lql_trace(ctx, "%s:%d: " #fmt, LEELA_FILE__, __LINE__)
+#define LEELA_TRACE1(ctx, fmt, arg0) lql_trace(ctx, "%s:%d: " #fmt, LEELA_FILE__, __LINE__, arg0)
+#define LEELA_TRACE2(ctx, fmt, arg0, arg1) lql_trace(ctx, "%s:%d: " #fmt, LEELA_FILE__, __LINE__, arg0, arg1)
+#define LEELA_TRACE3(ctx, fmt, arg0, arg1, arg2) lql_trace(ctx, "%s:%d: " #fmt, LEELA_FILE__, __LINE__, arg0, arg1, arg2)
 
 typedef void (*log_function_f)(void *, const char*, va_list);
 typedef struct lql_cursor_t lql_cursor_t;
