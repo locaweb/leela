@@ -1,3 +1,4 @@
+
 /* Copyright 2014 (c) Diego Souza                                                  */
 /* All rights reserved.                                                            */
 
@@ -31,6 +32,12 @@ PyTypeObject pylql_context_type = { PyObject_HEAD_INIT(NULL) };
 PyTypeObject pylql_cursor_type  = { PyObject_HEAD_INIT(NULL) };
 
 typedef PyObject*(*to_python_f)(const void *);
+
+typedef struct {
+  int     fh;
+  char   *buff;
+  size_t  size;
+} loghandle_t;
 
 static
 PyObject *__to_python_from_double(const void *raw)
@@ -67,13 +74,25 @@ static
 void pylql_cursor_free(PyObject *);
 
 static
-void pylql_logwrapper__ (void *pyfun, const char *fmt, va_list args)
+void pylql_logwrapper__ (void *ptr, const char *fmt, va_list args)
 {
-  if (pyfun != NULL)
+  ssize_t off, tmp, sz;
+  loghandle_t *lh = (loghandle_t *) ptr;
+  if (lh != NULL)
   {
-    PyObject *str = PyString_FromFormatV(fmt, args);
-    PyObject_CallObject((PyObject *) pyfun, str);
-    Py_DECREF(str);
+    if ((sz = vsnprintf(lh->buff, lh->size, fmt, args)) > 0)
+    {
+      off = 0;
+      if (sz + 1 < lh->size)
+      { sz += 1; }
+      lh->buff[sz-1] = '\n';
+      while (off < sz)
+      {
+        if ((tmp = write(lh->fh, lh->buff + off, sz - off)) <= 0)
+        { break; }
+        off += tmp;
+      }
+    }
   }
 }
 
@@ -91,7 +110,7 @@ PyObject *__make_name_msg(lql_name_t *name)
          | PyTuple_SetItem(tuple, 4, PyString_FromString(name->guid));
   if (rc != 0)
   {
-    Py_DECREF(tuple);
+    Py_XDECREF(tuple);
     return(NULL);
   }
   return(tuple);
@@ -117,8 +136,8 @@ PyObject *__make_nattr_msg(lql_nattr_t *nattr)
 
   if (rc != 0)
   {
-    Py_DECREF(tuple);
-    Py_DECREF(list);
+    Py_XDECREF(tuple);
+    Py_XDECREF(list);
     return(NULL);
   }
   return(tuple);
@@ -179,21 +198,21 @@ PyObject *__make_list_of_tuples(int size, lql_tuple2_t *entries, to_python_f par
     entry = PyTuple_New(2);
     if (entry == NULL)
     {
-      Py_DECREF(tuple);
+      Py_XDECREF(tuple);
       return(NULL);
     }
 
     if (PyTuple_SetItem(entry, 0, parse_fst(entries[k].fst)) != 0
         || PyTuple_SetItem(entry, 1, parse_snd(entries[k].snd)) != 0)
     {
-      Py_DECREF(tuple);
-      Py_DECREF(entry);
+      Py_XDECREF(tuple);
+      Py_XDECREF(entry);
       return(NULL);
     }
 
     if (PyTuple_SetItem(tuple, k, entry) != 0)
     {
-      Py_DECREF(tuple);
+      Py_XDECREF(tuple);
       return(NULL);
     }
   }
@@ -214,7 +233,7 @@ PyObject *__make_tattr_msg(lql_tattr_t *tattr)
 
   if (rc != 0)
   {
-    Py_DECREF(tuple);
+    Py_XDECREF(tuple);
     return(NULL);
   }
 
@@ -234,7 +253,7 @@ PyObject *__make_kattr_msg(lql_kattr_t *kattr)
 
   if (rc != 0)
   {
-    Py_DECREF(tuple);
+    Py_XDECREF(tuple);
     return(NULL);
   }
 
@@ -392,17 +411,30 @@ PyObject *pylql_context_init(PyTypeObject *type, PyObject *args, PyObject *kwarg
   char *username                = NULL;
   size_t k;
   PyObject *item;
-  PyObject *debug_fun;
-  PyObject *trace_fun;
+  loghandle_t *debug_lh         = (loghandle_t *) malloc(sizeof(loghandle_t));
+  loghandle_t *trace_lh         = (loghandle_t *) malloc(sizeof(loghandle_t));
+  pylql_context_t *self         = NULL;
   leela_endpoint_t **cendpoints = NULL;
 
-  pylql_context_t *self = (pylql_context_t *) type->tp_alloc(type, 0);
+  self = (pylql_context_t *) type->tp_alloc(type, 0);
   if (self != NULL)
   {
     self->context = NULL;
-    if (! PyArg_ParseTuple(args, "O!ssi|O:set_callbackO:set_callback", &PyList_Type, &pyendpoints, &username, &secret, &timeout, &debug_fun, &trace_fun))
-    { goto handle_error; }
 
+    if (debug_lh == NULL || trace_lh == NULL)
+    { goto handle_error; }
+    
+    debug_lh->fh   = -1;
+    debug_lh->size = 4096;
+    debug_lh->buff = (char *) malloc(sizeof(char) * debug_lh->size);
+
+    trace_lh->fh   = -1;
+    trace_lh->size = 4096;
+    trace_lh->buff = (char *) malloc(sizeof(char) * debug_lh->size);
+  
+    if (! PyArg_ParseTuple(args, "O!ssi|ii", &PyList_Type, &pyendpoints, &username, &secret, &timeout, &debug_lh->fh, &trace_lh->fh))
+    { goto handle_error; }
+    
     cendpoints = (leela_endpoint_t **) malloc((PyList_Size(pyendpoints) + 1) * sizeof(leela_endpoint_t *));
     if (cendpoints == NULL)
     {
@@ -429,7 +461,7 @@ PyObject *pylql_context_init(PyTypeObject *type, PyObject *args, PyObject *kwarg
     cendpoints[PyList_Size(pyendpoints)] = NULL;
 
     Py_BEGIN_ALLOW_THREADS
-    self->context = leela_lql_context_init2((const leela_endpoint_t * const *) cendpoints, username, secret, timeout, pylql_logwrapper__, debug_fun, pylql_logwrapper__, trace_fun);
+    self->context = leela_lql_context_init2((const leela_endpoint_t * const *) cendpoints, username, secret, timeout, pylql_logwrapper__, debug_lh, pylql_logwrapper__, trace_lh);
     Py_END_ALLOW_THREADS
     if (self->context == NULL)
     {
@@ -447,8 +479,10 @@ PyObject *pylql_context_init(PyTypeObject *type, PyObject *args, PyObject *kwarg
 handle_error:
   for (k=0; cendpoints != NULL && cendpoints[k] != NULL; k+=1)
   { leela_endpoint_free(cendpoints[k]); }
+  free(debug_lh);
+  free(trace_lh);
   free(cendpoints);
-  Py_DECREF(self);
+  Py_XDECREF(self);
   return(NULL);
 }
 
@@ -468,7 +502,7 @@ PyObject *pylql_cursor_init(PyTypeObject *type, PyObject *args, PyObject *kwargs
     self->cursor = NULL;
     if (! PyArg_ParseTuple(args, "O!|ssis", &pylql_context_type, &context, &username, &secret, &timeout, &endpoint))
     {
-      Py_DECREF(self);
+      Py_XDECREF(self);
       return(NULL);
     }
 
@@ -485,7 +519,7 @@ PyObject *pylql_cursor_init(PyTypeObject *type, PyObject *args, PyObject *kwargs
     leela_endpoint_free(e);
     if (self->cursor == NULL)
     {
-      Py_DECREF(self);
+      Py_XDECREF(self);
       PyErr_SetString(PyExc_RuntimeError, "parse error");
       return(NULL);
     }
@@ -553,7 +587,7 @@ PyObject *pylql_context_cursor(PyObject *self, PyObject *args)
   { return(NULL); }
 
   PyObject *result = pylql_cursor_init(&pylql_cursor_type, myargs, NULL);
-  Py_DECREF(myargs);
+  Py_XDECREF(myargs);
   return(result);
 }
 
@@ -691,7 +725,7 @@ PyObject *pylql_cursor_fetch(PyObject *self, PyObject *args)
   {
     Py_XDECREF(type);
     Py_XDECREF(value);
-    Py_DECREF(pyrow);
+    Py_XDECREF(pyrow);
     if (PyErr_Occurred() == NULL)
     { PyErr_SetString(PyExc_RuntimeError, "error reading"); }
     return(NULL);
@@ -700,7 +734,7 @@ PyObject *pylql_cursor_fetch(PyObject *self, PyObject *args)
   if (PyTuple_SetItem(pyrow, 0, type) != 0
       || PyTuple_SetItem(pyrow, 1, value) != 0)
   {
-    Py_DECREF(row);
+    Py_XDECREF(row);
     return(NULL);
   }
 
