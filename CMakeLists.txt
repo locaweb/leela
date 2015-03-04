@@ -51,6 +51,8 @@ endif()
 
 if(LEELA_BUILD_LIB_C)
   find_package (Threads)
+  find_library (libm NAMES m)
+  find_library (librt NAMES rt)
   find_library (libzmq NAMES libzmq.a zmq)
 
   add_subdirectory(src/libs/poly1305aes)

@@ -26,8 +26,9 @@ add_library(libleela ${LIBLEELA_TYPE}
             ${LIBLEELA_HEADERS}
             ${LIBLEELA_FILES})
 
-target_link_libraries(libleela libpoly1305aes ${libzmq} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(libleela libpoly1305aes ${libzmq} ${libm} ${librt} ${CMAKE_THREAD_LIBS_INIT})
 
+set_target_properties(libleela PROPERTIES LINKER_LANGUAGE CXX)
 set_target_properties(libleela PROPERTIES INCLUDE_DIRECTORIES ${CMAKE_SOURCE_DIR}/src/libs/poly1305aes/src)
 set_target_properties(libleela PROPERTIES PUBLIC_HEADER "${LIBLEELA_HEADERS}")
 set_target_properties(libleela PROPERTIES OUTPUT_NAME leela)
