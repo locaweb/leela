@@ -40,7 +40,7 @@ LIBLEELA_HEAD
 #define LEELA_TRACE2(ctx, fmt, arg0, arg1) lql_trace(ctx, "[trace] %s:%d: " #fmt, LEELA_FILE__, __LINE__, arg0, arg1)
 #define LEELA_TRACE3(ctx, fmt, arg0, arg1, arg2) lql_trace(ctx, "[trace] %s:%d: " #fmt, LEELA_FILE__, __LINE__, arg0, arg1, arg2)
 
-typedef void (*log_function_f)(const char*, va_list);
+typedef void (*log_function_f)(void *, const char*, va_list);
 typedef struct lql_cursor_t lql_cursor_t;
 typedef struct lql_context_t lql_context_t;
 
@@ -172,9 +172,13 @@ LIBLEELA_API lql_context_t *leela_lql_context_init (const leela_endpoint_t *cons
  *
  *  \param debug_f The function to use to log debug messages (may be NULL);
  *
- *  \param trace_f The function to use to trace the lql protocol (may be NULL);  
+ *  \param debug_data An opaque pointer to pass to debug_f function (may be NULL);
+ *
+ *  \param trace_f The function to use to trace the lql protocol (may be NULL);
+ *
+ *  \param trace_data An opaque pointer to pass to trace_f function (may be NULL);
  */
-LIBLEELA_API lql_context_t *leela_lql_context_init2 (const leela_endpoint_t *const *warpdrive, const char *username, const char *secret, int timeout_in_ms, log_function_f debug_f, log_function_f trace_f);
+LIBLEELA_API lql_context_t *leela_lql_context_init2 (const leela_endpoint_t *const *warpdrive, const char *username, const char *secret, int timeout_in_ms, log_function_f debug_f, void *debug_data, log_function_f trace_f, void *trace_data);
 
 /*! Creates a new cursor.  This selects one available warpdrive
  *  instance to connect to. The actual load balancing algorithm is

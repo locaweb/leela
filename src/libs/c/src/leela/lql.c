@@ -40,7 +40,9 @@ struct lql_context_t
   int                timeout;
   unsigned char      nonce[LEELA_SIGNATURE_NONCE_SIZE];
   log_function_f     debug_f;
+  void              *debug_data;
   log_function_f     trace_f;
+  void              *trace_data;
 };
 
 
@@ -63,7 +65,7 @@ void lql_debug (lql_context_t *ctx, const char *fmt, ...)
   if (ctx != NULL && ctx->debug_f != NULL)
   {
     va_start(argp, fmt);
-    ctx->debug_f(fmt, argp);
+    ctx->debug_f(ctx->debug_data, fmt, argp);
     va_end(argp);
   }
 }
@@ -74,7 +76,7 @@ void lql_trace (lql_context_t *ctx, const char *fmt, ...)
   if (ctx != NULL && ctx->trace_f != NULL)
   {
     va_start(argp, fmt);
-    ctx->trace_f(fmt, argp);
+    ctx->trace_f(ctx->trace_data, fmt, argp);
     va_end(argp);
   }
 }
@@ -449,9 +451,9 @@ handle_error:
 }
 
 lql_context_t *leela_lql_context_init (const leela_endpoint_t *const *warpdrive, const char *username, const char *secret, int timeout_in_ms)
-{ return(leela_lql_context_init2(warpdrive, username, secret, timeout_in_ms, NULL, NULL)); }
+{ return(leela_lql_context_init2(warpdrive, username, secret, timeout_in_ms, NULL, NULL, NULL, NULL)); }
 
-lql_context_t *leela_lql_context_init2 (const leela_endpoint_t *const *warpdrive, const char *username, const char *secret, int timeout_in_ms, log_function_f debug_f, log_function_f trace_f)
+lql_context_t *leela_lql_context_init2 (const leela_endpoint_t *const *warpdrive, const char *username, const char *secret, int timeout_in_ms, log_function_f debug_f, void *debug_data, log_function_f trace_f, void *trace_data)
 {
   unsigned char seed[LEELA_SIGNATURE_SEED_SIZE];
   lql_context_t *ctx = (lql_context_t *) malloc(sizeof(lql_context_t));
@@ -473,7 +475,9 @@ lql_context_t *leela_lql_context_init2 (const leela_endpoint_t *const *warpdrive
     ctx->username    = leela_strdup(username);
     ctx->sig         = leela_signature_init(seed);
     ctx->debug_f     = debug_f;
+    ctx->debug_data  = debug_data;
     ctx->trace_f     = trace_f;
+    ctx->trace_data  = trace_data;
 
     if (ctx->random == NULL)
     {
