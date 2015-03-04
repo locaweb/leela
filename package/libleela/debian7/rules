@@ -1,0 +1,12 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+
+%:
+	dh $@ -Scmake
+
+override_dh_auto_configure:
+	dh_auto_configure -- "-DLEELA_INSTALL_LIBDIR=$(DEB_HOST_MULTIARCH)/lib"
+
+.PHONY: leela_get_source

@@ -1,46 +1,52 @@
-leela-c (6.3.0-1) stable; urgency=low
+libleela (6.4.0-1) stable; urgency=low
+
+  * renamed to libleela
+
+ -- Diego Souza <dsouza@c0d3.xxx>  Wed, 04 Mar 2015 13:17:16 -0300
+
+libleela (6.3.0-1) stable; urgency=low
 
   * new feature release
 
  -- Diego Souza <dsouza@c0d3.xxx>  Wed, 04 Jun 2014 13:34:03 -0300
 
-leela-c (6.2.0-1) stable; urgency=low
+libleela (6.2.0-1) stable; urgency=low
 
   * new feature release
 
  -- Diego Souza <dsouza@c0d3.xxx>  Wed, 28 May 2014 20:39:32 -0300
 
-leela-c (6.1.0-1) stable; urgency=low
+libleela (6.1.0-1) stable; urgency=low
 
   * new feature release
 
  -- Diego Souza <dsouza@c0d3.xxx>  Sat, 17 May 2014 17:23:00 -0300
 
-leela-c (6.0.1-1) changelog; urgency=low
+libleela (6.0.1-1) changelog; urgency=low
 
   * bugfix release
 
  -- Diego Souza <dsouza@c0d3.xxx>  Fri, 16 May 2014 17:59:43 -0300
 
-leela-c (6.0.0-2) stable; urgency=low
+libleela (6.0.0-2) stable; urgency=low
 
   * new feature release
 
  -- Diego Souza <dsouza@c0d3.xxx>  Wed, 14 May 2014 20:49:31 -0300
 
-leela-c (5.2.1-1) stable; urgency=low
+libleela (5.2.1-1) stable; urgency=low
 
   * bugfix release
 
  -- Diego Souza <dsouza@c0d3.xxx>  Wed, 14 May 2014 17:16:26 -0300
 
-leela-c (5.2.0-3) stable; urgency=low
+libleela (5.2.0-3) stable; urgency=low
 
   * new feature release
 
  -- Diego Souza <dsouza@c0d3.xxx>  Wed, 14 May 2014 10:34:44 -0300
 
-leela-c (4.0.0-21) stable; urgency=low
+libleela (4.0.0-21) stable; urgency=low
 
   * debian package
 

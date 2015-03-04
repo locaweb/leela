@@ -1,7 +1,7 @@
-Name:           leela-c
+Name:           libleela
 Group:          libs
-Version:        %(env component=.leela-c ../../../src/scripts/read-version.sh)
-Release:        1%{?dist}
+Version:        %(env component=.libleela ../../../src/scripts/read-version.sh)
+Release:        1
 Summary:        A client library for leela
 
 License:        ASL 2.0
@@ -25,8 +25,8 @@ Requires:       libzmq3
  protocol.
 
 %prep
-%setup -q -n leela-c-%{version}
-cmake -DCMAKE_INSTALL_PREFIX="$RPM_BUILD_ROOT/usr" -DLEELA_INSTALL_LIBDIR=%(basename %{_libdir})
+%setup -q -n libleela-%{version}
+cmake28 -DCMAKE_INSTALL_PREFIX="$RPM_BUILD_ROOT/usr" -DLEELA_INSTALL_LIBDIR=%(basename %{_libdir})
 
 %build
 make
@@ -34,7 +34,7 @@ make
 %install
 make install
 
-%files -n leela-c
+%files -n libleela
 %defattr(-,root,root)
 %{_includedir}/leela
 %{_includedir}/poly1305aes

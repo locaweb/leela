@@ -15,10 +15,12 @@ option(LEELA_BUILD_WARPDRIVE  "builds the warpdrive binary" OFF)
 option(LEELA_BUILD_BLACKBOX   "builds the blackbox binary" OFF)
 
 set(LEELA_INSTALL_LIBDIR "lib" CACHE string "the relative library directory")
+set(LEELA_INSTALL_ARCDIR "lib" CACHE string "the relative archive directory")
 set(LEELA_INSTALL_BINDIR "bin" CACHE string "the relative binary directory")
+set(LEELA_INSTALL_HDRDIR "include" CACHE string "the relative include directory")
 
-execute_process(COMMAND env component=.leela-c "${CMAKE_SOURCE_DIR}/src/scripts/read-version.sh" OUTPUT_VARIABLE LIBLEELA_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
-execute_process(COMMAND env format=\$major component=.leela-c "${CMAKE_SOURCE_DIR}/src/scripts/read-version.sh" OUTPUT_VARIABLE LIBLEELA_SOVERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND env component=.libleela "${CMAKE_SOURCE_DIR}/src/scripts/read-version.sh" OUTPUT_VARIABLE LIBLEELA_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND env format=\$major component=.libleela "${CMAKE_SOURCE_DIR}/src/scripts/read-version.sh" OUTPUT_VARIABLE LIBLEELA_SOVERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 macro(leela_check_symbol_append symbol header symname)
   check_symbol_exists(${symbol} "${header}" HAS_SYM_${symname})
