@@ -1,5 +1,8 @@
 -*- mode: text; -*-
 
+v6.4.1 | 2015-03-04
+  * log_function_f now takes an opaque pointer
+
 v6.4.0-1 | 2015-02-20
   * leela-c is using its own changelog file
 
