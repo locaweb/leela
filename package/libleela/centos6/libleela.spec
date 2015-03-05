@@ -1,15 +1,15 @@
 Name:           libleela
 Group:          Libraries
-Version:        %(env component=.libleela "$srcroot/src/scripts/read-version.sh")
+Version:        %(env component=.libleela "${srcroot:-../../..}/src/scripts/read-version.sh")
 Release:        1
-Summary:        Leela C Client
+Summary:        Leela C Library
 
 License:        ASL 2.0
 URL:            https://github.com/locaweb/leela
 Source0:        %{name}-%{version}.tar.gz
 
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
-BuildRequires:  make, gcc >= 4
+BuildRequires:  make, gcc >= 4, cmake >= 2.8.9
 
 %package -n libleela-devel
 Group: Development/Libraries
