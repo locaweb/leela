@@ -98,6 +98,13 @@ chroot "$target" /usr/bin/env arch=$arch PATH=/sbin:/bin:/usr/sbin:/usr/bin /boo
 EOF
       ;;
 
+    7)
+      cat <<EOF >"$centos_conf_post_script"
+#!/bin/sh
+chroot "$target" /usr/bin/env arch=$arch PATH=/sbin:/bin:/usr/sbin:/usr/bin /bootstrap/centos7-bootstrap.sh
+EOF
+      ;;
+
     *)
       echo "unknown dist version: \`$dist'"
       return 1
@@ -129,11 +136,17 @@ makeimg_centos () {
   makeimg_remove_target
 }
 
+if echo "$@" | grep -q '\bcentos7.i386\b'
+then makeimg_centos i386 7; fi
+
 if echo "$@" | grep -q '\bcentos6.i386\b'
 then makeimg_centos i386 6; fi
 
 if echo "$@" | grep -q '\bcentos5.i386\b'
 then makeimg_centos i386 5; fi
+
+if echo "$@" | grep -q '\bcentos7.amd64\b'
+then makeimg_centos amd64 7; fi
 
 if echo "$@" | grep -q '\bcentos6.amd64\b'
 then makeimg_centos amd64 6; fi
