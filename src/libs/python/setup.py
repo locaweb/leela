@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+import os
+import sys
 from distutils.core import setup
 from distutils.core import Extension
 
@@ -8,8 +10,18 @@ ffi_lql = Extension("_leela_lql",
                     libraries           = ["leela"],
                     extra_compile_args  = ["-Wall"])
 
+def read_version ():
+    base = os.path.dirname(sys.modules[__name__].__file__)
+    changelog = os.path.join(base, "../../../CHANGELOG.libleela-python")
+    with open(changelog, "r") as fh:
+        for entry in fh:
+            if (entry.startswith("v")):
+                version = entry.split(" ", 2)[0]
+                return(version[1:])
+    raise(RuntimeError("could not read package version"))
+
 setup(name="leela",
-      version      = "6.3.0",
+      version      = read_version(),
       license      = "APACHE-2",
       description  = "Leela - scalable metrics monitoring engine",
       author       = "Diego Souza",

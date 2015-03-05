@@ -19,7 +19,6 @@ update_version () {
   echo " updating file: $1"
   [ "$name" = project.clj     ] && $bin_sed -i '/^(defproject blackbox/c\(defproject blackbox "'$version'"' $1
   [ "$name" = warpdrive.cabal ] && $bin_sed -i -r 's/^version:( *).*/version:\1'$version'/' $1
-  [ "$name" = setup.py        ] && $bin_sed -i -r 's/^( *)version( *)= *".*"(.*)/\1version\2= "'$version'"\3/' $1
 }
 
 write_c_hversion () {
