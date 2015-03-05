@@ -91,7 +91,7 @@ rpm_install () {
     if ! run_cmd_quiet rpm -qi "$pkg"
     then
       msg_info "INSTALL $pkg"
-      run_cmd_echo yum install -y "$pkg"
+      run_cmd_echo ${yumcommand:-yum install -y} "$pkg"
     fi
   done
 }
@@ -138,9 +138,9 @@ run_installer () {
     "$1"; rc=$?
   else
     buildroot=$(mktemp -d) && {
-      trap "rm -rf \"$buildroot\"" INT QUIT TERM EXIT
+      # trap "rm -rf \"$buildroot\"" INT QUIT TERM EXIT
       "$1"; rc=$?
-      run_cmd_quiet rm -rf "$buildroot"
+      # run_cmd_quiet rm -rf "$buildroot"
     }
   fi
   return $rc
