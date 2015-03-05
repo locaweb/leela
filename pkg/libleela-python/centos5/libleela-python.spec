@@ -1,6 +1,6 @@
 Name:           libleela-python
 Group:          Libraries
-Version:        %(env component=.libleela-python "${srcroot:../../..}/src/scripts/read-version.sh")
+Version:        %(env component=.libleela-python "${srcroot:-../..}/../src/scripts/read-version.sh")
 Release:        1
 Summary:        Leela Python Library
 
@@ -9,7 +9,7 @@ URL:            https://github.com/locaweb/leela
 Source0:        %{name}-%{version}.tar.gz
 
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
-BuildRequires:  make, gcc >= 4, libleela-devel, python-devel >= 2.6
+BuildRequires:  make, gcc >= 3, libleela-devel, python26-devel
 
 Requires:       libleela, python
 

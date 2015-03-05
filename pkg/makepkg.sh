@@ -2,12 +2,12 @@
 
 set -e
 
-srcroot=${srcroot:-$(dirname $(readlink -f "$0"))/..}
+srcroot=${srcroot:-$(dirname $(readlink -f "$0"))}
 distroot=$2
 
 makepkg_collect () {
   local distdir
-  distdir="$srcroot/package/dist/${dist:-unknown-dist}/${arch:-unknown-arch}/${package:-unknown-package}"
+  distdir="$srcroot/dist/${dist:-unknown-dist}/${arch:-unknown-arch}/${package:-unknown-package}"
   mkdir -p "$distdir"
   find "$1" -maxdepth 1 -type f -exec cp -a {} "$distdir" \;
 }
@@ -16,9 +16,9 @@ makepkg_debian () {
   local buildroot
   buildroot=$(mktemp -d) && {
     trap "rm -rf \"$buildroot\"" INT QUIT TERM EXIT
-    "$srcroot/package/mksource.sh" | tar -C "$buildroot" -xz
+    "$srcroot/mksource.sh" | tar -C "$buildroot" -xz
     cd "$buildroot/$package-$version"
-    ln -sfn "package/$package/$dist" debian
+    ln -sfn "pkg/$package/$dist" debian
     dpkg-buildpackage -us -uc
     makepkg_collect "$buildroot"
     rm -rf "$buildroot"
@@ -44,17 +44,17 @@ makepkg_centos () {
   makepkg_rpm_getdir rpmspcdir %{_specdir}
   makepkg_rpm_getdir rpmsrcdir %{_sourcedir}
 
-  "$srcroot/package/mksource.sh" >"$rpmsrcdir/$package-$version.tar.gz"
-  cp "$srcroot/package/$package/$dist/$package.spec" "$rpmspcdir/"
+  "$srcroot/mksource.sh" >"$rpmsrcdir/$package-$version.tar.gz"
+  cp "$srcroot/$package/$dist/$package.spec" "$rpmspcdir/"
   rpmbuild -ba "$rpmspcdir/$package.spec"
 }
 
 makepkg_bootstrap () {
   if echo "$dist" | grep -qE '^debian[67]$|^centos[567]$'
-  then "$srcroot/automation/bootstrap/$dist-bootstrap.sh"; fi
+  then "$srcroot/../automation/bootstrap/$dist-bootstrap.sh"; fi
   case "$package" in
     leela-c)
-      "$srcroot/automation/bootstrap/zeromq-bootstrap.sh"
+      "$srcroot/../automation/bootstrap/zeromq-bootstrap.sh"
       ;;
   esac
 }

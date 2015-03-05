@@ -1,6 +1,5 @@
 
 srcroot   = $(CURDIR)/..
-distdir   = "/target/package/dist/$(package)/$(dist).$(arch)"
 version   = $(shell env component=$(component) $(srcroot)/src/scripts/read-version.sh)
 
 %.debian: dist=debian7

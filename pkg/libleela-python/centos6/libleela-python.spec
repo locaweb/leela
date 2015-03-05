@@ -1,6 +1,6 @@
 Name:           libleela-python
 Group:          Libraries
-Version:        %(env component=.libleela-python "${srcroot:-../../..}/src/scripts/read-version.sh")
+Version:        %(env component=.libleela-python "${srcroot:-../../..}/../src/scripts/read-version.sh")
 Release:        1
 Summary:        Leela Python Library
 
