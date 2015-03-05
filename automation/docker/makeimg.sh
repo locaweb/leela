@@ -4,6 +4,8 @@ set -e
 
 srcroot=${srcroot:-$(dirname $(readlink -f "$0"))}
 
+with_path="/usr/bin/env PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin"
+
 makeimg_mount_target () {
   target=$(mktemp -d)
   trap "makeimg_umount_target; makeimg_remove_target" INT QUIT TERM EXIT
@@ -26,14 +28,14 @@ makeimg_configure_debian () {
       name=wheezy
       cat <<EOF >"$debian_conf_post_script"
 #!/bin/sh
-chroot "$target" /usr/bin/env PATH=/sbin:/bin:/usr/sbin:/usr/bin /bootstrap/debian7-bootstrap.sh
+chroot "$target" $with_path /bootstrap/debian7-bootstrap.sh
 EOF
       ;;
     6)
       name=squeeze
       cat <<EOF >"$debian_conf_post_script"
 #!/bin/sh
-chroot "$target" /usr/bin/env PATH=/sbin:/bin:/usr/sbin:/usr/bin /bootstrap/debian6-bootstrap.sh
+chroot "$target" $with_path /bootstrap/debian6-bootstrap.sh
 EOF
       ;;
     *)
@@ -73,6 +75,7 @@ makeimg_configure_centos () {
 
   cat <<EOF >"$centos_conf_pre_script"
 #!/bin/sh
+
 sed -i s/enabled=0/enabled=1/g "$target/etc/yum.repos.d/CentOS-Base.repo"
 sed -i s/'\$releasever'/$dist/g "$target/etc/yum.repos.d/CentOS-Base.repo" "$target/etc/yum.conf"
 if [ "$arch" = i386 ]
@@ -87,21 +90,24 @@ EOF
     5)
       cat <<EOF >"$centos_conf_post_script"
 #!/bin/sh
-chroot "$target" /usr/bin/env arch=$arch PATH=/sbin:/bin:/usr/sbin:/usr/bin /bootstrap/centos5-bootstrap.sh
+chroot "$target" /bootstrap/centos5-bootstrap.sh
+chroot "$target" yum upgrade -y
 EOF
       ;;
 
     6)
       cat <<EOF >"$centos_conf_post_script"
 #!/bin/sh
-chroot "$target" /usr/bin/env arch=$arch PATH=/sbin:/bin:/usr/sbin:/usr/bin /bootstrap/centos6-bootstrap.sh
+chroot "$target" /bootstrap/centos6-bootstrap.sh
+chroot "$target" yum upgrade -y
 EOF
       ;;
 
     7)
       cat <<EOF >"$centos_conf_post_script"
 #!/bin/sh
-chroot "$target" /usr/bin/env arch=$arch PATH=/sbin:/bin:/usr/sbin:/usr/bin /bootstrap/centos7-bootstrap.sh
+chroot "$target" /bootstrap/centos7-bootstrap.sh
+chroot "$target" yum upgrade -y
 EOF
       ;;
 
@@ -125,7 +131,8 @@ makeimg_centos () {
   echo "MAKE centos-$dist-$arch"
   makeimg_mount_target
   makeimg_configure_centos
-  rinse --arch $arch \
+  $with_path rinse \
+        --arch $arch \
         --distribution centos-$dist \
         --directory "$target" \
         --after-post-install "$centos_conf_post_script" \
