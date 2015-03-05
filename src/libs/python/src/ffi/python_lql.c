@@ -734,7 +734,7 @@ PyObject *pylql_cursor_fetch(PyObject *self, PyObject *args)
   if (PyTuple_SetItem(pyrow, 0, type) != 0
       || PyTuple_SetItem(pyrow, 1, value) != 0)
   {
-    Py_XDECREF(row);
+    Py_XDECREF(pyrow);
     return(NULL);
   }
 
