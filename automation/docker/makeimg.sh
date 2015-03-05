@@ -129,12 +129,26 @@ makeimg_centos () {
   makeimg_remove_target
 }
 
-makeimg_centos i386 6
-makeimg_centos i386 5
-makeimg_centos amd64 6
-makeimg_centos amd64 5
+if echo "$@" | grep -q '\bcentos6.i386\b'
+then makeimg_centos i386 6; fi
 
-makeimg_debian i386 7
-makeimg_debian i386 6
-makeimg_debian amd64 7
-makeimg_debian amd64 6
+if echo "$@" | grep -q '\bcentos5.i386\b'
+then makeimg_centos i386 5; fi
+
+if echo "$@" | grep -q '\bcentos6.amd64\b'
+then makeimg_centos amd64 6; fi
+
+if echo "$@" | grep -q '\bcentos5.amd64\b'
+then makeimg_centos amd64 5; fi
+
+if echo "$@" | grep -q '\bdebian7.i386\b'
+then makeimg_debian i386 7; fi
+
+if echo "$@" | grep -q '\bdebian6.i386\b'
+then makeimg_debian i386 6; fi
+
+if echo "$@" | grep -q '\bdebian7.amd64\b'
+then makeimg_debian amd64 7; fi
+
+if echo "$@" | grep -q '\bdebian6.amd64\b'
+then makeimg_debian amd64 6; fi
