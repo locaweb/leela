@@ -85,7 +85,6 @@ EOF
 
   case "$dist" in
     5)
-      wget -O"$target/epel.rpm" "http://download.fedoraproject.org/pub/epel/5/i386/epel-release-5-4.noarch.rpm"
       cat <<EOF >"$centos_conf_post_script"
 #!/bin/sh
 chroot "$target" /usr/bin/env PATH=/sbin:/bin:/usr/sbin:/usr/bin /bootstrap/centos5-bootstrap.sh
@@ -133,9 +132,9 @@ makeimg_centos () {
 # makeimg_centos i386 6
 # makeimg_centos i386 5
 # makeimg_centos amd64 6
-# makeimg_centos amd64 5
+makeimg_centos amd64 5
 
 # makeimg_debian i386 7
-makeimg_debian i386 6
-makeimg_debian amd64 7
-makeimg_debian amd64 6
+# makeimg_debian i386 6
+# makeimg_debian amd64 7
+# makeimg_debian amd64 6
