@@ -93,11 +93,9 @@ following table explains in details these relationships:
 These scripts were tested using debian and centos images. But they
 would probably work in other distros as well, like arch linux.
 
-## Packaging
+### Packaging
 
-This assumes you followed the procedure described in the Development
-section.
-
+If everything went right, you should be able to create the packages:
 
 ```
     $ make -C /leela/package libleela.debian7 arch=amd64
@@ -105,6 +103,9 @@ section.
 ```
 
 The packages are stored under the ``/leela/package/dist/`` directory.
+
+For more information about compiling and packaging, refer to the
+``doc`` directory.
 
 ## Contribute
 
