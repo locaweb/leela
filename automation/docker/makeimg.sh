@@ -87,14 +87,14 @@ EOF
     5)
       cat <<EOF >"$centos_conf_post_script"
 #!/bin/sh
-chroot "$target" /usr/bin/env PATH=/sbin:/bin:/usr/sbin:/usr/bin /bootstrap/centos5-bootstrap.sh
+chroot "$target" /usr/bin/env arch=$arch PATH=/sbin:/bin:/usr/sbin:/usr/bin /bootstrap/centos5-bootstrap.sh
 EOF
       ;;
 
     6)
       cat <<EOF >"$centos_conf_post_script"
 #!/bin/sh
-chroot "$target" /usr/bin/env PATH=/sbin:/bin:/usr/sbin:/usr/bin /bootstrap/centos6-bootstrap.sh
+chroot "$target" /usr/bin/env arch=$arch PATH=/sbin:/bin:/usr/sbin:/usr/bin /bootstrap/centos6-bootstrap.sh
 EOF
       ;;
 
@@ -129,12 +129,12 @@ makeimg_centos () {
   makeimg_remove_target
 }
 
-# makeimg_centos i386 6
-# makeimg_centos i386 5
-# makeimg_centos amd64 6
+makeimg_centos i386 6
+makeimg_centos i386 5
+makeimg_centos amd64 6
 makeimg_centos amd64 5
 
-# makeimg_debian i386 7
-# makeimg_debian i386 6
-# makeimg_debian amd64 7
-# makeimg_debian amd64 6
+makeimg_debian i386 7
+makeimg_debian i386 6
+makeimg_debian amd64 7
+makeimg_debian amd64 6
