@@ -7,7 +7,7 @@ distroot=$2
 
 makepkg_collect () {
   local distdir
-  distdir="$srcroot/package/dist/${dist:-unknown-dist}/${arch:-unknown-arch}"
+  distdir="$srcroot/package/dist/${dist:-unknown-dist}/${arch:-unknown-arch}/${package:-unknown-package}"
   mkdir -p "$distdir"
   find "$1" -maxdepth 1 -type f -exec cp -a {} "$distdir" \;
 }
