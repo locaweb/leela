@@ -41,7 +41,7 @@ First, there are two possible paths:
 2. use your own machine, which must be either centos or debian;
 
 The following creates the dev environment using docker, since we find
-using it easier.
+it easier.
 
 1. Create the base images:
 
@@ -104,8 +104,8 @@ If everything went right, you should be able to create the packages:
 
 The packages are stored under the ``/leela/package/dist/`` directory.
 
-For more information about compiling and packaging, refer to the
-``doc`` directory.
+For more information about compiling, testing and packaging, refer to
+the ``doc`` directory.
 
 ## Contribute
 
