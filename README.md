@@ -26,14 +26,6 @@ For an example, these entities can be easily represented in leela:
            +------------+    +-----+
 ```
            
-## Development
-
-Refer to ```doc/docs/devel-guide/environment.md```
-
-## Install
-
-Refer to ```doc/docs/admin-guide/install-leela.md```
-
 ## Contribute
 
 Any help is welcome and there is no formal process. Just remember:
@@ -46,7 +38,7 @@ Any help is welcome and there is no formal process. Just remember:
 
 ## Documentation
 
-* http://leela.rtfd.org/
+* http://locaweb.github.io/leela
 
 ## License
 
