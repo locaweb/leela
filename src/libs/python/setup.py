@@ -11,8 +11,7 @@ ffi_lql = Extension("_leela_lql",
                     extra_compile_args  = ["-Wall"])
 
 def read_version ():
-    base = os.path.dirname(sys.modules[__name__].__file__)
-    changelog = os.path.join(base, "../../../CHANGELOG.libleela-python")
+    changelog = "../../../CHANGELOG.libleela-python"
     with open(changelog, "r") as fh:
         for entry in fh:
             if (entry.startswith("v")):
