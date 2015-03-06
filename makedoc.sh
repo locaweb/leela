@@ -2,10 +2,17 @@
 
 set -e
 
+branch=${branch:-origin/master}
+
+mkdocs_bin=${mkdocs_bin:-mkdocs}
+
 buildroot=$(mktemp -d) && {
   trap "rm -rf \"$buildroot\"" INT QUIT TERM EXIT
-  git archive --format=tar --prefix=leela/ ${branch:-master} | tar -C "$buildroot" -x
-  (cd "$buildroot/leela/doc" && "${mkdocs_bin:-mkdocs}" build)
+  git fetch; git fetch --tags
+  git archive --format=tar --prefix=leela/ "$branch" | tar -C "$buildroot" -x
+  tag=$(git describe --long --tags "$branch")
+  sed -i "s/@version@/$tag/g" "$buildroot/leela/doc/mkdocs.yml"
+  (cd "$buildroot/leela/doc" && "$mkdocs_bin" build)
   rm -rf doc
   mv "$buildroot/leela/doc/site/" doc/
   rm -rf "$buildroot"
