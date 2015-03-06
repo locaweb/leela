@@ -3,6 +3,7 @@
 set -e
 
 srcroot=${srcroot:-$(dirname $(readlink -f "$0"))}
+all_images=$(echo centos{5,6,7}.{amd64,i386} debian{6,7}.{amd64,i386})
 
 with_path="/usr/bin/env PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin"
 
@@ -62,7 +63,7 @@ makeimg_debian () {
   "$debian_conf_post_script"
   makeimg_umount_target
 
-  tar -C "$target" -c . | docker import - leela/debian-$dist-$arch
+  tar -C "$target" -c . | docker import - leela/debian$dist-$arch
   makeimg_remove_target
 }
 
@@ -139,36 +140,42 @@ makeimg_centos () {
         --before-post-install "$centos_conf_pre_script"
   makeimg_umount_target
 
-  tar -C "$target" -c . | docker import - leela/centos-$dist-$arch
+  tar -C "$target" -c . | docker import - leela/centos$dist-$arch
   makeimg_remove_target
 }
 
-if echo "$@" | grep -q '\bcentos7.i386\b'
-then makeimg_centos i386 7; fi
+if [ "$#" -eq 0 ]
+then
+  for img in $all_images
+  do echo $img; done
+else
+  if echo "$@" | grep -q '\bcentos7.i386\b'
+  then makeimg_centos i386 7; fi
 
-if echo "$@" | grep -q '\bcentos6.i386\b'
-then makeimg_centos i386 6; fi
+  if echo "$@" | grep -q '\bcentos6.i386\b'
+  then makeimg_centos i386 6; fi
 
-if echo "$@" | grep -q '\bcentos5.i386\b'
-then makeimg_centos i386 5; fi
+  if echo "$@" | grep -q '\bcentos5.i386\b'
+  then makeimg_centos i386 5; fi
 
-if echo "$@" | grep -q '\bcentos7.amd64\b'
-then makeimg_centos amd64 7; fi
+  if echo "$@" | grep -q '\bcentos7.amd64\b'
+  then makeimg_centos amd64 7; fi
 
-if echo "$@" | grep -q '\bcentos6.amd64\b'
-then makeimg_centos amd64 6; fi
+  if echo "$@" | grep -q '\bcentos6.amd64\b'
+  then makeimg_centos amd64 6; fi
 
-if echo "$@" | grep -q '\bcentos5.amd64\b'
-then makeimg_centos amd64 5; fi
+  if echo "$@" | grep -q '\bcentos5.amd64\b'
+  then makeimg_centos amd64 5; fi
 
-if echo "$@" | grep -q '\bdebian7.i386\b'
-then makeimg_debian i386 7; fi
+  if echo "$@" | grep -q '\bdebian7.i386\b'
+  then makeimg_debian i386 7; fi
 
-if echo "$@" | grep -q '\bdebian6.i386\b'
-then makeimg_debian i386 6; fi
+  if echo "$@" | grep -q '\bdebian6.i386\b'
+  then makeimg_debian i386 6; fi
 
-if echo "$@" | grep -q '\bdebian7.amd64\b'
-then makeimg_debian amd64 7; fi
+  if echo "$@" | grep -q '\bdebian7.amd64\b'
+  then makeimg_debian amd64 7; fi
 
-if echo "$@" | grep -q '\bdebian6.amd64\b'
-then makeimg_debian amd64 6; fi
+  if echo "$@" | grep -q '\bdebian6.amd64\b'
+  then makeimg_debian amd64 6; fi
+fi
