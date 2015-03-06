@@ -4,24 +4,27 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
   <title>Environment - Leela</title>
+  
 
   
   <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
 
   <link rel="stylesheet" href="../../css/theme.css" type="text/css" />
-  
- 
-  <script type="text/javascript" src="https://code.jquery.com/jquery-1.11.2.min.js"></script>
-  <script type="text/javascript" src="../../js/theme.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.6.2/modernizr.min.js"></script>
-  
+  <link rel="stylesheet" href="../../css/theme_extra.css" type="text/css" />
+  <link rel="stylesheet" href="../../css/highlight.css">
+
+  <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
+  <script type="text/javascript" src="../../js/highlight.pack.js"></script>
+  <script src="../../js/theme.js"></script>
 
   <style>
     body {font-size: 90%;}
     pre, code {font-size: 100%;}
     h3, h4, h5, h6 {color: #2980b9; font-weight: 300}
-  </style>
+  </style> 
 </head>
 
 <body class="wy-body-for-nav" role="document">
@@ -32,37 +35,95 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
       <div class="wy-side-nav-search">
         <a href="../.." class="icon icon-home"> Leela</a>
-        <div role="search">
-  <form id ="rtd-search-form" class="wy-form" action="" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
-    <input type="hidden" name="check_keywords" value="yes" />
-    <input type="hidden" name="area" value="default" />
-  </form>
-</div>
+        
       </div>
 
       <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-       <ul class="current">
-
-    <li class="toctree-l1 ">
-        <a class="" href="">User guide</a>
+      <ul class="current">
+    
         
-    </li>
-
-    <li class="toctree-l1 ">
-        <a class="" href="">Devel guide</a>
+        <span>User guide</span>
+            
+                <li class="toctree-l1 ">
+                    <a class="" href="../../user-guide/http-interface">Http interface</a>
+                    
+                </li>
+            
+                <li class="toctree-l1 ">
+                    <a class="" href="../../user-guide/leela-query-language">Leela query language</a>
+                    
+                </li>
+            
+                <li class="toctree-l1 ">
+                    <a class="" href="../../user-guide/zeromq-interface">Zeromq interface</a>
+                    
+                </li>
+            
         
-    </li>
 
-    <li class="toctree-l1 ">
-        <a class="" href="">Admin guide</a>
+    
         
-    </li>
+        <span>Devel guide</span>
+            
+                <li class="toctree-l1 ">
+                    <a class="" href="../architecture">Architecture</a>
+                    
+                </li>
+            
+                <li class="toctree-l1 current">
+                    <a class="current" href=".">Environment</a>
+                    
+                        <ul>
+                        
+                            <li class="toctree-l2"><a href="#development-environment">Development Environment</a></li>
+                            
+                                <li><a class="toctree-l3" href="#client-libraries">Client Libraries</a></li>
+                            
+                        
+                        </ul>
+                    
+                </li>
+            
+                <li class="toctree-l1 ">
+                    <a class="" href="../network-protocol">Network protocol</a>
+                    
+                </li>
+            
+                <li class="toctree-l1 ">
+                    <a class="" href="../security">Security</a>
+                    
+                </li>
+            
+        
 
+    
+        
+        <span>Admin guide</span>
+            
+                <li class="toctree-l1 ">
+                    <a class="" href="../../admin-guide/install-cassandra">Install cassandra</a>
+                    
+                </li>
+            
+                <li class="toctree-l1 ">
+                    <a class="" href="../../admin-guide/install-consul">Install consul</a>
+                    
+                </li>
+            
+                <li class="toctree-l1 ">
+                    <a class="" href="../../admin-guide/install-leela">Install leela</a>
+                    
+                </li>
+            
+                <li class="toctree-l1 ">
+                    <a class="" href="../../admin-guide/tuning-leela">Tuning leela</a>
+                    
+                </li>
+            
+        
+
+    
 </ul>
-
-
-
 
       </div>
       &nbsp;
@@ -90,29 +151,30 @@
   <hr/>
 </div>
           <div role="main">
-            <h1 id="development-environment">Development Environment</h1>
+            <div class="section">
+              <h1 id="development-environment">Development Environment</h1>
 <p>Leela is a multi-language project and getting the development
 environment right is not a trivial task. But fear not my friend, much
 has been done to make this task simpler.</p>
 <p>There are many ways of achieving this but in this document we have
-decided to use docker <a href="http://docker.io">^1</a>. Docker allows you to
+decided to use docker <sup id="fnref:1"><a class="footnote-ref" href="#fn:1" rel="footnote">1</a></sup>. Docker allows you to
 create and manage linux containers [well, it actually is much more
 than that, but it is outside the scope of this document to go into
 further details], which we will use to create an isolated
 environment where we can compile, test and execute Leela.</p>
 <p>Lets first clone the project:</p>
-<pre class="prettyprint well"><code class="shell">$ git clone git://github.com/locaweb/leela.git
+<pre><code class="shell">$ git clone git://github.com/locaweb/leela.git
 $ cd leela
 </code></pre>
 
 <p>We can now create the docker images we need. To see what images are
 available, issue the command with no arguments.</p>
-<pre class="prettyprint well"><code class="shell">$ sudo ./automation/docker/makeimg.sh debian7.amd64
+<pre><code class="shell">$ sudo ./automation/docker/makeimg.sh debian7.amd64
 </code></pre>
 
 <p>This may take a while, but after it is done you should be able to see
 a new container available:</p>
-<pre class="prettyprint well"><code>$ sudo docker images
+<pre><code>$ sudo docker images
 REPOSITORY             TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
 leela/debian7-amd64    latest              2e01277ea2ca        6 hours ago         525.1 MB
 </code></pre>
@@ -140,14 +202,14 @@ variables when building:</p>
 to find libraries. The same goes for Python. For this reason, there is
 a simple script that defines a couple of environment variables that
 enables you to use this non standard path:</p>
-<pre class="prettyprint well"><code class="shell">docker $ env distroot=/tmp/leela/dist \
+<pre><code class="shell">docker $ env distroot=/tmp/leela/dist \
            /leela/automation/devel/envleela COMMAND
 </code></pre>
 
 <p>Just keep in mind that you must use the very same <code>distroot</code> to
 build leela components as often the components depends on each other.</p>
 <h4 id="libleela">libleela</h4>
-<pre class="prettyprint well"><code class="shell">$ sudo docker run \
+<pre><code class="shell">$ sudo docker run \
          --rm \
          -i -t \
          -v $(pwd):/leela \
@@ -159,7 +221,7 @@ docker $ make -C /leela/automation/devel compile.libleela
 <p>This should install files under the <code>distroot</code> variable which in
 this case we defined to <em>/tmp/leela/dist</em>. Your lib directory should
 have these files:</p>
-<pre class="prettyprint well"><code class="shell">$ ls -1F /tmp/leela/dist/lib/
+<pre><code class="shell">$ ls -1F /tmp/leela/dist/lib/
 libleela.so@
 libleela.so.6@
 libleela.so.6.4.1
@@ -168,25 +230,26 @@ libpoly1305aes.a
 
 <h4 id="libleela-python">libleela-python</h4>
 <p>If everything went OK you can build the <em>libleela-python</em>:</p>
-<pre class="prettyprint well"><code class="shell">docker $ make -C /leela/automation/devel compile.libleela-python
+<pre><code class="shell">docker $ make -C /leela/automation/devel compile.libleela-python
 </code></pre>
 
 <p>This installs the pyleela python module:</p>
-<pre class="prettyprint well"><code class="shell">docker $ /leela/automation/devel/envleela python2 -c 'import pyleela.lql'
+<pre><code class="shell">docker $ /leela/automation/devel/envleela python2 -c 'import pyleela.lql'
 </code></pre>
 
 <h4 id="libleela-ruby">libleela-ruby</h4>
 <p>TODO:fixme</p>
 
+            </div>
           </div>
           <footer>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../network-protocol/" class="btn btn-neutral float-right" title="Network protocol"/>Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href="../network-protocol" class="btn btn-neutral float-right" title="Network protocol"/>Next <span class="icon icon-circle-arrow-right"></span></a>
       
       
-        <a href="../architecture/" class="btn btn-neutral" title="Architecture"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../architecture" class="btn btn-neutral" title="Architecture"><span class="icon icon-circle-arrow-left"></span> Previous</a>
       
     </div>
   
@@ -199,8 +262,9 @@ libpoly1305aes.a
     </p>
   </div>
 
-  Built with <a href="http://www.mkdocs.org">MkDocs</a>, using the <a href="https://github.com/snide/sphinx_rtd_theme">Read the Docs theme</a>.
+  Built with <a href="http://www.mkdocs.org">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
 </footer>
+	  
         </div>
       </div>
 
@@ -210,9 +274,9 @@ libpoly1305aes.a
 
 <div class="rst-versions" role="note" style="cursor: pointer">
     <span class="rst-current-version" data-toggle="rst-current-version">
-      <a class="icon icon-github" style="float: left; color: #fcfcfc"> GitHub</a>
-      <span><a href="" style="color: #fcfcfc;">&laquo; Previous</a></span>
-      <span style="margin-left: 15px"><a href="" style="color: #fcfcfc">Next &raquo;</a></span>
+        
+      <span><a href="../architecture" style="color: #fcfcfc;">&laquo; Previous</a></span>
+      <span style="margin-left: 15px"><a href="../network-protocol" style="color: #fcfcfc">Next &raquo;</a></span>
     </span>
 </div>
 </body>

@@ -4,24 +4,27 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
   <title>Leela</title>
+  
 
   
   <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
 
   <link rel="stylesheet" href="./css/theme.css" type="text/css" />
-  
- 
-  <script type="text/javascript" src="https://code.jquery.com/jquery-1.11.2.min.js"></script>
-  <script type="text/javascript" src="./js/theme.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.6.2/modernizr.min.js"></script>
-  
+  <link rel="stylesheet" href="./css/theme_extra.css" type="text/css" />
+  <link rel="stylesheet" href="./css/highlight.css">
+
+  <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
+  <script type="text/javascript" src="./js/highlight.pack.js"></script>
+  <script src="./js/theme.js"></script>
 
   <style>
     body {font-size: 90%;}
     pre, code {font-size: 100%;}
     h3, h4, h5, h6 {color: #2980b9; font-weight: 300}
-  </style>
+  </style> 
 </head>
 
 <body class="wy-body-for-nav" role="document">
@@ -32,37 +35,86 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
       <div class="wy-side-nav-search">
         <a href="." class="icon icon-home"> Leela</a>
-        <div role="search">
-  <form id ="rtd-search-form" class="wy-form" action="" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
-    <input type="hidden" name="check_keywords" value="yes" />
-    <input type="hidden" name="area" value="default" />
-  </form>
-</div>
+        
       </div>
 
       <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-       <ul class="current">
-
-    <li class="toctree-l1 ">
-        <a class="" href="">User guide</a>
+      <ul class="current">
+    
         
-    </li>
-
-    <li class="toctree-l1 ">
-        <a class="" href="">Devel guide</a>
+        <span>User guide</span>
+            
+                <li class="toctree-l1 ">
+                    <a class="" href="user-guide/http-interface/">Http interface</a>
+                    
+                </li>
+            
+                <li class="toctree-l1 ">
+                    <a class="" href="user-guide/leela-query-language/">Leela query language</a>
+                    
+                </li>
+            
+                <li class="toctree-l1 ">
+                    <a class="" href="user-guide/zeromq-interface/">Zeromq interface</a>
+                    
+                </li>
+            
         
-    </li>
 
-    <li class="toctree-l1 ">
-        <a class="" href="">Admin guide</a>
+    
         
-    </li>
+        <span>Devel guide</span>
+            
+                <li class="toctree-l1 ">
+                    <a class="" href="devel-guide/architecture/">Architecture</a>
+                    
+                </li>
+            
+                <li class="toctree-l1 ">
+                    <a class="" href="devel-guide/environment/">Environment</a>
+                    
+                </li>
+            
+                <li class="toctree-l1 ">
+                    <a class="" href="devel-guide/network-protocol/">Network protocol</a>
+                    
+                </li>
+            
+                <li class="toctree-l1 ">
+                    <a class="" href="devel-guide/security/">Security</a>
+                    
+                </li>
+            
+        
 
+    
+        
+        <span>Admin guide</span>
+            
+                <li class="toctree-l1 ">
+                    <a class="" href="admin-guide/install-cassandra/">Install cassandra</a>
+                    
+                </li>
+            
+                <li class="toctree-l1 ">
+                    <a class="" href="admin-guide/install-consul/">Install consul</a>
+                    
+                </li>
+            
+                <li class="toctree-l1 ">
+                    <a class="" href="admin-guide/install-leela/">Install leela</a>
+                    
+                </li>
+            
+                <li class="toctree-l1 ">
+                    <a class="" href="admin-guide/tuning-leela/">Tuning leela</a>
+                    
+                </li>
+            
+        
+
+    
 </ul>
-
-
-
 
       </div>
       &nbsp;
@@ -82,7 +134,7 @@
           <div role="navigation" aria-label="breadcrumbs navigation">
   <ul class="wy-breadcrumbs">
     <li><a href=".">Docs</a> &raquo;</li>
-    <li>None</li>
+    <li>Home</li>
       <li class="wy-breadcrumbs-aside">
         
       </li>
@@ -90,9 +142,10 @@
   <hr/>
 </div>
           <div role="main">
-            <h1 id="leela">Leela</h1>
+            <div class="section">
+              <h1 id="leela">Leela</h1>
 <h2 id="introduction">Introduction</h2>
-<p>Leela started as a time-series engine, very similar to graphite <a href="http://graphite.readthedocs.org">^1</a>
+<p>Leela started as a time-series engine, very similar to graphite <sup id="fnref:1"><a class="footnote-ref" href="#fn:1" rel="footnote">1</a></sup>
 but with less features, tailored for our needs. We found it hard to
 scale graphite at the time and figure that using cassandra would make
 it a lot easier to scale up and cope with our load. Back then we were
@@ -106,7 +159,7 @@ time-series storage but we now could create vertexes and connects them
 to each other.</p>
 <p>This allowed us to store complex data, like the relationships we have
 in our datacenter:</p>
-<pre class="prettyprint well"><code>      o cpu-usage [time-series]
+<pre><code>      o cpu-usage [time-series]
       |  
       |  o hwinfo [json-data]
       |  |
@@ -178,6 +231,7 @@ installing, maintaining and tuning a Leela cluster.</p>
 </li>
 </ul>
 
+            </div>
           </div>
           <footer>
   
@@ -197,8 +251,9 @@ installing, maintaining and tuning a Leela cluster.</p>
     </p>
   </div>
 
-  Built with <a href="http://www.mkdocs.org">MkDocs</a>, using the <a href="https://github.com/snide/sphinx_rtd_theme">Read the Docs theme</a>.
+  Built with <a href="http://www.mkdocs.org">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
 </footer>
+	  
         </div>
       </div>
 
@@ -208,9 +263,9 @@ installing, maintaining and tuning a Leela cluster.</p>
 
 <div class="rst-versions" role="note" style="cursor: pointer">
     <span class="rst-current-version" data-toggle="rst-current-version">
-      <a class="icon icon-github" style="float: left; color: #fcfcfc"> GitHub</a>
+        
       <span><a href="" style="color: #fcfcfc;">&laquo; Previous</a></span>
-      <span style="margin-left: 15px"><a href="" style="color: #fcfcfc">Next &raquo;</a></span>
+      <span style="margin-left: 15px"><a href="user-guide/http-interface/" style="color: #fcfcfc">Next &raquo;</a></span>
     </span>
 </div>
 </body>
