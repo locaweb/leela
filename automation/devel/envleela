@@ -1,0 +1,10 @@
+#!/bin/sh
+
+distroot=${distroot:-/tmp/leela/dist}
+
+dist_packages=$(find "$distroot" -name dist-packages -exec echo -n \{\}: \;)
+site_packages=$(find "$distroot" -name site-packages -exec echo -n \{\}: \;)
+
+env LD_LIBRARY_PATH="$distroot/lib" \
+    PYTHONPATH="$dist_packages$site_packages" \
+    "$@"
