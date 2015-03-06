@@ -2,7 +2,7 @@
 
 theme: readthedocs
 
-site_name: leela-v@version@
+site_name: leela-@version@
 site_author: dgvncsz0f
 
 markdown_extensions: [extra]
