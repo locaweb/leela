@@ -14,7 +14,7 @@ For an example, these entities can be easily represented in leela:
 
 ```
       o cpu-usage [time-series]
-      |  
+      |
       |  o hwinfo [json-data]
       |  |
    +---------+                        +--------+
@@ -28,84 +28,11 @@ For an example, these entities can be easily represented in leela:
            
 ## Development
 
-Since leela has many subprojects, you need to solve a lot of
-dependencies in order to setup the development environment.
+Refer to ```doc/docs/devel-guide/environment.md```
 
-Fear not my friend, for we have created a couple of scripts to assist
-you in this task.
+## Install
 
-First, there are two possible paths:
-
-1. use docker and create the base images;
-
-2. use your own machine, which must be either centos or debian;
-
-The following creates the dev environment using docker, since we find
-it easier.
-
-1. Create the base images:
-
-
-```
-    # the following images are available:
-    #  * debian[67].(amd64|i386)
-    #  * centos[56].(amd64|i386)
-    $ sudo ./automation/docker/makeimg.sh debian7.amd64
-```
-
-2. Install zeromq. We install it from source in order to link statically:
-
-
-```
-   $ sudo docker run --rm -v $(pwd):/leela -i -t leela/debian-7-amd64 /bin/bash
-   # /leela/automation/bootstrap/zeromq-bootstrap.sh
-```
-
-This allows you to compile ``libleela``, ``libleela-python`` and
-``libleela-ruby``.
-
-The other scripts set up dependencies for other components. The
-following table explains in details these relationships:
-
-
-```
-    +==================+=====================+
-    | component        | bootstrap script    |
-    +==================+=====================+
-    | libleela         |   zeromq-bootstrap  |
-    +------------------+---------------------+
-    | libleela-python  |   zeromq-bootstrap  |
-    +------------------+---------------------+
-    | libleela-ruby    |   zeromq-bootstrap  |
-    +------------------+---------------------+
-    | warpdrive        |   zeromq-bootstrap  |
-    |                  |   haskell-bootstrap |
-    +------------------+---------------------+
-    | warpgrep         |   zeromq-bootstrap  |
-    |                  |   haskell-bootstrap |
-    +------------------+---------------------+
-    | blackbox         |   zeromq-bootstrap  |
-    |                  |   jzmq-bootstrap    |
-    |                  |   clojure-bootstrap |
-    +------------------+---------------------+
-```
-
-These scripts were tested using debian and centos images. But they
-would probably work in other distros as well, like arch linux.
-
-### Packaging
-
-If everything went right, you should be able to create the packages:
-
-```
-    $ make -C /leela/package libleela.debian7 arch=amd64
-    $ make -C /leela/package libleela-python.debian7 arch=amd64
-```
-
-The packages are stored under the ``/leela/package/dist/`` directory.
-
-For more information about compiling, testing and packaging, refer to
-the ``doc`` directory.
+Refer to ```doc/docs/admin-guide/install-leela.md```
 
 ## Contribute
 
