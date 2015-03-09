@@ -29,6 +29,7 @@ collectd_idd () {
   then
     fetch_url "$collectd_collectdurl" | tar -x -z -C "$buildroot"
     cd "$collectddir" && {
+      run_cmd_echo mkdir -p libltdl/config
       run_cmd_echo ./build.sh
       run_cmd_echo ./configure --prefix="$distroot"
       run_cmd_echo make
