@@ -7,7 +7,7 @@ project(leela)
 
 enable_language(C ASM)
 
-option(LEELA_BUILD_LIB_C      "builds the c library" ON)
+option(LEELA_BUILD_LIB_C      "builds the c library" OFF)
 option(LEELA_BUILD_COLLECTD   "builds the collectd write plugin" OFF)
 option(LEELA_BUILD_LIB_PYTHON "builds the python library" OFF)
 option(LEELA_BUILD_LIB_RUBY   "builds the ruby library" OFF)
@@ -61,10 +61,9 @@ endif()
 
 if(LEELA_BUILD_COLLECTD)
   find_package (Threads)
+  find_library (libleela NAMES leela)
 
   add_subdirectory(src/collectd)
-
-  add_dependencies(write_leela libleela)
 endif()
 
 if(LEELA_BUILD_LIB_PYTHON)

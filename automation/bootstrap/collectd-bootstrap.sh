@@ -8,13 +8,19 @@ srcroot=${srcroot:-$(dirname $(readlink -f "$0"))}
 
 collectd_collectdurl=${collectd_collectdurl:-https://github.com/collectd/collectd/archive/collectd-5.4.1.tar.gz}
 
-collectd_idd () {
-  deb_install tar gzip
-  deb_install libgcrypt11-dev libglib2.0-dev
+collectd_idd_debian () {
+  deb_install tar gzip which
+  deb_install libgcrypt11-dev libglib2.0-dev libperl-dev
   deb_install make gcc g++ flex bison libtool autoconf automake
 }
 
-collectd_icollectd () {
+collectd_idd_centos () {
+  rpm_install tar gzip which
+  rpm_install libtool-ltdl-devel libgcrypt-devel glib2-devel perl-devel
+  rpm_install make gcc gcc-c++ flex bison byacc libtool autoconf automake
+}
+
+collectd_idd () {
   local collectddir
 
   collectddir="$buildroot/collectd-collectd-5.4.1"
@@ -27,14 +33,20 @@ collectd_icollectd () {
       run_cmd_echo ./configure --prefix="$distroot"
       run_cmd_echo make
       run_cmd_echo make install
+      run_cmd_echo mkdir -p "$distroot/include/collectd" "$distroot/include/liboconfig"
+      run_cmd_echo install -m 644 src/*.h "$distroot/include/collectd/"
+      run_cmd_echo install -m 644 src/liboconfig/*.h "$distroot/include/liboconfig/"
     }
   fi
 }
 
 show_self collectd_url="\"$collectd_collectdurl\""
 if has_command dpkg apt-get
-then collectd_idd; fi
+then collectd_idd_debian; fi
+
+if has_command yum rpm
+then collectd_idd_centos; fi
 
 check_command wget tar libtool autoconf automake flex bison
 
-run_installer "$distroot" "$buildroot" collectd_icollectd
+run_installer "$distroot" "$buildroot" collectd_idd

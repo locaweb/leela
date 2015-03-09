@@ -7,13 +7,12 @@ file(GLOB WRITE_LEELA_FILES "src/collectd/*.c")
 
 add_library(write_leela MODULE write_leela.c)
 
-target_include_directories(write_leela PRIVATE ../libs/c/src)
-
-target_link_libraries(write_leela libleela ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(write_leela ${libleela} ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(write_leela PROPERTIES PREFIX "")
 
 install(TARGETS write_leela
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
+        RUNTIME DESTINATION "${LEELA_INSTALL_BINDIR}"
+        LIBRARY DESTINATION "${LEELA_INSTALL_LIBDIR}"
+        ARCHIVE DESTINATION "${LEELA_INSTALL_ARCDIR}"
+        PUBLIC_HEADER DESTINATION "${LEELA_INSTALL_HDRDIR}/leela")
