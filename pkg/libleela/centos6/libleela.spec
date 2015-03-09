@@ -3,6 +3,7 @@ Group:          Libraries
 Version:        %(env component=.libleela "${srcroot:-../..}/../src/scripts/read-version.sh")
 Release:        1
 Summary:        Leela C Library
+Obsoletes:      leela-c
 
 License:        ASL 2.0
 URL:            https://github.com/locaweb/leela

@@ -3,6 +3,7 @@ Group:          Libraries
 Version:        %(env component=.libleela-python "${srcroot:-../..}/../src/scripts/read-version.sh")
 Release:        1
 Summary:        Leela Python Library
+Obsoletes:      leela-python
 
 License:        ASL 2.0
 URL:            https://github.com/locaweb/leela

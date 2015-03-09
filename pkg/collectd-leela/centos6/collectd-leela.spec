@@ -3,6 +3,7 @@ Group:          libs
 Version:        %(env component=.collectd-leela ../src/scripts/read-version.sh)
 Release:        1%{?dist}
 Summary:        Leela Collectd Plugin
+Obsoletes:      leela-collectd
 
 License:        ASL 2.0
 URL:            https://github.com/locaweb/leela
