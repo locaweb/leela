@@ -2,19 +2,13 @@
 # -*- makefile -*-
 
 %:
-	dh $@
-
-override_dh_auto_clean:
-	rm -f debian/*substvars
-	$(MAKE) -C ../../src/collectd clean
-	dh_clean
+	dh $@ -Scmake
 
 override_dh_install:
-	mkdir -p debian/leela-collectd/usr/lib/collectd
 	mkdir -p debian/leela-collectd/usr/bin
-	cp -a ../../src/collectd/write_leela.so debian/leela-collectd/usr/lib/collectd/
-	cp -a ../../src/collectd/wl_cpu-scale.sh debian/leela-collectd/usr/bin/wl_cpu-scale
+	install -m 755 ../../src/collectd/wl_cpu-scale.sh debian/leela-collectd/usr/bin/wl_cpu-scale
 	dh_install
 
-override_dh_auto_build:
-	$(MAKE) -C ../../src/collectd build
+override_dh_auto_configure:
+	dh_auto_configure -- \
+	  "-DLEELA_BUILD_COLLECTD=on"
