@@ -88,7 +88,7 @@ deb_install () {
 rpm_install () {
   for pkg in "$@"
   do
-    if ! run_cmd_quiet rpm -qi "$pkg"
+    if ! run_cmd_quiet rpm -q "$pkg"
     then
       msg_info "INSTALL $pkg"
       run_cmd_echo ${yumcommand:-yum install -y} "$pkg"
@@ -100,7 +100,7 @@ rpm_install () {
 rpm_install_url () {
   local rpmfile
 
-  if ! run_cmd_quiet rpm -qi "$1"
+  if ! run_cmd_quiet rpm -q "$1"
   then
     rpmfile=$(mktemp) && {
       trap "rm -f \"$rpmfile\"" INT QUIT TERM EXIT
