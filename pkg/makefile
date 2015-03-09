@@ -1,6 +1,6 @@
 
-srcroot   = $(CURDIR)/..
-version   = $(shell env component=$(component) $(srcroot)/src/scripts/read-version.sh)
+srcroot   = $(CURDIR)
+version   = $(shell env component=$(component) $(srcroot)/../src/scripts/read-version.sh)
 
 %.debian: dist=debian7
 %.debian: arch=amd64

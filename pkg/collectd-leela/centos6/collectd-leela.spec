@@ -1,6 +1,6 @@
-Name:           leela-collectd
+Name:           collectd-leela
 Group:          libs
-Version:        %(env component=.leela-collectd ../src/scripts/read-version.sh)
+Version:        %(env component=.collectd-leela ../src/scripts/read-version.sh)
 Release:        1%{?dist}
 Summary:        Leela Collectd Plugin
 
@@ -9,15 +9,15 @@ URL:            https://github.com/locaweb/leela
 Source0:        %{name}-%{version}.tar.gz
 
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
-BuildRequires:  make, gcc >= 4, zeromq-devel >= 3.2.2
+BuildRequires:  make, gcc >= 4, libleela-devel
 
-Requires:       zeromq, bc, procps
+Requires:       zeromq, bc, procps, libleela
 
 %description
  Write plugin that sends collectd data to leela.
 
 %prep
-%setup -q -n leela-collectd-%{version}
+%setup -q -n collectd-leela-%{version}
 
 %build
 make -C src/collectd build
