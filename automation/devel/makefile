@@ -19,7 +19,7 @@ $(distroot):
 compile.libleela: $(buildroot)
 	cd "$(buildroot)/libleela" && { \
 	  cmake \
-	    -DLEELA_BUILD_LIB_C=on \
+	    -DLEELA_BUILD_LIBLEELA=on \
 	    -DCMAKE_INSTALL_PREFIX="$(distroot)" \
 	    "$(srcroot)"; \
 	  make && make install; \

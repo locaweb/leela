@@ -7,12 +7,8 @@ project(leela)
 
 enable_language(C ASM)
 
-option(LEELA_BUILD_LIB_C      "builds the c library" OFF)
+option(LEELA_BUILD_LIBLEELA   "builds the c library" OFF)
 option(LEELA_BUILD_COLLECTD   "builds the collectd write plugin" OFF)
-option(LEELA_BUILD_LIB_PYTHON "builds the python library" OFF)
-option(LEELA_BUILD_LIB_RUBY   "builds the ruby library" OFF)
-option(LEELA_BUILD_WARPDRIVE  "builds the warpdrive binary" OFF)
-option(LEELA_BUILD_BLACKBOX   "builds the blackbox binary" OFF)
 
 set(LEELA_INSTALL_LIBDIR "lib" CACHE string "the relative library directory")
 set(LEELA_INSTALL_ARCDIR "lib" CACHE string "the relative archive directory")
@@ -41,15 +37,7 @@ if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 
-if(LEELA_BUILD_WARPDRIVE)
-  add_subdirectory(src/warpdrive)
-endif()
-
-if(LEELA_BUILD_BLACKBOX)
-  add_subdirectory(src/blackbox)
-endif()
-
-if(LEELA_BUILD_LIB_C)
+if(LEELA_BUILD_LIBLEELA)
   find_package (Threads)
   find_library (libm NAMES m)
   find_library (librt NAMES rt)
@@ -64,8 +52,4 @@ if(LEELA_BUILD_COLLECTD)
   find_library (libleela NAMES leela)
 
   add_subdirectory(src/collectd)
-endif()
-
-if(LEELA_BUILD_LIB_PYTHON)
-  add_subdirectory(src/libs/python)
 endif()

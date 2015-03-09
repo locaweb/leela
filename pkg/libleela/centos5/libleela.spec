@@ -40,7 +40,8 @@ Requires: %{name} = %{version}-%{release}
 
 %prep
 %setup -q -n libleela-%{version}
-cmake28 -DCMAKE_INSTALL_PREFIX="$RPM_BUILD_ROOT/usr" \
+cmake28 -DLEELA_BUILD_LIBLEELA=on \
+        -DCMAKE_INSTALL_PREFIX="$RPM_BUILD_ROOT/usr" \
         -DLEELA_INSTALL_LIBDIR=%(basename %{_libdir}) \
         -DLEELA_INSTALL_ARCDIR=%(basename %{_libdir})
 

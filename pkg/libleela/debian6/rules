@@ -3,3 +3,7 @@
 
 %:
 	dh $@ -Scmake
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+	  "-DLEELA_BUILD_LIBLEELA=on"
