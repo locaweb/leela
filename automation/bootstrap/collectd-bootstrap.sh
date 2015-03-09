@@ -9,7 +9,7 @@ srcroot=${srcroot:-$(dirname $(readlink -f "$0"))}
 collectd_collectdurl=${collectd_collectdurl:-https://github.com/collectd/collectd/archive/collectd-5.4.1.tar.gz}
 
 collectd_idd_debian () {
-  deb_install tar gzip which
+  deb_install tar gzip
   deb_install libgcrypt11-dev libglib2.0-dev libperl-dev
   deb_install make gcc g++ flex bison libtool autoconf automake
 }
