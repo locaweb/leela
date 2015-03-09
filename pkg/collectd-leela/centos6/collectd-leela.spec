@@ -18,17 +18,16 @@ Requires:       libleela, bc, procps
 
 %prep
 %setup -q -n collectd-leela-%{version}
-
-%build
 cmake -DLEELA_BUILD_COLLECTD=on \
       -DCMAKE_INSTALL_PREFIX="$RPM_BUILD_ROOT/usr" \
-      -DLEELA_INSTALL_LIBDIR=%(basename %{_libdir}) \
-      -DLEELA_INSTALL_ARCDIR=%(basename %{_libdir})
+      -DLEELA_INSTALL_LIBDIR=%(basename %{_libdir})/collectd \
+      -DLEELA_INSTALL_ARCDIR=%(basename %{_libdir})/collectd
 
 %build
 %{__make}
 
 %install
+mkdir -p "$RPM_BUILD_ROOT/%{_bindir}"
 %{__make} install
 install -m 0755 src/collectd/wl_cpu-scale.sh "$RPM_BUILD_ROOT/%{_bindir}/wl_cpu-scale"
 

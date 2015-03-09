@@ -1,6 +1,6 @@
-Name:           leela-collectd
+Name:           collectd-leela
 Group:          libs
-Version:        %(env component=.leela-collectd ../src/scripts/read-version.sh)
+Version:        %(env component=.collectd-leela ../src/scripts/read-version.sh)
 Release:        1%{?dist}
 Summary:        Leela Collectd Plugin
 
@@ -9,24 +9,27 @@ URL:            https://github.com/locaweb/leela
 Source0:        %{name}-%{version}.tar.gz
 
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
-BuildRequires:  make, gcc >= 4, zeromq3-devel >= 3.2.2
+BuildRequires:  make, gcc >= 4, cmake28, libleela-devel
 
-Requires:       zeromq3, bc, procps
+Requires:       libleela, bc, procps
 
 %description
  Write plugin that sends collectd data to leela.
 
 %prep
-%setup -q -n leela-collectd-%{version}
+%setup -q -n collectd-leela-%{version}
+cmake28 -DLEELA_BUILD_COLLECTD=on \
+        -DCMAKE_INSTALL_PREFIX="$RPM_BUILD_ROOT/usr" \
+        -DLEELA_INSTALL_LIBDIR=%(basename %{_libdir})/collectd \
+        -DLEELA_INSTALL_ARCDIR=%(basename %{_libdir})/collectd
 
 %build
-make -C src/collectd build
+%{__make}
 
 %install
-mkdir -p $RPM_BUILD_ROOT/%{_bindir}
-mkdir -p $RPM_BUILD_ROOT/%{_libdir}/collectd
-cp -a src/collectd/write_leela.so* $RPM_BUILD_ROOT/%{_libdir}/collectd/write_leela.so
-cp -a src/collectd/wl_cpu-scale.sh $RPM_BUILD_ROOT/%{_bindir}/wl_cpu-scale
+mkdir -p "$RPM_BUILD_ROOT/%{_bindir}"
+%{__make} install
+install -m 0755 src/collectd/wl_cpu-scale.sh "$RPM_BUILD_ROOT/%{_bindir}/wl_cpu-scale"
 
 %post
 wl_cpu_scale=/etc/collectd/collectd.conf.d/wl_cpu-scale.conf
