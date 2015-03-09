@@ -80,8 +80,9 @@ static
 wl_data_t *wl_leela_cfg;
 
 static
-void wl_logcallback (const char *fmt, va_list args)
+void wl_logcallback (void *dummy, const char *fmt, va_list args)
 {
+  UNUSED(dummy);
   char buff[1024];
   if (vsnprintf(buff, 1024, fmt, args) > 0)
   { INFO("write_leela plugin: %s", buff); }
@@ -463,7 +464,7 @@ int wl_init ()
 
   do
   {
-    wl_leela_cfg->ctx = leela_lql_context_init2((const leela_endpoint_t * const *) wl_leela_cfg->cluster, wl_leela_cfg->user, wl_leela_cfg->pass, wl_leela_cfg->timeout, wl_logcallback, NULL);
+    wl_leela_cfg->ctx = leela_lql_context_init2((const leela_endpoint_t * const *) wl_leela_cfg->cluster, wl_leela_cfg->user, wl_leela_cfg->pass, wl_leela_cfg->timeout, wl_logcallback, NULL, NULL, NULL);
     if (wl_leela_cfg->ctx != NULL)
     { break; }
       
