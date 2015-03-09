@@ -8,7 +8,7 @@ DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 
 override_dh_install:
 	mkdir -p debian/leela-collectd/usr/bin
-	install -m 755 ../../src/collectd/wl_cpu-scale.sh debian/leela-collectd/usr/bin/wl_cpu-scale
+	install -m 755 src/collectd/wl_cpu-scale.sh debian/leela-collectd/usr/bin/wl_cpu-scale
 	dh_install
 
 override_dh_auto_configure:
