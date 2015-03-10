@@ -82,9 +82,7 @@ docker $ /leela/automation/bootstrap/zeromq-bootstap.sh
 docker $ make -C /leela/automation/devel compile.libleela
 ```
 
-This should install files under the ``distroot`` variable which in
-this case we defined to _/tmp/leela/dist_. Your lib directory should
-have these files:
+This should install files under the ``distroot`` directory:
 
 ```.shell
 $ ls -1F /tmp/leela/dist/lib/
@@ -102,7 +100,7 @@ If everything went OK you can build the _libleela-python_:
 docker $ make -C /leela/automation/devel compile.libleela-python
 ```
 
-This installs the pyleela python module:
+This installs the ``pyleela`` python module:
 
 ```.shell
 docker $ /leela/automation/devel/envleela python2 -c 'import pyleela.lql'
@@ -111,3 +109,12 @@ docker $ /leela/automation/devel/envleela python2 -c 'import pyleela.lql'
 #### libleela-ruby
 
 TODO:fixme
+
+#### collectd plugin
+
+You will need collectd source to compile this. First, install prepare
+the environment:
+
+```.shell
+docker $ /leela/automation/bootstrap/collectd-bootstrap.sh
+```
