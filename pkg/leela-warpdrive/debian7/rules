@@ -1,7 +1,7 @@
 #!/usr/bin/make -f
 # -*- makefile -*-
 
-PATH        := $(PATH):/usr/local/bin
+PATH        := /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 bin_cabal   ?= cabal
 
 %:
@@ -14,14 +14,17 @@ override_dh_auto_clean:
 override_dh_installinit:
 	dh_installinit --no-start
 
-override_dh_auto_build:
+override_dh_auto_configure:
 	dh_testdir
 	cd src/warpdrive; { \
           $(bin_cabal) update; \
           $(bin_cabal) sandbox init; \
-          $(bin_cabal) configure -O2; \
+          $(bin_cabal) configure -O2 || true; \
+	}
+
+override_dh_auto_build:
+	dh_testdir
+	cd src/warpdrive; { \
           $(bin_cabal) install --only-dependencies --force-reinstalls; \
           $(bin_cabal) build; \
         }
-
-override_dh_usrlocal:

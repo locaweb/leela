@@ -123,11 +123,11 @@ sign (Secret secret) (Nonce nonce) msg = unsafePerformIO $
         c_poly1305_authenticate sigPtr secretPtr noncePtr msgPtr (fromIntegral msgLen)
         MAC <$> unsafePackMallocCStringLen (sigPtr, sigSize)
 
-foreign import capi unsafe "poly1305aes/poly1305aes.h poly1305aes_verify"
+foreign import capi unsafe "poly1305aes/poly1305aes_auto.h poly1305aes_verify"
   c_poly1305_verify :: CString -> CString -> CString -> CString -> CUInt -> IO CInt
 
-foreign import capi unsafe "poly1305aes/poly1305aes.h poly1305aes_clamp"
+foreign import capi unsafe "poly1305aes/poly1305aes_auto.h poly1305aes_clamp"
   c_poly1305_clamp :: CString -> IO ()
 
-foreign import capi unsafe "poly1305aes/poly1305aes.h poly1305aes_authenticate"
+foreign import capi unsafe "poly1305aes/poly1305aes_auto.h poly1305aes_authenticate"
   c_poly1305_authenticate :: CString -> CString -> CString -> CString -> CUInt -> IO ()

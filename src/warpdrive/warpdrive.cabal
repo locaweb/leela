@@ -6,7 +6,7 @@ synopsis:      leela property-graph engine
 homepage:      http://github.com/locaweb/leela
 category:      Monitoring
 maintainer:    DiegoSouza
-build-type:    Custom
+build-type:    Simple
 description:   this program is the leela backbone. This provides a property-graph
                engine and a metrics monitoring system through LQL language.
 license-file:  ../../LICENSE
@@ -20,8 +20,6 @@ source-repository head
 executable warpdrive
   main-is:         warpdrive.hs
   ghc-options:     -threaded -rtsopts -W
-  include-dirs:    ../../lib/poly1305aes/dist
-  extra-lib-dirs:  ../../lib/poly1305aes/poly1305aes-20050218
   extra-libraries: poly1305aes
   build-depends:    base                 (>= 4        && < 5)
                   , stm                  (>= 2.4.3    && < 3)
@@ -70,8 +68,6 @@ executable warpdrive
 executable warpgrep
   main-is:         warpgrep.hs
   ghc-options:     -threaded -rtsopts -W
-  include-dirs:    ../../lib/poly1305aes/dist
-  extra-lib-dirs:  ../../lib/poly1305aes/poly1305aes-20050218
   extra-libraries: poly1305aes
   build-depends:    base                 (>= 4        && < 5)
                   , stm                  (>= 2.4.3    && < 3)
@@ -119,8 +115,6 @@ test-suite test-warpdrive
   type:                exitcode-stdio-1.0
   main-is:             test-warpdrive.hs
   ghc-options:         -threaded -rtsopts
-  include-dirs:        ../../lib/poly1305aes/dist
-  extra-lib-dirs:      ../../lib/poly1305aes/poly1305aes-20050218
   extra-libraries:     poly1305aes
   build-depends:       base                 (>= 4       && < 5)
                      , stm                  (>= 2.4     && < 3)
