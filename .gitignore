@@ -10,7 +10,7 @@ try_leela.stderr
 /tags
 /TAGS
 /dist/
-/package/dist
+/pkg/dist
 /doc/build/
 /src/warpdrive/src/warpdrive
 /src/warpdrive/src/test-warpdrive
