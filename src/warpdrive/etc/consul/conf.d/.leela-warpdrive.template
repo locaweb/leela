@@ -1,0 +1,22 @@
+#!/bin/sh
+
+if [ -z "$uniqid" ]
+then
+  echo "ERROR: \$uniqid is undefined" >&2
+  exit 1
+fi
+
+cat <<EOF
+{
+    "service": {
+        "name": "leela",
+        "id": "warpdrive-$uniqid",
+        "tags": ["warpdrive"],
+        "port": 4080,
+        "check": {
+            "script": "/usr/bin/leela-warpdrive-watchdog.sh",
+            "interval": "1m"
+        }
+    }
+}
+EOF

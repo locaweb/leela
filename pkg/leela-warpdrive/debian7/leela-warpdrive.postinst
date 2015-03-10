@@ -1,6 +1,16 @@
 #!/bin/sh
 
+svcfile=/etc/consul/conf.d/leela-warpdrive.service
+
 adduser --quiet --system --home /var/lib/leela --group --no-create-home --shell /bin/nologin leela
+
+if [ ! -e "$svcfile" -o ! -s "$svcfile" ]
+then
+    tempfile=$(mktemp) && {
+      env uniqid=$(uuid) /etc/consul/conf.d/.leela-warpdrive.template >"$tempfile" && \
+          mv "$tempfile" "$svcfile"
+    }
+fi
 
 #DEBHELPER#
 

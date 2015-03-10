@@ -9,7 +9,7 @@ Homepage: https://github.com/locaweb/leela
 Package: leela-warpdrive
 Multi-Arch: same
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}, libffi5, zlib1g, daemon, numactl
+Depends: ${misc:Depends}, ${shlibs:Depends}, libffi5, zlib1g, daemon, numactl, uuid
 Description: Leela frontend server
  Leela is a property-graph engine that allows storing properties as
  time-series, besides the usual key-value properties.
