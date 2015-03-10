@@ -2,7 +2,7 @@
 # -*- makefile -*-
 
 PATH        := $(PATH):/usr/local/bin
-bin_cabal   ?= env PKG_CONFIG_PATH=/opt/zmq4/lib/pkgconfig cabal
+bin_cabal   ?= cabal
 
 %:
 	dh $@
@@ -16,11 +16,11 @@ override_dh_installinit:
 
 override_dh_auto_build:
 	dh_testdir
-	cd ../../src/warpdrive; { \
+	cd src/warpdrive; { \
           $(bin_cabal) update; \
           $(bin_cabal) sandbox init; \
           $(bin_cabal) configure -O2; \
-          $(bin_cabal) install --only-dependencies; \
+          $(bin_cabal) install --only-dependencies --force-reinstalls; \
           $(bin_cabal) build; \
         }
 
