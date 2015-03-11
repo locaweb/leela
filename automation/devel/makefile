@@ -41,9 +41,11 @@ compile.libleela-python: $(buildroot) $(distroot)
 
 compile.collectd: $(buildroot) $(distroot)
 	cd "$(buildroot)/collectd" && { \
-	  cmake \
-	    -DLEELA_BUILD_COLLECTD=on \
-	    -DCMAKE_INSTALL_PREFIX="$(distroot)" \
-	    "$(srcroot)"; \
+	  env CFLAGS=-I"$(distroot)/include" \
+	      LDFLAGS=-L"$(distroot)/lib" \
+	      cmake \
+	        -DLEELA_BUILD_COLLECTD=on \
+	        -DCMAKE_INSTALL_PREFIX="$(distroot)" \
+	         "$(srcroot)"; \
 	  make && make install; \
 	}
