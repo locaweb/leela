@@ -10,6 +10,7 @@ add_library(write_leela MODULE write_leela.c)
 target_link_libraries(write_leela ${libleela} ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(write_leela PROPERTIES PREFIX "")
+set_target_properties(write_leela PROPERTIES INCLUDE_DIRECTORIES "${leela_h}")
 
 install(TARGETS write_leela
         RUNTIME DESTINATION "${LEELA_INSTALL_BINDIR}"
