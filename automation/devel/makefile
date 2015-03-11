@@ -41,7 +41,8 @@ compile.libleela-python: $(buildroot) $(distroot)
 
 compile.collectd: $(buildroot) $(distroot)
 	cd "$(buildroot)/collectd" && { \
-	  env CMAKE_PREFIX_PATH="$(distroot)" \
+	  env CMAKE_INCLUDE_PATH="$(distroot)/include" \
+	      CMAKE_LIBRARY_PATH="$(distroot)/lib" \
 	    cmake \
 	      -DLEELA_BUILD_COLLECTD=on \
 	      -DCMAKE_INSTALL_PREFIX="$(distroot)" \
