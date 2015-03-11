@@ -1,7 +1,7 @@
 #!/usr/bin/make -f
 # -*- makefile -*-
 
-version      = $(shell env component=.leela-blackbox ../../src/scripts/read-version.sh)
+version      = $(shell env component=.leela-blackbox $(CURDIR)/src/scripts/read-version.sh)
 bin_lein    ?= lein
 
 %:
