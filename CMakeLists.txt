@@ -49,6 +49,8 @@ endif()
 
 if(LEELA_BUILD_COLLECTD)
   find_package (Threads)
+
+  find_path (leela_h leela/lql.h)
   find_library (libleela NAMES leela)
 
   add_subdirectory(src/collectd)
