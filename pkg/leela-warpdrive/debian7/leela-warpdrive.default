@@ -1,16 +1,37 @@
-# The redis password to use when connecting to redis
+# the redis password to use when connecting to redis
+
 LEELA_WARPDRIVE_REDIS_SECRET=
 
-# The endpoint to bind to
-LEELA_WARPDRIVE_ENDPOINT=tcp://127.0.0.1:4080
+# The endpoint to bind to. You can't use wildcards here as this is the
+# address that gets announced. Make sure you use an address that is
+# reachable over network as the default is only useful if you use a
+# single machine.
 
-# The username to use when testing the service
-LEELA_WARPDRIVE_WATCHDOG_USER=leela
+LEELA_WARPDRIVE_ENDPOINT=tcp://localhost:4080
 
-# The password to use when testing the service
-LEELA_WARPDRIVE_WATCHDOG_PASS=
+# the user that the watchdog script uses when querying this node.
 
-# Extra options for warpdrive
-LEELA_WARPDRIVE_OPTS="--debug-level=NOTICE --log-file=/var/log/leela/warpdrive/warpdrive.log --consul-endpoint=http://127.0.0.1:8500 +RTS -N -A8m -H -M4g -qa -RTS $LEELA_WARPDRIVE_EXTRAOPTS"
+LEELA_WARPDRIVE_WATCHDOG_USER=system
 
-export MALLOC_ARENA_MAX=4
+# the password that the watchdog script uses when querying this node.
+
+LEELA_WARPDRIVE_WATCHDOG_PASS=0000000000000000000000000000000000000000000000000000000000000000
+
+# haskell runtime tuning parameters
+
+GHCRT_OPTS="$GHCRT_OPTS -N -qa"
+GHCRT_OPTS="$GHCRT_OPTS -A8m -H -M4g"
+
+# extra options for warpdrive. The consul-endpoint is very important
+# as consul is used for auto-discovery.
+
+LEELA_WARPDRIVE_OPTS="--debug-level=NOTICE --redis-secret-env=LEELA_WARPDRIVE_REDIS_SECRET --log-file=/var/log/leela/warpdrive/warpdrive.log --consul-endpoint=http://127.0.0.1:8500 +RTS $GHCRT_OPTS -RTS"
+
+# warpdrive reads the redis password from an environment variable
+
+WARPDRIVE_ENV="$WARPDRIVE_ENV LEELA_WARPDRIVE_REDIS_SECRET=$LEELA_WARPDRIVE_REDIS_SECRET"
+
+if [ -z "$MALLOC_ARENA_MAX" ]
+then WARPDRIVE_ENV="$WARPDRIVE_ENV MALLOC_ARENA_MAX=4"
+else WARPDRIVE_ENV="$WARPDRIVE_ENV MALLOC_ARENA_MAX=$MALLOC_ARENA_MAX"
+fi

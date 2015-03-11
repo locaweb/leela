@@ -64,13 +64,12 @@ leela_watchdog_stop () {
 
 leela_daemon_start () {
   leela_grantaccess
-  ulimit -n 100000
-  daemon --delay 10 -r -o $LOGDIR/daemon.log \
+  ulimit -n 8000
+  env $WARPDRIVE_ENV daemon --delay 10 -r -o $LOGDIR/daemon.log \
     -u $USER:$GROUP -D $HOMEDIR -P $RUNDIR -n daemon \
     -e LEELA_WARPDRIVE_REDIS_SECRET=$LEELA_WARPDRIVE_REDIS_SECRET \
     -- numactl --interleave=all warpdrive \
-      --endpoint=${LEELA_WARPDRIVE_ENDPOINT:-tcp://localhost:4080} \
-      --redis-secret-env=LEELA_WARPDRIVE_REDIS_SECRET \
+      --endpoint=${LEELA_WARPDRIVE_ENDPOINT:-tcp://127.0.0.1:4080} \
       $LEELA_WARPDRIVE_OPTS
 }
 
