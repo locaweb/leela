@@ -9,3 +9,5 @@ srcroot=${srcroot:-$(dirname $(readlink -f "$0"))}
 deb_install apt-utils adduser wget cmake git devscripts pkg-config
 
 adduser --shell /bin/sh --disabled-password --home /home/leela --system leela
+mkdir -p /home/leela
+chown leela. /home/leela

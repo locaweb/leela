@@ -11,3 +11,5 @@ deb_install adduser apt-utils wget git devscripts pkg-config
 (deb_install_args="-t squeeze-backports" deb_install cmake)
 
 adduser --shell /bin/sh --disabled-password --home /home/leela --system leela
+mkdir -p /home/leela
+chown leela. /home/leela
