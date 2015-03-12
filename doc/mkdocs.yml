@@ -1,8 +1,10 @@
 # theme: "readthedocs"
 
-theme: readthedocs
+# theme: readthedocs
+
+dev_addr: 0.0.0.0:8000
 
 site_name: leela-@version@
 site_author: dgvncsz0f
 
-markdown_extensions: [extra]
+markdown_extensions: [tables, extra]

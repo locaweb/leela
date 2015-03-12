@@ -42,47 +42,65 @@ documentation as fast as we can.
 
 ## The Documentation
 
-This section describes how the documentation has been organized. We
-tried to make each document as self-contained as possible without
-boring the reader too much by reading the same thing everywhere.
+This section describes how the documentation has been organized. There
+are three major sections, Development, Operations and Users. Each
+section covers a given aspect of the system from that perspective.
 
-With this in mind, it may be helpful to read the architecture document
-before proceeding. It gives both an high-level and an in-depth vision
-of the system and also presents the many terms and components that
-will be referenced throughout the documents.
+Orthogonal to those sections there are the various modules that
+comprise Leela.
+
+| client libraries | backend modules | frontend   |
+|------------------|-----------------|------------|
+| libleela         | warpgrep        | warpserver |
+| libleela-ruby    | blackbox        | webleela   |
+| libleela-python  |                 |            |
+
+All client libraries are built on top of *libleela*. *Libleela* is
+written in C and the other languages creates a module on top of that
+library.
+
+*Blackbox* and *warpgrep* are internal modules, the user usually don't
+need to interact with them. They are used by *warpserver*. The former
+provides access to the storage engine whereas the later allows users
+to monitor queries in real-time.
+
+*Warpserver* and *webleela* are the frontends. They provide a *ZMQ*
+ interface and an *HTTP* interface, respectively.
 
 ### Development
 
 The audience is software developers of ones interested in contributing
 or learning about Leela internals.
 
-* [Architecture](devel-guide/architecture.md)
+* [Architecture](devel/architecture.md)
 
-* [Environment](devel-guide/environment.md)
+* [Environment](devel/environment.md)
 
-* [Network Protocol](devel-guide/network-protocol.md)
+* [Network Protocol](devel/network-protocol.md)
 
-* [Security](devel-guide/security.md)
+* [Security](devel/security.md)
 
-### Administration
+### Operations
 
 The audience is system administrators or ones interested in
 installing, maintaining and tuning a Leela cluster.
 
-* [Installing Cassandra](admin-guide/install-cassandra.md)
+* [Packaging Leela](admin/packaging-leela.md)
 
-* [Installing Consul](admin-guide/install-consul.md)
+* [Installing Cassandra](admin/install-cassandra.md)
 
-* [Installing Leela](admin-guide/install-leela.md)
+* [Installing Consul](admin/install-consul.md)
 
-* [Tuning Leela](admin-guide/tuning-leela.md)
+* [Installing Leela](admin/install-leela.md)
+
+* [Tuning Leela](admin/tuning-leela.md)
 
 ### User Guide
 
 For the ones interested in using a Leela cluster.
 
-* [Leela Query Language](user-guide/leela-query-language.md)
+* [Leela Query Language](user/leela-query-language.md)
 
-* [ZMQ Interface](user-guide/zeromq-interface.md)
+* [ZMQ Interface](user/zeromq-interface.md)
 
-* [HTTP Interface](user-guide/http-interface.md)
+* [HTTP Interface](user/http-interface.md)
