@@ -17,7 +17,7 @@ makepkg_collect_centos () {
   local distdir
   distdir="$distroot/${dist:-unknown-dist}/${arch:-unknown-arch}/${package:-unknown-package}"
   mkdir -p "$distdir"
-  find "$1" -type exec cp -a {} "$distdir" \;
+  find "$1" -type f -name '*.rpm' -exec cp -a {} "$distdir" \;
 }
 
 makepkg_debian () {
@@ -27,7 +27,7 @@ makepkg_debian () {
     "$srcroot/mksource.sh" | tar -C "$buildroot" -xz
     cd "$buildroot/$package-$version"
     ln -sfn "pkg/$package/$dist" debian
-    dpkg-buildpackage -us -uc
+    env HOME=/home/leela dpkg-buildpackage -us -uc
     makepkg_collect_debian "$buildroot"
     rm -rf "$buildroot"
   }

@@ -8,8 +8,7 @@ bin_lein    ?= lein
 	dh $@
 
 override_dh_auto_clean:
-	cd ../../src/blackbox; env LEIN_ROOT=1 LEIN_SNAPSHOTS_IN_RELEASE=1 $(bin_lein) clean
-	rm -f debian/*substvars
+	cd src/blackbox; env LEIN_ROOT=1 LEIN_SNAPSHOTS_IN_RELEASE=1 $(bin_lein) clean || true
 	dh_clean
 
 override_dh_installinit:
@@ -17,6 +16,6 @@ override_dh_installinit:
 
 override_dh_auto_build:
 	dh_testdir
-	cd ../../src/blackbox; env LEIN_ROOT=1 LEIN_SNAPSHOTS_IN_RELEASE=1 $(bin_lein) uberjar
+	cd src/blackbox && env LEIN_ROOT=1 LEIN_SNAPSHOTS_IN_RELEASE=1 $(bin_lein) uberjar
 	cp -a /usr/lib/libjzmq*.so* ../../src/blackbox/target
-	cp ../../src/blackbox/target/blackbox-$(version)-standalone.jar ../../src/blackbox/target/blackbox.jar
+	cp -a src/blackbox/target/blackbox-$(version)-standalone.jar src/blackbox/target/blackbox-$(version).jar
