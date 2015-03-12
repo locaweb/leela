@@ -93,7 +93,6 @@ EOF
     5)
       cat <<EOF >"$centos_conf_post_script"
 #!/bin/sh
-chown 755 "$target"
 chroot "$target" /bootstrap/centos5-bootstrap.sh
 chroot "$target" yum upgrade -y
 EOF
@@ -102,7 +101,6 @@ EOF
     6)
       cat <<EOF >"$centos_conf_post_script"
 #!/bin/sh
-chown 755 "$target"
 chroot "$target" /bootstrap/centos6-bootstrap.sh
 chroot "$target" yum upgrade -y
 EOF
@@ -111,7 +109,6 @@ EOF
     7)
       cat <<EOF >"$centos_conf_post_script"
 #!/bin/sh
-chown 755 "$target"
 chroot "$target" /bootstrap/centos7-bootstrap.sh
 chroot "$target" yum upgrade -y
 EOF
