@@ -29,6 +29,7 @@ makeimg_configure_debian () {
       name=wheezy
       cat <<EOF >"$debian_conf_post_script"
 #!/bin/sh
+chown 755 "$target"
 chroot "$target" $with_path /bootstrap/debian7-bootstrap.sh
 EOF
       ;;
@@ -36,6 +37,7 @@ EOF
       name=squeeze
       cat <<EOF >"$debian_conf_post_script"
 #!/bin/sh
+chown 755 "$target"
 chroot "$target" $with_path /bootstrap/debian6-bootstrap.sh
 EOF
       ;;
@@ -91,6 +93,7 @@ EOF
     5)
       cat <<EOF >"$centos_conf_post_script"
 #!/bin/sh
+chown 755 "$target"
 chroot "$target" /bootstrap/centos5-bootstrap.sh
 chroot "$target" yum upgrade -y
 EOF
@@ -99,6 +102,7 @@ EOF
     6)
       cat <<EOF >"$centos_conf_post_script"
 #!/bin/sh
+chown 755 "$target"
 chroot "$target" /bootstrap/centos6-bootstrap.sh
 chroot "$target" yum upgrade -y
 EOF
@@ -107,6 +111,7 @@ EOF
     7)
       cat <<EOF >"$centos_conf_post_script"
 #!/bin/sh
+chown 755 "$target"
 chroot "$target" /bootstrap/centos7-bootstrap.sh
 chroot "$target" yum upgrade -y
 EOF
