@@ -1,15 +1,23 @@
 #!/bin/sh
 
+set -x
 set -e
 
 srcroot=${srcroot:-$(dirname $(readlink -f "$0"))}
-distroot=$2
+distroot=${distroot:-$srcroot/dist}
 
-makepkg_collect () {
+makepkg_collect_debian () {
   local distdir
-  distdir="$srcroot/dist/${dist:-unknown-dist}/${arch:-unknown-arch}/${package:-unknown-package}"
+  distdir="$distroot/${dist:-unknown-dist}/${arch:-unknown-arch}/${package:-unknown-package}"
   mkdir -p "$distdir"
   find "$1" -maxdepth 1 -type f -exec cp -a {} "$distdir" \;
+}
+
+makepkg_collect_centos () {
+  local distdir
+  distdir="$distroot/${dist:-unknown-dist}/${arch:-unknown-arch}/${package:-unknown-package}"
+  mkdir -p "$distdir"
+  find "$1" -type exec cp -a {} "$distdir" \;
 }
 
 makepkg_debian () {
@@ -20,7 +28,7 @@ makepkg_debian () {
     cd "$buildroot/$package-$version"
     ln -sfn "pkg/$package/$dist" debian
     dpkg-buildpackage -us -uc
-    makepkg_collect "$buildroot"
+    makepkg_collect_debian "$buildroot"
     rm -rf "$buildroot"
   }
 }
@@ -37,16 +45,23 @@ makepkg_rpm_getdir () {
 }
 
 makepkg_centos () {
+  local rpmdir
+  local srpmdir
   local rpmsrcdir
   local rpmspcdir
 
+  rpmdev-wipetree
   rpmdev-setuptree
   makepkg_rpm_getdir rpmspcdir %{_specdir}
   makepkg_rpm_getdir rpmsrcdir %{_sourcedir}
+  makepkg_rpm_getdir rpmdir    %{_rpmdir}
+  makepkg_rpm_getdir srpmdir   %{_srcrpmdir}
 
   "$srcroot/mksource.sh" >"$rpmsrcdir/$package-$version.tar.gz"
   cp "$srcroot/$package/$dist/$package.spec" "$rpmspcdir/"
   rpmbuild -ba "$rpmspcdir/$package.spec"
+  makepkg_collect_centos "$rpmdir"
+  makepkg_collect_centos "$srpmdir"
 }
 
 makepkg_bootstrap () {
