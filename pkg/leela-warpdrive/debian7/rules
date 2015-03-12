@@ -8,7 +8,7 @@ bin_cabal   ?= cabal
 	dh $@
 
 override_dh_auto_clean:
-	$(bin_cabal) sandbox delete
+	$(bin_cabal) sandbox delete || true
 	dh_clean
 
 override_dh_installinit:
