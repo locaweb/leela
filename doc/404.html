@@ -9,7 +9,7 @@
         
         <link rel="shortcut icon" href="./img/favicon.ico">
 
-        <title>leela-2.0.0-40-g7958539</title>
+        <title></title>
 
         <link href="./css/bootstrap-custom.min.css" rel="stylesheet">
         <link href="./css/font-awesome-4.0.3.css" rel="stylesheet">
@@ -25,7 +25,7 @@
         
     </head>
 
-    <body class="homepage">
+    <body>
 
         <div class="navbar navbar-default navbar-fixed-top" role="navigation">
     <div class="container">
@@ -148,8 +148,8 @@
                         <i class="fa fa-arrow-left"></i> Previous
                     </a>
                 </li>
-                <li >
-                    <a rel="prev" href="user/http-interface/">
+                <li class="disabled">
+                    <a rel="prev" >
                         Next <i class="fa fa-arrow-right"></i>
                     </a>
                 </li>
@@ -163,145 +163,15 @@
 
         <div class="container">
             
-                <div class="col-md-3"><div class="bs-sidebar hidden-print affix well" role="complementary">
-    <ul class="nav bs-sidenav">
-    
-        <li class="main active"><a href="#leela">Leela</a></li>
-        
-            <li><a href="#introduction">Introduction</a></li>
-        
-            <li><a href="#the-documentation">The Documentation</a></li>
-        
-    
-    </ul>
-</div></div>
-                <div class="col-md-9" role="main">
 
-<h1 id="leela">Leela</h1>
-<h2 id="introduction">Introduction</h2>
-<p>Leela started as a time-series engine, very similar to graphite <sup id="fnref:1"><a class="footnote-ref" href="#fn:1" rel="footnote">1</a></sup>
-but with less features, tailored for our needs. We found it hard to
-scale graphite at the time and figure that using cassandra would make
-it a lot easier to scale up and cope with our load. Back then we were
-collecting mostly server metrics like cpu, memory and disk.</p>
-<p>After a while we figure we also wanted to store more information about
-our datacenter. Like the relationships a machine or switch may
-have. For instance, in what switch a given network card is connected
-to.</p>
-<p>Leela then evolved into a property-graph engine. It continue to be a
-time-series storage but we now could create vertexes and connects them
-to each other.</p>
-<p>This allowed us to store complex data, like the relationships we have
-in our datacenter:</p>
-<pre><code>      o cpu-usage [time-series]
-      |  
-      |  o hwinfo [json-data]
-      |  |
-   +---------+     +-----+            +--------+
-   | machine |-----| nic |-----------&gt;| switch |
-   +---------+     +-----+            +--------+
-                                          |
-           +------------+    +-----+      |
-           | datacenter |&lt;---| rak |&lt;-----+
-           +------------+    +-----+
-</code></pre>
+    <div class="row-fluid">
+      <div id="main-content" class="span12">
+        <h1 id="404-page-not-found" style="text-align: center">404</h1>
+        <p style="text-align: center"><strong>Page not found</strong></p>
+      </div>
+    </div>
 
-<p>It is an ever-evolving system and we are continuously working on
-it. New features are planned and we are working hard to improve the
-documentation as fast as we can.</p>
-<h2 id="the-documentation">The Documentation</h2>
-<p>This section describes how the documentation has been organized. There
-are three major sections, Development, Operations and Users. Each
-section covers a given aspect of the system from that perspective.</p>
-<p>Orthogonal to those sections there are the various modules that
-comprise Leela.</p>
-<table>
-<thead>
-<tr>
-<th>client libraries</th>
-<th>backend modules</th>
-<th>frontend</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>libleela</td>
-<td>warpgrep</td>
-<td>warpserver</td>
-</tr>
-<tr>
-<td>libleela-ruby</td>
-<td>blackbox</td>
-<td>webleela</td>
-</tr>
-<tr>
-<td>libleela-python</td>
-<td></td>
-<td></td>
-</tr>
-</tbody>
-</table>
-<p>All client libraries are built on top of <em>libleela</em>. <em>Libleela</em> is
-written in C and the other languages creates a module on top of that
-library.</p>
-<p><em>Blackbox</em> and <em>warpgrep</em> are internal modules, the user usually don't
-need to interact with them. They are used by <em>warpserver</em>. The former
-provides access to the storage engine whereas the later allows users
-to monitor queries in real-time.</p>
-<p><em>Warpserver</em> and <em>webleela</em> are the frontends. They provide a <em>ZMQ</em>
- interface and an <em>HTTP</em> interface, respectively.</p>
-<h3 id="development">Development</h3>
-<p>The audience is software developers of ones interested in contributing
-or learning about Leela internals.</p>
-<ul>
-<li>
-<p><a href="devel/architecture/">Architecture</a></p>
-</li>
-<li>
-<p><a href="devel/environment/">Environment</a></p>
-</li>
-<li>
-<p><a href="devel/network-protocol/">Network Protocol</a></p>
-</li>
-<li>
-<p><a href="devel/security/">Security</a></p>
-</li>
-</ul>
-<h3 id="operations">Operations</h3>
-<p>The audience is system administrators or ones interested in
-installing, maintaining and tuning a Leela cluster.</p>
-<ul>
-<li>
-<p><a href="admin/packaging-leela/">Packaging Leela</a></p>
-</li>
-<li>
-<p><a href="admin/install-cassandra/">Installing Cassandra</a></p>
-</li>
-<li>
-<p><a href="admin/install-consul/">Installing Consul</a></p>
-</li>
-<li>
-<p><a href="admin/install-leela/">Installing Leela</a></p>
-</li>
-<li>
-<p><a href="admin/tuning-leela/">Tuning Leela</a></p>
-</li>
-</ul>
-<h3 id="user-guide">User Guide</h3>
-<p>For the ones interested in using a Leela cluster.</p>
-<ul>
-<li>
-<p><a href="user/leela-query-language/">Leela Query Language</a></p>
-</li>
-<li>
-<p><a href="user/zeromq-interface/">ZMQ Interface</a></p>
-</li>
-<li>
-<p><a href="user/http-interface/">HTTP Interface</a></p>
-</li>
-</ul>
-</div>
-            
+
         </div>
 
         <footer class="col-md-12">

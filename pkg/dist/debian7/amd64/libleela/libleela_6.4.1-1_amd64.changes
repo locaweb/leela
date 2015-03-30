@@ -1,0 +1,32 @@
+Format: 1.8
+Date: Wed, 04 Mar 2015 18:07:43 -0300
+Source: libleela
+Binary: libleela libleela-dev
+Architecture: source amd64
+Version: 6.4.1-1
+Distribution: stable
+Urgency: low
+Maintainer: Diego Souza <dsouza@c0d3.xxx>
+Changed-By: Diego Souza <dsouza@c0d3.xxx>
+Description: 
+ libleela   - Leela C library
+ libleela-dev - Development files for libleela
+Changes: 
+ libleela (6.4.1-1) stable; urgency=low
+ .
+   * feature release
+Checksums-Sha1: 
+ 270001cce8199dc24c7c8de10f33cd572efdca37 626 libleela_6.4.1-1.dsc
+ d068a7106e1ce6b982422f95b0f6087108f5f834 364741 libleela_6.4.1-1.tar.gz
+ e5fff603c2194068b6f837c22042bf6261ca58e0 183376 libleela_6.4.1-1_amd64.deb
+ 16367799782de0913100540449120aa825e2f3f4 21126 libleela-dev_6.4.1-1_amd64.deb
+Checksums-Sha256: 
+ 86e5cc2e8d8655567481939ac582c628b9b8700ce4596f6ea3a08577801e62e8 626 libleela_6.4.1-1.dsc
+ 3bc917b87907cc4c10874e329cb3d9d277ec97c4e918399699fa220e5161756a 364741 libleela_6.4.1-1.tar.gz
+ 5a3237b1591da76e4e4b0b47a230ecf4c87bf8f8ed9bea17c20f887e2d8dd2be 183376 libleela_6.4.1-1_amd64.deb
+ 60b8030519a8b307d66687a48668b32d39ddb6454ec708743f968e58422aa4ce 21126 libleela-dev_6.4.1-1_amd64.deb
+Files: 
+ 577dc2a59a81a85f8045ce4d888875bc 626 libs optional libleela_6.4.1-1.dsc
+ f543583560353b4390cbbfc000955604 364741 libs optional libleela_6.4.1-1.tar.gz
+ 179f30fa5d46d62d16ddf1904d7ab418 183376 libs optional libleela_6.4.1-1_amd64.deb
+ c7653503a2654f8aaf291a6b0cf1aa1d 21126 libs optional libleela-dev_6.4.1-1_amd64.deb

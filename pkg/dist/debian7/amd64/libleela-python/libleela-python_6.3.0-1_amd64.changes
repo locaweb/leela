@@ -1,0 +1,28 @@
+Format: 1.8
+Date: Wed, 04 Jun 2014 13:33:48 -0300
+Source: libleela-python
+Binary: libleela-python
+Architecture: source amd64
+Version: 6.3.0-1
+Distribution: stable
+Urgency: low
+Maintainer: Diego Souza <dsouza@c0d3.xxx>
+Changed-By: Diego Souza <dsouza@c0d3.xxx>
+Description: 
+ libleela-python - Leela Python Library
+Changes: 
+ libleela-python (6.3.0-1) stable; urgency=low
+ .
+   * new feature release
+Checksums-Sha1: 
+ 60cd93a92bbd2a50b36055c1911257f71e79e7bf 644 libleela-python_6.3.0-1.dsc
+ 6abf607dfd3d4f3ff0aa83e1e095bc0cc24058fb 364848 libleela-python_6.3.0-1.tar.gz
+ cdd4e49d8ecb76c1176e970811c469adcd6c0bce 10682 libleela-python_6.3.0-1_amd64.deb
+Checksums-Sha256: 
+ 061ff7a784c5ae888d67c75070fd65135e24d31860d89caff97f58723653ddac 644 libleela-python_6.3.0-1.dsc
+ 5d2bd1a1d701c3cdd3f7d7b041cae79c4f5bc315895b8aec60addd7d8944aa67 364848 libleela-python_6.3.0-1.tar.gz
+ 999e457f3644db74f51aee608508b65a9972fa3ec070fac35a0be0fd39fa1af4 10682 libleela-python_6.3.0-1_amd64.deb
+Files: 
+ 9091c0c93f6274c689addcc4f22d974c 644 libs optional libleela-python_6.3.0-1.dsc
+ f8b2909eef93aad588f61801d5f92e3a 364848 libs optional libleela-python_6.3.0-1.tar.gz
+ de0996b3fef90858d498b67b2cab37e0 10682 libs optional libleela-python_6.3.0-1_amd64.deb
