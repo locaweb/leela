@@ -5,19 +5,27 @@ bin_sed=${bin_sed:-/bin/sed}
 
 curdir="$(cd $(dirname "$0") && pwd)"
 
+run_sed () {
+  if [ "$(echo . | sed -r -e 's/(.)/\1/' -e q 2>/dev/null)" = "." ]
+  then $bin_sed -r "$@"; fi
+
+  if [ "$(echo . | sed -E -e 's/(.)/\1/' -e q 2>/dev/null)" = "." ]
+  then $bin_sed -E "$@"; fi
+}
+
 read_version () {
   f="CHANGELOG${component}"
   if [ -z "$major"  ]
   then
-    major=$(sed -r '/^v/ba; d; :a s/v([0-9]+)\.[0-9]+\.[0-9]+.*/\1/; q' "$curdir/../../${f}")
+    major=$(run_sed -e '/^v/ba' -e d -e :a -e 's/v([0-9]+)\.[0-9]+\.[0-9]+.*/\1/' -e q "$curdir/../../${f}")
   fi
   if [ -z "$minor" ]
   then
-    minor=$(sed -r '/^v/ba; d; :a s/v[0-9]+\.([0-9]+)\.[0-9]+.*/\1/; q' "$curdir/../../${f}")
+    minor=$(run_sed -e '/^v/ba' -e d -e :a -e 's/v[0-9]+\.([0-9]+)\.[0-9]+.*/\1/' -e q "$curdir/../../${f}")
   fi
   if [ -z "$patch" ]
   then
-    patch=$(sed -r '/^v/ba; d; :a s/v[0-9]+\.[0-9]+\.([0-9]+).*/\1/; q' "$curdir/../../${f}")
+    patch=$(run_sed -e '/^v/ba' -e d -e :a -e 's/v[0-9]+\.[0-9]+\.([0-9]+).*/\1/' -e q "$curdir/../../${f}")
   fi
 
   if [ -n "$format" ]
