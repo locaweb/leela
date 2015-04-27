@@ -7,10 +7,10 @@ curdir="$(cd $(dirname "$0") && pwd)"
 
 run_sed () {
   if [ "$(echo . | sed -r -e 's/(.)/\1/' -e q 2>/dev/null)" = "." ]
-  then $bin_sed -r "$@"; fi
-
-  if [ "$(echo . | sed -E -e 's/(.)/\1/' -e q 2>/dev/null)" = "." ]
-  then $bin_sed -E "$@"; fi
+  then $bin_sed -r "$@"
+  elif [ "$(echo . | sed -E -e 's/(.)/\1/' -e q 2>/dev/null)" = "." ]
+  then $bin_sed -E "$@"
+  fi
 }
 
 read_version () {
