@@ -1,7 +1,7 @@
 #!/bin/sh
 
 leela_root=${leela_root:-$(pwd)}
-bin_sed=${bin_sed:-/bin/sed}
+bin_sed=${bin_sed:-sed}
 
 curdir="$(cd $(dirname "$0") && pwd)"
 
