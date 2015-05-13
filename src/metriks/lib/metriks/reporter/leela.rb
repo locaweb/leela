@@ -12,8 +12,8 @@ module Metriks::Reporter
                 :timeout_in_ms
 
     def initialize (options)
-      @user          = options[:user]
-      @pass          = options[:pass]
+      @user          = options[:user] || fail('Leela user not provided')
+      @pass          = options[:pass] || fail('Leela password not provided')
       @tree          = options[:tree]
       @guid          = options[:guid]
       @prefix        = options[:prefix]
