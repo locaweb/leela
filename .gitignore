@@ -23,3 +23,6 @@ try_leela.stderr
 /src/python/build
 /src/c/src/driver
 /automation/docker-images/leela-docker-*/
+/src/storaged/target/
+/src/storaged/.lein-failures
+/src/storaged/.lein-repl-history
