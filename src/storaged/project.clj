@@ -16,7 +16,7 @@
                             :aot          [leela.storaged.main]
                             :uberjar-name "storaged-uberjar.jar"
                             :dependencies [[clojurewerkz/cassaforte "2.0.0"]]}
-                 :triggers {:aot          [leela.storaged.cassandra.triggers]
-                            :uberjar-name "triggers-uberjar.jar"}}
+                 :triggers {:name         "triggers"
+                            :aot          [leela.storaged.cassandra.triggers]}}
   :global-vars  {*warn-on-reflection* true}
 )
