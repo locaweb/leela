@@ -11,9 +11,8 @@
 
 (deftest-pagination-asc test-fetch-metric-pagination
   {:store-fn #(metrics/store-metric 0 0 0 % (byte-array 0))
-   :fetch-fn #(conn/with-limit %2 (metrics/fetch-metric 0 0 0 %1))
-   :mkrow-fn #(identity {:offset %})
-   :view-fn  #(:offset %)})
+   :fetch-fn #(map :offset (conn/with-limit %2 (metrics/fetch-metric 0 0 0 %1)))
+   :mkrow-fn identity})
 
 (deftest-pagination-desc test-fetch-index-pagination
   {:store-fn #(metrics/store-metric 0 0 % 0 (byte-array 0))

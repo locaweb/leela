@@ -57,6 +57,14 @@
                                 [= :columnfamily_name cfname]
                                 [= :trigger_name name]]))))
 
+(defn has-index? [keyspace cfname cname] false)
+  ;; (not (nil? (fetch-one #(:index_name %)
+  ;;                       (cql/select *cluster* (rfqn :system :schema_columns)
+  ;;                                   (stmt/columns :index_name)
+  ;;                                   (stmt/where [[= :keyspace_name keyspace]
+  ;;                                                [= :columnfamily_name cfname]
+  ;;                                                [= :column_name cname]]))))))
+
 (defmacro create-table-ifne [table & body]
   `(when-not (cql/describe-table *cluster* *keyspace* ~table)
      (warn (format "creating table %s on %s" ~table *keyspace*))
@@ -66,6 +74,11 @@
   `(when-not (has-trigger? *keyspace* ~table ~name)
      (warn (format "creating trigger %s on %s using %s" ~name ~table ~clazz))
      (client/execute *cluster* (->raw (into (create-trigger ~name (fqn ~table) ~clazz) (stmt/if-not-exists))))))
+
+(defmacro create-index-ifne [table column & body]
+  `(when-not (has-index? *keyspace* ~table ~column)
+     (warn (format "creating index on %s.%s" ~table ~column))
+     (cql/create-index *cluster* (conn/fqn ~table) ~column (stmt/if-not-exists) ~@body)))
 
 (defmacro with-connection [[conn endpoint options] & body]
   `(let [~conn (.connect (client/build-cluster {:hosts ~endpoint

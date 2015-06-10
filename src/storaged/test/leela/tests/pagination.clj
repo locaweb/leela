@@ -1,40 +1,69 @@
 (ns leela.tests.pagination
   (:require
+   [clojure.set :refer [union]]
    [clojure.test :refer :all]))
 
-(defn eq-not-nil [a b]
-  (and (= a b) (not-any? nil? [a b])))
+(defn run-offset-pagination [fixture-fn offset-fn option-fn]
+  (let [items    (max 1 (rand-int 1000))
+        pages    (inc (rand-int items))
+        limit    (quot items pages)
+        store-fn (:store-fn option-fn)
+        fetch-fn (:fetch-fn option-fn)
+        mkrow-fn (:mkrow-fn option-fn)]
+    (doseq [k (range items)]
+      (store-fn k))
+    (doseq [page (range pages)]
+      (let [offset (offset-fn items limit page)
+            fixture (fixture-fn offset limit)]
+        (is (= (count (map mkrow-fn fixture)) (count (fetch-fn offset limit))))
+        (is (every? true?
+                    (map =
+                         (map mkrow-fn fixture)
+                         (fetch-fn offset limit))))))))
 
-(defmacro deftest-pagination [name fixture-fn offset-fn option-fn]
+(defn- token-pagination-loop [view-fn last-fn fetch-fn limit]
+  (loop [rset #{}
+         next nil]
+    (let [pack   (if (nil? next)
+                   (fetch-fn (inc limit))
+                   (fetch-fn next (inc limit)))
+          token  (last-fn (butlast pack))
+          v-pack (map view-fn pack)]
+      (is (every? (partial (complement contains?) rset) v-pack))
+      (if (> (count pack) limit)
+        (recur (union rset (set (butlast v-pack))) token)
+        (union rset (set v-pack))))))
+
+(defn run-token-pagination [option-fn]
+  (let [items    (max 1 (rand-int 1000))
+        pages    (inc (rand-int items))
+        limit    (quot items pages)
+        view-fn  (:view-fn option-fn)
+        last-fn  (:last-fn option-fn)
+        fetch-fn (:fetch-fn option-fn)
+        store-fn (:store-fn option-fn)
+        mkrow-fn (:mkrow-fn option-fn)]
+    (doseq [k (range items)]
+      (store-fn k))
+    (is (= (token-pagination-loop view-fn last-fn fetch-fn limit)
+           (set (map mkrow-fn (range items)))))))
+
+(defmacro deftest-pagination-token [name option-fn]
   `(deftest ~name
-     (let [items#    (max 1 (rand-int 1000))
-           pages#    (+ 1 (rand-int items#))
-           limit#    (quot items# pages#)
-           view-fn#  (get ~option-fn :view-fn identity)
-           store-fn# (:store-fn ~option-fn)
-           fetch-fn# (:fetch-fn ~option-fn)
-           mkrow-fn# (:mkrow-fn ~option-fn)]
-       (doseq [k# (range items#)]
-         (store-fn# k#))
-       (doseq [page# (range pages#)]
-         (let [offset# (~offset-fn items# limit# page#)
-               fixture# (~fixture-fn offset# limit#)]
-           (is (= (count (map mkrow-fn# fixture#)) (count (fetch-fn# offset# limit#))))
-           (is (every? true?
-                       (map #(eq-not-nil (view-fn# %1) (view-fn# %2))
-                            (map mkrow-fn# fixture#)
-                            (fetch-fn# offset# limit#)))))))))
+     (run-token-pagination ~option-fn)))
 
 (defmacro deftest-pagination-desc [name option-fn]
   (letfn [(offset-fn [items ppage page]
             (- items (* ppage page)))
           (fixture-fn [offset limit]
             (reverse (range (max 0 (- offset limit)) offset)))]
-    `(deftest-pagination ~name ~fixture-fn ~offset-fn ~option-fn)))
+    `(deftest ~name
+       (run-offset-pagination ~fixture-fn ~offset-fn ~option-fn))))
 
 (defmacro deftest-pagination-asc [name option-fn]
   (letfn [(offset-fn [items ppage page]
             (dec (* ppage page)))
           (fixture-fn [offset limit]
             (range (inc offset) (inc (+ offset limit))))]
-    `(deftest-pagination ~name ~fixture-fn ~offset-fn ~option-fn)))
+    `(deftest ~name
+       (run-offset-pagination ~fixture-fn ~offset-fn ~option-fn))))

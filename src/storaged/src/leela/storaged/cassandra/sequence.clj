@@ -18,8 +18,7 @@
    [clojurewerkz.cassaforte.cql :as cql]
    [clojurewerkz.cassaforte.query :as stmt]
    [clojurewerkz.cassaforte.client :as client]
-   [leela.storaged.cassandra.config :refer [sequence-table sequence-idx-table sequence-blk-table sequence-trigger]]
-   [leela.storaged.cassandra.triggers :refer [strigger-class]]
+   [leela.storaged.cassandra.config :refer [sequence-table sequence-blk-table]]
    [leela.storaged.cassandra.connection :as conn :refer [*limit* *cluster*]]))
 
 (defn create-schema []
@@ -32,20 +31,13 @@
                                       :clustering-order [[:block :desc]]}))
   (conn/create-table-ifne sequence-table
                           (stmt/column-definitions [[:plane :bigint]
-                                                    [:object :blob]
                                                     [:seqid :bigint]
-                                                    [:primary-key [[:plane :object]]]])
+                                                    [:object :blob]
+                                                    [:primary-key [[:object] :plane]]])
                           (stmt/with {:compaction {:class "LeveledCompactionStrategy"
                                                    :sstable_size_in_mb "256"}}))
-  (conn/create-table-ifne sequence-idx-table
-                          (stmt/column-definitions [[:plane :bigint]
-                                                    [:seqid :bigint]
-                                                    [:object :blob]
-                                                    [:primary-key [[:plane] :seqid]]])
-                          (stmt/with {:compaction {:class "LeveledCompactionStrategy"
-                                                   :sstable_size_in_mb "256"}
-                                      :clustering-order [[:seqid :desc]]})))
-
+  (conn/create-index-ifne sequence-table :plane
+                          (stmt/index-name :sequence_plane)))
 
 (defn fetch-block [plane]
   (map (partial :block)
@@ -59,19 +51,28 @@
     blk
     0))
 
-(defn- fetch-idx-with- [predicates]
+(defn- fetch-sequence-with- [predicates]
   (conn/fetch-all #(identity {:seqid (:seqid %)
                               :object (bytes/bytes-from-bytebuff (:object %))})
-                  (cql/select *cluster* (conn/fqn sequence-idx-table)
+                  (cql/select *cluster* (conn/fqn sequence-table)
                               (stmt/columns :object :seqid)
                               (stmt/where predicates)
                               (stmt/limit *limit*))))
 
-(defn fetch-idx
+(defn fetch-sequence
   ([plane]
-   (fetch-idx-with- [[= :plane plane]]))
-  ([plane seqid]
-   (fetch-idx-with- [[= :plane plane] [< :seqid seqid]])))
+   (fetch-sequence-with- [[= :plane plane]]))
+  ([plane object]
+   (fetch-sequence-with- [[= :plane plane]
+                          [> (stmt/token :object) (stmt/token object)]])))
+
+(defn fetch-seqid [plane obj]
+  (conn/fetch-one #(:seqid %)
+                  (cql/select *cluster* (conn/fqn sequence-table)
+                              (stmt/columns :seqid)
+                              (stmt/where [[= :object obj]
+                                           [= :plane plane]])
+                              (stmt/limit 1))))
 
 (defn store-block [plane blk]
   (conn/tx-success?
@@ -93,32 +94,3 @@
                 :seqid seqid
                 :object obj}
                (stmt/if-not-exists))))
-
-(defn index-obj [plane seqid obj]
-  (cql/insert *cluster* (conn/fqn sequence-idx-table)
-              {:plane plane
-               :seqid seqid
-               :object obj}))
-
-(defn store-obj-n-idx [plane seqid obj]
-  (if-not (store-obj plane seqid obj)
-    false
-    (do
-      (index-obj plane seqid obj)
-      true)))
-
-(defn fetch-obj-by-seqid [plane seqid]
-  (conn/fetch-one #(bytes/bytes-from-bytebuff (:object %))
-                  (cql/select *cluster* (conn/fqn sequence-idx-table)
-                              (stmt/columns :object)
-                              (stmt/where [[= :plane plane]
-                                           [= :seqid seqid]])
-                              (stmt/limit 1))))
-
-(defn fetch-seqid-by-obj [plane obj]
-  (conn/fetch-one #(:seqid %)
-                  (cql/select *cluster* (conn/fqn sequence-table)
-                              (stmt/columns :seqid)
-                              (stmt/where [[= :plane plane]
-                                           [= :object obj]])
-                              (stmt/limit 1))))

@@ -4,6 +4,7 @@
    [clojure.string :refer [join]]
    [clojurewerkz.cassaforte.cql :as cql]
    [clojurewerkz.cassaforte.query :as stmt]
+   [clojurewerkz.cassaforte.policies :refer [without-prepared-statements]]
    [leela.storaged.cassandra.connection :as conn :refer [*cluster* *keyspace*]]))
 
 (defmacro install-keyspace-fixtures [create-schema-coll]
@@ -17,7 +18,7 @@
                    (try
                      (conn/with-keyspace keyspace#
                        (doseq [fun# ~create-schema-coll] (fun#))
-                       (f#))
+                       (without-prepared-statements (f#)))
                      (finally
                        (cql/drop-keyspace cluster# keyspace#)))))))
 

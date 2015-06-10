@@ -16,7 +16,6 @@
 
 (def sequence-table "sequence")
 (def sequence-blk-table "sequence_blk")
-(def sequence-idx-table "sequence_idx")
 
 (def bitmap-table "bitmap")
 (def bitmap-idx-table "bitmap_idx")
@@ -25,4 +24,3 @@
 (def metrics-idx-table "metrics_idx")
 
 (def metrics-trigger "metrics_trigger")
-(def sequence-trigger "sequence_trigger")

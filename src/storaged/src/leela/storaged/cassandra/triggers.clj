@@ -127,14 +127,6 @@
       (.add mutation cfname key val (System/currentTimeMillis)))
     mutation))
 
-(defn- index-sequence [o-key o-cf n-cf]
-  (let [parts  (mmap (partition-columns o-cf o-key)
-                     (cluster-columns o-cf)
-                     (regular-columns o-cf))
-        n-keys (make-keys n-cf parts)
-        c-keys (make-cols n-cf parts (.-bytes ^ColumnIdentifier column-object) (cell-values o-cf))]
-    [(mutate n-cf (first n-keys) c-keys (to-coll (mget parts column-object)))]))
-
 (defn- index-metric [o-key o-cf n-cf]
   (let [parts  (mmap (partition-columns o-cf o-key)
                      (cluster-columns o-cf)
@@ -143,15 +135,6 @@
         n-keys (make-keys n-cf parts)
         c-keys (make-cols n-cf parts ByteBufferUtil/EMPTY_BYTE_BUFFER  (cell-values o-cf))]
     [(mutate n-cf (first n-keys) c-keys (repeat ByteBufferUtil/EMPTY_BYTE_BUFFER))]))
-
-(deftype STrigger []
-  ITrigger
-  (augment [this key o-cf]
-    (require 'leela.storaged.cassandra.triggers)
-    (binding [*logger* (LoggerFactory/getLogger (class this))]
-      (let [kspace (.. o-cf (metadata) -ksName)
-            n-cf   (read-cf sequence-cf kspace sequence-idx-table)]
-        (index-sequence key o-cf n-cf)))))
 
 (deftype MTrigger []
   ITrigger
@@ -163,4 +146,3 @@
         (index-metric key o-cf n-cf)))))
 
 (def mtrigger-class (.getName MTrigger))
-(def strigger-class (.getName STrigger))

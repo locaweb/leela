@@ -4,6 +4,7 @@
    [leela.tests.helpers :refer :all]
    [leela.storaged.bytes :as bytes]
    [leela.tests.pagination :refer :all]
+   [clojurewerkz.cassaforte.query :as stmt]
    [leela.storaged.cassandra.sequence :as seq]
    [leela.storaged.cassandra.connection :as conn]))
 
@@ -40,24 +41,21 @@
                     (bytes/bytes-from-chars [a b]))]
       (is (every? true? (pmap register-all (partition 10 10 [] dataset)))))))
 
-(deftest test-fetch-obj-by-seqid-on-empty-table
-  (is (nil? (seq/fetch-obj-by-seqid 0 0))))
-
-(deftest test-fetch-seqid-by-obj-on-empty-table
-  (is (nil? (seq/fetch-seqid-by-obj 0 (bytes/bytes-from-chars "foobar")))))
-
-(deftest test-fetch-obj-by-seqid-after-store
-  (let [data "foobar"]
-    (seq/index-obj 0 0 (bytes/bytes-from-chars data))
-    (is (= data (bytes/chars-from-bytes (seq/fetch-obj-by-seqid 0 0))))))
+(deftest test-fetch-seqid-on-empty-table
+  (is (nil? (seq/fetch-seqid 0 (bytes/bytes-from-chars "foobar")))))
 
 (deftest test-fetch-seqid-by-obj-after-store
   (let [data (bytes/bytes-from-chars "foobar")]
     (seq/store-obj 0 0 data)
-    (is (= 0 (seq/fetch-seqid-by-obj 0 data)))))
+    (is (= 0 (seq/fetch-seqid 0 data)))))
 
-;; (deftest-pagination-desc test-fetch-idx-pagination
-;;   {:store-fn #(seq/index-obj 0 % (byte-array 0))
-;;    :fetch-fn #(conn/with-limit %2 (seq/fetch-idx 0 %1))
-;;    :mkrow-fn #(identity {:seqid %})
-;;    :view-fn  #(:seqid %)})
+(deftest-pagination-token test-fetch-sequence-pagination
+  {:last-fn  (comp :object last)
+   :view-fn  :seqid
+   :store-fn #(seq/store-obj 0 % (stmt/bigint->blob %))
+   :mkrow-fn identity
+   :fetch-fn (fn
+               ([limit]
+                (conn/with-limit limit (seq/fetch-sequence 0)))
+               ([next limit]
+                (conn/with-limit limit (seq/fetch-sequence 0 next))))})
