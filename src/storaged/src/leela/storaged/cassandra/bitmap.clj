@@ -23,11 +23,12 @@
 
 (defn create-schema []
   (conn/create-table-ifne bitmap-idx-table
-                          (stmt/column-definitions [[:varname :text]
+                          (stmt/column-definitions [[:plane   :bigint]
+                                                    [:varname :text]
                                                     [:content :text]
                                                     [:version :int]
-                                                    [:chklist (stmt/list-type :ascii)]
-                                                    [:primary-key [[:varname :content] :version]]])
+                                                    [:blocks  (stmt/list-type :ascii)]
+                                                    [:primary-key [[:plane :varname :content] :version]]])
                           (stmt/with {:compaction {:class "LeveledCompactionStrategy"
                                                    :sstable_size_in_mb "256"}
                                       :clustering-order [[:version :desc]]}))
@@ -48,26 +49,29 @@
                               (stmt/where [[= :hash hash]])
                               (stmt/limit 1))))
 
-(defn store-index [varname content version chklist]
+(defn store-index [plane varname content version blocks]
   (conn/tx-success?
    (cql/insert *cluster* (conn/fqn bitmap-idx-table)
-               {:varname varname
+               {:plane plane
+                :varname varname
                 :content content
                 :version version
-                :chklist chklist}
+                :blocks blocks}
                (stmt/if-not-exists))))
 
 (defn- fetch-index-with- [predicates]
   (cql/select *cluster* (conn/fqn bitmap-idx-table)
-              (stmt/columns :version :chklist)
+              (stmt/columns :version :blocks)
               (stmt/where predicates)
               (stmt/limit *limit*)))
 
 (defn fetch-index
-  ([varname content]
-   (fetch-index-with- [[= :varname varname]
+  ([plane varname content]
+   (fetch-index-with- [[= :plane plane]
+                       [= :varname varname]
                        [= :content content]]))
-  ([varname content version]
-   (fetch-index-with- [[= :varname varname]
+  ([plane varname content version]
+   (fetch-index-with- [[= :plane plane]
+                       [= :varname varname]
                        [= :content content]
                        [< :version version]])))

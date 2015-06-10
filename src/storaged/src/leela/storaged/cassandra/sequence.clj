@@ -24,14 +24,14 @@
 (defn create-schema []
   (conn/create-table-ifne sequence-blk-table
                           (stmt/column-definitions [[:plane :bigint]
-                                                    [:block :bigint]
+                                                    [:block :int]
                                                     [:primary-key [[:plane] :block]]])
                           (stmt/with {:compaction {:class "LeveledCompactionStrategy"
                                                    :sstable_size_in_mb "256"}
                                       :clustering-order [[:block :desc]]}))
   (conn/create-table-ifne sequence-table
                           (stmt/column-definitions [[:plane :bigint]
-                                                    [:seqid :bigint]
+                                                    [:seqid :int]
                                                     [:object :blob]
                                                     [:primary-key [[:object] :plane]]])
                           (stmt/with {:compaction {:class "LeveledCompactionStrategy"

@@ -24,7 +24,7 @@
 
 (defn create-schema []
   (conn/create-table-ifne metrics-table
-                          (stmt/column-definitions [[:plane  :int]
+                          (stmt/column-definitions [[:plane  :bigint]
                                                     [:metric :int]
                                                     [:bucket :bigint]
                                                     [:offset :int]
@@ -34,7 +34,7 @@
                                                    :cold_reads_to_omit "0"}
                                       :compact-storage :true}))
   (conn/create-table-ifne metrics-idx-table
-                          (stmt/column-definitions [[:plane    :int]
+                          (stmt/column-definitions [[:plane    :bigint]
                                                     [:metric   :int]
                                                     [:bucket   :bigint]
                                                     [:location :text]
