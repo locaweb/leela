@@ -24,37 +24,29 @@
 
 (defn create-schema []
   (conn/create-table-ifne metrics-table
-                          (stmt/column-definitions [["schema"  :int]
-                                                    [:metric   :int]
-                                                    [:bucket   :bigint]
-                                                    [:offset   :int]
-                                                    [:datum    :blob]
-                                                    [:primary-key [["schema" :metric :bucket] :offset]]])
+                          (stmt/column-definitions [[:plane  :int]
+                                                    [:metric :int]
+                                                    [:bucket :bigint]
+                                                    [:offset :int]
+                                                    [:datum  :blob]
+                                                    [:primary-key [[:plane :metric :bucket] :offset]]])
                           (stmt/with {:compaction {:class "SizeTieredCompactionStrategy"
                                                    :cold_reads_to_omit "0"}
                                       :compact-storage :true}))
   (conn/create-table-ifne metrics-idx-table
-                          (stmt/column-definitions [["schema"  :int]
+                          (stmt/column-definitions [[:plane    :int]
                                                     [:metric   :int]
                                                     [:bucket   :bigint]
                                                     [:location :text]
-                                                    [:primary-key [["schema" :metric] :bucket :location]]])
+                                                    [:primary-key [[:plane :metric] :bucket :location]]])
                           (stmt/with {:compaction {:class "LeveledCompactionStrategy"
                                                    :sstable_size_in_mb "256"}
                                       :clustering-order [[:bucket :desc]]}))
   (conn/create-trigger-ifne metrics-trigger metrics-table mtrigger-class))
 
-
-(defn index-metric [schema metric bucket location]
-  (cql/insert *cluster* (conn/fqn metrics-idx-table)
-              {"schema" schema
-               :metric metric
-               :bucket bucket
-               :location location}))
-
-(defn store-metric [schema metric bucket offset datum]
+(defn store-metric [plane metric bucket offset datum]
   (cql/insert *cluster* (conn/fqn metrics-table)
-              {"schema" schema
+              {:plane  plane
                :metric metric
                :bucket bucket
                :offset offset
@@ -75,21 +67,21 @@
                    (stmt/limit *limit*))))
 
 (defn fetch-index
-  ([schema metric]
-   (fetch-index-with- [[= "schema" schema]
+  ([plane metric]
+   (fetch-index-with- [[= :plane plane]
                        [= :metric metric]]))
-  ([schema metric bucket]
-   (fetch-index-with- [[= "schema" schema]
+  ([plane metric bucket]
+   (fetch-index-with- [[= :plane plane]
                        [= :metric metric]
                        [< :bucket bucket]])))
 
 (defn fetch-metric
-  ([schema metric bucket]
-   (fetch-metric-with- [[= "schema" schema]
+  ([plane metric bucket]
+   (fetch-metric-with- [[= :plane plane]
                         [= :metric metric]
                         [= :bucket bucket]]))
-  ([schema metric bucket offset]
-   (fetch-metric-with- [[= "schema" schema]
+  ([plane metric bucket offset]
+   (fetch-metric-with- [[= :plane plane]
                         [= :metric metric]
                         [= :bucket bucket]
                         [> :offset offset]])))
