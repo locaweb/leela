@@ -18,75 +18,78 @@
    [clojurewerkz.cassaforte.cql :as cql]
    [clojurewerkz.cassaforte.query :as stmt]
    [clojurewerkz.cassaforte.client :as client]
-   [leela.storaged.cassandra.connection :as conn :refer [+limit+ +keyspace+]]))
+   [leela.storaged.cassandra.config :refer [metrics-table metrics-idx-table metrics-trigger]]
+   [leela.storaged.cassandra.triggers :refer [mtrigger-class]]
+   [leela.storaged.cassandra.connection :as conn :refer [*limit* *cluster*]]))
 
-(def data-table :metrics)
-(def index-table :metric_index)
-
-(defn create-schema [cluster]
-  (conn/create-table-ifne cluster data-table
-                          (stmt/column-definitions {"schema" :int
-                                                    :metric  :int
-                                                    :bucket  :bigint
-                                                    :offset  :int
-                                                    :datum   :blob
-                                                    :primary-key [["schema" :metric :bucket] :offset]})
+(defn create-schema []
+  (conn/create-table-ifne metrics-table
+                          (stmt/column-definitions [["schema"  :int]
+                                                    [:metric   :int]
+                                                    [:bucket   :bigint]
+                                                    [:offset   :int]
+                                                    [:datum    :blob]
+                                                    [:primary-key [["schema" :metric :bucket] :offset]]])
                           (stmt/with {:compaction {:class "SizeTieredCompactionStrategy"
                                                    :cold_reads_to_omit "0"}
                                       :compact-storage :true}))
-  (conn/create-table-ifne cluster index-table
-                          (stmt/column-definitions {"schema"  :int
-                                                    :metric   :int
-                                                    :bucket   :bigint
-                                                    :location :text
-                                                    :primary-key [["schema" :metric] :bucket :location]})
+  (conn/create-table-ifne metrics-idx-table
+                          (stmt/column-definitions [["schema"  :int]
+                                                    [:metric   :int]
+                                                    [:bucket   :bigint]
+                                                    [:location :text]
+                                                    [:primary-key [["schema" :metric] :bucket :location]]])
                           (stmt/with {:compaction {:class "LeveledCompactionStrategy"
                                                    :sstable_size_in_mb "256"}
-                                      :clustering-order [[:bucket :desc]]})))
+                                      :clustering-order [[:bucket :desc]]}))
+  (conn/create-trigger-ifne metrics-trigger metrics-table mtrigger-class))
 
-(defn index-metric [cluster schema metric bucket location]
-  (cql/insert cluster (conn/fqn index-table)
+
+(defn index-metric [schema metric bucket location]
+  (cql/insert *cluster* (conn/fqn metrics-idx-table)
               {"schema" schema
                :metric metric
                :bucket bucket
                :location location}))
 
-(defn store-metric [cluster schema metric bucket offset datum]
-  (cql/insert cluster (conn/fqn data-table)
+(defn store-metric [schema metric bucket offset datum]
+  (cql/insert *cluster* (conn/fqn metrics-table)
               {"schema" schema
                :metric metric
                :bucket bucket
                :offset offset
                :datum datum}))
 
-(defn- fetch-index-with- [cluster predicates]
-  (cql/select cluster (conn/fqn index-table)
+(defn- fetch-index-with- [predicates]
+  (cql/select *cluster* (conn/fqn metrics-idx-table)
               (stmt/columns :bucket :location)
               (stmt/where predicates)
-              (stmt/limit +limit+)))
+              (stmt/limit *limit*)))
 
-(defn- fetch-metric-with- [cluster predicates]
-  (cql/select cluster (conn/fqn data-table)
-              (stmt/columns :offset :datum)
-              (stmt/where predicates)
-              (stmt/limit +limit+)))
+(defn- fetch-metric-with- [predicates]
+  (map #(identity {:offset (:offset %)
+                   :datum (bytes/bytes-from-bytebuff (:datum %))})
+       (cql/select *cluster* (conn/fqn metrics-table)
+                   (stmt/columns :offset :datum)
+                   (stmt/where predicates)
+                   (stmt/limit *limit*))))
 
 (defn fetch-index
-  ([cluster schema metric]
-   (fetch-index-with- cluster [[= "schema" schema]
-                               [= :metric metric]]))
-  ([cluster schema metric bucket]
-   (fetch-index-with- cluster [[= "schema" schema]
-                               [= :metric metric]
-                               [< :bucket bucket]])))
+  ([schema metric]
+   (fetch-index-with- [[= "schema" schema]
+                       [= :metric metric]]))
+  ([schema metric bucket]
+   (fetch-index-with- [[= "schema" schema]
+                       [= :metric metric]
+                       [< :bucket bucket]])))
 
 (defn fetch-metric
-  ([cluster schema metric bucket]
-   (fetch-metric-with- cluster [[= "schema" schema]
-                                [= :metric metric]
-                                [= :bucket bucket]]))
-  ([cluster schema metric bucket offset]
-   (fetch-metric-with- cluster [[= "schema" schema]
-                                [= :metric metric]
-                                [= :bucket bucket]
-                                [> :offset offset]])))
+  ([schema metric bucket]
+   (fetch-metric-with- [[= "schema" schema]
+                        [= :metric metric]
+                        [= :bucket bucket]]))
+  ([schema metric bucket offset]
+   (fetch-metric-with- [[= "schema" schema]
+                        [= :metric metric]
+                        [= :bucket bucket]
+                        [> :offset offset]])))

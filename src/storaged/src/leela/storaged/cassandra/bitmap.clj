@@ -18,58 +18,56 @@
    [clojurewerkz.cassaforte.cql :as cql]
    [clojurewerkz.cassaforte.query :as stmt]
    [clojurewerkz.cassaforte.client :as client]
-   [leela.storaged.cassandra.connection :as conn :refer [+limit+ +keyspace+]]))
+   [leela.storaged.cassandra.config :refer [bitmap-table bitmap-idx-table]]
+   [leela.storaged.cassandra.connection :as conn :refer [*limit* *cluster*]]))
 
-(def data-table :bitmap)
-(def index-table :bitmap_index)
-
-(defn create-schema [cluster]
-  (conn/create-table-ifne cluster index-table
-                          (stmt/column-definitions {:varname :text
-                                                    :content :text
-                                                    :version :int
-                                                    :chklist (stmt/list-type :ascii)
-                                                    :primary-key [[:varname :content] :version]})
+(defn create-schema []
+  (conn/create-table-ifne bitmap-idx-table
+                          (stmt/column-definitions [[:varname :text]
+                                                    [:content :text]
+                                                    [:version :int]
+                                                    [:chklist (stmt/list-type :ascii)]
+                                                    [:primary-key [[:varname :content] :version]]])
                           (stmt/with {:compaction {:class "LeveledCompactionStrategy"
                                                    :sstable_size_in_mb "256"}
                                       :clustering-order [[:version :desc]]}))
-  (conn/create-table-ifne cluster data-table
-                          (stmt/column-definitions {:hash :ascii
-                                                    :data :blob
-                                                    :primary-key [:hash]})))
+  (conn/create-table-ifne bitmap-table
+                          (stmt/column-definitions [[:hash :ascii]
+                                                    [:data :blob]
+                                                    [:primary-key [:hash]]])))
 
-(defn store-chunk [cluster hash data]
-  (cql/insert cluster (conn/fqn data-table)
+(defn store-chunk [hash data]
+  (cql/insert *cluster* (conn/fqn bitmap-table)
               {:hash hash
                :data data}))
 
-(defn fetch-chunk [cluster hash]
+(defn fetch-chunk [hash]
   (conn/fetch-one #(bytes/bytes-from-bytebuff (:data %))
-                  (cql/select cluster (conn/fqn data-table)
+                  (cql/select *cluster* (conn/fqn bitmap-table)
                               (stmt/columns :data)
                               (stmt/where [[= :hash hash]])
                               (stmt/limit 1))))
 
-(defn store-index [cluster varname content version chklist]
+(defn store-index [varname content version chklist]
   (conn/tx-success?
-   (cql/insert cluster (conn/fqn index-table)
+   (cql/insert *cluster* (conn/fqn bitmap-idx-table)
                {:varname varname
                 :content content
                 :version version
                 :chklist chklist}
                (stmt/if-not-exists))))
 
-(defn- fetch-index-with- [cluster predicates]
-  (cql/select cluster (conn/fqn index-table)
+(defn- fetch-index-with- [predicates]
+  (cql/select *cluster* (conn/fqn bitmap-idx-table)
               (stmt/columns :version :chklist)
               (stmt/where predicates)
-              (stmt/limit +limit+)))
+              (stmt/limit *limit*)))
 
 (defn fetch-index
-  ([cluster varname content]
-   (fetch-index-with- cluster [[= :varname varname]
-                               [= :content content]]))
-  ([cluster varname content version]
-   (fetch-index-with- cluster [[= :varname varname]
-                               [= :content content]
-                               [< :version version]])))
+  ([varname content]
+   (fetch-index-with- [[= :varname varname]
+                       [= :content content]]))
+  ([varname content version]
+   (fetch-index-with- [[= :varname varname]
+                       [= :content content]
+                       [< :version version]])))

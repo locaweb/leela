@@ -12,23 +12,17 @@
 ;; See the License for the specific language governing permissions and
 ;; limitations under the License.
 
-(ns leela.storaged.bytes
-  (:import
-   java.nio.ByteBuffer)
-  (:require
-   [clojure.string :refer [join]]))
+(ns leela.storaged.cassandra.config)
 
-(defn bytes-from-chars [xs]
-  (byte-array (map byte xs)))
+(def sequence-table "sequence")
+(def sequence-blk-table "sequence_blk")
+(def sequence-idx-table "sequence_idx")
 
-(defn chars-from-bytes [xs]
-  (join (map char xs)))
+(def bitmap-table "bitmap")
+(def bitmap-idx-table "bitmap_idx")
 
-(defn bytes-from-bytebuff [^ByteBuffer src]
-  (let [dst (byte-array (.remaining src))]
-    (.get src dst)
-    dst))
+(def metrics-table "metrics")
+(def metrics-idx-table "metrics_idx")
 
-(defn byte-array? [x]
-  (let [ty (type (byte-array 0))]
-    (instance? ty x)))
+(def metrics-trigger "metrics_trigger")
+(def sequence-trigger "sequence_trigger")

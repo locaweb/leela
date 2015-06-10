@@ -14,21 +14,25 @@
 
 (ns leela.storaged.cassandra.connection
   (:require
+   [qbits.hayt :refer [->raw]]
    [clojure.tools.logging :refer [info warn]]
+   [qbits.hayt.dsl.statement :refer [create-trigger]]
    [clojurewerkz.cassaforte.cql :as cql]
    [clojurewerkz.cassaforte.query :as stmt]
    [clojurewerkz.cassaforte.client :as client]
    [clojurewerkz.cassaforte.policies :as policies]))
 
-(def ^:dynamic +limit+ 100)
+(def ^:dynamic *limit* 100)
 
-(def ^:dynamic +keyspace+)
+(def ^:dynamic *cluster*)
+
+(def ^:dynamic *keyspace*)
 
 (defn rfqn [keyspace name]
   (stmt/cql-ns keyspace name))
 
 (defn fqn [name]
-  (rfqn +keyspace+ name))
+  (rfqn *keyspace* name))
 
 (defn fetch-one [fun rows]
   (when-first [ans rows]
@@ -40,16 +44,28 @@
 (defn tx-success? [rows]
   (fetch-one #((keyword "[applied]") %) rows))
 
-(defn desc-tables [cluster keyspace]
+(defn desc-tables [keyspace]
   (fetch-all #(:columnfamily_name %)
-             (cql/select cluster (rfqn :system :schema_columnfamilies)
+             (cql/select *cluster* (rfqn :system :schema_columnfamilies)
                          (stmt/columns :columnfamily_name)
-                         (stmt/where [[= "keyspace_name" keyspace]]))))
+                         (stmt/where [[= :keyspace_name keyspace]]))))
 
-(defmacro create-table-ifne [cluster table & body]
-  `(when-not (cql/describe-table ~cluster +keyspace+ ~table)
-     (warn (format "creating table %s on %s" ~table +keyspace+))
-     (cql/create-table ~cluster (conn/fqn ~table) (stmt/if-not-exists) ~@body)))
+(defn has-trigger? [keyspace cfname name]
+  (seq (cql/select *cluster* (rfqn :system :schema_triggers)
+                   (stmt/columns :trigger_name)
+                   (stmt/where [[= :keyspace_name keyspace]
+                                [= :columnfamily_name cfname]
+                                [= :trigger_name name]]))))
+
+(defmacro create-table-ifne [table & body]
+  `(when-not (cql/describe-table *cluster* *keyspace* ~table)
+     (warn (format "creating table %s on %s" ~table *keyspace*))
+     (cql/create-table *cluster* (conn/fqn ~table) (stmt/if-not-exists) ~@body)))
+
+(defmacro create-trigger-ifne [name table clazz]
+  `(when-not (has-trigger? *keyspace* ~table ~name)
+     (warn (format "creating trigger %s on %s using %s" ~name ~table ~clazz))
+     (client/execute *cluster* (->raw (into (create-trigger ~name (fqn ~table) ~clazz) (stmt/if-not-exists))))))
 
 (defmacro with-connection [[conn endpoint options] & body]
   `(let [~conn (.connect (client/build-cluster {:hosts ~endpoint
@@ -67,9 +83,12 @@
   `(policies/with-consistency-level (policies/consistency-level ~tag)
      ~@body))
 
+(defmacro with-cluster [cluster & body]
+  `(binding [*cluster* ~cluster] ~@body))
+
 (defmacro with-keyspace [name & body]
-  `(binding [+keyspace+ ~name] ~@body))
+  `(binding [*keyspace* ~name] ~@body))
 
 (defmacro with-limit [limit & body]
-  `(binding [+limit+ ~limit]
+  `(binding [*limit* ~limit]
      ~@body))
