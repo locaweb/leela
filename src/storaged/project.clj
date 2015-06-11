@@ -3,13 +3,8 @@
   :license      {:name "MIT"
                  :url  "http://opensource.org/licenses/MIT"}
   :description  "Leela Storage Daemon: read and write access to the underlying storage"
-  ;:dependencies [; [pandect "0.3.0"]
-                 ; [clj-time "0.6.0"]
-                 ; [clojure-msgpack "0.1.0-SNAPSHOT"]
-                 ; [org.zeromq/jzmq "3.1.0"]
-                 
-                 ; [clojurewerkz/cassaforte "2.0.0"]
-  :profiles     {:dev      {:dependencies [[org.clojure/tools.nrepl "0.2.0"]]}
+  :profiles     {:repl     {:dependencies   [[org.clojure/tools.nrepl "0.2.0"]]}
+                 :test     {:jvm-opts ["-Dlogback.configurationFile=etc/logback.xml"]}
                  :storaged {:main         leela.storaged.main
                             :aot          [leela.storaged.main]
                             :jar-name     "storaged-%s.jar"
