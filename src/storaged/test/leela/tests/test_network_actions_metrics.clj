@@ -15,22 +15,7 @@
                                     :bucket 0
                                     :offset 0}))))
 
-(deftest test-get-metric-after-put-metric
-  (let [data  {:plane (rand-int 1000)
-               :metric (rand-int 1000)
-               :bucket (rand-int 1000)
-               :offset (rand-int 1000)
-               :datum (bytes/bytes-from-chars "foobar")}
-        query {:plane (:plane data)
-               :metric (:metric data)
-               :bucket (:bucket data)}]
-    (put-metrics-handler data)
-    (let [rows (get-metrics-handler query)]
-      (is (= 1 (count rows)))
-      (is (= (:offset data) (:offset (first rows))))
-      (is (= (seq (:datum data)) (seq (:datum (first rows))))))))
-
-(deftest-pagination-asc test-worker-pagination-on-metrics
+(deftest-pagination-asc test-get-metrics-handler-pagination
   (let [data  {:plane (rand-int 1000)
                :metric (rand-int 1000)
                :bucket (rand-int 1000)
@@ -41,3 +26,14 @@
     {:store-fn #(put-metrics-handler (assoc data :offset %))
      :fetch-fn #(map :offset (get-metrics-handler (assoc query :offset %1 :limit %2)))
      :mkrow-fn identity}))
+
+(deftest-pagination-desc test-get-index-handler-pagination
+  (let [data  {:plane (rand-int 1000)
+               :metric (rand-int 1000)
+               :offset (rand-int 1000)
+               :datum (bytes/bytes-from-chars "foobar")}
+        query {:plane (:plane data)
+               :metric (:metric data)}]
+    {:store-fn #(put-metrics-handler (assoc data :bucket %))
+     :fetch-fn #(get-index-handler (assoc query :bucket %1 :limit %2))
+     :mkrow-fn #(identity {:bucket % :location "cassandra://"})}))

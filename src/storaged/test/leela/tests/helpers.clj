@@ -30,6 +30,10 @@
      (use-fixtures :once create-keyspace-fixture#)
      (use-fixtures :each truncate-keyspace-fixture#)))
 
+(defn trace
+  ([k x] (println (format "%s: %s" k (pr-str x))) x)
+  ([x] (println (pr-str x)) x))
+
 (defn a-z-range []
   (map char (range (int \a) (inc (int \z)))))
 
