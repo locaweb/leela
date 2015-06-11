@@ -15,6 +15,7 @@
 (ns leela.storaged.cassandra.connection
   (:require
    [qbits.hayt :refer [->raw]]
+   [clojure.string :refer [split]]
    [clojure.tools.logging :refer [info warn]]
    [qbits.hayt.dsl.statement :refer [create-trigger]]
    [clojurewerkz.cassaforte.cql :as cql]
@@ -44,40 +45,39 @@
 (defn tx-success? [rows]
   (fetch-one #((keyword "[applied]") %) rows))
 
-(defn desc-tables [keyspace]
+(defn desc-tables []
   (fetch-all #(:columnfamily_name %)
              (cql/select *cluster* (rfqn :system :schema_columnfamilies)
                          (stmt/columns :columnfamily_name)
-                         (stmt/where [[= :keyspace_name keyspace]]))))
+                         (stmt/where [[= :keyspace_name *keyspace*]]))))
 
-(defn has-trigger? [keyspace cfname name]
+(defn has-trigger? [cfname name]
   (seq (cql/select *cluster* (rfqn :system :schema_triggers)
                    (stmt/columns :trigger_name)
-                   (stmt/where [[= :keyspace_name keyspace]
+                   (stmt/where [[= :keyspace_name *keyspace*]
                                 [= :columnfamily_name cfname]
                                 [= :trigger_name name]]))))
 
-(defn has-index? [keyspace cfname cname] false)
-  ;; (not (nil? (fetch-one #(:index_name %)
-  ;;                       (cql/select *cluster* (rfqn :system :schema_columns)
-  ;;                                   (stmt/columns :index_name)
-  ;;                                   (stmt/where [[= :keyspace_name keyspace]
-  ;;                                                [= :columnfamily_name cfname]
-  ;;                                                [= :column_name cname]]))))))
+(defn has-index? [cfname cname]
+  (fetch-one :index_name (cql/select *cluster* (rfqn :system :schema_columns)
+                                     (stmt/columns :index_name)
+                                     (stmt/where [[= :keyspace_name *keyspace*]
+                                                  [= :columnfamily_name cfname]
+                                                  [= :column_name cname]]))))
 
 (defmacro create-table-ifne [table & body]
   `(when-not (cql/describe-table *cluster* *keyspace* ~table)
-     (warn (format "creating table %s on %s" ~table *keyspace*))
+     (warn (format "creating table %s.%s" *keyspace* ~table))
      (cql/create-table *cluster* (conn/fqn ~table) (stmt/if-not-exists) ~@body)))
 
 (defmacro create-trigger-ifne [name table clazz]
-  `(when-not (has-trigger? *keyspace* ~table ~name)
-     (warn (format "creating trigger %s on %s using %s" ~name ~table ~clazz))
+  `(when-not (has-trigger? ~table ~name)
+     (warn (format "creating trigger on %s.%s using %s" *keyspace* ~table (last (split ~clazz #"\."))))
      (client/execute *cluster* (->raw (into (create-trigger ~name (fqn ~table) ~clazz) (stmt/if-not-exists))))))
 
 (defmacro create-index-ifne [table column & body]
-  `(when-not (has-index? *keyspace* ~table ~column)
-     (warn (format "creating index on %s.%s" ~table ~column))
+  `(when-not (has-index? ~table ~column)
+     (warn (format "creating index on %s.%s (%s)" *keyspace* ~table ~column))
      (cql/create-index *cluster* (conn/fqn ~table) ~column (stmt/if-not-exists) ~@body)))
 
 (defmacro with-connection [[conn endpoint options] & body]

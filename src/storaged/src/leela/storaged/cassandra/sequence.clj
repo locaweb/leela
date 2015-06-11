@@ -36,7 +36,7 @@
                                                     [:primary-key [[:object] :plane]]])
                           (stmt/with {:compaction {:class "LeveledCompactionStrategy"
                                                    :sstable_size_in_mb "256"}}))
-  (conn/create-index-ifne sequence-table :plane
+  (conn/create-index-ifne sequence-table "plane"
                           (stmt/index-name :sequence_plane)))
 
 (defn fetch-block [plane]
@@ -67,7 +67,7 @@
                           [> (stmt/token :object) (stmt/token object)]])))
 
 (defn fetch-seqid [plane obj]
-  (conn/fetch-one #(:seqid %)
+  (conn/fetch-one :seqid
                   (cql/select *cluster* (conn/fqn sequence-table)
                               (stmt/columns :seqid)
                               (stmt/where [[= :object obj]
