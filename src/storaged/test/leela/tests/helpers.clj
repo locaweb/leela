@@ -23,7 +23,7 @@
                        (cql/drop-keyspace cluster# keyspace#)))))))
 
            (truncate-keyspace-fixture# [f#]
-             (doseq [table# (conn/desc-tables *keyspace*)]
+             (doseq [table# (conn/desc-tables)]
                (cql/truncate *cluster* (conn/fqn table#)))
              (f#))]
 
