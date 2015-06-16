@@ -17,15 +17,14 @@
 module Metriks
   module Reporter
     module Leela
-     
+
       module Version
         MAJOR   = 5
         MINOR   = 2
-        PATCH   = 1
-        VERSION = "5.2.1"
+        PATCH   = 2
+        VERSION = '5.2.2'
       end
-     
+
     end
   end
 end
-

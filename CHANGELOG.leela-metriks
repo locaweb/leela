@@ -1,4 +1,8 @@
 --*-- mode: text; --*--
+v5.2.2 | 2015-06-16
+
+  * Fix an issue that causes a segfault if the user passes a nil user or
+    password when configuring the Leela Reporter
 
 v5.2.1 | 2014-05-21
 
@@ -62,7 +66,7 @@ v3.4.0 | 2013-06-01
 v3.3.0 | 2013-09-06
 
   * udp frontend performance improvements: no longer droppping packages | dgvncsz0f
-  * udp now collects metrics about itself | dgvncsz0f 
+  * udp now collects metrics about itself | dgvncsz0f
   * http now waits the data to be written to timeline before returning any response | dgvncsz0f
   * adding /v1/version resource | dgvncsz0f
   * properly handling exception and using correct http codes | dgvncsz0f
