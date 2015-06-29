@@ -1,0 +1,5 @@
+#!/usr/bin/dh-exec
+
+usr/include/leela                 usr/include/
+usr/include/poly1305aes           usr/include/
+usr/lib/${DEB_HOST_MULTIARCH}/*.a usr/lib/${DEB_HOST_MULTIARCH}

@@ -3,7 +3,7 @@
 set -e
 
 srcroot=${srcroot:-$(dirname $(readlink -f "$0"))}
-all_images=$(echo centos{5,6,7}.{amd64,i386} debian{6,7}.{amd64,i386})
+all_images=$(echo centos{5,6,7}.{amd64,i386} debian{6,7,8}.{amd64,i386})
 
 with_path="/usr/bin/env PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin"
 
@@ -25,6 +25,14 @@ makeimg_configure_debian () {
   debian_conf_post_script="$target/bootstrap/post-script"
   cp -a "$srcroot/../bootstrap" "$target/bootstrap"
   case "$dist" in
+    8)
+      name=jessie
+      cat <<EOF >"$debian_conf_post_script"
+#!/bin/sh
+chown 755 "$target"
+chroot "$target" $with_path /bootstrap/debian8-bootstrap.sh
+EOF
+      ;;
     7)
       name=wheezy
       cat <<EOF >"$debian_conf_post_script"
@@ -169,11 +177,17 @@ else
   if echo "$@" | grep -q '\bcentos5.amd64\b'
   then makeimg_centos amd64 5; fi
 
+  if echo "$@" | grep -q '\bdebian8.i386\b'
+  then makeimg_debian i386 8; fi
+
   if echo "$@" | grep -q '\bdebian7.i386\b'
   then makeimg_debian i386 7; fi
 
   if echo "$@" | grep -q '\bdebian6.i386\b'
   then makeimg_debian i386 6; fi
+
+  if echo "$@" | grep -q '\bdebian8.amd64\b'
+  then makeimg_debian amd64 8; fi
 
   if echo "$@" | grep -q '\bdebian7.amd64\b'
   then makeimg_debian amd64 7; fi

@@ -65,7 +65,7 @@ makepkg_centos () {
 }
 
 makepkg_bootstrap () {
-  if echo "$dist" | grep -qE '^debian[67]$|^centos[567]$'
+  if echo "$dist" | grep -qE '^debian[678]$|^centos[567]$'
   then "$srcroot/../automation/bootstrap/$dist-bootstrap.sh"; fi
   case "$package" in
     leela-c)
