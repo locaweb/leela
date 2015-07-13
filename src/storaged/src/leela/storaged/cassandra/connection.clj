@@ -88,17 +88,20 @@
      (warn (format "creating index on %s.%s (%s)" *keyspace* ~table ~column))
      (cql/create-index *cluster* (conn/fqn ~table) ~column (stmt/if-not-exists) ~@body)))
 
-(defmacro with-connection [[conn endpoint options] & body]
-  `(let [~conn (.connect (client/build-cluster {:hosts ~endpoint
-                                                :retry-policy (policies/logging-retry-policy (policies/retry-policy :fallthrough))
-                                                :credentials (:credentials ~options)
-                                                :load-balancing-policy (policies/token-aware-policy (policies/round-robin-policy))
-                                                :connections-per-host (:connections ~options)
-                                                :max-connections-per-host (:max-connections ~options)}))]
+(defmacro with-connection [[sess endpoint options] & body]
+  `(let [cluster# (client/build-cluster {:hosts ~endpoint
+                                         :retry-policy (policies/logging-retry-policy (policies/retry-policy :fallthrough))
+                                         :credentials (:credentials ~options)
+                                         :load-balancing-policy (policies/token-aware-policy (policies/round-robin-policy))
+                                         :connections-per-host (:connections ~options)
+                                         :max-connections-per-host (:max-connections ~options)})
+         ~sess    (.connect cluster#)]
      (info (format "cassandra/with-connection %s" (dissoc ~options :credentials)))
      (try
        ~@body
-       (finally (.close ~conn)))))
+       (finally
+         (client/disconnect ~sess)
+         (client/shutdown-cluster cluster#)))))
 
 (defmacro with-consistency [tag & body]
   `(policies/with-consistency-level (policies/consistency-level ~tag)
