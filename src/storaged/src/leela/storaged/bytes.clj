@@ -37,12 +37,12 @@
     (.get src dst)
     dst))
 
+(defn bytebuff-from-bytes [xs]
+  (ByteBuffer/wrap xs))
+
 (defn byte-array? [x]
   (let [ty (type (byte-array 0))]
     (instance? ty x)))
-
-(defn bytebuffer-from-string [s]
-  (ByteBuffer/wrap (bytes-from-chars s)))
 
 (defn concat-bytes [a b]
   (into-array Byte/TYPE (concat (seq a) (seq b))))

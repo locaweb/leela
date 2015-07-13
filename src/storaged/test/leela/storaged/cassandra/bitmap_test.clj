@@ -1,4 +1,4 @@
-(ns leela.tests.test-cassandra-bitmap
+(ns leela.storaged.cassandra.bitmap-test
   (:require
    [clojure.test :refer :all]
    [leela.tests.helpers :refer :all]

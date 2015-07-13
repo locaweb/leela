@@ -1,4 +1,4 @@
-(ns leela.tests.test-cassandra-sequence
+(ns leela.storaged.cassandra.sequence-test
   (:require
    [clojure.test :refer :all]
    [leela.tests.helpers :refer :all]
