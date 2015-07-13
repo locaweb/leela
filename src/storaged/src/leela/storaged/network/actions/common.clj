@@ -30,9 +30,6 @@
 (defn nil-or [pred]
   #(or (nil? %) (pred %)))
 
-;; (defn- arg-errors [args tests]
-;;   (filter #(%1 %2) (map vector tests args)))
-
 (defn map-errors [test data]
   (letfn [(valid-fn [[key val]]
             (or (not (contains? test key)) ((get test key) val)))]
