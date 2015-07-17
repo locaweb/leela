@@ -25,11 +25,11 @@
 #include <inttypes.h>
 #include <sys/types.h>
 
-#include <collectd/config.h>
-#include <collectd/collectd.h>
-#include <collectd/common.h>
-#include <collectd/utils_cache.h>
-#include <collectd/plugin.h>
+#include <collectd/core/config.h>
+#include <collectd/core/collectd.h>
+#include <collectd/core/common.h>
+#include <collectd/core/utils_cache.h>
+#include <collectd/core/plugin.h>
 
 #include <leela/lql.h>
 #include <leela/string.h>
