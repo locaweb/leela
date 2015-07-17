@@ -82,7 +82,7 @@ wl_data_t *wl_leela_cfg;
 static
 void wl_logcallback (void *dummy, const char *fmt, va_list args)
 {
-  UNUSED(dummy);
+  WL_UNUSED(dummy);
   char buff[1024];
   if (vsnprintf(buff, 1024, fmt, args) > 0)
   { INFO("write_leela plugin: %s", buff); }
