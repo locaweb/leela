@@ -20,37 +20,30 @@
 ;; CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ;; SOFTWARE.
 
-(ns leela.storaged.network.actions.common
+(ns leela.storaged.time
   (:require
-   [slingshot.slingshot :refer [throw+]]))
+   [clj-time.core :refer [now]]
+   [clj-time.coerce :refer [to-long]]))
 
-(def default-limit 100)
+(defn monotonic-time []
+  (System/nanoTime))
 
-(defn nil-or [pred]
-  #(or (nil? %) (pred %)))
+(defmacro time-it [& f]
+  `(let [start# (monotonic-time)
+         reply# ~@f
+         stop#  (monotonic-time)]
+     [(- stop# start#) reply#]))
 
-(defn map-errors [test data]
-  (letfn [(valid-fn [[key val]]
-            (and (contains? test key) ((get test key) val)))]
-    (if-not (map? data)
-      [":" "type-error; map was expected"]
-      (first (filter (complement valid-fn) (seq data))))))
+(defn human-string [d]
+  (let [umetrics [[1000 "ns"] [1000 "us"] [1000 "ms"] [60 "s"] [60 "m"]]]
+    (loop [n            d
+           [[q u] & us] umetrics]
+      (if (and (>= n q) (not-empty us))
+        (recur (/ n q) us)
+        (format "%.3f %s" (float n) u)))))
 
-(defn arg-errors [test data]
-  (if-not (coll? data)
-    [-1 "type-error; coll was expected"]
-    (map-errors test (into {} (map-indexed vector data)))))
+(defn time-now []
+  (now))
 
-(defmacro when-map [tests params & body]
-  `(if-let [e# (map-errors ~tests ~params)]
-     (throw+ {:type :leela.storaged/user-error
-              :cause nil
-              :message (format "invalid param: data[%s]=%s" (first e#) (pr-str (second e#)))})
-     (do ~@body)))
-
-(defmacro when-args [tests args & body]
-  `(if-let [e# (arg-errors ~tests ~args)]
-     (throw+ {:type :leela.storaged/user-error
-              :cause nil
-              :message (format "invalid argument: data[%d]=%s" (first e#) (pr-str (second e#)))})
-     (do ~@body)))
+(defn timestamp-now []
+  (to-long (now)))

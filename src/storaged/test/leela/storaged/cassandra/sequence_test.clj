@@ -14,7 +14,7 @@
   (is (= [] (seq/fetch-block 0))))
 
 (deftest test-fetch-block-singleton
-  (is (= 1 (seq/alloc-block 0))))
+  (is (= 0 (seq/alloc-block 0))))
 
 (deftest test-alloc-block-concurrently
   (let [size 100

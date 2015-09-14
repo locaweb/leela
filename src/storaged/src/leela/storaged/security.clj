@@ -22,12 +22,16 @@
    java.nio.ByteBuffer)
   (:require
    [pandect.core :refer [sha1-bytes sha1-hmac-bytes]]
-   [clj-time.core :refer [now]]
-   [clj-time.coerce :refer [to-long]]))
+   [leela.storaged.time :refer :all]
+   [leela.storaged.bytes :refer :all]))
 
 (def ^:dynamic *secret*)
 
 (def ^:dynamic *time-window-in-ms* 300000)
+
+(def method-name "HMAC-SHA1")
+
+(def signature-size (count (sha1-bytes "")))
 
 (defmacro with-secret [secret & body]
   `(binding [*secret* ~secret]
@@ -37,18 +41,16 @@
   `(binding [*time-window-in-ms* w]
      ~@body))
 
-(def signature-size (count (sha1-bytes "")))
-
-(defn signature [^ByteBuffer payload]
+(defn signature (^bytes [^ByteBuffer payload]
   (let [msg (byte-array (.remaining payload))]
     (.get payload msg)
-    (sha1-hmac-bytes msg *secret*)))
+    (sha1-hmac-bytes msg *secret*))))
 
 (defn signature? [^ByteBuffer payload]
   (if (>= (.remaining payload) signature-size)
     (let [sig (byte-array (min (.remaining payload) signature-size))]
       (.get payload sig)
-      (= (seq sig) (seq (signature payload))))
+      (= (seq sig) (seq (signature (.slice payload)))))
     false))
 
 (defn timestamp? [time ^ByteBuffer payload]
@@ -59,19 +61,39 @@
     false))
 
 (defn check-signature! [^ByteBuffer payload]
-  (when (not (and (nil? payload) (signature? (.slice payload))))
+  (when (and (not (nil? payload)) (signature? (.slice payload)))
     (let [tmp (byte-array signature-size)]
-      (.get payload tmp))
-    payload))
+      (.get payload tmp))))
 
 (defn check-timestamp! [time ^ByteBuffer payload]
-  (when (not (and (nil? payload) (timestamp? time (.slice payload))))
-    (.getLong payload)
-    payload))
+  (when (and (not (nil? payload)) (timestamp? time (.slice payload)))
+    (let [tmp (byte-array 8)]
+      (.get payload tmp))))
 
-(defn authenticate-with-time [time-now ^ByteBuffer payload]
+(defn auth-with-time! [time ^ByteBuffer payload]
   (->> (check-signature! payload)
-       (check-timestamp! time-now)))
+       (check-timestamp! time)))
 
-(defn authenticate [^ByteBuffer payload]
-  (authenticate-with-time (to-long (now)) payload))
+(defn auth! [^ByteBuffer payload]
+  (auth-with-time! (timestamp-now) payload))
+
+(defn auth-bytes! [payload]
+  (if-let [bbuf (auth! (bytebuff-from-bytes payload))]
+    (bytes-from-bytebuff bbuf)))
+
+(defn sign (^ByteBuffer [^ByteBuffer payload]
+  (let [buff (byte-array (+ 8 signature-size (.remaining payload)))
+        bbuf (bytebuff-from-bytes buff)]
+    (doto bbuf
+      (.position signature-size)
+      (.putLong (timestamp-now))
+      (.put payload)
+      (.position signature-size))
+    (let [sig (signature bbuf)]
+      (doto bbuf
+        (.rewind)
+        (.put sig)
+        (.rewind))))))
+
+(defn sign-bytes [payload]
+  (bytes-from-bytebuff (sign (bytebuff-from-bytes payload))))

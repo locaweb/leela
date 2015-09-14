@@ -19,3 +19,17 @@
         msg2  (random-name 100)
         bytes (concat-bytes (bytes-from-chars msg1) (bytes-from-chars msg2))]
     (is (= (seq (bytes-from-chars (concat msg1 msg2))) (seq bytes)))))
+
+(deftest test-bytes-from-long
+  (let [num   (long (* (rand) Long/MAX_VALUE))
+        noise (bytes-from-chars (random-name 100))
+        bnum  (concat-bytes (bytes-from-long num) noise)]
+    (is (= num (long-from-bytes-only bnum)))
+    (is (= (seq noise) (seq (second (long-from-bytes bnum)))))))
+
+(deftest test-bstr-from-chars
+  (let [msg   (random-name (rand-int (int (Math/pow 2 Byte/SIZE))))
+        noise (bytes-from-chars (random-name 100))
+        bstr  (concat-bytes (bstr-from-chars msg) noise)]
+    (is (= msg (chars-from-bstr-only bstr)))
+    (is (= (seq noise) (seq (second (chars-from-bstr bstr)))))))

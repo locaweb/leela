@@ -20,37 +20,29 @@
 ;; CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ;; SOFTWARE.
 
-(ns leela.storaged.network.actions.common
+(ns leela.storaged.control
   (:require
-   [slingshot.slingshot :refer [throw+]]))
+   [clojure.tools.logging :refer [error]]))
 
-(def default-limit 100)
+(defmacro forever [& body]
+  `(while true ~@body))
 
-(defn nil-or [pred]
-  #(or (nil? %) (pred %)))
+(defmacro try-fn [& f]
+  `(try
+    [:r ~@f]
+    (catch Exception e#
+      [:l e#])))
 
-(defn map-errors [test data]
-  (letfn [(valid-fn [[key val]]
-            (and (contains? test key) ((get test key) val)))]
-    (if-not (map? data)
-      [":" "type-error; map was expected"]
-      (first (filter (complement valid-fn) (seq data))))))
-
-(defn arg-errors [test data]
-  (if-not (coll? data)
-    [-1 "type-error; coll was expected"]
-    (map-errors test (into {} (map-indexed vector data)))))
-
-(defmacro when-map [tests params & body]
-  `(if-let [e# (map-errors ~tests ~params)]
-     (throw+ {:type :leela.storaged/user-error
-              :cause nil
-              :message (format "invalid param: data[%s]=%s" (first e#) (pr-str (second e#)))})
-     (do ~@body)))
-
-(defmacro when-args [tests args & body]
-  `(if-let [e# (arg-errors ~tests ~args)]
-     (throw+ {:type :leela.storaged/user-error
-              :cause nil
-              :message (format "invalid argument: data[%d]=%s" (first e#) (pr-str (second e#)))})
-     (do ~@body)))
+;; This function issues a warning: recur arg for primitive local: n is
+;; not matching primitive. At the time we wrote this, it was still an
+;; open issue: http://dev.clojure.org/jira/browse/CLJ-701
+(defmacro supervise [& fn]
+  `(loop [n# 0]
+     (let [v# (try-fn ~@fn)
+           s# (reduce * (repeat n# 2))]
+       (case (first v#)
+         :r (second v#)
+         :l (do
+              (error (second v#) (format "supervised function has died; waiting %d seconds" s#))
+              (Thread/sleep (* 1000 s#))
+              (recur (mod (inc n#) 300)))))))

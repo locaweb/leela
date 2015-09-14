@@ -61,10 +61,12 @@
                :datum datum}))
 
 (defn- fetch-index-with- [predicates]
-  (cql/select *cluster* (conn/fqn metrics-idx-table)
-              (stmt/columns :bucket :location)
-              (stmt/where predicates)
-              (stmt/limit *limit*)))
+  (map #(identity {:bucket (:bucket %)
+                   :location (:location %)})
+       (cql/select *cluster* (conn/fqn metrics-idx-table)
+                   (stmt/columns :bucket :location)
+                   (stmt/where predicates)
+                   (stmt/limit *limit*))))
 
 (defn- fetch-metric-with- [predicates]
   (map #(identity {:offset (:offset %)

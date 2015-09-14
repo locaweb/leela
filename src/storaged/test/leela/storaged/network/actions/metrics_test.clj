@@ -1,4 +1,4 @@
-(ns leela.storaged.cassandra.network.actions.metrics-test
+(ns leela.storaged.network.actions.metrics-test
   (:require
    [clojure.test :refer :all]
    [leela.tests.helpers :refer :all]

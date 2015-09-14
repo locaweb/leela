@@ -26,19 +26,48 @@
   (:require
    [clojure.string :refer [join]]))
 
+(defn bytes-cmp [xs ys]
+  (compare (seq xs) (seq ys)))
+
 (defn bytes-from-chars [xs]
   (byte-array (map byte xs)))
 
+(defn bstr-from-chars [xs]
+  (let [len (count xs)]
+    (if (< len 256)
+      (byte-array (cons (count xs) (map byte xs))))))
+
 (defn chars-from-bytes [xs]
   (join (map char xs)))
+
+(defn chars-from-bstr [xs]
+  (if-let [len (bit-and (first xs) 0xFF)]
+    (let [[left, right] (split-at len (rest xs))]
+      (list (chars-from-bytes left) right))))
+
+(defn chars-from-bstr-only [xs]
+  (first (chars-from-bstr xs)))
 
 (defn bytes-from-bytebuff [^ByteBuffer src]
   (let [dst (byte-array (.remaining src))]
     (.get src dst)
     dst))
 
-(defn bytebuff-from-bytes [xs]
-  (ByteBuffer/wrap xs))
+(defn bytebuff-from-bytes (^ByteBuffer [xs]
+  (ByteBuffer/wrap xs)))
+
+(defn bytes-from-long [x]
+  (let [buff (byte-array 8)]
+    (.putLong (bytebuff-from-bytes buff) x)
+    buff))
+
+(defn long-from-bytes [xs]
+  (let [bbuf (bytebuff-from-bytes xs)
+        num  (.getLong bbuf)]
+    (list num (bytes-from-bytebuff bbuf))))
+
+(defn long-from-bytes-only [xs]
+  (first (long-from-bytes xs)))
 
 (defn byte-array? [x]
   (let [ty (type (byte-array 0))]

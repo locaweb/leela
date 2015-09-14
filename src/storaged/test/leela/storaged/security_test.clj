@@ -24,12 +24,12 @@
     (let [msg     (bytes-from-chars (random-name (+ 1 (rand-int 100))))
           sig     (signature (ByteBuffer/wrap msg))
           sig+msg (ByteBuffer/wrap (concat-bytes sig msg))]
-      (is (= (- (.remaining sig+msg) signature-size) (.remaining (check-signature! sig+msg)))))))
+      (is (not (nil? (check-signature! sig+msg)))))))
 
 (deftest test-check-timestamp!
   (let [time (ByteBuffer/wrap (byte-array 8))]
     (.putLong (.slice time) (to-long (now)))
-    (is (= 0 (.remaining (check-timestamp! (to-long (now)) time))))))
+    (is (not (nil? (check-timestamp! (to-long (now)) time))))))
 
 (deftest test-signature-short
   (with-secret (random-name 32)
@@ -51,9 +51,5 @@
 
 (deftest test-authenticate
   (with-secret (random-name 32)
-    (let [msg  (bytes-from-chars (random-name (+ 1 (rand-int 100))))
-          time (to-long (now))
-          buff (ByteBuffer/wrap (byte-array (+ (count msg) signature-size 8)))
-          sig  (signature (.. (.slice buff) (put msg) (putLong time)))]
-      (.. (.slice buff) (put msg) (putLong time) (put sig))
-      (is (= (count msg) (.remaining (authenticate buff)))))))
+    (let [msg  (bytes-from-chars (random-name (+ 1 (rand-int 100))))]
+      (is (not (nil? (auth-bytes! (sign-bytes msg))))))))

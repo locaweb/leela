@@ -31,11 +31,11 @@
    [clojurewerkz.cassaforte.client :as client]
    [clojurewerkz.cassaforte.policies :as policies]))
 
+(def *cluster*)
+
+(def *keyspace*)
+
 (def ^:dynamic *limit* 100)
-
-(def ^:dynamic *cluster*)
-
-(def ^:dynamic *keyspace*)
 
 (defn rfqn [keyspace name]
   (stmt/cql-ns keyspace name))
@@ -88,30 +88,27 @@
      (warn (format "creating index on %s.%s (%s)" *keyspace* ~table ~column))
      (cql/create-index *cluster* (conn/fqn ~table) ~column (stmt/if-not-exists) ~@body)))
 
-(defmacro with-connection [[sess endpoint options] & body]
+(defmacro with-cluster [endpoint options & body]
   `(let [cluster# (client/build-cluster {:hosts ~endpoint
-                                         :retry-policy (policies/logging-retry-policy (policies/retry-policy :fallthrough))
-                                         :credentials (:credentials ~options)
-                                         :load-balancing-policy (policies/token-aware-policy (policies/round-robin-policy))
-                                         :connections-per-host (:connections ~options)
-                                         :max-connections-per-host (:max-connections ~options)})
-         ~sess    (.connect cluster#)]
-     (info (format "cassandra/with-connection %s" (dissoc ~options :credentials)))
-     (try
-       ~@body
-       (finally
-         (client/disconnect ~sess)
-         (client/shutdown-cluster cluster#)))))
+                                        :retry-policy (policies/logging-retry-policy (policies/retry-policy :fallthrough))
+                                        :credentials (:credentials ~options)
+                                        :load-balancing-policy (policies/token-aware-policy (policies/round-robin-policy))
+                                        :connections-per-host (:connections ~options)
+                                        :max-connections-per-host (:max-connections ~options)})]
+    (info (format "cassandra/with-connection %s" (dissoc ~options :credentials)))
+    (with-redefs [*cluster* (.connect cluster#)]
+      (try
+        ~@body
+        (finally
+          (client/disconnect *cluster*)
+          (client/shutdown-cluster cluster#))))))
 
 (defmacro with-consistency [tag & body]
   `(policies/with-consistency-level (policies/consistency-level ~tag)
      ~@body))
 
-(defmacro with-cluster [cluster & body]
-  `(binding [*cluster* ~cluster] ~@body))
-
 (defmacro with-keyspace [name & body]
-  `(binding [*keyspace* ~name] ~@body))
+  `(with-redefs [*keyspace* ~name] ~@body))
 
 (defmacro with-limit [limit & body]
   `(binding [*limit* ~limit]
