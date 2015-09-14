@@ -21,8 +21,6 @@
 ;; SOFTWARE.
 
 (ns leela.storaged.network.protocol
-  (:import
-   [java.util Base64])
   (:require
    [msgpack.core :as msgp]
    [clojure.string :refer [split]]
