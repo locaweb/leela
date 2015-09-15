@@ -88,21 +88,21 @@
        (encode-reply 400 {} "bad frame")))))
 
 (defn- handle-get [query]
-  (case (first (payload query))
-    "metrics" (let [params (rest (payload query))]
+  (case (first (resource query))
+    "metrics" (let [params (rest (resource query))]
                 (encode-reply 200 {} (get-metrics-handler (first params))))
     (encode-reply 404 {} "unknown table")))
 
 (defn- handle-put [payload]
-  (case (first (payload payload))
-    "metrics" (let [params (rest (payload payload))]
+  (case (first (resource payload))
+    "metrics" (let [params (rest (resource payload))]
                 (encode-reply 201 {} (put-metrics-handler (first params))))
     (encode-reply 404 {} "unknown table")))
 
 (defn controller [query]
-  (case (first (payload query))
-    "get" (handle-get (payload-fmap rest query))
-    "put" (handle-put (payload-fmap rest query))
+  (case (first (resource query))
+    "get" (handle-get (resource-fmap rest query))
+    "put" (handle-put (resource-fmap rest query))
     (encode-reply 405 {:allow [:get :put]} "unknown verb")))
 
 (defn make-controller [ctrl & middlewares]

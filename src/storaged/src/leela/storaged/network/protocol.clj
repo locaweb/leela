@@ -29,12 +29,12 @@
    [leela.storaged.security :refer [sign]]))
    
 (defn encode-query
-  ([code hdrs body]
-   ["query-1.0" code hdrs body])
-  ([code hdrs]
-   ["query-1.0" code hdrs nil])
-  ([code]
-   ["query-1.0" code {} nil]))
+  ([res hdrs body]
+   ["query-1.0" res hdrs body])
+  ([res hdrs]
+   ["query-1.0" res hdrs nil])
+  ([res]
+   ["query-1.0" res {} nil]))
 
 (defn encode-reply
   ([code hdrs body]
@@ -52,8 +52,25 @@
                "query-1.0" :query}]
     (get known (kind q-o-r))))
 
+(defn query? [msg]
+  (= :query (kind-nover msg)))
+
+(defn reply? [msg]
+  (= :reply (kind-nover msg)))
+
 (defn status [q-o-r]
-  (nth q-o-r 1))
+  (when (reply? q-o-r)
+    (nth q-o-r 1)))
+
+(defn resource [q-o-r]
+  (when (query? q-o-r)
+    (nth q-o-r 1)))
+
+(defn status-or-resource [q-o-r]
+  (if (query? q-o-r)
+    (resource q-o-r)
+    (when (reply? q-o-r)
+      (status q-o-r))))
 
 (defn headers [q-o-r]
   (nth q-o-r 2))
@@ -61,17 +78,17 @@
 (defn payload [q-o-r]
   (nth q-o-r 3))
 
+(defn resource-fmap [fun q]
+  [(kind q) (fun (resource q)) (headers q) (payload q)])
+
+(defn status-fmap [fun r]
+  [(kind r) (fun (status r)) (headers r) (payload r)])
+
 (defn payload-fmap [fun q-o-r]
-    [(kind q-o-r) (status q-o-r) (headers q-o-r) (fun (payload q-o-r))])
+    [(kind q-o-r) (status-or-resource q-o-r) (headers q-o-r) (fun (payload q-o-r))])
 
 (defn headers-fmap [fun q-o-r]
-  [(kind q-o-r) (status q-o-r) (fun (headers q-o-r)) (payload q-o-r)])
-
-(defn query? [msg]
-  (= :query (kind-nover msg)))
-
-(defn reply? [msg]
-  (= :reply (kind-nover msg)))
+  [(kind q-o-r) (status-or-resource q-o-r) (fun (headers q-o-r)) (payload q-o-r)])
 
 (defn header
   ([q-o-r key default]
