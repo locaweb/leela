@@ -22,12 +22,13 @@
 
 (ns leela.storaged.bytes
   (:import
-   java.nio.ByteBuffer)
+   java.nio.ByteBuffer
+   org.apache.commons.codec.binary.Base64)
   (:require
    [clojure.string :refer [join]]))
 
-(defn bytes-cmp [xs ys]
-  (compare (seq xs) (seq ys)))
+(defn bytes= [xs ys]
+  (= (seq xs) (seq ys)))
 
 (defn bytes-from-chars [xs]
   (byte-array (map byte xs)))
@@ -72,6 +73,12 @@
 (defn byte-array? [x]
   (let [ty (type (byte-array 0))]
     (instance? ty x)))
+
+(defn bytes-from-base64 [x]
+  (Base64/decodeBase64 x))
+
+(defn base64-from-bytes [^bytes x]
+  (Base64/encodeBase64 x false))
 
 (defn concat-bytes [a b]
   (into-array Byte/TYPE (concat (seq a) (seq b))))
