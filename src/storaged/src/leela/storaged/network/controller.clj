@@ -29,7 +29,8 @@
    [clojure.tools.logging :refer [info warn error]]
    [leela.storaged.control :refer [try-fn]]
    [leela.storaged.network.protocol :refer :all]
-   [leela.storaged.network.actions.metrics :refer :all]))
+   [leela.storaged.network.actions.metrics :refer :all]
+   [leela.storaged.network.actions.bitmap :refer :all]))
 
 (defn- fmt-request [r]
   (pr-str r))
@@ -84,10 +85,17 @@
        (fun query)
        (encode-reply 400 {} "bad frame")))))
 
+(defn- handle-bitmap [query]
+  (case (first (resource query))
+    "chunk" (let [params (second (resource query))]
+              (encode-reply 200 {} (fetch-chunk params)))
+    (encode-reply 404 {} "unknown table")))
+
 (defn- handle-get [query]
   (case (first (resource query))
     "metrics" (let [params (second (resource query))]
                 (encode-reply 200 {} (get-metrics-handler (first params))))
+    "bitmap" (handle-bitmap (resource-fmap rest query))
     (encode-reply 404 {} "unknown table")))
 
 (defn- handle-put [query]
