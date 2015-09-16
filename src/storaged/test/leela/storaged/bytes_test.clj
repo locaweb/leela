@@ -38,6 +38,10 @@
   (let [x (byte-array (repeatedly (rand-int 1000) #(rand-int 127)))]
     (is (bytes= x x))))
 
+(deftest test-bytes=-base-case
+  (let [n (rand-int 100)]
+    (is (not (bytes= (byte-array n) (byte-array (inc n)))))))
+
 (deftest test-base64-byte-function-compose-to-identity
   (let [msg (bytes-from-chars (random-name (inc (rand-int 1000))))]
     (is (bytes= msg (bytes-from-base64 (base64-from-bytes msg))))))

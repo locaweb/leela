@@ -71,7 +71,7 @@
      (fun payload)
      (catch [:type :leela.storaged/user-error] info
        (frame
-        (encode-reply 500 {:trace (e-trace (:cause e))} (:message e))))
+        (encode-reply 500 {:trace (e-trace (:cause info))} (:message info))))
      (catch Exception e
        (error e "unexpected error serving request")
        (frame
