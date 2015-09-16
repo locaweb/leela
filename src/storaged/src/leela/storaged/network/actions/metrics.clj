@@ -34,14 +34,14 @@
              :limit (nil-or integer?)
              :offset (nil-or integer?)} params
              (with-limit (get params :limit default-limit)
-               (if-let [offset (get params :offset)]
-                 (c*/fetch-metric (get params :plane)
-                                  (get params :metric)
-                                  (get params :bucket)
+               (if-let [offset (:offset params)]
+                 (c*/fetch-metric (:plane params)
+                                  (:metric params)
+                                  (:bucket params)
                                   offset)
-                 (c*/fetch-metric (get params :plane)
-                                  (get params :metric)
-                                  (get params :bucket))))))
+                 (c*/fetch-metric (:plane params)
+                                  (:metric params)
+                                  (:bucket params))))))
 
 (defn get-index-handler [params]
   (when-map {:plane integer?
