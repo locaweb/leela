@@ -13,10 +13,11 @@
     (is (= [z w {k v}] (unframe (frame [z w {k v}]))))))
 
 (deftest test-encode-query-properties
-  (let [query (encode-query 200)]
+  (let [query (encode-query [:x :y :z])]
     (is (= "query-1.0" (kind query)))
     (is (= :query (kind-nover query)))
-    (is (= 200 (status query)))
+    (is (nil? (status query)))
+    (is (= [:x :y :z] (resource query)))
     (is (= {} (headers query)))
     (is (nil? (payload query)))
     (is (query? query))))
@@ -26,25 +27,26 @@
     (is (= "reply-1.0" (kind reply)))
     (is (= :reply (kind-nover reply)))
     (is (= 200 (status reply)))
+    (is (nil? (resource reply)))
     (is (= {} (headers reply)))
     (is (nil? (payload reply)))
     (is (reply? reply))))
 
 (deftest test-encode-q-o-r-payload
-  (let [query (encode-query 200 {} "foobar")
+  (let [query (encode-query [] {} "foobar")
         reply (encode-reply 200 {} "foobar")]
     (is (= "foobar" (payload query)))
     (is (= "foobar" (payload reply)))))
 
 (deftest test-header-function
-  (let [query (encode-query 200 {:foo "bar" :bar "foo"})]
+  (let [query (encode-query [] {:foo "bar" :bar "foo"})]
     (is (nil? (header query :baz)))
     (is (= "bar" (header query :foo)))
     (is (= "foo" (header query :bar)))
     (is (= :baz (header query :baz :baz)))))
 
 (deftest test-header-functions-on-query
-  (let [query-wh (encode-query 200 {:content-type ["foobar"] :accept ["foobar"]})
+  (let [query-wh (encode-query [] {:content-type ["foobar"] :accept ["foobar"]})
         query-nh (encode-query 200)]
     (is (= ["foobar"] (header-content-type query-wh)))
     (is (= ["foobar"] (header-accept query-wh)))
@@ -58,3 +60,23 @@
     (is (= ["foobar"] (header-accept reply-wh)))
     (is (= ["application/x-msgpack"] (header-content-type reply-nh)))
     (is (= ["application/x-msgpack"] (header-accept reply-nh)))))
+
+(deftest test-payload-fmap
+  (let [reply (encode-reply 200 {} [:foo :bar])
+        query (encode-query [] {} [:foo :bar])]
+    (is (= (encode-reply 200 {} '(:bar)) (payload-fmap rest reply)))
+    (is (= (encode-query [] {} '(:bar)) (payload-fmap rest query)))))
+
+(deftest test-headers-fmap
+  (let [reply (encode-reply 200 {:foo :bar})
+        query (encode-query [] {:foo :bar})]
+    (is (= (encode-reply 200 {}) (headers-fmap #(dissoc % :foo) reply)))
+    (is (= (encode-query [] {}) (headers-fmap #(dissoc % :foo) query)))))
+
+(deftest test-resource-fmap
+  (let [query (encode-query [:foo :bar])]
+    (is (= (encode-query '(:bar)) (resource-fmap rest query)))))
+
+(deftest test-status-fmap
+  (let [reply (encode-reply 200)]
+    (is (= (encode-reply 201) (status-fmap inc reply)))))

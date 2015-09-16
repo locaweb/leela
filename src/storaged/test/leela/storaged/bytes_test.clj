@@ -33,3 +33,11 @@
         bstr  (concat-bytes (bstr-from-chars msg) noise)]
     (is (= msg (chars-from-bstr-only bstr)))
     (is (= (seq noise) (seq (second (chars-from-bstr bstr)))))))
+
+(deftest test-bytes=-on-same-object-must-yield-true
+  (let [x (byte-array (repeatedly (rand-int 1000) #(rand-int 127)))]
+    (is (bytes= x x))))
+
+(deftest test-base64-byte-function-compose-to-identity
+  (let [msg (bytes-from-chars (random-name (inc (rand-int 1000))))]
+    (is (bytes= msg (bytes-from-base64 (base64-from-bytes msg))))))

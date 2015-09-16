@@ -19,6 +19,7 @@
                                            [org.clojure/tools.cli "0.2.4"]
                                            [clojurewerkz/cassaforte "2.0.0"]
                                            [org.clojure/tools.logging "0.3.1"]
+                                           [commons-codec/commons-codec "1.10"]
                                            [org.apache.cassandra/cassandra-all "2.1.5"]]}
                  :triggers {:jar-name     "triggers-%s.jar"
                             :dependencies [[org.clojure/clojure "1.6.0"]
