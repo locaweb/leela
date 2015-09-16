@@ -26,8 +26,14 @@
 
 (def default-limit 100)
 
-(defn nil-or [pred]
-  #(or (nil? %) (pred %)))
+(defn all [p]
+  (fn [v] (and (coll? v) (reduce #(and %1 %2) true (map p v)))))
+
+(defn all1 [p]
+  (fn [v] (and (coll? v) (seq v) (reduce #(and %1 %2) (map p v)))))
+
+(defn nil-or [p]
+  #(or (nil? %) (p %)))
 
 (defn map-errors [test data]
   (letfn [(valid-fn [[key val]]
