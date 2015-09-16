@@ -80,5 +80,8 @@
 (defn base64-from-bytes [^bytes x]
   (Base64/encodeBase64 x false))
 
+(defn base64? [x]
+  (Base64/isBase64 x))
+
 (defn concat-bytes [a b]
   (into-array Byte/TYPE (concat (seq a) (seq b))))

@@ -41,3 +41,7 @@
 (deftest test-base64-byte-function-compose-to-identity
   (let [msg (bytes-from-chars (random-name (inc (rand-int 1000))))]
     (is (bytes= msg (bytes-from-base64 (base64-from-bytes msg))))))
+
+(deftest test-base64?
+  (let [msg (bytes-from-chars (random-name (inc (rand-int 1000))))]
+    (is (base64? (base64-from-bytes msg)))))
