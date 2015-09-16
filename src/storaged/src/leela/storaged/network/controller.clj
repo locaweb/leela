@@ -62,23 +62,20 @@
       reply)))
 
 (defn- e-trace [^Throwable e]
-  (map str (.getStackTrace e)))
-
-(defn- e-message [^Throwable e]
-  (.getMessage e))
+  (when e
+    (map str (.getStackTrace e))))
 
 (defn w->error [fun]
   (fn [payload]
     (try+
      (fun payload)
      (catch [:type :leela.storaged/user-error] info
-       (let [e ^Throwable (:cause info)]
-         (frame
-          (encode-reply 500 {:trace (e-trace e)} (e-message e)))))
+       (frame
+        (encode-reply 500 {:trace (e-trace (:cause e))} (:message e))))
      (catch Exception e
        (error e "unexpected error serving request")
        (frame
-        (encode-reply 500 {:trace (e-trace e)} (e-message e)))))))
+        (encode-reply 500 {:trace (e-trace e)} (.getMessage e)))))))
 
 (defn m->proto [fun]
   (fn [payload]
@@ -89,13 +86,13 @@
 
 (defn- handle-get [query]
   (case (first (resource query))
-    "metrics" (let [params (rest (resource query))]
+    "metrics" (let [params (second (resource query))]
                 (encode-reply 200 {} (get-metrics-handler (first params))))
     (encode-reply 404 {} "unknown table")))
 
-(defn- handle-put [payload]
-  (case (first (resource payload))
-    "metrics" (let [params (rest (resource payload))]
+(defn- handle-put [query]
+  (case (first (resource query))
+    "metrics" (let [params (second (resource query))]
                 (encode-reply 201 {} (put-metrics-handler (first params))))
     (encode-reply 404 {} "unknown table")))
 
