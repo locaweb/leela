@@ -6,22 +6,37 @@
    [leela.storaged.cassandra.connection :refer [with-limit]]
    [leela.storaged.network.actions.common :refer :all]))
 
+(defn get-fetch-chunk-handler [params]
+	(when-map {:hash string?} params (c*/fetch-chunk (:hash params))))
 
-
-(defn fetch-chunk [params]
-	(when-map {"hash" string?} params (c*/fetch-chunk (get params "hash"))))
-
-(defn fetch-index [params]
+(defn get-fetch-index-handler [params]
 	(when-map 
-		{"plane" integer? "varname" string? "content" string? "version" (nil-or integer?)} params 
-		(if-let [version (get params "version")]
-			(c*/fetch-index (get params "plane")
-				         	(get params "varname")
-					     	(get params "content")
+		{:plane integer? :varname string? :content string? :version (nil-or integer?)} params 
+		(if-let [version (:version params)]
+			(c*/fetch-index (:plane params)
+				         	(:varname params)
+					     	(:content params)
 						 	version)
-			(c*/fetch-index (get params "plane")
-				         	(get params "varname")
-					     	(get params "content")))))
+			(c*/fetch-index (:plane params)
+				         	(:varname params)
+					     	(:content params)))))
+
+(defn put-store-chunk-handler [params]
+	(when-map 
+		{:hash string? :data bytes/base64?} params 
+			(c*/store-chunk (:hash params)
+							(:data params))))
+
+(defn put-store-index-handler [params]
+    (when-map
+        {:plane integer? :varname string? :content string? :version (nil-or integer?) :blocks (all string?) } params 
+            (c*/store-index (:plane params)
+                           (:varname params)
+                           (:version params)
+                           (:blocks params))))
+
+
+
 
 
 

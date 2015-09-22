@@ -88,7 +88,7 @@
 (defn- handle-bitmap [query]
   (case (first (resource query))
     "chunk" (let [params (second (resource query))]
-              (encode-reply 200 {} (fetch-chunk params)))
+              (encode-reply 200 {} (get-fetch-chunk-handler params)))
     (encode-reply 404 {} "unknown table")))
 
 (defn- handle-get [query]

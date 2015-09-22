@@ -57,5 +57,5 @@
    :fetch-fn (fn
                ([limit]
                 (conn/with-limit limit (seq/fetch-sequence 0)))
-               ([next limit]
-                (conn/with-limit limit (seq/fetch-sequence 0 next))))})
+               ([token limit]
+                (conn/with-limit limit (seq/fetch-sequence 0 token))))})

@@ -42,7 +42,7 @@
                                       :clustering-order [[:version :desc]]}))
   (conn/create-table-ifne bitmap-table
                           (stmt/column-definitions [[:hash :ascii]
-                                                    [:data :blob]
+                                                    [:data :ascii]
                                                     [:primary-key [:hash]]])))
 
 (defn store-chunk [hash data]
@@ -51,7 +51,7 @@
                :data data}))
 
 (defn fetch-chunk [hash]
-  (conn/fetch-one #(bytes/bytes-from-bytebuff (:data %))
+  (conn/fetch-one #(:data %)
                   (cql/select *cluster* (conn/fqn bitmap-table)
                               (stmt/columns :data)
                               (stmt/where [[= :hash hash]])

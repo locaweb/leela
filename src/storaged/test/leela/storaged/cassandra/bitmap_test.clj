@@ -40,3 +40,4 @@
   {:store-fn #(bitmap/store-index 0 "key" "val" % [(str %)])
    :fetch-fn #(conn/with-limit %2 (bitmap/fetch-index 0 "key" "val" %1))
    :mkrow-fn #(identity {:version % :blocks [(str %)]})})
+  

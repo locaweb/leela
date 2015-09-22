@@ -31,11 +31,13 @@
           v-pack (map view-fn pack)]
       (is (every? (partial (complement contains?) rset) v-pack))
       (if (> (count pack) limit)
-        (recur (union rset (set (butlast v-pack))) token)
+        (do
+          (when (nil? token) (throw (RuntimeException. "token is nil")))
+          (recur (union rset (set (butlast v-pack))) token))
         (union rset (set v-pack))))))
 
 (defn run-token-pagination [option-fn]
-  (let [items    (max 1 (rand-int 1000))
+  (let [items    10; (max 1 (rand-int 1000))
         pages    (inc (rand-int items))
         limit    (quot items pages)
         view-fn  (:view-fn option-fn)
