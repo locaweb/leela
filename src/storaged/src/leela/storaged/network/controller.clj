@@ -30,7 +30,8 @@
    [leela.storaged.control :refer [try-fn]]
    [leela.storaged.network.protocol :refer :all]
    [leela.storaged.network.actions.metrics :refer :all]
-   [leela.storaged.network.actions.bitmap :refer :all]))
+   [leela.storaged.network.actions.bitmap :refer :all]
+   [leela.storaged.network.actions.sequence :refer :all]))
 
 (defn- fmt-request [r]
   (pr-str r))
@@ -91,23 +92,55 @@
               (encode-reply 200 {} (get-fetch-chunk-handler params)))
     (encode-reply 404 {} "unknown table")))
 
+(defn- handle-get-sequence [query]
+  (case (first (resource query))
+    "block" (let [params (second (resource query))]
+              (encode-reply 200 {} (get-fetch-block-handler params)))
+    "sequence" (let [params (second (resource query))]
+              (encode-reply 200 {} (get-fetch-sequence-handler params)))
+    "seqid" (let [params (second (resource query))]
+              (encode-reply 200 {} (get-fetch-seqid-handler params)))
+
+    (encode-reply 404 {} "unknown table")))
+
+(defn- handle-put-sequence [query]
+  (case (first (resource query))
+    "block" (let [params (second (resource query))]
+              (encode-reply 200 {} (put-store-block-handler params)))
+    "sequence" (let [params (second (resource query))]
+              (encode-reply 200 {} (put-fetch-sequence-handler params)))
+
+    (encode-reply 404 {} "unknown table")))
+
 (defn- handle-get [query]
   (case (first (resource query))
     "metrics" (let [params (second (resource query))]
                 (encode-reply 200 {} (get-metrics-handler (first params))))
     "bitmap" (handle-bitmap (resource-fmap rest query))
+    "sequence" (handle-get-sequence (ressource-fmap rest query))
+    
     (encode-reply 404 {} "unknown table")))
 
 (defn- handle-put [query]
   (case (first (resource query))
     "metrics" (let [params (second (resource query))]
                 (encode-reply 201 {} (put-metrics-handler (first params))))
+    "sequence" (handle-put-sequence (ressource-fmap rest query))
     (encode-reply 404 {} "unknown table")))
+
+(defn- handle-post [query]
+  (case (first (resource query))
+      "sequence"(let [params (second (resource query))]
+                (encode-reply 201 {} (post-fetch-next-block-handler (first params))))
+  (encode-reply 404 {} "unknown table")))
+
 
 (defn controller [query]
   (case (first (resource query))
     "get" (handle-get (resource-fmap rest query))
     "put" (handle-put (resource-fmap rest query))
+    "post" (handle-post (ressource-fmap rest query))
+
     (encode-reply 405 {:allow [:get :put]} "unknown verb")))
 
 (defn make-controller [ctrl & middlewares]
@@ -115,3 +148,5 @@
 
 (defn make-controller-default []
   (make-controller controller m->logger m->proto))
+
+
