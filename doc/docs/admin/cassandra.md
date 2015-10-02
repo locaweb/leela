@@ -3,6 +3,18 @@ CASSANDRA
 
 Cassandra operation guide.
 
+CLUSTER INFO
+------------
+
+* `nodetool status`          # lists members and its status
+* `nodetool tpstats`         # queues should be close to zero; also you should see no errors
+* `nodetool compactionstats` # should have very little activity
+
+UPGRADE
+-------
+
+Refer to regular cassandra upgrade guide.
+
 DISK USAGE
 ----------
 
@@ -47,8 +59,8 @@ It protects itself against simultaneous execution
 `/tmp/cassandra-repair`, in case the process get stuck.
 
 N.B.: Do not ever delete this file while there is a repair running. It
-is a cost operation and causes a considerable increase of load on the
-cluster. Running multiple instances may cause severe performance
+is a costly operation and causes a considerable increase of load on
+the cluster. Running multiple instances may cause severe performance
 degradation.
 
 DISK FAILURE/MACHINE FAILURE
@@ -58,7 +70,7 @@ In the event of a disk/machine failure, replaces the disk and starts
 the cassandra with the following flag:
 
 ```
-JVM_OPTS="$JVM_OPTS -Dcassandra.replace_address=IP_OF_THE_DEAD_NODE" /etc/init.d/cassandra start
+$ env JVM_OPTS="$JVM_OPTS -Dcassandra.replace_address=IP_OF_THE_DEAD_NODE" /etc/init.d/cassandra start
 ```
 
 If the IP is the same cassandra won't start without this flag. On the
