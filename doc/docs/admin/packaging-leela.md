@@ -8,7 +8,7 @@ After you create the package it is available at
 
 # CLIENT LIBRARIES
 
-## libleela
+## LIBLEELA
 
 Debian packages:
 
@@ -32,7 +32,7 @@ libleela-{version}.{arch}.rpm
 libleela-devel-{version}.{arch}.rpm
 ```
 
-## libleela-python
+## LIBLEELA-PYTHON
 
 It requires ``libleela-devel`` installed to build properly.
 
@@ -54,18 +54,37 @@ libleela-python-{version}.src.rpm
 libleela-python-{version}.{arch}.rpm
 ```
 
-## libleela-ruby
+## LIBLEELA-RUBY
 
 TODO:fixme
 
-# warpdrive
+# CORE MODULES
 
-It requires ``libleela-devel`` installed to build properly.
+# BLACKBOX
 
-Debian packages:
+It requires ``libleela-devel`` installed to build properly and only
+debian packages are defined.
+
+```.bash
+debian7.amd64 $ gdebi /leela/pkg/dist/debian7/{arch}/libleela/libleela_*.deb
+debian7.amd64 $ gdebi /leela/pkg/dist/debian7/{arch}/libleela/libleela-dev_*.deb
+debian7.amd64 $ make -C /leela/pkg leela-blackbox.debian dist=debian7 arch=amd64
+```
+
+# FRONTEND
+
+## WARPDRIVE
+
+It requires ``libleela-devel`` installed to build properly and only
+debian packages are defined.
 
 ```.bash
 debian7.amd64 $ gdebi /leela/pkg/dist/debian7/{arch}/libleela/libleela_*.deb
 debian7.amd64 $ gdebi /leela/pkg/dist/debian7/{arch}/libleela/libleela-dev_*.deb
 debian7.amd64 $ make -C /leela/pkg leela-warpdrive.debian dist=debian7 arch=amd64
+debian7.amd64 $ ls -1 /leela/pkg/dist/debian7/amd64/leela-warpdrive/
+leela-warpdrive_{version}.dsc
+leela-warpdrive_{version}.tar.gz
+leela-warpdrive_{version}_{arch}.changes
+leela-warpdrive_{version}_{arch}.deb
 ```

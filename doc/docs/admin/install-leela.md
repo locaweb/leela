@@ -117,14 +117,23 @@ After this script finishes you will have java and leiningen installed
 which allows us to build the package:
 
 ```.bash
-docker $ 
+docker $ make -C /leela/pkg leela-blackbox.debian
 ```
 
+Afterthat you should have the following files:
+
+```.bash
+docker $ ls -1 /leela/pkg/dist/debian7/{arch}/leela-blackbox/
+leela-blackbox_{major}.{minor}.{patch}-{build}.dsc
+leela-blackbox_{major}.{minor}.{patch}-{build}.tar.gz
+leela-blackbox_{major}.{minor}.{patch}-{build}_{arch}.changes
+leela-blackbox_{major}.{minor}.{patch}-{build}_{arch}.deb
+```
 # INSTALL
 
 ## BLACKBOX
 
-
+You are out of luck.
 
 ## WARPDRIVE
 

@@ -54,6 +54,7 @@ into much detail, this table summarizes what needs to be done:
 | warpdrive       | zeromq-bootstrap.sh   |
 |                 | haskell-bootstrap.sh  |
 | blackbox        | zeromq-bootstrap.sh   |
+|                 | jzmq-bootstrap.sh     |
 |                 | clojure-bootstrap.sh  |
 | warpgrep        | zeromq-bootstrap.sh   |
 |                 | haskell-bootstrap.sh  |
@@ -97,6 +98,7 @@ debian7.amd64 $ /leela/automation/bootstrap/haskell-bootstrap.sh
 ```.bash
 debian7.amd64 $ /leela/automation/bootstrap/zeromq-bootstrap.sh
 debian7.amd64 $ /leela/automation/bootstrap/clojure-bootstrap.sh
+debian7.amd64 $ /leela/automation/bootstrap/jzmq-bootstrap.sh
 ```
 
 # CLIENT LIBRARIES
@@ -178,14 +180,24 @@ debian7.amd64 $ ls -1 /tmp/leela/lib/write_leela.so
 /tmp/leela/lib/write_leela.so
 ```
 
-# WARPDRIVE
+# CORE MODULES
 
-```.bash
-debian7.amd64 $ make -C /leela/automation/devel compile.warpdrive
-```
-
-# BLACKBOX
+## BLACKBOX
 
 ```.bash
 debian7.amd64 $ make -C /leela/automation/devel compile.blackbox
+```
+
+## WARPGREP
+
+```.bash
+debian7.amd64 $ make -C /leela/automation/devel compile.warpgrep
+```
+
+# FRONTEND
+
+## WARPDRIVE
+
+```.bash
+debian7.amd64 $ make -C /leela/automation/devel compile.warpdrive
 ```
