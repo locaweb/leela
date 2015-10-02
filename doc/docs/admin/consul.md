@@ -1,7 +1,8 @@
 CONSUL
 ======
 
-Consul operation guide.
+Consul operation guide. Consul is used for service discovery. Leela
+discover the machines by reading that information from consul.
 
 UPGRADE
 -------
@@ -15,6 +16,24 @@ CLUSTER INFO
 * `consul members`                              # returns the cluster members and its status
 * `curl http://localhost:8500/v1/status/peers`  # current raft peers [usually three];
 * `curl http://localhost:8500/v1/status/leader` # *must* return exactly one;
+
+ADDING INSTANCES
+----------------
+
+1. make sure the directory `/etc/consul/conf.d` and the file
+   `/etc/consul/config` are properly configure. That file should come
+   from CFengine.
+2. `/etc/init.d/consul start`
+
+REMOVING INSTANCE
+-----------------
+
+Since the consul monitors a machine and all its services, if you ever
+remove an instance you must also remove all of its services. Follow
+the procedure to stop and remove every service individually and then
+simply stops consul:
+
+1. `/etc/init.d/consul stop`
 
 CONFIG FILES
 ------------
