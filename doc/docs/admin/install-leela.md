@@ -74,7 +74,7 @@ libleela-python_x.y.z-b_{arch}.deb
 
 The warpdrive is the frontend of the Leela cluster. It is the service
 that allows clients to store data and retrieve
-information. TODO:moreinfo.
+information.
 
 ```.bash
 docker $ make -C /leela/pkg leela-warpdrive.debian
@@ -102,7 +102,7 @@ collectd from source, since it is a bit unusual to compile modules.
 
 This is the storage backend used by the Leela cluster. It is used
 internally and it the module that gives access to the cassandra
-cluster. TODO:moreinfo.
+cluster.
 
 It is written in clojure which means you will need java
 [we recommend using Oracle's version, specially in production]. We
@@ -133,7 +133,29 @@ leela-blackbox_{major}.{minor}.{patch}-{build}_{arch}.deb
 
 ## BLACKBOX
 
-You are out of luck.
+First install the package:
+
+```.bash
+$ gdebi install leela/pkg/leela-blackbox_{major}.{minor}.{patch}-{build}_{arch}.deb
+```
+
+Then you must configure the daemon. The file that must be changed is
+``/etc/default/leela-blackbox``. It is self-documented, so we just
+highlight the most important options:
+
+The credentials to connect to cassandra cluster:
+
+```.bash
+LEELA_BLACKBOX_USERNAME=leela
+LEELA_BLACKBOX_PASSWORD=...
+```
+
+Then the cassandra cluster endpoints. Use more than one, probably the
+seed nodes are a good option:
+
+```.bash
+LEELA_BLACKBOX_CASSANDRA=127.0.0.1,127.0.0.2
+```
 
 ## WARPDRIVE
 
