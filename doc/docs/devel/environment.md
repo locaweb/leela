@@ -84,7 +84,8 @@ debian7.amd64 $ /leela/automation/bootstrap/zeromq-bootstrap.sh
 
 ## LIBLEELA-RUBY
 
-TODO:fixme
+It is a gem instead of a package. The gem you should use is
+`leela_ruby` and is available at `src/libs/ruby/leela_ruby`.
 
 ## WARPDRIVE|WARPGREP
 

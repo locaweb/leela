@@ -56,7 +56,8 @@ libleela-python-{version}.{arch}.rpm
 
 ## LIBLEELA-RUBY
 
-TODO:fixme
+There is no package. Users should install use the gem
+`leela_ruby`. The gem is at `src/libs/ruby/leela_ruby`.
 
 # CORE MODULES
 
