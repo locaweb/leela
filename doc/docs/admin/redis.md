@@ -9,7 +9,7 @@ MAINTENANCE
 
 1. `/etc/init.d/leela-redis watchdog-stop; sleep 60`  # leela will no longer use this machine
 2. `/etc/init.d/leela-redis stop`                     # stops the service; now both redis are down
-3. # do your thing
+3. \# do your thing
 4. `/etc/init.d/leela-redis start`
 
 ADDING INSTANCE
