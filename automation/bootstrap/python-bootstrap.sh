@@ -11,7 +11,7 @@ python_debian () {
 }
 
 python_centos () {
-  rpm_install ruby-devel
+  rpm_install python-devel
   rpm_install python26-devel
 }
 
