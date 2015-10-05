@@ -72,13 +72,7 @@ to monitor queries in real-time.
 The audience is software developers of ones interested in contributing
 or learning about Leela internals.
 
-* [Architecture](devel/architecture.md)
-
 * [Environment](devel/environment.md)
-
-* [Network Protocol](devel/network-protocol.md)
-
-* [Security](devel/security.md)
 
 ### Operations
 
@@ -95,14 +89,10 @@ installing, maintaining and tuning a Leela cluster.
 
 * [Installing Leela](admin/install-leela.md)
 
-* [Tuning Leela](admin/tuning-leela.md)
-
 ### User Guide
 
 For the ones interested in using a Leela cluster.
 
 * [Leela Query Language](user/leela-query-language.md)
-
-* [ZMQ Interface](user/zeromq-interface.md)
 
 * [HTTP Interface](user/http-interface.md)
