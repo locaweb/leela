@@ -103,8 +103,7 @@ debian7.amd64 $ /leela/automation/bootstrap/jzmq-bootstrap.sh
 
 # CLIENT LIBRARIES
 
-This section covers _libleela_, _libleela-python_ and
-__libleela-ruby_.
+This section covers _libleela_, _libleela-python_ and _libleela-ruby_.
 
 There is a _makefile_ on _automation/devel_ directory that has code to
 compile the libraries on linux. This _makefile_ uses two importante
