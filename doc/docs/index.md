@@ -87,9 +87,11 @@ installing, maintaining and tuning a Leela cluster.
 
 * [Packaging Leela](admin/packaging-leela.md)
 
-* [Installing Cassandra](admin/install-cassandra.md)
+* [Cassandra](admin/cassandra.md)
 
-* [Installing Consul](admin/install-consul.md)
+* [Consul](admin/consul.md)
+
+* [Redis](admin/redis.md)
 
 * [Installing Leela](admin/install-leela.md)
 
