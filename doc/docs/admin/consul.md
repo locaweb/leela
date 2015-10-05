@@ -54,7 +54,7 @@ BOOTSTRAPING A NEW CLUSTER
 All machines have died, somehow! Then you need to put the cluster back
 on:
 
-1. `env CONSUL_EXPRA_OPTS="-bootstrap" /etc/init.d/consul start`
+1. `env CONSUL_EXTRA_OPTS="-bootstrap" /etc/init.d/consul start`
 
 Wait this instance to get back online. It should be the sole instance
 thus the leader. Now you can put the rest online normally
