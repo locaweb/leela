@@ -11,7 +11,7 @@ buildroot=$(mktemp -d) && {
   git fetch; git fetch --tags
   git archive --format=tar --prefix=leela/ "$branch" | tar -C "$buildroot" -x
   tag=$(git describe --long --tags "$branch")
-  sed -i "s/@version@/$tag/g" "$buildroot/leela/doc/mkdocs.yml"
+  sed -i "s/2.0.0/$tag/g" "$buildroot/leela/doc/mkdocs.yml"
   (cd "$buildroot/leela/doc" && "$mkdocs_bin" build)
   rm -rf doc
   mv "$buildroot/leela/doc/site/" doc/
