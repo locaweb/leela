@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Redis - leela-@version@</title>
+  
+
+  <link rel="shortcut icon" href="../../img/favicon.ico">
+
+  
+  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+
+  <link rel="stylesheet" href="../../css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../css/theme_extra.css" type="text/css" />
+  <link rel="stylesheet" href="../../css/highlight.css">
+
+  
+  <script>
+    // Current page data
+    var mkdocs_page_name = "Redis";
+  </script>
+  
+  <script src="../../js/jquery-2.1.1.min.js"></script>
+  <script src="../../js/modernizr-2.8.3.min.js"></script>
+  <script type="text/javascript" src="../../js/highlight.pack.js"></script>
+  <script src="../../js/theme.js"></script> 
+
+  
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+      <div class="wy-side-nav-search">
+        <a href="../.." class="icon icon-home"> leela-@version@</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <ul class="current">
+          
+            <li>
+    <li class="toctree-l1 ">
+        <a class="" href="../..">Home</a>
+        
+    </li>
+<li>
+          
+            <li>
+    <ul class="subnav">
+    <li><span>User</span></li>
+
+        
+            
+    <li class="toctree-l1 ">
+        <a class="" href="../../user/http-interface/">Http interface</a>
+        
+    </li>
+
+        
+            
+    <li class="toctree-l1 ">
+        <a class="" href="../../user/leela-query-language/">Leela query language</a>
+        
+    </li>
+
+        
+    </ul>
+<li>
+          
+            <li>
+    <ul class="subnav">
+    <li><span>Devel</span></li>
+
+        
+            
+    <li class="toctree-l1 ">
+        <a class="" href="../../devel/environment/">Environment</a>
+        
+    </li>
+
+        
+    </ul>
+<li>
+          
+            <li>
+    <ul class="subnav">
+    <li><span>Admin</span></li>
+
+        
+            
+    <li class="toctree-l1 ">
+        <a class="" href="../cassandra/">Cassandra</a>
+        
+    </li>
+
+        
+            
+    <li class="toctree-l1 ">
+        <a class="" href="../consul/">Consul</a>
+        
+    </li>
+
+        
+            
+    <li class="toctree-l1 ">
+        <a class="" href="../install-leela/">Install leela</a>
+        
+    </li>
+
+        
+            
+    <li class="toctree-l1 ">
+        <a class="" href="../packaging-leela/">Packaging leela</a>
+        
+    </li>
+
+        
+            
+    <li class="toctree-l1 current">
+        <a class="current" href="./">Redis</a>
+        
+            <ul>
+            
+                <li class="toctree-l3"><a href="#redis">REDIS</a></li>
+                
+                    <li><a class="toctree-l4" href="#maintenance">MAINTENANCE</a></li>
+                
+                    <li><a class="toctree-l4" href="#adding-instance">ADDING INSTANCE</a></li>
+                
+                    <li><a class="toctree-l4" href="#removing-instance">REMOVING INSTANCE</a></li>
+                
+                    <li><a class="toctree-l4" href="#cluster-info">CLUSTER INFO</a></li>
+                
+            
+            </ul>
+        
+    </li>
+
+        
+    </ul>
+<li>
+          
+        </ul>
+      </div>
+      &nbsp;
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../..">leela-@version@</a>
+      </nav>
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../..">Docs</a> &raquo;</li>
+    
+      
+        
+          <li>Admin &raquo;</li>
+        
+      
+    
+    <li>Redis</li>
+    <li class="wy-breadcrumbs-aside">
+      
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main">
+            <div class="section">
+              
+                <h1 id="redis">REDIS</h1>
+<p>Redis operation guide. Redis is used to reduce the number of writes in
+cassandra and to reply <em>last</em> queries.</p>
+<h2 id="maintenance">MAINTENANCE</h2>
+<ol>
+<li><code>/etc/init.d/leela-redis watchdog-stop; sleep 60</code>  # leela will no longer use this machine</li>
+<li><code>/etc/init.d/leela-redis stop</code>                     # stops the service; now both redis are down</li>
+<li># do your thing</li>
+<li><code>/etc/init.d/leela-redis start</code></li>
+</ol>
+<h2 id="adding-instance">ADDING INSTANCE</h2>
+<ol>
+<li>make sure the file <code>/etc/consul/conf.d/redis.service</code> exists and is
+properly configured. This file should come from CFengine.</li>
+<li><code>/etc/init.d/leela-redis start</code></li>
+</ol>
+<h2 id="removing-instance">REMOVING INSTANCE</h2>
+<ol>
+<li><code>/etc/init.d/leela-redir watchdog-stop; sleep 60</code></li>
+</ol>
+<h2 id="cluster-info">CLUSTER INFO</h2>
+<ul>
+<li><code>curl -s "http://webleela.service.ita.consul.locaweb.com.br/v2?q=using%20(::)%20stat;&amp;tree=locaweb::locaweb&amp;format=json" \
+    | python -m json.tool | grep redis -A1</code></li>
+</ul>
+<p>Each of these endpoints must have two redis. The second redis must be
+listening at <code>port + 1</code>. For instance, if redis bound to 6379, the
+second one must be listening at 6380.</p>
+<p>This second redis must be a slave of the first in a master-slave
+replication configuration. It is used to serve read queries to avoid
+blocking the master. As you know, redis is single threaded and we
+don't want the reads negatively impacting the write path.</p>
+              
+            </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+      
+        <a href="../packaging-leela/" class="btn btn-neutral" title="Packaging leela"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+    
+  </div>
+
+  Built with <a href="http://www.mkdocs.org">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+	  
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+<div class="rst-versions" role="note" style="cursor: pointer">
+    <span class="rst-current-version" data-toggle="rst-current-version">
+      
+      
+        <span><a href="../packaging-leela/" style="color: #fcfcfc;">&laquo; Previous</a></span>
+      
+      
+    </span>
+</div>
+
+</body>
+</html>

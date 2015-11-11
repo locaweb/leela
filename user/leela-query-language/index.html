@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Leela query language - leela-@version@</title>
+  
+
+  <link rel="shortcut icon" href="../../img/favicon.ico">
+
+  
+  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+
+  <link rel="stylesheet" href="../../css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../css/theme_extra.css" type="text/css" />
+  <link rel="stylesheet" href="../../css/highlight.css">
+
+  
+  <script>
+    // Current page data
+    var mkdocs_page_name = "Leela query language";
+  </script>
+  
+  <script src="../../js/jquery-2.1.1.min.js"></script>
+  <script src="../../js/modernizr-2.8.3.min.js"></script>
+  <script type="text/javascript" src="../../js/highlight.pack.js"></script>
+  <script src="../../js/theme.js"></script> 
+
+  
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+      <div class="wy-side-nav-search">
+        <a href="../.." class="icon icon-home"> leela-@version@</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <ul class="current">
+          
+            <li>
+    <li class="toctree-l1 ">
+        <a class="" href="../..">Home</a>
+        
+    </li>
+<li>
+          
+            <li>
+    <ul class="subnav">
+    <li><span>User</span></li>
+
+        
+            
+    <li class="toctree-l1 ">
+        <a class="" href="../http-interface/">Http interface</a>
+        
+    </li>
+
+        
+            
+    <li class="toctree-l1 current">
+        <a class="current" href="./">Leela query language</a>
+        
+            <ul>
+            
+                <li class="toctree-l3"><a href="#leela-query-language">LEELA QUERY LANGUAGE</a></li>
+                
+                    <li><a class="toctree-l4" href="#lql">LQL</a></li>
+                
+                    <li><a class="toctree-l4" href="#naming">NAMING</a></li>
+                
+                    <li><a class="toctree-l4" href="#graph-manipulation">GRAPH MANIPULATION</a></li>
+                
+                    <li><a class="toctree-l4" href="#property-manipulation">PROPERTY MANIPULATION</a></li>
+                
+            
+            </ul>
+        
+    </li>
+
+        
+    </ul>
+<li>
+          
+            <li>
+    <ul class="subnav">
+    <li><span>Devel</span></li>
+
+        
+            
+    <li class="toctree-l1 ">
+        <a class="" href="../../devel/environment/">Environment</a>
+        
+    </li>
+
+        
+    </ul>
+<li>
+          
+            <li>
+    <ul class="subnav">
+    <li><span>Admin</span></li>
+
+        
+            
+    <li class="toctree-l1 ">
+        <a class="" href="../../admin/cassandra/">Cassandra</a>
+        
+    </li>
+
+        
+            
+    <li class="toctree-l1 ">
+        <a class="" href="../../admin/consul/">Consul</a>
+        
+    </li>
+
+        
+            
+    <li class="toctree-l1 ">
+        <a class="" href="../../admin/install-leela/">Install leela</a>
+        
+    </li>
+
+        
+            
+    <li class="toctree-l1 ">
+        <a class="" href="../../admin/packaging-leela/">Packaging leela</a>
+        
+    </li>
+
+        
+            
+    <li class="toctree-l1 ">
+        <a class="" href="../../admin/redis/">Redis</a>
+        
+    </li>
+
+        
+    </ul>
+<li>
+          
+        </ul>
+      </div>
+      &nbsp;
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../..">leela-@version@</a>
+      </nav>
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../..">Docs</a> &raquo;</li>
+    
+      
+        
+          <li>User &raquo;</li>
+        
+      
+    
+    <li>Leela query language</li>
+    <li class="wy-breadcrumbs-aside">
+      
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main">
+            <div class="section">
+              
+                <h1 id="leela-query-language">LEELA QUERY LANGUAGE</h1>
+<p>Leela Query Language or simply LQL is the gateway to insert data or
+query the database.</p>
+<p>This document is divided into three sections. The first part describes
+the structure of the language. The second one is graph manipulation
+and querying [edges and vertexes] and the final part is property
+manipulation and querying.</p>
+<h2 id="lql">LQL</h2>
+<p>The language is built on the idea of commands with subcommands and
+arguments. For instance, consider this example:</p>
+<pre><code>  make (foo::bar)
+</code></pre>
+
+<p>The sintax above is used to create a vertex with name
+<code>foo::bar</code>. There are commands that takes no arguments:</p>
+<pre><code>  stat
+</code></pre>
+
+<p>And there commands with subcommands like attr:</p>
+<pre><code>  attr get 1d1a751c-622a-11e5-a7b4-efda49744bfe
+  ^    ^   ^
+  ^    ^   target/object
+  ^    subcommand
+  command
+</code></pre>
+
+<p>The language has a few types as well:</p>
+<pre><code>  &quot;lql&quot;         : a string literal;
+  (double 42.0) : a double value [64 bits float type]
+  (int64 42)    : 64 bits signed integer;
+  (int32 42)    : 32 bits signed integer;
+  (uint64 42)   : 64 bits unsigned integer;
+  (uint32 42)   : 32 bits unsigned integer;
+  (bool true)   : boolean value;
+</code></pre>
+
+<p>Lastly, leela objects have namespaces. Namespaces completely isolates
+objects and properties, so that you can use the same identifier in two
+different namespaces without worries.</p>
+<p>Every query must provide the namespace it is working on. Following is
+a complete example of what a lql query looks like:</p>
+<pre><code>  using (foo::bar) stat;
+  ^     ^          ^   ^
+  ^     ^          ^   query terminator
+  ^     ^          command + arguments
+  ^     ^
+  ^     namespace to use
+  ^
+  command
+</code></pre>
+
+<p>Every command starts with a <code>using</code> command following by the namespace
+enclosed by parenthesis. The namespace is composed by two components,
+separated from <code>::</code>. In the above case the first component is <code>foo</code>
+and the second is <code>bar</code>. More about this in the <code>NAMING</code> section.</p>
+<h2 id="naming">NAMING</h2>
+<p>The identifiers in Leela are composed by two components. The idea
+behind this is that the first component serves as category or class
+for the name in question. Components are separated by <code>::</code>. Now,
+consider the example:</p>
+<pre><code>  machine::warp0013
+</code></pre>
+
+<p>The first component is <code>machine</code> and the second is
+<code>warp0013</code>. Similarly:</p>
+<pre><code>  nic::00-01-02-03-04-05
+</code></pre>
+
+<p>This represents a network interface and its mac address.</p>
+<h2 id="graph-manipulation">GRAPH MANIPULATION</h2>
+<p>There are two commands that deal with the graph structure:</p>
+<ul>
+<li><code>make</code> : create vertex and edges;</li>
+<li><code>path</code> : navigate the graph;</li>
+<li><code>kill</code> : destroy vertex and edges;</li>
+</ul>
+<h3 id="make">MAKE</h3>
+<pre><code>  QUERY: make (kind::name);
+  REPLY: NAME
+</code></pre>
+
+<p>Creates a new vertex identified by NAME. Is replies with a <code>NAME</code>
+message. For example:</p>
+<pre><code>  &gt; using (leela::sandbox) make (machine::warp0013);
+  &lt; user  | tree    | kind    | name     | guid
+  &lt; leela | sandbox | machine | warp0013 | cd8a5e22-622e-11e5-bb66-fb5334d472bc
+</code></pre>
+
+<p>The lines above need a little bit of explanation. The first line is
+the LQL query. In the examples we will use the <code>&gt;</code> character to
+identify lines that are sent to the server. Following there is one or
+more response lines, identified by the <code>&lt;</code> character. More information
+about the different types of answers at the final section of this
+document.</p>
+<p>Let's now create an edge:</p>
+<pre><code>  QUERY: make GUID -[LABEL]&gt; GUID;
+  REPLY: DONE
+</code></pre>
+
+<p>This command requires vertex ids instead of names. Then, you can link
+two vertex with a given label which can be later used to navigate
+through the graph. Let's see an example:</p>
+<pre><code>  &gt; using (leela::sandbox) make (machine::warp0013);
+  &lt; user  | tree    | kind    | name     | guid
+  &lt; leela | sandbox | machine | warp0013 | cd8a5e22-622e-11e5-bb66-fb5334d472bc
+
+  &gt; using (leela::sandbox) make (nic::01-02-03-04-05);
+  &lt; user  | tree    | kind | name           | guid
+  &lt; leela | sandbox | nic  | 01-02-03-04-05 | 1d8bd666-6230-11e5-a3d6-7b6f71a2eebc
+
+  &gt; using (leela::sandbox) make cd8a5e22-622e-11e5-bb66-fb5334d472bc -[nic]&gt; 1d8bd666-6230-11e5-a3d6-7b6f71a2eebc;
+  &lt; ()
+
+  &gt; using (leela::sandbox) make cd8a5e22-622e-11e5-bb66-fb5334d472bc &lt;[machine]- 1d8bd666-6230-11e5-a3d6-7b6f71a2eebc;
+  &lt; ()
+</code></pre>
+
+<p>The first two queries just register the vertexes, nothing new
+here. The last query is the one that creates the edge. Differently
+from vertexes, labels are just strings so there is no need to register
+them. Labels are enclosed by <code>-[]&gt;</code>, the reason for this is that that
+string looks like an arrow. You can also change direction by using
+<code>&lt;[]-</code> which creates an edge with the inverse direction.</p>
+<p>The <code>DONE</code> reply is here represented by the <code>()</code> string because it has
+no payload.</p>
+<h3 id="path">PATH</h3>
+<p>The path command allows you to navigate through the graph. Creating
+edges and navigating through them are very similar. As a matter effect
+the syntax is almost the same:</p>
+<pre><code>QUERY: path GUID
+QUERY: path GUID -[LABEL-GLOB]&gt; ()...
+REPLY: PATH
+</code></pre>
+<p>Path takes a variable number of arguments. It can be used with no
+arguments in which case returns all edges a vertex may have. Or you
+can provide some edges in which case the system will use information
+to navigate the structure. Examples:</p>
+<pre><code>  &gt; using (leela::sandbox) path cd8a5e22-622e-11e5-bb66-fb5334d472bc;
+  &lt; label | guid
+  &lt; nic   | 1d8bd666-6230-11e5-a3d6-7b6f71a2eebc
+
+  &gt; using (leela::sandbox) path cd8a5e22-622e-11e5-bb66-fb5334d472bc -[n*]&gt; ();
+  &lt; label | guid
+  &lt; nic   | 1d8bd666-6230-11e5-a3d6-7b6f71a2eebc
+
+  &gt; using (leela::sandbox) path cd8a5e22-622e-11e5-bb66-fb5334d472bc -[foo]&gt; ();
+  &lt; ()
+</code></pre>
+
+<p>The first query retrieves all edges. The second one all edges that
+have a label starting with n. The last one attempts to retrieve edges
+with a <code>foo</code> label, which does not exists, thus an empty reply.</p>
+<h3 id="kill">KILL</h3>
+<p>Kill commands are the dual of make commands. They share the same
+syntax:</p>
+<pre><code>  QUERY: kill GUID
+  QUERY: kill GUID -[LABEL]&gt; ()...
+  REPLY: DONE
+</code></pre>
+
+<p>The second form destroy edges. The second form destroy vertexes and
+all information related [like properties and edges]. Sadly, deleting a
+vertex is not implemented.</p>
+<h2 id="property-manipulation">PROPERTY MANIPULATION</h2>
+<p>Vertexes may have properties and you can change or retrieve them using
+the <code>attr</code> command. Properties comes in two flavors:</p>
+<ul>
+<li>kv: key-value property;</li>
+<li>ts: time-series property;</li>
+</ul>
+<p>The difference between the two is that the former is indexed by
+time. You may think the <code>kv</code> property as a simple cell whereas the
+<code>ts</code> as an array in which the indexes are timestamps.</p>
+<p>There are four operations you can do with <code>kv</code> properties, namely
+<code>put</code>, <code>get</code>, <code>del</code> and <code>kls</code>. The last one is used for enumerating
+the attributes. The same commands can be used for <code>ts</code> properties but
+the last one which is <code>tls</code> instead. Next we provide details about
+every one of them.</p>
+<h3 id="attr-get">ATTR GET</h3>
+<p>You can use this command to retrieve both <code>kv</code> and <code>ts</code> properties.</p>
+<pre><code>  QUERY: attr get GUID &quot;NAME&quot; [WITH OPTIONS];
+  REPLY: K-ATTR
+</code></pre>
+
+<p>This syntax is used to fetch <code>kv</code> properties. Similarly:</p>
+<pre><code>  QUERY: attr get GUID &quot;NAME&quot; [S:E]
+  REPLY: T-ATTR
+</code></pre>
+
+<p>Fetches <code>ts</code> properties. The only difference is the last bit which
+contains the start and finish of the time-series. For example:</p>
+<pre><code>  &gt; using (leela::sandbox) attr get cd8a5e22-622e-11e5-bb66-fb5334d472bc &quot;foobar&quot; [0:3600];
+  &lt; guid                                 | name   | series
+  &lt; 4eb3de70-cb80-11e3-b4dc-0f48fe0268e8 | foobar | (1443043943.0, 19.95), (1443044003.0, 20.25), (1443044063.0, 16.5), (1443044123.0, 16.2334), (1443044183.0, 19.9333)
+</code></pre>
+
+<h4 id="functions">FUNCTIONS</h4>
+<p>There are a few functions that can be applied to transform the
+data. <code>map</code> functions apply to each datapoint, which does not change
+the size of the series. <code>reduce</code> functions on the other hand are
+blocking and consume all data before yielding a value
+[but you can use window functions to control how much data]. Following
+a list of available functions:</p>
+<ul>
+<li><code>map (+ N)</code>              : for each datapoint, datapoint + N;</li>
+<li><code>map (* N)</code>              : for each datapoint, datapoint * N;</li>
+<li><code>map (/ N)</code>              : for each datapoint, datapoint / N;</li>
+<li><code>map (- N)</code>              : for each datapoint, datapoint - N;</li>
+<li><code>map (N -)</code>              : for each datapoint, N - datapoint;</li>
+<li><code>map max</code>                : for each datapoint yields the maximum found so far;</li>
+<li><code>map min</code>                : for each datapoint yields the mimimum found so far;</li>
+<li><code>map (ewma R)</code>           : for each point yields the exponential moving average using R as the alpha parameter;</li>
+<li><code>map mean</code>               : for each point yields the current mean value;</li>
+<li><code>map count</code>              : for each point yields the current size of the series;</li>
+<li><code>map hmean</code>              : for each point yields the harmonic mean value;</li>
+<li><code>map abs</code>                : absolute function [eg.: abs -9 = 9];</li>
+<li><code>map ceil</code>               : ceiling function [eg.: ceil 2.1 = 3];</li>
+<li><code>map floor</code>              : floor function [eg.: floor 2.9 = 2];</li>
+<li><code>map round</code>              : rounding function [eg.: round 2.5 = 3];</li>
+<li><code>map truncate</code>           : truncate function [ex.: truncate 2.3 = 2];</li>
+<li><code>map sqrt</code>               : square root function;</li>
+<li><code>map (log R)</code>            : logarithm base R;</li>
+<li><code>reduce (+)</code>             : summation of the datapoints;</li>
+<li><code>reduce (*)</code>             : product of the datapoints;</li>
+<li><code>reduce min</code>             : the minimum value of the series;</li>
+<li><code>reduce max</code>             : the maximum value of the series;</li>
+<li><code>reduce count</code>           : the size of the series;</li>
+<li><code>reduce mean</code>            : the mean value of the series;</li>
+<li><code>reduce hmean</code>           : the harmonic mean value of the series;</li>
+<li><code>reduce (ewma R)</code>        : the exponential moving average using R as the alpha parameter;</li>
+<li><code>filter (&gt; N)</code>           : yields datapoints with value &gt; N;</li>
+<li><code>filter (&lt; N)</code>           : yields datapoints with value &lt; N;</li>
+<li><code>filter (&gt;= N)</code>          : yields datapoints with value &gt;= N;</li>
+<li><code>filter (&lt;= N)</code>          : yields datapoints with value &lt;= N;</li>
+<li><code>filter (N &gt;)</code>           : yields datapoints with N &gt; value;</li>
+<li><code>filter (N &lt;)</code>           : yields datapoints with N &lt; value;</li>
+<li><code>filter (N &gt;=)</code>          : yields datapoints with N &gt;= value;</li>
+<li><code>filter (N &lt;=)</code>          : yields datapoints with N &lt;= value;</li>
+<li><code>filter (N ==)</code>          : yields datapoints with values == N;</li>
+<li><code>filter (== N)</code>          : yields datapoints with values == N;</li>
+<li><code>window N max</code>           : groups N datapoints and yields the maximum;</li>
+<li><code>window N min</code>           : groups N datapoints and yields the maximum;</li>
+<li><code>window N (*)</code>           : groups N datapoints and yields the product of the series;</li>
+<li><code>window N (+)</code>           : groups N datapoints and yields the summation of the series;</li>
+<li><code>window N (ewma R)</code>      : groups N datapoints and yields the exponential moving average;</li>
+<li><code>window N mean</code>          : groups N datapoints and yields the mean value;</li>
+<li><code>window N hmean</code>         : groups N datapoints and yields the harmonic mean value;</li>
+<li><code>time-window N max</code>      : groups N seconds of data and yields the maximum;</li>
+<li><code>time-window N min</code>      : groups N seconds of data and yields the minimum;</li>
+<li><code>time-window N (*)</code>      : groups N seconds of data and yields the product of the series;</li>
+<li><code>time-window N (+)</code>      : groups N seconds of data and yields the summation of the series;</li>
+<li><code>time-window N mean</code>     : groups N seconds of data and yields then mean value;</li>
+<li><code>time-window N hmean</code>    : groups N seconds of data and yields then harmonic mean value;</li>
+<li><code>time-window N (ewma R)</code> : groups N seconds of data and yields the exponential moving average;</li>
+</ul>
+<h3 id="attr-put">ATTR PUT</h3>
+<p>Use this command to insert/modify data. <code>Kv</code> properties looks like:</p>
+<pre><code>  QUERY: attr put GUID &quot;NAME&quot; VALUE [WITH OPTIONS];
+  REPLY: ()
+</code></pre>
+
+<p>The value can be any value as described in the beginning of this
+document. Example:</p>
+<pre><code>  &gt; using (leela::sandbox) attr put cd8a5e22-622e-11e5-bb66-fb5334d472bc &quot;foo&quot; &quot;bar&quot;;
+  &lt; ()
+</code></pre>
+
+<p>Notice that put either inserts or updates the value. Now, for <code>ts</code> properties:</p>
+<pre><code>  QUERY: attr put GUID &quot;NAME&quot; [TIMESTAMP] VALUE;
+  REPLY: ()
+</code></pre>
+
+<p>The syntax is the same but the <code>[TIMESTAMP]</code> bit. This should contain
+a timestamp, i.e, the number of seconds since Jan/01/1970. For instance:</p>
+<pre><code>  &gt; using (leela::sandbox) attr put cd8a5e22-622e-11e5-bb66-fb5334d472bc &quot;foo&quot; [0] &quot;bar&quot;;
+  &lt; ()
+</code></pre>
+
+<p>This inserts the value <code>"bar"</code> at the given timestamp.</p>
+<h4 id="options">OPTIONS</h4>
+<ul>
+<li>ttl:N sets an expiration time of N seconds for this data point. Example, an ttl of 60s:</li>
+</ul>
+<pre><code>  &gt; using (leela::sandbox) attr put cd8a5e22-622e-11e5-bb66-fb5334d472bc &quot;foo&quot; [0] &quot;bar&quot; with ttl:60;
+  &lt; ()
+</code></pre>
+
+<h3 id="attr-del">ATTR DEL</h3>
+<p>Use this command to remove data. To remove <code>kv</code> properties:</p>
+<pre><code>  QUERY: attr del GUID &quot;NAME&quot;;
+  REPLY: ()
+</code></pre>
+
+<p>Similarly, to remove <code>ts</code> properties:</p>
+<pre><code>  QUERY: attr del GUID &quot;NAME&quot; [S:E]
+  REPLY: ()
+</code></pre>
+
+<p>The only difference is the timestamp bit. This is an interval, and all
+the values from S to E [inclusive] will be removed.</p>
+<p>Examples:</p>
+<pre><code>  &gt; using (leela::sandbox) attr del cd8a5e22-622e-11e5-bb66-fb5334d472bc &quot;foo&quot;;
+  &lt; ()
+  &gt; using (leela::sandbox) attr del cd8a5e22-622e-11e5-bb66-fb5334d472bc &quot;foo&quot; [0:3600];
+  &lt; ()
+</code></pre>
+
+<h3 id="attr-klstls">ATTR KLS/TLS</h3>
+<p>This allows you to enumerate properties by name using a glob-like
+syntax. The <code>kls</code> command is used to list <code>kv</code>
+properties. Unsurprisingly, <code>tls</code> is used to list <code>ts</code> properties.</p>
+<pre><code>  QUERY: attr kls GUID &quot;NAME-GLOB&quot;
+  REPLY: NATTR
+
+  QUERY: attr tls GUID &quot;NAME-GLOB&quot;
+  REPLY: TATTR
+</code></pre>
+
+<p>A few examples:</p>
+<pre><code>  &gt; using (leela::sandbox) attr kls cd8a5e22-622e-11e5-bb66-fb5334d472bc &quot;*&quot;
+  &lt; guid`                                 | names
+  &lt; cd8a5e22-622e-11e5-bb66-fb5334d472bc | cpu-idle | memory-free | swap-free ...
+
+  &gt; using (leela::sandbox) attr tls cd8a5e22-622e-11e5-bb66-fb5334d472bc &quot;c*&quot;
+  &lt; guid                                 | names
+  &lt; cd8a5e22-622e-11e5-bb66-fb5334d472bc | cpu-idle
+</code></pre>
+              
+            </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../../devel/environment/" class="btn btn-neutral float-right" title="Environment"/>Next <span class="icon icon-circle-arrow-right"></span></a>
+      
+      
+        <a href="../http-interface/" class="btn btn-neutral" title="Http interface"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+    
+  </div>
+
+  Built with <a href="http://www.mkdocs.org">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+	  
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+<div class="rst-versions" role="note" style="cursor: pointer">
+    <span class="rst-current-version" data-toggle="rst-current-version">
+      
+      
+        <span><a href="../http-interface/" style="color: #fcfcfc;">&laquo; Previous</a></span>
+      
+      
+        <span style="margin-left: 15px"><a href="../../devel/environment/" style="color: #fcfcfc">Next &raquo;</a></span>
+      
+    </span>
+</div>
+
+</body>
+</html>
