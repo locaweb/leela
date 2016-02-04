@@ -50,9 +50,9 @@ APACHE-2.0
 
 ## Contributors
 
-* Luiz Ozaki
-* Rodrigo Vaz
-* Andre Ferraz
-* Juliano Martines [former author (v0.0.9)]
-* Willian Mollinari
+* [Luiz Ozaki](https://github.com/luizoz)
+* [Rodrigo Vaz](https://github.com/rsampaio)
+* [Andre Ferraz](https://github.com/deferraz)
+* [Juliano Martinez](https://github.com/ncode) [former author (v0.0.9)]
+* [Willian Mollinari (a.k.a PotHix)](https://github.com/pothix)
 
